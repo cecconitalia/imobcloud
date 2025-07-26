@@ -1,0 +1,14 @@
+# Caminho: imobcloud/backend/requirements.txt
+
+fastapi
+uvicorn[standard]
+sqlalchemy[asyncio]
+asyncpg 
+alembic
+pydantic[email]
+python-dotenv
+redis
+passlib[bcrypt]    # Para hashing de senhas
+python-jose[cryptography] # Para criar e verificar tokens JWT
+bcrypt
+python-multipart

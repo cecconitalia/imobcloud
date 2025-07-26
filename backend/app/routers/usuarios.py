@@ -1,0 +1,1 @@
+# Endpoints da API relacionados a usuários e autenticação
