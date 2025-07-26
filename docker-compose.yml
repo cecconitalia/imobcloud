@@ -1,57 +1,53 @@
-# Caminho: imobcloud/docker-compose.yml
-
-version: '3.8'
-
 services:
   db:
-    image: postgres:15-alpine
+    image: postgres:13.2-alpine
+    container_name: imobcloud_db
+    ports:
+      - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data/
     environment:
-      - POSTGRES_USER=imobuser
-      - POSTGRES_PASSWORD=supersecret
       - POSTGRES_DB=imobcloud_db
-    ports:
-      - "5432:5432"
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U imobuser -d imobcloud_db"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
+      - POSTGRES_USER=imobuser
+      - POSTGRES_PASSWORD=imobpassword
+      - POSTGRES_HOST_AUTH_METHOD=md5
+    restart: unless-stopped
 
   cache:
-    image: redis:7-alpine
+    image: redis:6.2-alpine
+    container_name: imobcloud_cache
+    restart: unless-stopped
     ports:
       - "6379:6379"
 
   backend:
-    build: ./backend
-    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
-    volumes:
-      - ./backend:/app
+    container_name: imobcloud_backend
+    build:
+      context: ./backend  # <-- CORRIGIDO
     ports:
       - "8000:8000"
-    environment:
-      - DATABASE_URL=postgresql+asyncpg://imobuser:supersecret@db:5432/imobcloud_db
-      - REDIS_URL=redis://cache:6379
+    volumes:
+      - ./backend:/app   # <-- CORRIGIDO
+    env_file:
+      - ./backend/.env   # <-- CORRIGIDO
     depends_on:
-      db:
-        condition: service_healthy
-      cache:
-        condition: service_started
+      - db
+      - cache
+    restart: unless-stopped
 
-  # --- ALTERAÇÃO AQUI ---
-  # Descomentamos e configuramos o serviço do frontend
   frontend:
-    build: ./frontend
+    container_name: imobcloud_frontend
+    build:
+      context: ./frontend # <-- CORRIGIDO
+    volumes:
+      - ./frontend:/app  # <-- CORRIGIDO
+      - /app/node_modules
+      - /app/.next
     ports:
       - "3000:3000"
-    volumes:
-      - ./frontend:/app
-      # Otimização: não sincroniza a pasta node_modules, usa a de dentro do contêiner
-      - /app/node_modules
     depends_on:
       - backend
+    restart: unless-stopped
 
 volumes:
   postgres_data:
