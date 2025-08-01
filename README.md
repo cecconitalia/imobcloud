@@ -1,5 +1,3 @@
-Com certeza! Com base na descrição detalhada do seu projeto Imobcloud, preparei um rascunho de um arquivo README.md que você pode usar no seu repositório Git. Ele visa ser claro, conciso e destacar os pontos mais importantes da sua aplicação.
-
 Imobcloud
 Uma plataforma SaaS multi-tenant robusta, projetada para imobiliárias e corretores, que oferece uma solução completa para a gestão personalizada de imóveis, usuários e atendimentos. Cada cliente opera em um ambiente isolado, acessível através de subdomínios exclusivos, garantindo segurança, escalabilidade e alta performance.
 
