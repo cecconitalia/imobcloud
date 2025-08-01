@@ -1,0 +1,18 @@
+# Dependências
+node_modules/
+.pnpm/
+.cache/
+
+# Builds
+dist/
+build/
+
+# Variáveis e configurações locais
+.env
+*.log
+.vscode/
+.idea/
+
+# Arquivos de sistema
+.DS_Store
+Thumbs.db
