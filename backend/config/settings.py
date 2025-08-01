@@ -1,20 +1,26 @@
 # backend/config/settings.py
 import os
 from pathlib import Path
+from datetime import timedelta # Importar timedelta para configurações JWT
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-SECRET_KEY = 'django-insecure-mude-esta-chave-depois'
-DEBUG = True
-ALLOWED_HOSTS = ['*']
+# Quick-start development settings - unsuitable for production
+SECRET_KEY = os.environ.get('DJANGO_SECRET_KEY', 'django-insecure-sua-chave-secreta-padrao-aqui')
+DEBUG = os.environ.get('DJANGO_DEBUG', 'True') == 'True'
+ALLOWED_HOSTS = ['*'] # Permitir todos os hosts para desenvolvimento; ajustar para produção
 
-# --- CONFIGURAÇÃO DO DJANGO-TENANTS E CORS ---
+# Application definition
 
 SHARED_APPS = [
     'django_tenants',  # Deve ser a primeira
-    'tenants',         # App que gerencia os tenants e domínios
+    'tenants',         # Seu app que gerencia os tenants e domínios
     'corsheaders',     # Para permitir requisições do frontend
+
+    'rest_framework',  # Django Rest Framework - MOVIDO PARA SHARED_APPS
+    'rest_framework_simplejwt', # JWT authentication - MOVIDO PARA SHARED_APPS
+    'users',           # Seu app de usuários - MOVIDO PARA SHARED_APPS
 
     # Apps padrão do Django
     'django.contrib.admin',
@@ -27,23 +33,16 @@ SHARED_APPS = [
 
 TENANT_APPS = [
     # Apps que pertencem a cada tenant
-    'properties',
-    'users',
-    
-    # Outras apps de tenant
-    'rest_framework',
-    'rest_framework_simplejwt',
+    'properties', # Seu app de imóveis
+    # Outras apps específicas do tenant, se houver
 ]
 
-INSTALLED_APPS = SHARED_APPS + TENANT_APPS
+INSTALLED_APPS = list(SHARED_APPS) + [app for app in TENANT_APPS if app not in SHARED_APPS]
 
-TENANT_MODEL = "tenants.Tenant"
-TENANT_DOMAIN_MODEL = "tenants.Domain"
-
+# Middlewares
 MIDDLEWARE = [
-    # Middleware do corsheaders deve vir antes da maioria
-    'corsheaders.middleware.CorsMiddleware',
-    'django_tenants.middleware.main.TenantMainMiddleware',
+    'corsheaders.middleware.CorsMiddleware', # Deve vir bem cedo
+    'django_tenants.middleware.main.TenantMainMiddleware', # Deve vir logo após CorsMiddleware
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
@@ -54,7 +53,7 @@ MIDDLEWARE = [
 ]
 
 ROOT_URLCONF = 'config.urls'
-PUBLIC_SCHEMA_URLCONF = 'config.urls_public'
+PUBLIC_SCHEMA_URLCONF = 'config.urls_public' # Define o URLconf para o schema público
 
 TEMPLATES = [
     {
@@ -75,21 +74,22 @@ TEMPLATES = [
 WSGI_APPLICATION = 'config.wsgi.application'
 
 # --- BANCO DE DADOS ---
-
 DATABASES = {
     'default': {
         'ENGINE': 'django_tenants.postgresql_backend',
-        'NAME': 'imobcloud_public',
-        'USER': 'imobcloud_user',
-        'PASSWORD': 'supersecretpassword',
-        'HOST': 'localhost',
-        'PORT': '5432',
+        'NAME': os.environ.get('POSTGRES_DB', 'imobcloud_public'),
+        'USER': os.environ.get('POSTGRES_USER', 'imobcloud_user'),
+        'PASSWORD': os.environ.get('POSTGRES_PASSWORD', 'supersecretpassword'),
+        'HOST': os.environ.get('POSTGRES_HOST', 'db'), # <--- CORREÇÃO FINAL: DE 'localhost' PARA 'db'
+        'PORT': os.environ.get('POSTGRES_PORT', '5432'),
     }
 }
 
-DATABASE_ROUTERS = (
-    'django_tenants.routers.TenantSyncRouter',
-)
+DATABASE_ROUTERS = ('django_tenants.routers.TenantSyncRouter',)
+
+# --- CONFIGURAÇÕES DE DJANGO-TENANTS ---
+TENANT_MODEL = "tenants.Tenant"
+TENANT_DOMAIN_MODEL = "tenants.Domain"
 
 # --- OUTRAS CONFIGURAÇÕES ---
 
@@ -106,10 +106,59 @@ USE_I18N = True
 USE_TZ = True
 
 STATIC_URL = 'static/'
+STATIC_ROOT = BASE_DIR / 'staticfiles' # Adicionado para coleta de arquivos estáticos em produção
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 # --- CONFIGURAÇÃO DO CORS ---
-
+CORS_ALLOW_ALL_ORIGINS = True # Ou liste as origens específicas abaixo
 CORS_ALLOWED_ORIGINS = [
-    "http://localhost:5173",
+    "http://localhost:5173", # URL do seu frontend em desenvolvimento
 ]
+CORS_ALLOW_HEADERS = [
+    'accept', 'accept-encoding', 'authorization', 'content-type',
+    'dnt', 'origin', 'user-agent', 'x-csrftoken', 'x-requested-with',
+]
+CORS_ALLOW_METHODS = [
+    'DELETE', 'GET', 'OPTIONS', 'PATCH', 'POST', 'PUT',
+]
+
+# JWT Settings (configuração padrão para rest_framework_simplejwt)
+REST_FRAMEWORK = {
+    'DEFAULT_AUTHENTICATION_CLASSES': (
+        'rest_framework_simplejwt.authentication.JWTAuthentication',
+    ),
+    'DEFAULT_PERMISSION_CLASSES': (
+        'rest_framework.permissions.IsAuthenticated', # Padrão para exigir autenticação
+    )
+}
+
+SIMPLE_JWT = {
+    'ACCESS_TOKEN_LIFETIME': timedelta(minutes=5),
+    'REFRESH_TOKEN_LIFETIME': timedelta(days=1),
+    'ROTATE_REFRESH_TOKENS': False,
+    'BLACKLIST_AFTER_ROTATION': False,
+    'UPDATE_LAST_LOGIN': False,
+
+    'ALGORITHM': 'HS256',
+    'SIGNING_KEY': SECRET_KEY,
+    'VERIFYING_KEY': None,
+    'AUDIENCE': None,
+    'ISSUER': None,
+    'JWK_URL': None,
+    'LEEWAY': 0,
+
+    'AUTH_HEADER_TYPES': ('Bearer',),
+    'AUTH_HEADER_NAME': 'HTTP_AUTHORIZATION',
+    'USER_ID_FIELD': 'id',
+    'USER_ID_CLAIM': 'user_id',
+    'USER_AUTHENTICATION_RULE': 'rest_framework_simplejwt.authentication.default_user_authentication_rule',
+
+    'AUTH_TOKEN_CLASSES': ('rest_framework_simplejwt.tokens.AccessToken',),
+    'TOKEN_TYPE_CLAIM': 'token_type',
+    'TOKEN_USER_CLASS': 'rest_framework_simplejwt.models.TokenUser',
+
+    'JTI_CLAIM': 'jti',
+
+    'SLIDING_TOKEN_LIFETIME': timedelta(minutes=5),
+    'SLIDING_TOKEN_REFRESH_LIFETIME': timedelta(days=1),
+}

@@ -12,6 +12,51 @@ services:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data/
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U imobcloud_user -d imobcloud_public"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: imobcloud_backend
+    # Garante que as migrações do banco de dados são aplicadas antes de iniciar o servidor
+    command: sh -c "python manage.py makemigrations --noinput && python manage.py migrate --noinput && python manage.py runserver 0.0.0.0:8000"
+    volumes:
+      - ./backend:/app
+    ports:
+      - "8000:8000"
+    environment:
+      - POSTGRES_DB=imobcloud_public
+      - POSTGRES_USER=imobcloud_user
+      - POSTGRES_PASSWORD=supersecretpassword
+      - POSTGRES_HOST=db
+      - POSTGRES_PORT=5432
+      - DJANGO_SECRET_KEY=sua-chave-secreta-aqui
+      - DJANGO_DEBUG=True
+    depends_on:
+      db:
+        condition: service_healthy
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: imobcloud_frontend
+    # Usando yarn dev, já que `yarn.lock` foi fornecido. Altere para 'npm run dev' se preferir npm.
+    command: yarn dev --host 0.0.0.0
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules # Garante que as dependências do node sejam instaladas no contêiner
+    ports:
+      - "5173:5173"
+    environment:
+      - VITE_API_URL=http://localhost:8000
+    depends_on:
+      - backend
 
 volumes:
   postgres_data:
