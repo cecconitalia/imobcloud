@@ -3,12 +3,38 @@ from django.db import models
 from core.models import Imobiliaria # Importa o modelo Imobiliaria
 
 class Imovel(models.Model):
+    # Tipos de imóvel
+    TIPO_IMOVEL_CHOICES = [
+        ('Casa', 'Casa'),
+        ('Apartamento', 'Apartamento'),
+        ('Terreno', 'Terreno'),
+        ('Sala Comercial', 'Sala Comercial'),
+        ('Galpão', 'Galpão'),
+        ('Outro', 'Outro'),
+    ]
+
+    # Finalidades
+    FINALIDADE_CHOICES = [
+        ('Venda', 'Venda'),
+        ('Aluguel', 'Aluguel'),
+        ('Ambos', 'Venda e Aluguel'),
+    ]
+
+    # Status do imóvel (ATUALIZADO: Adicionando 'Desativado')
+    STATUS_IMOVEL_CHOICES = [
+        ('Disponível', 'Disponível'),
+        ('Alugado', 'Alugado'),
+        ('Vendido', 'Vendido'),
+        ('Em Negociação', 'Em Negociação'),
+        ('Desativado', 'Desativado'), # <<< NOVO: Adicionado para soft delete
+    ]
+
     imobiliaria = models.ForeignKey(Imobiliaria, on_delete=models.CASCADE, verbose_name="Imobiliária")
-    tipo = models.CharField(max_length=50, verbose_name="Tipo de Imóvel") # Ex: "Apartamento", "Casa"
-    finalidade = models.CharField(max_length=50, verbose_name="Finalidade", choices=[('Venda', 'Venda'), ('Aluguel', 'Aluguel'), ('Ambos', 'Ambos')])
+    tipo = models.CharField(max_length=50, verbose_name="Tipo de Imóvel", choices=TIPO_IMOVEL_CHOICES) # Adicionado choices
+    finalidade = models.CharField(max_length=50, verbose_name="Finalidade", choices=FINALIDADE_CHOICES)
     endereco = models.CharField(max_length=255, verbose_name="Endereço")
     cidade = models.CharField(max_length=100, verbose_name="Cidade")
-    estado = models.CharField(max_length=2, verbose_name="Estado") # Ex: "SP", "RJ"
+    estado = models.CharField(max_length=2, verbose_name="Estado") 
     cep = models.CharField(max_length=9, blank=True, null=True, verbose_name="CEP")
     valor_venda = models.DecimalField(max_digits=15, decimal_places=2, null=True, blank=True, verbose_name="Valor de Venda")
     valor_aluguel = models.DecimalField(max_digits=15, decimal_places=2, null=True, blank=True, verbose_name="Valor de Aluguel")
@@ -19,7 +45,7 @@ class Imovel(models.Model):
     banheiros = models.IntegerField(default=0, verbose_name="Banheiros")
     vagas_garagem = models.IntegerField(default=0, verbose_name="Vagas de Garagem")
     descricao = models.TextField(blank=True, null=True, verbose_name="Descrição")
-    status = models.CharField(max_length=50, default='Disponível', verbose_name="Status", choices=[('Disponível', 'Disponível'), ('Alugado', 'Alugado'), ('Vendido', 'Vendido'), ('Em Negociação', 'Em Negociação')])
+    status = models.CharField(max_length=50, choices=STATUS_IMOVEL_CHOICES, default='Disponível', verbose_name="Status")
     aceita_financiamento = models.BooleanField(default=False, verbose_name="Aceita Financiamento")
     data_cadastro = models.DateTimeField(auto_now_add=True, verbose_name="Data de Cadastro")
     data_atualizacao = models.DateTimeField(auto_now=True, verbose_name="Última Atualização")
@@ -27,7 +53,7 @@ class Imovel(models.Model):
     class Meta:
         verbose_name = "Imóvel"
         verbose_name_plural = "Imóveis"
-        ordering = ['-data_cadastro'] # Ordena os imóveis pelos mais recentes
+        ordering = ['-data_cadastro'] 
 
     def __str__(self):
         return f"{self.tipo} em {self.endereco}, {self.cidade} - {self.imobiliaria.nome}"
@@ -42,7 +68,7 @@ class ImagemImovel(models.Model):
     class Meta:
         verbose_name = "Imagem do Imóvel"
         verbose_name_plural = "Imagens dos Imóveis"
-        ordering = ['principal', 'data_upload'] # Imagem principal primeiro
+        ordering = ['principal', 'data_upload'] 
 
     def __str__(self):
         return f"Imagem de {self.imovel.endereco} ({self.imovel.imobiliaria.nome})"

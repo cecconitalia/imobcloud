@@ -44,14 +44,14 @@ INSTALLED_APPS = [
 
 
 MIDDLEWARE = [
-    # Nosso custom middleware para identificar o tenant pelo subdomínio
-    'ImobCloud.middleware.TenantIdentificationMiddleware', # DEVE VIR ANTES DE OUTROS MIDDLEWARE QUE PRECISAM DO TENANT
     'django.middleware.security.SecurityMiddleware',
-    'corsheaders.middleware.CorsMiddleware', # DEVE VIR ANTES DE CommonMiddleware, SessionMiddleware etc.
+    'corsheaders.middleware.CorsMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
-    'django.contrib.auth.middleware.AuthenticationMiddleware',
+    # ORDEM CORRIGIDA: AuthenticationMiddleware DEVE VIR ANTES do seu middleware de Tenant
+    'django.contrib.auth.middleware.AuthenticationMiddleware', # <<< ESTA LINHA DEVE VIR ANTES
+    'ImobCloud.middleware.TenantIdentificationMiddleware',     # <<< ESTA LINHA DEVE VIR DEPOIS
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
@@ -143,109 +143,69 @@ SITE_ID = 1
 # =============================================================
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': [
-        'rest_framework_simplejwt.authentication.JWTAuthentication', # Adicionado para usar JWT
-        'rest_framework.authentication.SessionAuthentication',       # Opcional: útil para browsable API
+        'rest_framework_simplejwt.authentication.JWTAuthentication',
+        'rest_framework.authentication.SessionAuthentication',
     ],
     'DEFAULT_PERMISSION_CLASSES': [
-        # Por padrão, vamos permitir acesso irrestrito para facilitar o desenvolvimento
-        # e aplicar IsAuthenticated nas views específicas do painel da imobiliária.
         'rest_framework.permissions.AllowAny', # Permite acesso sem autenticação
     ],
     'DEFAULT_RENDERER_CLASSES': [
         'rest_framework.renderers.JSONRenderer',
-        'rest_framework.renderers.BrowsableAPIRenderer', # Fornece a interface navegável no navegador
+        'rest_framework.renderers.BrowsableAPIRenderer',
     ],
 }
 
 # =============================================================
 # CORS Headers Settings (para requisições entre origens diferentes)
 # =============================================================
-# Para desenvolvimento, permitir todas as origens é conveniente.
-# Em produção, você deve mudar para False e listar explicitamente as origens permitidas.
 CORS_ALLOW_ALL_ORIGINS = True
-
-# Se CORS_ALLOW_ALL_ORIGINS for False, você listaria as origens permitidas assim:
-# CORS_ALLOWED_ORIGINS = [
-#     "http://localhost:5173",
-#     "http://sol.localhost:5173", # Adicione todos os seus subdomínios .localhost aqui
-#     # Ex: "http://imobiliaria_teste.localhost:5173",
-#     # Para produção: "https://seusistema.com", "https://*.seusistema.com"
-# ]
-
-# Importante para lidar com credenciais (cookies, cabeçalhos de autorização) entre origens
 CORS_ALLOW_CREDENTIALS = True
 
 # =============================================================
 # Jazzmin Admin Theme Settings
-# Mais informações: https://jazzmin.netlify.app/pages/configuration.html
 # =============================================================
 JAZZMIN_SETTINGS = {
-    # Título que aparece na aba do navegador
     "site_title": "ImobCloud Admin",
-
-    # Título que aparece no cabeçalho do painel
     "site_header": "ImobCloud",
-
-    # Nome da marca no sidebar (pequeno)
     "site_brand": "ImobCloud",
-
-    # Logo opcional (caminho para um arquivo estático)
-    "site_logo": "img/logo.png", # Você precisaria criar este arquivo static/img/logo.png
-    "site_logo_classes": "img-circle", # Ex: "img-circle", "img-square"
-
-    # URL para onde o logo aponta
+    "site_logo": "img/logo.png",
+    "site_logo_classes": "img-circle",
     "login_logo": None,
     "login_logo_dark": None,
-
-    # Barra de pesquisa no admin
     "search_model": ["auth.User", "core.Imobiliaria", "app_imoveis.Imovel"],
-
-    # Links no cabeçalho (ex: link para o site público)
     "topbar_links": [
         {"name": "Home", "url": "admin:index", "permissions": ["auth.view_user"]},
-        {"name": "Suporte", "url": "#", "new_window": True}, # Exemplo de link de suporte
-        {"model": "auth.User"}, # Link para o modelo de usuário
+        {"name": "Suporte", "url": "#", "new_window": True},
+        {"model": "auth.User"},
     ],
-
-    # Navegação no sidebar (modelo de itens do menu)
     "order_with_respect_to": ["core", "app_imoveis", "app_clientes", "app_contratos", "auth"],
-
-    # Configurações de UI do sidebar
-    "navigation_expanded": True, # Sidebar expandido por padrão
+    "navigation_expanded": True,
     "show_sidebar": True,
     "sidebar_nav_compact_mode": False,
     "sidebar_nav_child_indent": True,
     "sidebar_nav_icons": True,
-    "actions_dropdown_urls": True, # Mostrar URLs para ações dropdown
-
-    # Estilos de tema (escolha um)
-    # Veja as opções em: https://jazzmin.netlify.app/pages/themes.html
+    "actions_dropdown_urls": True,
     "default_icon_parents": "fas fa-folder",
     "default_icon_children": "fas fa-file",
     "usermenu_links": [
-        # {"name": "Seu Perfil", "url": "/admin/auth/user/change/"}, # Exemplo
         {"model": "auth.user"}
     ],
-    "show_ui_builder": False, # Mude para True se quiser experimentar temas visuais (apenas em dev)
-    "theme": "united", # Tema padrão
-    "dark_mode_theme": None, # Tema para modo escuro (ex: "darkly", "slate", "superhero")
-    "custom_css": None, # Caminho para seu CSS customizado
-    "custom_js": None,  # Caminho para seu JS customizado
+    "show_ui_builder": False,
+    "theme": "united",
+    "dark_mode_theme": None,
+    "custom_css": None,
+    "custom_js": None,
     "show_language_chooser": True,
 }
 
-# =============================================================
-# Jazzmin UI Tweaks (Para ajustes finos de UI)
-# Mais informações: https://jazzmin.netlify.app/pages/ui_tweaks.html
-# =============================================================
 JAZZMIN_UI_TWEAKS = {
     "navbar_small_text": False,
     "footer_small_text": False,
     "body_small_text": False,
     "brand_small_text": False,
-    "brand_colour": "navbar-navy", # Cor da marca na barra de navegação
-    "accent": "accent-primary", # Cor de destaque para elementos interativos
-    "navbar": "navbar-dark", # Estilo da barra de navegação
+    "brand_colour": "navbar-navy",
+    "accent": "accent-primary",
+    "navbar": "navbar-dark",
     "no_navbar_border": False,
     "navbar_fixed": False,
     "layout_boxed": False,
@@ -258,8 +218,8 @@ JAZZMIN_UI_TWEAKS = {
     "sidebar_nav_compact_style": False,
     "sidebar_nav_legacy_style": False,
     "sidebar_nav_flat_style": False,
-    "theme": "united", # Deve ser o mesmo de JAZZMIN_SETTINGS.theme
-    "dark_mode_theme": None, # Deve ser o mesmo de JAZZMIN_SETTINGS.dark_mode_theme
+    "theme": "united",
+    "dark_mode_theme": None,
     "button_classes": {
         "primary": "btn-outline-primary",
         "secondary": "btn-outline-secondary",
@@ -270,14 +230,25 @@ JAZZMIN_UI_TWEAKS = {
     },
     "sidebar_nav_colorize_icon": False,
     "sidebar_nav_filter_tree": False,
-    "sidebar_nav_top_level_style": "tabs", # ou "cards" ou None
+    "sidebar_nav_top_level_style": "tabs",
     "sidebar_nav_top_level_color": "navbar-light",
 }
 
 # =============================================================
-# Configurações de Mídia (Upload de Arquivos)
-# https://docs.djangoproject.com/en/5.0/ref/settings/#media-root
-# https://docs.djangoproject.com/en/5.0/ref/settings/#media-url
+# Configurações de Média (Upload de Arquivos)
 # =============================================================
 MEDIA_URL = '/media/'
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
+
+# =============================================================
+# Configurações CSRF
+# =============================================================
+CSRF_TRUSTED_ORIGINS = [
+    'http://localhost:5173',
+    'http://127.0.0.1:5173',
+    # Se você estiver usando subdomínios, adicione-os também para CSRF
+    # Ex: 'http://sol.localhost:5173',
+    # Para produção, você listaria os domínios reais:
+    # 'https://seusistema.com',
+    # 'https://*.seusistema.com',
+]
