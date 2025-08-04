@@ -1,11 +1,15 @@
 # C:\wamp64\www\ImobCloud\app_contratos\views.py
-from rest_framework import viewsets, status # Adicione status
-from rest_framework.response import Response # Adicione Response
+from rest_framework import viewsets, status
+from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
+
+# 1. IMPORTAR O MÓDULO DE FILTROS
+from rest_framework import filters
+
 from .models import Contrato
 from .serializers import ContratoSerializer
 from django.shortcuts import get_object_or_404
-from app_imoveis.models import Imovel
+from app_imoveis.models import Imovel 
 from app_clientes.models import Cliente
 
 class ContratoViewSet(viewsets.ModelViewSet):
@@ -13,11 +17,17 @@ class ContratoViewSet(viewsets.ModelViewSet):
     serializer_class = ContratoSerializer
     permission_classes = [IsAuthenticated]
 
+    # 2. ADICIONAR OS BACKENDS DE FILTRO E PESQUISA
+    filter_backends = [filters.SearchFilter]
+    
+    # 3. DEFINIR OS CAMPOS ONDE A PESQUISA IRÁ PROCURAR
+    # Nota: Usamos '__' para pesquisar em campos de modelos relacionados.
+    search_fields = ['imovel__endereco', 'cliente__nome_completo', 'condicoes_pagamento']
+
+
     def get_queryset(self):
-        """
-        MODIFICADO: A consulta base agora exclui contratos com o status 'Inativo'.
-        """
-        # A base da consulta agora exclui os contratos inativos.
+        # A sua lógica de queryset existente, que já filtra por status, permanece igual.
+        # O Django REST Framework aplicará a pesquisa sobre o resultado desta função.
         base_queryset = Contrato.objects.exclude(status_contrato='Inativo')
 
         if self.request.user.is_superuser:
@@ -27,7 +37,7 @@ class ContratoViewSet(viewsets.ModelViewSet):
         return Contrato.objects.none()
 
     def perform_create(self, serializer):
-        # Nenhuma alteração aqui, a criação de contratos continua a funcionar.
+        # Nenhuma alteração aqui. A criação de contratos continua a funcionar como antes.
         imovel_id = self.request.data.get('imovel')
         cliente_id = self.request.data.get('cliente')
         if self.request.user.is_superuser:
@@ -46,7 +56,7 @@ class ContratoViewSet(viewsets.ModelViewSet):
             raise Exception("Não foi possível associar o contrato. Tenant não identificado ou inválido.")
 
     def perform_update(self, serializer):
-        # Nenhuma alteração aqui, a edição de contratos continua a funcionar.
+        # Nenhuma alteração aqui. A edição de contratos continua a funcionar como antes.
         if self.request.user.is_superuser:
             serializer.save()
         elif serializer.instance.imobiliaria == self.request.tenant:
@@ -55,10 +65,7 @@ class ContratoViewSet(viewsets.ModelViewSet):
             raise Exception("Você não tem permissão para atualizar este contrato.")
 
     def perform_destroy(self, instance):
-        """
-        MODIFICADO: Em vez de apagar, agora altera o status_contrato
-        para 'Inativo' e guarda a alteração.
-        """
+        # Lógica de inativação (soft delete) adicionada anteriormente. Nenhuma alteração aqui.
         if self.request.user.is_superuser or instance.imobiliaria == self.request.tenant:
             instance.status_contrato = 'Inativo'
             instance.save()

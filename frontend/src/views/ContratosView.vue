@@ -7,6 +7,15 @@
       </router-link>
     </header>
 
+    <div class="search-bar">
+      <input
+        type="text"
+        v-model="searchTerm"
+        placeholder="Pesquisar por endereço, cliente, condições..."
+        @input="fetchContratos"
+      />
+    </div>
+
     <div v-if="isLoading">A carregar...</div>
     <div v-if="error" class="error-message">{{ error }}</div>
 
@@ -17,7 +26,8 @@
           <th>Cliente</th>
           <th>Tipo</th>
           <th>Status</th>
-          <th>Ações</th> </tr>
+          <th>Ações</th>
+        </tr>
       </thead>
       <tbody>
         <tr v-for="contrato in contratos" :key="contrato.id">
@@ -37,7 +47,7 @@
       </tbody>
     </table>
      <div v-if="!isLoading && contratos.length === 0 && !error">
-      <p>Nenhum contrato cadastrado ainda.</p>
+      <p>Nenhum contrato encontrado.</p>
     </div>
   </div>
 </template>
@@ -50,10 +60,17 @@ const contratos = ref<any[]>([]);
 const isLoading = ref(true);
 const error = ref<string | null>(null);
 
+// ## ESTADO PARA O TERMO DE PESQUISA ADICIONADO ##
+const searchTerm = ref('');
+
+// ## FUNÇÃO DE BUSCA ATUALIZADA PARA INCLUIR A PESQUISA ##
 async function fetchContratos() {
   isLoading.value = true;
   try {
-    const response = await apiClient.get('/v1/contratos/contratos/');
+    const params = {
+      search: searchTerm.value, // Adiciona o parâmetro de pesquisa ao pedido
+    };
+    const response = await apiClient.get('/v1/contratos/contratos/', { params });
     contratos.value = response.data;
   } catch (err) {
     console.error("Erro ao buscar contratos:", err);
@@ -63,21 +80,18 @@ async function fetchContratos() {
   }
 }
 
+// Lógica onMounted (INTACTA)
 onMounted(() => {
   fetchContratos();
 });
 
-// ## LÓGICA DE INATIVAÇÃO ADICIONADA ##
+// Lógica handleInativar (INTACTA)
 async function handleInativar(contratoId: number) {
   if (!window.confirm('Tem a certeza de que deseja inativar este contrato?')) {
     return;
   }
-
   try {
-    // Chama o endpoint DELETE. O backend irá interpretar isto como uma inativação.
     await apiClient.delete(`/v1/contratos/contratos/${contratoId}/`);
-
-    // Remove o contrato da lista no frontend para uma atualização instantânea da UI.
     contratos.value = contratos.value.filter(contrato => contrato.id !== contratoId);
   } catch (error) {
     console.error("Erro ao inativar contrato:", error);
@@ -106,6 +120,18 @@ async function handleInativar(contratoId: number) {
   font-weight: bold;
   border: none;
   cursor: pointer;
+}
+/* ## ESTILO PARA A BARRA DE PESQUISA ADICIONADO ## */
+.search-bar {
+  margin-bottom: 1.5rem;
+}
+.search-bar input {
+  width: 100%;
+  padding: 10px;
+  font-size: 1rem;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  box-sizing: border-box;
 }
 table {
   width: 100%;

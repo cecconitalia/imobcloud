@@ -3,6 +3,8 @@ from rest_framework import viewsets, status
 from rest_framework.response import Response
 from rest_framework import permissions 
 from django.shortcuts import get_object_or_404
+from rest_framework import filters
+
 from .models import Imovel, ImagemImovel
 from .serializers import ImovelSerializer, ImagemImovelSerializer
 from core.models import Imobiliaria 
@@ -10,37 +12,40 @@ from core.models import Imobiliaria
 class ImovelViewSet(viewsets.ModelViewSet):
     queryset = Imovel.objects.all()
     serializer_class = ImovelSerializer
-    permission_classes = [permissions.AllowAny] # Mantido como no seu código original
+    permission_classes = [permissions.IsAuthenticatedOrReadOnly]
+    filter_backends = [filters.SearchFilter]
+    search_fields = ['endereco', 'cidade', 'descricao']
 
     def get_queryset(self):
-        """
-        MODIFICADO: A consulta base agora exclui imóveis com o status 'Desativado'.
-        A lógica para superuser e tenant continua a funcionar sobre esta base filtrada.
-        """
-        # A base da consulta agora exclui os imóveis inativos.
         base_queryset = Imovel.objects.exclude(status='Desativado')
 
-        if self.request.user.is_superuser:
-            # Mantém a lógica original para superuser, mas sobre a nova base.
-            # Se quiser que o superuser veja *todos*, mude base_queryset para Imovel.objects.all()
-            return base_queryset.all() 
-        elif self.request.tenant:
-            # Filtra pela imobiliária do tenant, como já fazia.
+        # Lógica para utilizadores autenticados (painel) continua a funcionar como antes
+        if self.request.user.is_authenticated:
+            if self.request.user.is_superuser:
+                return base_queryset.all()
+            elif self.request.tenant:
+                return base_queryset.filter(imobiliaria=self.request.tenant)
+
+        # Lógica para o site público (utilizadores anónimos)
+        # O middleware identifica o tenant pelo HOST (ex: sol.localhost)
+        if self.request.tenant:
             return base_queryset.filter(imobiliaria=self.request.tenant)
         
-        # A lógica de fallback para o subdomain via parâmetro continua igual.
+        # Fallback para o site público, que irá enviar um parâmetro de URL
         subdomain_param = self.request.query_params.get('subdomain', None)
         if subdomain_param:
             try:
-                imobiliaria_por_param = Imobiliaria.objects.get(subdomino=subdomain_param)
+                # --- LINHA CORRIGIDA ---
+                # Corrigido de 'subdomino' para 'subdominio' para corresponder ao modelo
+                imobiliaria_por_param = Imobiliaria.objects.get(subdominio=subdomain_param)
                 return base_queryset.filter(imobiliaria=imobiliaria_por_param)
             except Imobiliaria.DoesNotExist:
                 return Imovel.objects.none()
 
+        # Se nenhum tenant for identificado, retorna uma lista vazia
         return Imovel.objects.none()
 
     def perform_create(self, serializer):
-        # Nenhuma alteração aqui, a criação de imóveis continua a funcionar como antes.
         if self.request.user.is_superuser and 'imobiliaria' in self.request.data:
             imobiliaria_id = self.request.data['imobiliaria']
             imobiliaria_obj = get_object_or_404(Imobiliaria, pk=imobiliaria_id)
@@ -51,7 +56,6 @@ class ImovelViewSet(viewsets.ModelViewSet):
             raise Exception("Não foi possível associar o imóvel a uma imobiliária. Tenant não identificado ou inválido.")
 
     def perform_update(self, serializer):
-        # Nenhuma alteração aqui, a edição continua a funcionar como antes.
         if self.request.user.is_superuser:
             serializer.save()
         elif serializer.instance.imobiliaria == self.request.tenant:
@@ -60,21 +64,16 @@ class ImovelViewSet(viewsets.ModelViewSet):
             raise Exception("Você não tem permissão para atualizar este imóvel. Ele não pertence à sua imobiliária.")
 
     def perform_destroy(self, instance):
-        """
-        MODIFICADO: Em vez de apagar (instance.delete()), agora altera o status
-        para 'Desativado' e guarda a alteração.
-        """
         if self.request.user.is_superuser or instance.imobiliaria == self.request.tenant:
             instance.status = 'Desativado'
             instance.save()
-            # Devolve uma resposta de sucesso sem conteúdo, como é padrão para DELETE.
-            # O status.HTTP_204_NO_CONTENT é importante aqui.
             return Response(status=status.HTTP_204_NO_CONTENT)
         else:
             raise Exception("Você não tem permissão para inativar este imóvel. Ele não pertence à sua imobiliária.")
 
-# O ViewSet de ImagemImovelViewSet permanece sem alterações
+
 class ImagemImovelViewSet(viewsets.ModelViewSet):
+    # Nenhuma alteração neste ViewSet
     queryset = ImagemImovel.objects.all() 
     serializer_class = ImagemImovelSerializer
     permission_classes = [permissions.IsAuthenticated] 
@@ -88,7 +87,7 @@ class ImagemImovelViewSet(viewsets.ModelViewSet):
         subdomain_param = self.request.query_params.get('subdomain', None)
         if subdomain_param:
             try:
-                imobiliaria_por_param = Imobiliaria.objects.get(subdomino=subdomain_param)
+                imobiliaria_por_param = Imobiliaria.objects.get(subdominio=subdomain_param)
                 return ImagemImovel.objects.filter(imovel__imobiliaria=imobiliaria_por_param)
             except Imobiliaria.DoesNotExist:
                 return ImagemImovel.objects.none()
