@@ -1,10 +1,7 @@
 from django.urls import path
-# A importação de UserProfileView foi removida porque não está a ser utilizada.
-# from .views import UserProfileView 
+from .views import DashboardStatsView
 
-# A lista de urlpatterns provavelmente está vazia, o que é correto se não
-# tiver nenhum endpoint específico no app core.
 urlpatterns = [
-    # A linha que usava UserProfileView foi removida.
-    # path('profile/', UserProfileView.as_view(), name='user_profile'),
+    # URL para as estatísticas do dashboard
+    path('stats/', DashboardStatsView.as_view(), name='dashboard_stats'),
 ]

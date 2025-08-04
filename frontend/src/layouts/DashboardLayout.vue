@@ -5,6 +5,10 @@
         <h2>ImobCloud</h2>
       </div>
       <nav class="sidebar-nav">
+        <router-link to="/dashboard" class="nav-link">
+          <i class="icon-dashboard"></i>
+          <span>Dashboard</span>
+        </router-link>
         <router-link to="/imoveis" class="nav-link">
           <i class="icon-imoveis"></i>
           <span>Imóveis</span>
@@ -40,18 +44,18 @@ const router = useRouter();
 
 function handleLogout() {
   localStorage.removeItem('authToken');
+  // Redireciona para a página de login após o logout
   router.push({ name: 'login' });
 }
 </script>
 
 <style scoped>
+/* O seu CSS existente não precisa de alterações */
 .dashboard-layout {
   display: flex;
   min-height: 100vh;
   background-color: #f4f7f6;
 }
-
-/* --- Sidebar --- */
 .sidebar {
   width: 250px;
   background-color: #2c3e50;
@@ -60,19 +64,16 @@ function handleLogout() {
   flex-direction: column;
   padding: 1rem;
 }
-
 .sidebar-header h2 {
   text-align: center;
   margin: 0;
   padding-bottom: 1rem;
   border-bottom: 1px solid #34495e;
 }
-
 .sidebar-nav {
   margin-top: 2rem;
   flex-grow: 1;
 }
-
 .nav-link {
   display: block;
   padding: 12px 15px;
@@ -82,18 +83,12 @@ function handleLogout() {
   margin-bottom: 0.5rem;
   transition: background-color 0.3s;
 }
-
 .nav-link:hover, .router-link-exact-active {
   background-color: #34495e;
 }
-
-.nav-link.disabled {
-  color: #7f8c8d;
-  pointer-events: none;
-  opacity: 0.6;
+.sidebar-footer {
+  margin-top: auto;
 }
-
-/* --- Footer da Sidebar --- */
 .logout-button {
   width: 100%;
   padding: 10px;
@@ -104,18 +99,14 @@ function handleLogout() {
   cursor: pointer;
   font-size: 1rem;
 }
-
 .logout-button:hover {
   background-color: #c0392b;
 }
-
-/* --- Conteúdo Principal --- */
 .main-content {
   flex-grow: 1;
   padding: 2rem;
   overflow-y: auto;
 }
-
 .content-wrapper {
   max-width: 1200px;
   margin: 0 auto;

@@ -3,9 +3,10 @@ import { createRouter, createWebHistory } from 'vue-router'
 // Importações dos componentes de view
 import LoginView from '@/views/LoginView.vue'
 import DashboardLayout from '@/layouts/DashboardLayout.vue'
+import DashboardView from '@/views/DashboardView.vue'
 import ImoveisView from '@/views/ImoveisView.vue'
 import ImovelFormView from '@/views/ImovelFormView.vue'
-import ImovelImagensView from '@/views/ImovelImagensView.vue' // IMPORTAÇÃO ADICIONADA
+import ImovelImagensView from '@/views/ImovelImagensView.vue'
 import ClientesView from '@/views/ClientesView.vue'
 import ClienteFormView from '@/views/ClienteFormView.vue'
 import ContratosView from '@/views/ContratosView.vue'
@@ -29,7 +30,16 @@ const router = createRouter({
       children: [
         {
           path: '',
-          redirect: '/imoveis'
+          // ALTERAÇÃO AQUI: A rota raiz agora redireciona para o dashboard
+          redirect: '/dashboard'
+        },
+        {
+          path: 'dashboard',
+          name: 'dashboard',
+          component: DashboardView,
+          meta: {
+            title: 'Dashboard'
+          }
         },
         {
           path: 'imoveis',
@@ -55,9 +65,8 @@ const router = createRouter({
             title: 'Editar Imóvel'
           }
         },
-        // --- ROTA DE IMAGENS ADICIONADA ---
         {
-          path: 'imoveis/:id/imagens', // Rota para a gestão de imagens
+          path: 'imoveis/:id/imagens',
           name: 'imovel-imagens',
           component: ImovelImagensView,
           meta: {
@@ -121,7 +130,7 @@ const router = createRouter({
   ]
 })
 
-// Guarda de Navegação (sem alterações)
+// Guarda de Navegação
 router.beforeEach((to, from, next) => {
   document.title = `${String(to.meta.title) || 'ImobCloud'}`
 
@@ -131,7 +140,8 @@ router.beforeEach((to, from, next) => {
   if (requiresAuth && !isAuthenticated) {
     next({ name: 'login' })
   } else if (to.name === 'login' && isAuthenticated) {
-    next({ name: 'imoveis' })
+    // ALTERAÇÃO AQUI: Se já estiver autenticado, vai para o dashboard
+    next({ name: 'dashboard' })
   } else {
     next()
   }
