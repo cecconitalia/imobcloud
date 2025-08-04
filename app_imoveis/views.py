@@ -10,26 +10,37 @@ from core.models import Imobiliaria
 class ImovelViewSet(viewsets.ModelViewSet):
     queryset = Imovel.objects.all()
     serializer_class = ImovelSerializer
-    # PARA DIAGNÓSTICO: Permite acesso TOTAL para QUALQUER UM
-    permission_classes = [permissions.AllowAny] 
+    permission_classes = [permissions.AllowAny] # Mantido como no seu código original
 
     def get_queryset(self):
+        """
+        MODIFICADO: A consulta base agora exclui imóveis com o status 'Desativado'.
+        A lógica para superuser e tenant continua a funcionar sobre esta base filtrada.
+        """
+        # A base da consulta agora exclui os imóveis inativos.
+        base_queryset = Imovel.objects.exclude(status='Desativado')
+
         if self.request.user.is_superuser:
-            return Imovel.objects.all()
+            # Mantém a lógica original para superuser, mas sobre a nova base.
+            # Se quiser que o superuser veja *todos*, mude base_queryset para Imovel.objects.all()
+            return base_queryset.all() 
         elif self.request.tenant:
-            return Imovel.objects.filter(imobiliaria=self.request.tenant)
+            # Filtra pela imobiliária do tenant, como já fazia.
+            return base_queryset.filter(imobiliaria=self.request.tenant)
         
+        # A lógica de fallback para o subdomain via parâmetro continua igual.
         subdomain_param = self.request.query_params.get('subdomain', None)
         if subdomain_param:
             try:
                 imobiliaria_por_param = Imobiliaria.objects.get(subdomino=subdomain_param)
-                return Imovel.objects.filter(imobiliaria=imobiliaria_por_param)
+                return base_queryset.filter(imobiliaria=imobiliaria_por_param)
             except Imobiliaria.DoesNotExist:
                 return Imovel.objects.none()
 
         return Imovel.objects.none()
 
     def perform_create(self, serializer):
+        # Nenhuma alteração aqui, a criação de imóveis continua a funcionar como antes.
         if self.request.user.is_superuser and 'imobiliaria' in self.request.data:
             imobiliaria_id = self.request.data['imobiliaria']
             imobiliaria_obj = get_object_or_404(Imobiliaria, pk=imobiliaria_id)
@@ -40,6 +51,7 @@ class ImovelViewSet(viewsets.ModelViewSet):
             raise Exception("Não foi possível associar o imóvel a uma imobiliária. Tenant não identificado ou inválido.")
 
     def perform_update(self, serializer):
+        # Nenhuma alteração aqui, a edição continua a funcionar como antes.
         if self.request.user.is_superuser:
             serializer.save()
         elif serializer.instance.imobiliaria == self.request.tenant:
@@ -48,14 +60,20 @@ class ImovelViewSet(viewsets.ModelViewSet):
             raise Exception("Você não tem permissão para atualizar este imóvel. Ele não pertence à sua imobiliária.")
 
     def perform_destroy(self, instance):
-        # Esta lógica está correta, mas o problema pode estar na permissão antes dela ser chamada
-        if self.request.user.is_superuser:
-            instance.delete()
-        elif instance.imobiliaria == self.request.tenant:
-            instance.delete()
+        """
+        MODIFICADO: Em vez de apagar (instance.delete()), agora altera o status
+        para 'Desativado' e guarda a alteração.
+        """
+        if self.request.user.is_superuser or instance.imobiliaria == self.request.tenant:
+            instance.status = 'Desativado'
+            instance.save()
+            # Devolve uma resposta de sucesso sem conteúdo, como é padrão para DELETE.
+            # O status.HTTP_204_NO_CONTENT é importante aqui.
+            return Response(status=status.HTTP_204_NO_CONTENT)
         else:
-            raise Exception("Você não tem permissão para excluir este imóvel. Ele não pertence à sua imobiliária.")
+            raise Exception("Você não tem permissão para inativar este imóvel. Ele não pertence à sua imobiliária.")
 
+# O ViewSet de ImagemImovelViewSet permanece sem alterações
 class ImagemImovelViewSet(viewsets.ModelViewSet):
     queryset = ImagemImovel.objects.all() 
     serializer_class = ImagemImovelSerializer
