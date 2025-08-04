@@ -1,4 +1,5 @@
-# C:\wamp64\www\ImobCloud\app_contratos\models.py
+# Em app_contratos/models.py
+
 from django.db import models
 from core.models import Imobiliaria
 from app_imoveis.models import Imovel
@@ -10,10 +11,24 @@ class Contrato(models.Model):
     imovel = models.ForeignKey(Imovel, on_delete=models.CASCADE, verbose_name="Imóvel")
     cliente = models.ForeignKey(Cliente, on_delete=models.CASCADE, verbose_name="Cliente")
     data_inicio = models.DateField(verbose_name="Data de Início")
-    data_fim = models.DateField(null=True, blank=True, verbose_name="Data de Término (se aplicável)") # Para aluguel
+    data_fim = models.DateField(null=True, blank=True, verbose_name="Data de Término (se aplicável)")
     valor_total = models.DecimalField(max_digits=15, decimal_places=2, verbose_name="Valor Total do Contrato")
     condicoes_pagamento = models.TextField(verbose_name="Condições de Pagamento")
-    status_contrato = models.CharField(max_length=50, default='Ativo', verbose_name="Status do Contrato", choices=[('Ativo', 'Ativo'), ('Concluído', 'Concluído'), ('Rescindido', 'Rescindido')])
+    
+    # ## CAMPO ATUALIZADO ##
+    # Adicionamos a opção 'Inativo' à lista de escolhas.
+    status_contrato = models.CharField(
+        max_length=50, 
+        default='Ativo', 
+        verbose_name="Status do Contrato", 
+        choices=[
+            ('Ativo', 'Ativo'), 
+            ('Concluído', 'Concluído'), 
+            ('Rescindido', 'Rescindido'),
+            ('Inativo', 'Inativo') # <- OPÇÃO ADICIONADA
+        ]
+    )
+    
     data_assinatura = models.DateField(verbose_name="Data de Assinatura")
     data_cadastro = models.DateTimeField(auto_now_add=True, verbose_name="Data de Registro")
 

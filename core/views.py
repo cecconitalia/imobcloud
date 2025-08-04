@@ -1,13 +1,9 @@
-# C:\wamp64\www\ImobCloud\core\views.py
+from rest_framework_simplejwt.views import TokenObtainPairView
+from .serializers import MyTokenObtainPairSerializer
 
-from rest_framework.views import APIView
-from rest_framework.response import Response
-from rest_framework.permissions import IsAuthenticated
-from .serializers import UserSerializer # Certifique-se de que core/serializers.py existe e está correto
-
-class UserProfileView(APIView):
-    permission_classes = [IsAuthenticated] # Exige que o usuário esteja autenticado
-
-    def get(self, request):
-        serializer = UserSerializer(request.user)
-        return Response(serializer.data)
+class MyTokenObtainPairView(TokenObtainPairView):
+    """
+    Substitui a view de token padrão para usar o serializer personalizado que
+    inclui o subdomínio na resposta.
+    """
+    serializer_class = MyTokenObtainPairSerializer

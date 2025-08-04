@@ -1,24 +1,20 @@
-# C:\wamp64\www\ImobCloud\core\serializers.py
+from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 
-from rest_framework import serializers
-from django.contrib.auth.models import User
-from .models import Imobiliaria, PerfilUsuario
+class MyTokenObtainPairSerializer(TokenObtainPairSerializer):
+    """
+    Personaliza o serializer de token para adicionar o subdomínio da imobiliária
+    do utilizador na resposta do login.
+    """
+    def validate(self, attrs):
+        # Obtém a resposta padrão (com os tokens access e refresh)
+        data = super().validate(attrs)
 
-class ImobiliariaSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = Imobiliaria
-        fields = ['id', 'nome', 'subdominio'] # Campos básicos que queremos expor
+        # Adiciona o subdomínio à resposta se o utilizador tiver um perfil
+        # e pertencer a uma imobiliária.
+        if hasattr(self.user, 'perfil_usuario') and self.user.perfil_usuario:
+            data['subdomain'] = self.user.perfil_usuario.imobiliaria.subdominio
+        else:
+            # Para superusers ou utilizadores sem imobiliária associada
+            data['subdomain'] = None
 
-class PerfilUsuarioSerializer(serializers.ModelSerializer):
-    imobiliaria = ImobiliariaSerializer(read_only=True) # Serializa a Imobiliária aninhada
-
-    class Meta:
-        model = PerfilUsuario
-        fields = ['imobiliaria'] # Quais campos do perfil queremos expor
-
-class UserSerializer(serializers.ModelSerializer):
-    perfil = PerfilUsuarioSerializer(read_only=True) # Serializa o PerfilUsuario aninhado
-
-    class Meta:
-        model = User
-        fields = ['id', 'username', 'email', 'first_name', 'last_name', 'perfil'] # Campos do usuário
+        return data
