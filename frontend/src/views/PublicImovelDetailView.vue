@@ -48,6 +48,37 @@
         
         <router-link to="/site" class="btn-voltar">Voltar à Lista</router-link>
       </div>
+      
+      <div class="contato-section">
+        <h3>Ficou interessado? Contacte-nos!</h3>
+
+        <div v-if="contatoEnviado" class="success-message">
+          A sua mensagem foi enviada com sucesso! Entraremos em contacto em breve.
+        </div>
+
+        <form v-else @submit.prevent="handleContatoSubmit" class="contato-form">
+          <div class="form-group">
+            <label for="nome">Nome</label>
+            <input type="text" id="nome" v-model="contato.nome" required />
+          </div>
+          <div class="form-group">
+            <label for="email">Email</label>
+            <input type="email" id="email" v-model="contato.email" required />
+          </div>
+          <div class="form-group">
+            <label for="telefone">Telefone (Opcional)</label>
+            <input type="tel" id="telefone" v-model="contato.telefone" />
+          </div>
+          <div class="form-group form-group-full">
+            <label for="mensagem">Mensagem</label>
+            <textarea id="mensagem" v-model="contato.mensagem" rows="5" required></textarea>
+          </div>
+          <button type="submit" :disabled="isSubmittingContato" class="btn-submit">
+            {{ isSubmittingContato ? 'A enviar...' : 'Enviar Mensagem' }}
+          </button>
+        </form>
+      </div>
+
     </div>
   </div>
 </template>
@@ -64,6 +95,18 @@ const imovel = ref<any>(null);
 const isLoading = ref(true);
 const error = ref<string | null>(null);
 const imagemPrincipal = ref('');
+
+// NOVOS ESTADOS PARA O FORMULÁRIO DE CONTATO
+const contato = ref({
+  imovel: 0,
+  nome: '',
+  email: '',
+  telefone: '',
+  mensagem: `Olá, tenho interesse neste imóvel (${route.params.id}) e gostaria de mais informações.`
+});
+const isSubmittingContato = ref(false);
+const contatoEnviado = ref(false);
+
 
 // --- FUNÇÃO fetchImovel ATUALIZADA ---
 async function fetchImovel() {
@@ -89,6 +132,10 @@ async function fetchImovel() {
     
     imovel.value = response.data;
     imagemPrincipal.value = getPrincipalImage(imovel.value.imagens);
+    // Atribuímos o ID do imóvel ao nosso formulário
+    if (response.data) {
+        contato.value.imovel = response.data.id;
+    }
   } catch (err) {
     console.error("Erro ao buscar detalhes do imóvel:", err);
     error.value = 'Não foi possível carregar os detalhes deste imóvel.';
@@ -97,11 +144,24 @@ async function fetchImovel() {
   }
 }
 
+// NOVA FUNÇÃO PARA SUBMETER O CONTATO
+async function handleContatoSubmit() {
+  isSubmittingContato.value = true;
+  try {
+    await publicApiClient.post('/v1/imoveis/contatos/', contato.value);
+    contatoEnviado.value = true; // Mostra a mensagem de sucesso
+  } catch (err) {
+    console.error("Erro ao enviar mensagem:", err);
+    alert('Ocorreu um erro ao enviar a sua mensagem. Por favor, tente novamente.');
+  } finally {
+    isSubmittingContato.value = false;
+  }
+}
+
 onMounted(() => {
   fetchImovel();
 });
 
-// As funções abaixo permanecem sem alterações
 function setImagemPrincipal(url: string) {
   imagemPrincipal.value = url;
 }
@@ -126,7 +186,6 @@ function formatarPreco(imovel: any) {
 </script>
 
 <style scoped>
-/* O seu CSS permanece sem alterações */
 .container {
   max-width: 1200px;
   margin: 0 auto;
@@ -138,16 +197,35 @@ function formatarPreco(imovel: any) {
 }
 .imovel-detail-container {
   display: grid;
-  grid-template-columns: 2fr 1fr;
   gap: 2rem;
   background-color: #fff;
   padding: 2rem;
   border-radius: 8px;
   box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+  grid-template-columns: 2fr 1fr;
+  /* Adicionamos uma nova linha no grid para o formulário */
+  grid-template-rows: auto auto; 
 }
 @media (max-width: 992px) {
   .imovel-detail-container {
     grid-template-columns: 1fr;
+  }
+}
+.gallery {
+  grid-column: 1 / 2;
+  grid-row: 1 / 2;
+}
+.details {
+  grid-column: 2 / 3;
+  grid-row: 1 / 2;
+  padding-left: 1rem;
+}
+@media (max-width: 992px) {
+  .gallery, .details {
+    grid-column: 1 / -1;
+  }
+  .details {
+    padding-left: 0;
   }
 }
 .main-image {
@@ -174,9 +252,6 @@ function formatarPreco(imovel: any) {
 }
 .thumbnail:hover, .thumbnail.active {
   border-color: #007bff;
-}
-.details {
-  padding-left: 1rem;
 }
 .endereco {
   font-size: 2rem;
@@ -232,5 +307,56 @@ function formatarPreco(imovel: any) {
   color: white;
   text-decoration: none;
   border-radius: 5px;
+}
+
+/* NOVOS ESTILOS PARA O FORMULÁRIO */
+.contato-section {
+  grid-column: 1 / -1; /* Ocupa a largura total */
+  grid-row: 2 / 3;
+  margin-top: 2rem;
+  padding-top: 2rem;
+  border-top: 1px solid #e0e0e0;
+}
+.contato-form {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+}
+.form-group {
+  display: flex;
+  flex-direction: column;
+}
+.form-group-full {
+  grid-column: 1 / -1;
+}
+label {
+  margin-bottom: 0.5rem;
+  font-weight: 500;
+}
+input, textarea {
+  padding: 10px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+}
+.btn-submit {
+  grid-column: 1 / -1;
+  background-color: #28a745;
+  color: white;
+  padding: 12px;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+  font-size: 1rem;
+}
+.btn-submit:disabled {
+  background-color: #a3d9b1;
+}
+.success-message {
+  background-color: #d4edda;
+  color: #155724;
+  border: 1px solid #c3e6cb;
+  padding: 1rem;
+  border-radius: 5px;
+  text-align: center;
 }
 </style>

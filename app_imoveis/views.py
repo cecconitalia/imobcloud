@@ -4,9 +4,10 @@ from rest_framework.response import Response
 from rest_framework import permissions 
 from django.shortcuts import get_object_or_404
 from rest_framework import filters
+from django.core.mail import send_mail
 
-from .models import Imovel, ImagemImovel
-from .serializers import ImovelSerializer, ImagemImovelSerializer
+from .models import Imovel, ImagemImovel, ContatoImovel
+from .serializers import ImovelSerializer, ImagemImovelSerializer, ContatoImovelSerializer
 from core.models import Imobiliaria 
 
 class ImovelViewSet(viewsets.ModelViewSet):
@@ -35,8 +36,6 @@ class ImovelViewSet(viewsets.ModelViewSet):
         subdomain_param = self.request.query_params.get('subdomain', None)
         if subdomain_param:
             try:
-                # --- LINHA CORRIGIDA ---
-                # Corrigido de 'subdomino' para 'subdominio' para corresponder ao modelo
                 imobiliaria_por_param = Imobiliaria.objects.get(subdominio=subdomain_param)
                 return base_queryset.filter(imobiliaria=imobiliaria_por_param)
             except Imobiliaria.DoesNotExist:
@@ -72,8 +71,58 @@ class ImovelViewSet(viewsets.ModelViewSet):
             raise Exception("Você não tem permissão para inativar este imóvel. Ele não pertence à sua imobiliária.")
 
 
+class ContatoImovelViewSet(viewsets.ModelViewSet):
+    """
+    Endpoint para receber mensagens de contato do site público.
+    Não requer autenticação para a criação (envio do formulário).
+    """
+    queryset = ContatoImovel.objects.all()
+    serializer_class = ContatoImovelSerializer
+    permission_classes = [permissions.AllowAny] # Permite o envio por utilizadores não logados
+
+    def perform_create(self, serializer):
+        # Guardamos o objeto de contacto primeiro para ter acesso a ele
+        contato = serializer.save()
+
+        # Lógica de envio de email
+        try:
+            imobiliaria = contato.imovel.imobiliaria
+            
+            # Verifica se a imobiliária tem um email de contato configurado
+            if hasattr(imobiliaria, 'email_contato') and imobiliaria.email_contato:
+                destinatario_email = imobiliaria.email_contato
+
+                assunto = f"Novo Contato para o Imóvel: {contato.imovel.endereco}"
+                mensagem_corpo = f"""
+                Você recebeu um novo contato através do site!
+
+                Imóvel: {contato.imovel.endereco} (ID: {contato.imovel.id})
+                Nome do Interessado: {contato.nome}
+                Email: {contato.email}
+                Telefone: {contato.telefone or 'Não informado'}
+
+                Mensagem:
+                {contato.mensagem}
+                """
+                remetente = 'nao-responda@imobcloud.com' # Remetente genérico
+
+                send_mail(
+                    assunto,
+                    mensagem_corpo,
+                    remetente,
+                    [destinatario_email], # O destinatário deve estar numa lista
+                    fail_silently=False,
+                )
+                print(f"DEBUG: Email de notificação preparado para {destinatario_email}.")
+            else:
+                print(f"AVISO: Imobiliária '{imobiliaria.nome}' não possui email de contato configurado. Email não enviado.")
+
+        except Exception as e:
+            # Se o email falhar, não quebramos a aplicação, apenas registamos o erro
+            print(f"ERRO AO ENVIAR EMAIL DE NOTIFICAÇÃO: {e}")
+
+
 class ImagemImovelViewSet(viewsets.ModelViewSet):
-    # Nenhuma alteração neste ViewSet
     queryset = ImagemImovel.objects.all() 
     serializer_class = ImagemImovelSerializer
     permission_classes = [permissions.IsAuthenticated] 

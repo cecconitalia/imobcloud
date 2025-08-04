@@ -1,6 +1,6 @@
 # C:\wamp64\www\ImobCloud\app_imoveis\serializers.py
 from rest_framework import serializers
-from .models import Imovel, ImagemImovel
+from .models import Imovel, ImagemImovel, ContatoImovel
 
 class ImagemImovelSerializer(serializers.ModelSerializer):
     class Meta:
@@ -20,3 +20,9 @@ class ImovelDisplaySerializer(serializers.ModelSerializer):
     class Meta:
         model = Imovel
         fields = ['id', 'endereco', 'cidade', 'tipo']
+
+class ContatoImovelSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ContatoImovel
+        # Definimos os campos que serão aceites e retornados pela API
+        fields = ['id', 'imovel', 'nome', 'email', 'telefone', 'mensagem']

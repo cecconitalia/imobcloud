@@ -2,9 +2,9 @@ import { createRouter, createWebHistory } from 'vue-router'
 
 // Importações dos layouts
 import DashboardLayout from '@/layouts/DashboardLayout.vue'
-import PublicLayout from '@/layouts/PublicLayout.vue' // ADICIONADO
+import PublicLayout from '@/layouts/PublicLayout.vue'
 
-// Importações das views do Painel (sem alterações)
+// Importações das views do Painel
 import LoginView from '@/views/LoginView.vue'
 import DashboardView from '@/views/DashboardView.vue'
 import ImoveisView from '@/views/ImoveisView.vue'
@@ -14,28 +14,29 @@ import ClientesView from '@/views/ClientesView.vue'
 import ClienteFormView from '@/views/ClienteFormView.vue'
 import ContratosView from '@/views/ContratosView.vue'
 import ContratoFormView from '@/views/ContratoFormView.vue'
+import VisitasView from '@/views/VisitasView.vue'
+import VisitaFormView from '@/views/VisitaFormView.vue' // <-- IMPORTADO
 
-// Importações das views do Site Público (ADICIONADO)
+// Importações das views do Site Público
 import PublicHomeView from '@/views/PublicHomeView.vue'
 import PublicImovelDetailView from '@/views/PublicImovelDetailView.vue'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
   routes: [
-    // --- ROTAS DO SITE PÚBLICO (NOVA SEÇÃO ADICIONADA) ---
-    // Acessível via http://subdominio.localhost:5173/site
+    // --- ROTAS DO SITE PÚBLICO ---
     {
       path: '/site',
       component: PublicLayout,
       children: [
         {
-          path: '', // Página inicial do site
+          path: '',
           name: 'public-home',
           component: PublicHomeView,
           meta: { title: 'Início' }
         },
         {
-          path: 'imovel/:id', // Página de detalhes do imóvel
+          path: 'imovel/:id',
           name: 'public-imovel-detail',
           component: PublicImovelDetailView,
           meta: { title: 'Detalhes do Imóvel' }
@@ -43,8 +44,7 @@ const router = createRouter({
       ]
     },
 
-    // --- ROTAS DO PAINEL DE GESTÃO (SEÇÃO ORIGINAL, SEM ALTERAÇÕES) ---
-    // O seu painel continua a funcionar na rota principal '/'
+    // --- ROTAS DO PAINEL DE GESTÃO ---
     {
       path: '/login',
       name: 'login',
@@ -149,12 +149,36 @@ const router = createRouter({
           meta: {
             title: 'Editar Contrato'
           }
+        },
+        // --- ROTAS DE VISITAS (ATUALIZADAS) ---
+        {
+          path: 'visitas',
+          name: 'visitas',
+          component: VisitasView,
+          meta: {
+            title: 'Gerir Visitas'
+          }
+        },
+        {
+          path: 'visitas/nova', // <-- ROTA ATIVADA
+          name: 'visita-nova',
+          component: VisitaFormView,
+          meta: {
+            title: 'Agendar Nova Visita'
+          }
+        },
+        {
+          path: 'visitas/editar/:id', // <-- ROTA ATIVADA
+          name: 'visita-editar',
+          component: VisitaFormView,
+          meta: {
+            title: 'Editar Visita'
+          }
         }
       ]
     },
     
-    // Rota de fallback (SEM ALTERAÇÕES)
-    // Se um URL não for encontrado, redireciona para a página principal (o painel).
+    // Rota de fallback
     {
         path: '/:pathMatch(.*)*',
         redirect: '/'
@@ -162,9 +186,9 @@ const router = createRouter({
   ]
 })
 
-// Guarda de Navegação (SEM ALTERAÇÕES)
+// Guarda de Navegação
 router.beforeEach((to, from, next) => {
-  document.title = `${String(to.meta.title) || 'ImobCloud'}`
+  document.title = `${to.meta.title || 'ImobCloud'}`
 
   const requiresAuth = to.matched.some(record => record.meta.requiresAuth)
   const isAuthenticated = !!localStorage.getItem('authToken')

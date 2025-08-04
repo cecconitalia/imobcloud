@@ -6,6 +6,8 @@ from django.conf import settings # Importa settings para User model
 class Imobiliaria(models.Model):
     nome = models.CharField(max_length=255, unique=True)
     subdominio = models.CharField(max_length=255, unique=True)
+    email_contato = models.EmailField(max_length=254, blank=True, null=True, verbose_name="Email para Notificações")
+
     # Adicione outros campos relevantes para a imobiliária aqui
     # Ex: endereco, telefone, email, logo, etc.
 
@@ -15,8 +17,13 @@ class Imobiliaria(models.Model):
     def __str__(self):
         return self.nome
 
-# NOVO MODELO: PerfilUsuario
+# MODELO ATUALIZADO: PerfilUsuario
 class PerfilUsuario(models.Model):
+    # DEFINIÇÃO DOS CARGOS (ROLES)
+    class Cargo(models.TextChoices):
+        ADMIN = 'ADMIN', 'Administrador'
+        CORRETOR = 'CORRETOR', 'Corretor'
+        
     # Um PerfilUsuario está ligado a um User do Django (relação 1 para 1)
     user = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='perfil')
     
@@ -27,6 +34,14 @@ class PerfilUsuario(models.Model):
         null=True,
         blank=True, # Permite que o campo seja vazio (para superusuários ou usuários sem imobiliária específica)
         related_name='usuarios_imobiliaria'
+    )
+
+    # NOVO CAMPO ADICIONADO
+    cargo = models.CharField(
+        max_length=10,
+        choices=Cargo.choices,
+        default=Cargo.CORRETOR,
+        verbose_name="Cargo"
     )
 
     class Meta:
