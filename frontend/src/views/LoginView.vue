@@ -43,9 +43,13 @@ async function handleLogin() {
     });
     
     const accessToken = response.data.access;
+    const userCargo = response.data.cargo;
+    const imobiliariaName = response.data.imobiliaria_name; // NOVO: Captura o nome da imobiliária
+
     localStorage.setItem('authToken', accessToken);
+    localStorage.setItem('userCargo', userCargo);
+    localStorage.setItem('imobiliariaName', imobiliariaName); // NOVO: Armazena o nome da imobiliária
     
-    // ALTERAÇÃO AQUI: Redireciona para o dashboard
     router.push({ name: 'dashboard' });
 
   } catch (error) {

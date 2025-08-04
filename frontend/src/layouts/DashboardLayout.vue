@@ -2,7 +2,10 @@
   <div class="dashboard-layout">
     <aside class="sidebar">
       <div class="sidebar-header">
-        <h2>ImobCloud</h2>
+        <router-link to="/dashboard" class="header-link">
+          <h2 v-if="imobiliariaName">{{ imobiliariaName }}</h2>
+          <h2 v-else>ImobCloud</h2>
+        </router-link>
       </div>
       <nav class="sidebar-nav">
         <router-link to="/dashboard" class="nav-link">
@@ -17,16 +20,26 @@
           <i class="icon-clientes"></i>
           <span>Clientes</span>
         </router-link>
-         <router-link to="/contratos" class="nav-link">
+        <router-link to="/contratos" class="nav-link">
           <i class="icon-contratos"></i>
           <span>Contratos</span>
         </router-link>
-        
         <router-link to="/visitas" class="nav-link">
           <i class="icon-visitas"></i>
           <span>Visitas</span>
         </router-link>
 
+        <div v-if="userCargo === 'ADMIN'" class="nav-section-header">
+          <span>Administração</span>
+        </div>
+        <router-link v-if="userCargo === 'ADMIN'" to="/contactos" class="nav-link">
+          <i class="icon-contactos"></i>
+          <span>Contatos</span>
+        </router-link>
+        <router-link v-if="userCargo === 'ADMIN'" to="/corretor/novo" class="nav-link">
+          <i class="icon-users"></i>
+          <span>Novo Corretor</span>
+        </router-link>
       </nav>
       <div class="sidebar-footer">
         <button @click="handleLogout" class="logout-button">
@@ -44,19 +57,49 @@
 </template>
 
 <script setup lang="ts">
+import { ref, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 
 const router = useRouter();
+const userCargo = ref('');
+const imobiliariaName = ref('');
 
 function handleLogout() {
   localStorage.removeItem('authToken');
-  // Redireciona para a página de login após o logout
+  localStorage.removeItem('userCargo');
+  localStorage.removeItem('imobiliariaName');
   router.push({ name: 'login' });
 }
+
+onMounted(() => {
+  userCargo.value = localStorage.getItem('userCargo') || '';
+  imobiliariaName.value = localStorage.getItem('imobiliariaName') || '';
+});
 </script>
 
 <style scoped>
-/* O seu CSS existente não precisa de alterações */
+/* Adicionamos o estilo para o cabeçalho da nova seção */
+.nav-section-header {
+  color: #a0a0a0;
+  font-weight: bold;
+  padding: 12px 15px;
+  margin-top: 1rem;
+  text-transform: uppercase;
+  font-size: 0.8em;
+  border-bottom: 1px solid #34495e;
+}
+.header-link {
+  text-decoration: none;
+  color: white;
+}
+.sidebar-header {
+  padding-bottom: 1rem;
+  border-bottom: 1px solid #34495e;
+}
+.sidebar-header h2 {
+  text-align: center;
+  margin: 0;
+}
 .dashboard-layout {
   display: flex;
   min-height: 100vh;
@@ -69,12 +112,6 @@ function handleLogout() {
   display: flex;
   flex-direction: column;
   padding: 1rem;
-}
-.sidebar-header h2 {
-  text-align: center;
-  margin: 0;
-  padding-bottom: 1rem;
-  border-bottom: 1px solid #34495e;
 }
 .sidebar-nav {
   margin-top: 2rem;

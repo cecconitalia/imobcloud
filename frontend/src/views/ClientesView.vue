@@ -37,7 +37,7 @@
             <router-link :to="`/clientes/editar/${cliente.id}`" class="btn-secondary">
               Editar
             </router-link>
-            <button @click="handleInativar(cliente.id)" class="btn-danger">
+            <button v-if="userCargo === 'ADMIN'" @click="handleInativar(cliente.id)" class="btn-danger">
               Inativar
             </button>
           </td>
@@ -58,16 +58,14 @@ import apiClient from '@/services/api';
 const clientes = ref<any[]>([]);
 const isLoading = ref(true);
 const error = ref<string | null>(null);
-
-// ## ESTADO PARA O TERMO DE PESQUISA ADICIONADO ##
 const searchTerm = ref('');
+const userCargo = ref(''); // NOVO: Estado para guardar o cargo do utilizador
 
-// ## FUNÇÃO DE BUSCA ATUALIZADA PARA INCLUIR A PESQUISA ##
 async function fetchClientes() {
   isLoading.value = true;
   try {
     const params = {
-      search: searchTerm.value, // Adiciona o parâmetro de pesquisa ao pedido
+      search: searchTerm.value,
     };
     const response = await apiClient.get('/v1/clientes/clientes/', { params });
     clientes.value = response.data;
@@ -79,12 +77,12 @@ async function fetchClientes() {
   }
 }
 
-// Lógica onMounted (INTACTA)
 onMounted(() => {
   fetchClientes();
+  // NOVO: Lê o cargo do localStorage quando a página é carregada
+  userCargo.value = localStorage.getItem('userCargo') || '';
 });
 
-// Lógica handleInativar (INTACTA)
 async function handleInativar(clienteId: number) {
   if (!window.confirm('Tem a certeza de que deseja inativar este cliente?')) {
     return;
@@ -120,7 +118,6 @@ async function handleInativar(clienteId: number) {
   border: none;
   cursor: pointer;
 }
-/* ## ESTILO PARA A BARRA DE PESQUISA ADICIONADO ## */
 .search-bar {
   margin-bottom: 1.5rem;
 }

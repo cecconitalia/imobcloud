@@ -15,11 +15,21 @@ import ClienteFormView from '@/views/ClienteFormView.vue'
 import ContratosView from '@/views/ContratosView.vue'
 import ContratoFormView from '@/views/ContratoFormView.vue'
 import VisitasView from '@/views/VisitasView.vue'
-import VisitaFormView from '@/views/VisitaFormView.vue' // <-- IMPORTADO
+import VisitaFormView from '@/views/VisitaFormView.vue'
+import ContactosView from '@/views/ContactosView.vue'
+import CorretorRegistrationView from '@/views/CorretorRegistrationView.vue'
 
 // Importações das views do Site Público
 import PublicHomeView from '@/views/PublicHomeView.vue'
 import PublicImovelDetailView from '@/views/PublicImovelDetailView.vue'
+
+// Adicionar um tipo para a meta das rotas
+declare module 'vue-router' {
+  interface RouteMeta {
+    requiresAuth?: boolean;
+    isAdmin?: boolean;
+  }
+}
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -83,7 +93,8 @@ const router = createRouter({
           name: 'imovel-novo',
           component: ImovelFormView,
           meta: {
-            title: 'Adicionar Novo Imóvel'
+            title: 'Adicionar Novo Imóvel',
+            requiresAuth: true
           }
         },
         {
@@ -91,7 +102,8 @@ const router = createRouter({
           name: 'imovel-editar',
           component: ImovelFormView,
           meta: {
-            title: 'Editar Imóvel'
+            title: 'Editar Imóvel',
+            requiresAuth: true
           }
         },
         {
@@ -99,7 +111,9 @@ const router = createRouter({
           name: 'imovel-imagens',
           component: ImovelImagensView,
           meta: {
-            title: 'Gerir Imagens do Imóvel'
+            title: 'Gerir Imagens do Imóvel',
+            requiresAuth: true,
+            isAdmin: true
           }
         },
         {
@@ -115,7 +129,8 @@ const router = createRouter({
           name: 'cliente-novo',
           component: ClienteFormView,
           meta: {
-            title: 'Adicionar Novo Cliente'
+            title: 'Adicionar Novo Cliente',
+            requiresAuth: true
           }
         },
         {
@@ -123,7 +138,8 @@ const router = createRouter({
           name: 'cliente-editar',
           component: ClienteFormView,
           meta: {
-            title: 'Editar Cliente'
+            title: 'Editar Cliente',
+            requiresAuth: true
           }
         },
         {
@@ -139,7 +155,8 @@ const router = createRouter({
           name: 'contrato-novo',
           component: ContratoFormView,
           meta: {
-            title: 'Adicionar Novo Contrato'
+            title: 'Adicionar Novo Contrato',
+            requiresAuth: true
           }
         },
         {
@@ -147,10 +164,10 @@ const router = createRouter({
           name: 'contrato-editar',
           component: ContratoFormView,
           meta: {
-            title: 'Editar Contrato'
+            title: 'Editar Contrato',
+            requiresAuth: true
           }
         },
-        // --- ROTAS DE VISITAS (ATUALIZADAS) ---
         {
           path: 'visitas',
           name: 'visitas',
@@ -160,43 +177,72 @@ const router = createRouter({
           }
         },
         {
-          path: 'visitas/nova', // <-- ROTA ATIVADA
+          path: 'visitas/nova',
           name: 'visita-nova',
           component: VisitaFormView,
           meta: {
-            title: 'Agendar Nova Visita'
+            title: 'Agendar Nova Visita',
+            requiresAuth: true
           }
         },
         {
-          path: 'visitas/editar/:id', // <-- ROTA ATIVADA
+          path: 'visitas/editar/:id',
           name: 'visita-editar',
           component: VisitaFormView,
           meta: {
-            title: 'Editar Visita'
+            title: 'Editar Visita',
+            requiresAuth: true
           }
-        }
+        },
+        {
+          path: 'contactos',
+          name: 'contactos',
+          component: ContactosView,
+          meta: {
+            title: 'Gerir Contactos',
+            requiresAuth: true,
+            isAdmin: true
+          }
+        },
+        {
+          path: 'corretor/novo',
+          name: 'corretor-novo',
+          component: CorretorRegistrationView,
+          meta: {
+            title: 'Registar Novo Corretor',
+            requiresAuth: true,
+            isAdmin: true
+          }
+        },
       ]
     },
     
     // Rota de fallback
     {
         path: '/:pathMatch(.*)*',
-        redirect: '/'
+        redirect: '/login'
     }
   ]
 })
 
-// Guarda de Navegação
 router.beforeEach((to, from, next) => {
   document.title = `${to.meta.title || 'ImobCloud'}`
 
   const requiresAuth = to.matched.some(record => record.meta.requiresAuth)
   const isAuthenticated = !!localStorage.getItem('authToken')
+  const userCargo = localStorage.getItem('userCargo')
 
   if (requiresAuth && !isAuthenticated) {
     next({ name: 'login' })
   } else if (to.name === 'login' && isAuthenticated) {
     next({ name: 'dashboard' })
+  } else if (isAuthenticated) {
+    if (to.meta.isAdmin && userCargo !== 'ADMIN') {
+      alert("Você não tem permissão para aceder a esta página.")
+      next({ name: 'dashboard' })
+    } else {
+      next()
+    }
   } else {
     next()
   }

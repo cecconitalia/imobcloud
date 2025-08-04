@@ -1,23 +1,23 @@
 # C:\wamp64\www\ImobCloud\core\views.py
 
 from rest_framework_simplejwt.views import TokenObtainPairView
-from .serializers import MyTokenObtainPairSerializer
-
-# --- Importações para o Dashboard ---
+from .serializers import MyTokenObtainPairSerializer, CorretorRegistrationSerializer
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
+from rest_framework import status
 from django.utils import timezone
 from datetime import timedelta
-
+from django.shortcuts import get_object_or_404
 from app_imoveis.models import Imovel
 from app_clientes.models import Cliente
 from app_contratos.models import Contrato
+from core.models import PerfilUsuario # NOVO: Importamos o PerfilUsuario
 
 
 class MyTokenObtainPairView(TokenObtainPairView):
     """
-    View existente para o login, que já adiciona o subdomínio à resposta.
+    View existente para o login, que já adiciona o subdomínio e o cargo à resposta.
     Permanece sem alterações.
     """
     serializer_class = MyTokenObtainPairSerializer
@@ -31,41 +31,33 @@ class DashboardStatsView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request, *args, **kwargs):
-        # O middleware já nos dá o tenant (imobiliária) do utilizador autenticado
         tenant = request.tenant
 
         if not tenant:
-            # Se não houver um tenant (ex: superuser no domínio principal),
-            # retorna uma mensagem de erro.
             return Response({"error": "Nenhuma imobiliária selecionada."}, status=400)
 
-        # 1. Contar imóveis ativos (não vendidos ou desativados)
         imoveis_ativos = Imovel.objects.filter(
             imobiliaria=tenant
         ).exclude(
             status__in=['Vendido', 'Desativado']
         ).count()
 
-        # 2. Contar clientes ativos
         clientes_ativos = Cliente.objects.filter(
             imobiliaria=tenant, 
             ativo=True
         ).count()
 
-        # 3. Contar contratos ativos
         contratos_ativos = Contrato.objects.filter(
             imobiliaria=tenant,
             status_contrato='Ativo'
         ).count()
         
-        # 4. Contar novos clientes nos últimos 30 dias
         trinta_dias_atras = timezone.now() - timedelta(days=30)
         novos_clientes = Cliente.objects.filter(
             imobiliaria=tenant,
             data_cadastro__gte=trinta_dias_atras
         ).count()
 
-        # Compila os dados numa resposta JSON
         data = {
             'imoveis_ativos': imoveis_ativos,
             'clientes_ativos': clientes_ativos,
@@ -74,3 +66,38 @@ class DashboardStatsView(APIView):
         }
         
         return Response(data)
+
+# NOVO: View para registo de corretores
+class CorretorRegistrationView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, *args, **kwargs):
+        # Verifica se o utilizador logado é um administrador da imobiliária
+        if not hasattr(request.user, 'perfil') or request.user.perfil.cargo != PerfilUsuario.Cargo.ADMIN:
+            return Response(
+                {"error": "Apenas administradores podem registar novos corretores."},
+                status=status.HTTP_403_FORBIDDEN
+            )
+
+        serializer = CorretorRegistrationSerializer(data=request.data)
+        if serializer.is_valid():
+            try:
+                # O método `create` do serializer apenas cria o objeto User
+                user = serializer.create(serializer.validated_data)
+                
+                # Criamos o perfil para o novo utilizador
+                PerfilUsuario.objects.create(
+                    user=user,
+                    imobiliaria=request.tenant,
+                    cargo=PerfilUsuario.Cargo.CORRETOR
+                )
+                return Response(
+                    {"message": "Corretor registado com sucesso!"},
+                    status=status.HTTP_201_CREATED
+                )
+            except Exception as e:
+                return Response(
+                    {"error": f"Erro ao criar o utilizador: {e}"},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
