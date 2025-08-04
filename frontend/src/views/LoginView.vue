@@ -24,14 +24,14 @@
 
 <script setup lang="ts">
 import { ref } from 'vue';
-import { useRouter } from 'vue-router'; // 1. Importar o router novamente
+import { useRouter } from 'vue-router';
 import apiClient from '@/services/api';
 
 const username = ref('');
 const password = ref('');
 const errorMessage = ref<string | null>(null);
 const isLoading = ref(false);
-const router = useRouter(); // 2. Inicializar o router
+const router = useRouter();
 
 async function handleLogin() {
   isLoading.value = true;
@@ -42,13 +42,11 @@ async function handleLogin() {
       password: password.value,
     });
     
-    // Guarda o token no armazenamento local
     const accessToken = response.data.access;
     localStorage.setItem('authToken', accessToken);
     
-    // --- LÓGICA DE REDIRECIONAMENTO CORRIGIDA ---
-    // Usa o router para navegar para a página de imóveis.
-    router.push({ name: 'imoveis' });
+    // ALTERAÇÃO AQUI: Redireciona para o dashboard
+    router.push({ name: 'dashboard' });
 
   } catch (error) {
     console.error("Erro no login:", error);
