@@ -1,8 +1,11 @@
 import { createRouter, createWebHistory } from 'vue-router'
 
-// Importações dos componentes de view
-import LoginView from '@/views/LoginView.vue'
+// Importações dos layouts
 import DashboardLayout from '@/layouts/DashboardLayout.vue'
+import PublicLayout from '@/layouts/PublicLayout.vue' // ADICIONADO
+
+// Importações das views do Painel (sem alterações)
+import LoginView from '@/views/LoginView.vue'
 import DashboardView from '@/views/DashboardView.vue'
 import ImoveisView from '@/views/ImoveisView.vue'
 import ImovelFormView from '@/views/ImovelFormView.vue'
@@ -12,9 +15,36 @@ import ClienteFormView from '@/views/ClienteFormView.vue'
 import ContratosView from '@/views/ContratosView.vue'
 import ContratoFormView from '@/views/ContratoFormView.vue'
 
+// Importações das views do Site Público (ADICIONADO)
+import PublicHomeView from '@/views/PublicHomeView.vue'
+import PublicImovelDetailView from '@/views/PublicImovelDetailView.vue'
+
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
   routes: [
+    // --- ROTAS DO SITE PÚBLICO (NOVA SEÇÃO ADICIONADA) ---
+    // Acessível via http://subdominio.localhost:5173/site
+    {
+      path: '/site',
+      component: PublicLayout,
+      children: [
+        {
+          path: '', // Página inicial do site
+          name: 'public-home',
+          component: PublicHomeView,
+          meta: { title: 'Início' }
+        },
+        {
+          path: 'imovel/:id', // Página de detalhes do imóvel
+          name: 'public-imovel-detail',
+          component: PublicImovelDetailView,
+          meta: { title: 'Detalhes do Imóvel' }
+        }
+      ]
+    },
+
+    // --- ROTAS DO PAINEL DE GESTÃO (SEÇÃO ORIGINAL, SEM ALTERAÇÕES) ---
+    // O seu painel continua a funcionar na rota principal '/'
     {
       path: '/login',
       name: 'login',
@@ -30,7 +60,6 @@ const router = createRouter({
       children: [
         {
           path: '',
-          // ALTERAÇÃO AQUI: A rota raiz agora redireciona para o dashboard
           redirect: '/dashboard'
         },
         {
@@ -123,6 +152,9 @@ const router = createRouter({
         }
       ]
     },
+    
+    // Rota de fallback (SEM ALTERAÇÕES)
+    // Se um URL não for encontrado, redireciona para a página principal (o painel).
     {
         path: '/:pathMatch(.*)*',
         redirect: '/'
@@ -130,7 +162,7 @@ const router = createRouter({
   ]
 })
 
-// Guarda de Navegação
+// Guarda de Navegação (SEM ALTERAÇÕES)
 router.beforeEach((to, from, next) => {
   document.title = `${String(to.meta.title) || 'ImobCloud'}`
 
@@ -140,7 +172,6 @@ router.beforeEach((to, from, next) => {
   if (requiresAuth && !isAuthenticated) {
     next({ name: 'login' })
   } else if (to.name === 'login' && isAuthenticated) {
-    // ALTERAÇÃO AQUI: Se já estiver autenticado, vai para o dashboard
     next({ name: 'dashboard' })
   } else {
     next()

@@ -1,6 +1,9 @@
+# C:\wamp64\www\ImobCloud\core\views.py
+
 from rest_framework_simplejwt.views import TokenObtainPairView
 from .serializers import MyTokenObtainPairSerializer
 
+# --- Importações para o Dashboard ---
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
@@ -14,7 +17,8 @@ from app_contratos.models import Contrato
 
 class MyTokenObtainPairView(TokenObtainPairView):
     """
-    View existente para o login, permanece sem alterações.
+    View existente para o login, que já adiciona o subdomínio à resposta.
+    Permanece sem alterações.
     """
     serializer_class = MyTokenObtainPairSerializer
 
@@ -27,7 +31,7 @@ class DashboardStatsView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request, *args, **kwargs):
-        # A lógica para obter o tenant (imobiliária) é tratada pelo middleware
+        # O middleware já nos dá o tenant (imobiliária) do utilizador autenticado
         tenant = request.tenant
 
         if not tenant:

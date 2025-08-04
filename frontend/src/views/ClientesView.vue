@@ -7,6 +7,15 @@
       </router-link>
     </header>
 
+    <div class="search-bar">
+      <input
+        type="text"
+        v-model="searchTerm"
+        placeholder="Pesquisar por nome, CPF/CNPJ, email..."
+        @input="fetchClientes"
+      />
+    </div>
+
     <div v-if="isLoading">A carregar...</div>
     <div v-if="error" class="error-message">{{ error }}</div>
 
@@ -37,7 +46,7 @@
     </table>
 
      <div v-if="!isLoading && clientes.length === 0 && !error">
-      <p>Nenhum cliente cadastrado ainda.</p>
+      <p>Nenhum cliente encontrado.</p>
     </div>
   </div>
 </template>
@@ -50,10 +59,17 @@ const clientes = ref<any[]>([]);
 const isLoading = ref(true);
 const error = ref<string | null>(null);
 
+// ## ESTADO PARA O TERMO DE PESQUISA ADICIONADO ##
+const searchTerm = ref('');
+
+// ## FUNÇÃO DE BUSCA ATUALIZADA PARA INCLUIR A PESQUISA ##
 async function fetchClientes() {
   isLoading.value = true;
   try {
-    const response = await apiClient.get('/v1/clientes/clientes/');
+    const params = {
+      search: searchTerm.value, // Adiciona o parâmetro de pesquisa ao pedido
+    };
+    const response = await apiClient.get('/v1/clientes/clientes/', { params });
     clientes.value = response.data;
   } catch (err) {
     console.error("Erro ao buscar clientes:", err);
@@ -63,21 +79,18 @@ async function fetchClientes() {
   }
 }
 
+// Lógica onMounted (INTACTA)
 onMounted(() => {
   fetchClientes();
 });
 
-// ## LÓGICA DE INATIVAÇÃO ADICIONADA ##
+// Lógica handleInativar (INTACTA)
 async function handleInativar(clienteId: number) {
   if (!window.confirm('Tem a certeza de que deseja inativar este cliente?')) {
     return;
   }
-
   try {
-    // Chama o endpoint DELETE. O backend irá interpretar isto como uma inativação.
     await apiClient.delete(`/v1/clientes/clientes/${clienteId}/`);
-
-    // Remove o cliente da lista no frontend para uma atualização instantânea da UI.
     clientes.value = clientes.value.filter(cliente => cliente.id !== clienteId);
   } catch (error) {
     console.error("Erro ao inativar cliente:", error);
@@ -106,6 +119,18 @@ async function handleInativar(clienteId: number) {
   font-weight: bold;
   border: none;
   cursor: pointer;
+}
+/* ## ESTILO PARA A BARRA DE PESQUISA ADICIONADO ## */
+.search-bar {
+  margin-bottom: 1.5rem;
+}
+.search-bar input {
+  width: 100%;
+  padding: 10px;
+  font-size: 1rem;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  box-sizing: border-box;
 }
 table {
   width: 100%;

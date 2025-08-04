@@ -7,6 +7,15 @@
       </router-link>
     </header>
 
+    <div class="search-bar">
+      <input
+        type="text"
+        v-model="searchTerm"
+        placeholder="Pesquisar por endereço, cidade..."
+        @input="fetchImoveis"
+      />
+    </div>
+
     <div v-if="isLoading">A carregar...</div>
     <div v-if="error" class="error-message">{{ error }}</div>
 
@@ -28,7 +37,7 @@
             <router-link :to="`/imoveis/editar/${imovel.id}`" class="btn-secondary">
               Editar
             </router-link>
-             <router-link :to="`/imoveis/${imovel.id}/imagens`" class="btn-info">
+            <router-link :to="`/imoveis/${imovel.id}/imagens`" class="btn-info">
               Imagens
             </router-link>
             <button @click="handleInativar(imovel.id)" class="btn-danger">
@@ -39,7 +48,7 @@
       </tbody>
     </table>
     <div v-if="!isLoading && !imoveis.length">
-      <p>Nenhum imóvel cadastrado ainda.</p>
+      <p>Nenhum imóvel encontrado.</p>
     </div>
   </div>
 </template>
@@ -52,10 +61,18 @@ const imoveis = ref<any[]>([]);
 const isLoading = ref(true);
 const error = ref<string | null>(null);
 
+// ESTADO PARA O TERMO DE PESQUISA (NOVO)
+const searchTerm = ref('');
+
+// FUNÇÃO DE BUSCA ATUALIZADA PARA INCLUIR A LÓGICA DE PESQUISA
 async function fetchImoveis() {
   isLoading.value = true;
   try {
-    const response = await apiClient.get('/v1/imoveis/imoveis/');
+    const params = {
+      search: searchTerm.value, // Adiciona o parâmetro 'search' ao pedido
+    };
+    // O pedido GET agora inclui os parâmetros de pesquisa
+    const response = await apiClient.get('/v1/imoveis/imoveis/', { params });
     imoveis.value = response.data;
   } catch (err) {
     console.error("Erro ao buscar imóveis:", err);
@@ -65,15 +82,16 @@ async function fetchImoveis() {
   }
 }
 
+// LÓGICA onMounted (INTACTA)
 onMounted(() => {
   fetchImoveis();
 });
 
+// LÓGICA handleInativar (INTACTA)
 async function handleInativar(imovelId: number) {
   if (!window.confirm('Tem a certeza de que deseja inativar este imóvel? Ele não aparecerá mais nas listas.')) {
     return;
   }
-
   try {
     await apiClient.delete(`/v1/imoveis/imoveis/${imovelId}/`);
     imoveis.value = imoveis.value.filter(imovel => imovel.id !== imovelId);
@@ -104,6 +122,18 @@ async function handleInativar(imovelId: number) {
   border: none;
   cursor: pointer;
 }
+/* ESTILO PARA A BARRA DE PESQUISA (NOVO) */
+.search-bar {
+  margin-bottom: 1.5rem;
+}
+.search-bar input {
+  width: 100%;
+  padding: 10px;
+  font-size: 1rem;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  box-sizing: border-box;
+}
 table {
   width: 100%;
   border-collapse: collapse;
@@ -123,7 +153,7 @@ th {
 }
 .actions-cell {
   display: flex;
-  flex-wrap: wrap; /* Permite que os botões quebrem a linha se não houver espaço */
+  flex-wrap: wrap;
   gap: 0.5rem;
 }
 .btn-secondary, .btn-danger, .btn-info {
@@ -142,6 +172,6 @@ th {
   background-color: #dc3545;
 }
 .btn-info {
-  background-color: #17a2b8; /* Nova cor para o botão de imagens */
+  background-color: #17a2b8;
 }
 </style>
