@@ -8,7 +8,7 @@
       <router-link to="/imoveis" class="btn-secondary">Voltar à Lista</router-link>
     </header>
 
-    <div class="upload-section">
+    <div v-if="userCargo === 'ADMIN'" class="upload-section">
       <h3>Carregar Novas Imagens</h3>
       <div class="form-group">
         <label for="imagem-file">Selecionar um ou mais ficheiros</label>
@@ -29,7 +29,7 @@
     <div v-else class="gallery">
       <div v-for="imagem in imagens" :key="imagem.id" class="image-card">
         <img :src="imagem.imagem" alt="Imagem do imóvel" class="image-thumbnail" />
-        <div class="image-actions">
+        <div v-if="userCargo === 'ADMIN'" class="image-actions">
           <button @click="handleDelete(imagem.id)" class="btn-danger-small">Eliminar</button>
         </div>
       </div>
@@ -52,6 +52,7 @@ const selectedFiles = ref<File[]>([]); // Modificado para ser um array de fichei
 const isLoading = ref(true);
 const isUploading = ref(false);
 const uploadProgress = ref(''); // Para feedback durante o upload
+const userCargo = ref(''); // NOVO: Estado para guardar o cargo do utilizador
 
 // Função para buscar os dados do imóvel e as suas imagens (sem alterações)
 async function fetchImovelEImagens() {
@@ -70,6 +71,8 @@ async function fetchImovelEImagens() {
 
 onMounted(() => {
   fetchImovelEImagens();
+  // NOVO: Lê o cargo do localStorage quando a página é carregada
+  userCargo.value = localStorage.getItem('userCargo') || '';
 });
 
 // MODIFICADO para lidar com múltiplos ficheiros

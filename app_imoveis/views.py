@@ -1,14 +1,14 @@
 # C:\wamp64\www\ImobCloud\app_imoveis\views.py
 from rest_framework import viewsets, status
 from rest_framework.response import Response
-from rest_framework import permissions 
+from rest_framework import permissions
 from django.shortcuts import get_object_or_404
 from rest_framework import filters
 from django.core.mail import send_mail
 
 from .models import Imovel, ImagemImovel, ContatoImovel
 from .serializers import ImovelSerializer, ImagemImovelSerializer, ContatoImovelSerializer
-from core.models import Imobiliaria 
+from core.models import Imobiliaria, PerfilUsuario
 
 class ImovelViewSet(viewsets.ModelViewSet):
     queryset = Imovel.objects.all()
@@ -25,10 +25,10 @@ class ImovelViewSet(viewsets.ModelViewSet):
             if self.request.user.is_superuser:
                 return base_queryset.all()
             elif self.request.tenant:
+                # O middleware já garante que apenas vemos imóveis da nossa imobiliária
                 return base_queryset.filter(imobiliaria=self.request.tenant)
 
         # Lógica para o site público (utilizadores anónimos)
-        # O middleware identifica o tenant pelo HOST (ex: sol.localhost)
         if self.request.tenant:
             return base_queryset.filter(imobiliaria=self.request.tenant)
         
@@ -45,6 +45,7 @@ class ImovelViewSet(viewsets.ModelViewSet):
         return Imovel.objects.none()
 
     def perform_create(self, serializer):
+        # Um corretor pode criar imóveis, mas só na sua própria imobiliária
         if self.request.user.is_superuser and 'imobiliaria' in self.request.data:
             imobiliaria_id = self.request.data['imobiliaria']
             imobiliaria_obj = get_object_or_404(Imobiliaria, pk=imobiliaria_id)
@@ -55,15 +56,18 @@ class ImovelViewSet(viewsets.ModelViewSet):
             raise Exception("Não foi possível associar o imóvel a uma imobiliária. Tenant não identificado ou inválido.")
 
     def perform_update(self, serializer):
+        # Um corretor só pode atualizar imóveis da sua imobiliária
         if self.request.user.is_superuser:
             serializer.save()
-        elif serializer.instance.imobiliaria == self.request.tenant:
+        # Adicionamos a verificação de cargo para clareza
+        elif hasattr(self.request.user, 'perfil') and self.request.user.perfil.cargo in [PerfilUsuario.Cargo.ADMIN, PerfilUsuario.Cargo.CORRETOR] and serializer.instance.imobiliaria == self.request.tenant:
             serializer.save()
         else:
             raise Exception("Você não tem permissão para atualizar este imóvel. Ele não pertence à sua imobiliária.")
 
     def perform_destroy(self, instance):
-        if self.request.user.is_superuser or instance.imobiliaria == self.request.tenant:
+        # Apenas ADMINs e superusuários podem inativar imóveis. Corretores não podem.
+        if self.request.user.is_superuser or (hasattr(self.request.user, 'perfil') and self.request.user.perfil.cargo == PerfilUsuario.Cargo.ADMIN and instance.imobiliaria == self.request.tenant):
             instance.status = 'Desativado'
             instance.save()
             return Response(status=status.HTTP_204_NO_CONTENT)
@@ -74,11 +78,27 @@ class ImovelViewSet(viewsets.ModelViewSet):
 class ContatoImovelViewSet(viewsets.ModelViewSet):
     """
     Endpoint para receber mensagens de contato do site público.
-    Não requer autenticação para a criação (envio do formulário).
+    Permite a criação (envio do formulário) sem autenticação,
+    mas restringe as demais operações a utilizadores autenticados.
     """
     queryset = ContatoImovel.objects.all()
     serializer_class = ContatoImovelSerializer
-    permission_classes = [permissions.AllowAny] # Permite o envio por utilizadores não logados
+    
+    def get_permissions(self):
+        # Permite POST (criação) para todos, mas exige autenticação para outras operações.
+        if self.action in ['list', 'retrieve', 'update', 'partial_update', 'destroy']:
+            self.permission_classes = [permissions.IsAuthenticated]
+        else:
+            self.permission_classes = [permissions.AllowAny]
+        return super().get_permissions()
+
+    def get_queryset(self):
+        # Filtra os contactos para que cada utilizador veja apenas os da sua imobiliária
+        if self.request.user.is_superuser:
+            return ContatoImovel.objects.all()
+        elif self.request.user.is_authenticated and self.request.tenant:
+            return ContatoImovel.objects.filter(imovel__imobiliaria=self.request.tenant)
+        return ContatoImovel.objects.none()
 
     def perform_create(self, serializer):
         # Guardamos o objeto de contacto primeiro para ter acesso a ele
@@ -123,9 +143,9 @@ class ContatoImovelViewSet(viewsets.ModelViewSet):
 
 
 class ImagemImovelViewSet(viewsets.ModelViewSet):
-    queryset = ImagemImovel.objects.all() 
+    queryset = ImagemImovel.objects.all()
     serializer_class = ImagemImovelSerializer
-    permission_classes = [permissions.IsAuthenticated] 
+    permission_classes = [permissions.IsAuthenticated]
 
     def get_queryset(self):
         if self.request.user.is_superuser:
@@ -145,14 +165,15 @@ class ImagemImovelViewSet(viewsets.ModelViewSet):
 
     def perform_create(self, serializer):
         imovel_id = self.request.data.get('imovel')
+        # Apenas ADMINs e superusuários podem criar imagens. Corretores não podem.
         if self.request.user.is_superuser:
             imovel = get_object_or_404(Imovel, pk=imovel_id)
-        elif self.request.tenant:
+        elif hasattr(self.request.user, 'perfil') and self.request.user.perfil.cargo == PerfilUsuario.Cargo.ADMIN and self.request.tenant:
             imovel = get_object_or_404(Imovel, pk=imovel_id, imobiliaria=self.request.tenant)
         else:
-            raise Exception("Imóvel não encontrado ou não pertence à sua imobiliária.")
+            raise Exception("Você não tem permissão para adicionar imagens.")
             
-        if self.request.data.get('principal', False): 
+        if self.request.data.get('principal', False):
              ImagemImovel.objects.filter(imovel=imovel, principal=True).update(principal=False)
         elif not ImagemImovel.objects.filter(imovel=imovel, principal=True).exists():
              serializer.validated_data['principal'] = True
@@ -160,16 +181,18 @@ class ImagemImovelViewSet(viewsets.ModelViewSet):
         serializer.save(imovel=imovel)
 
     def perform_update(self, serializer):
+        # Apenas ADMINs e superusuários podem atualizar imagens.
         if self.request.user.is_superuser:
             serializer.save()
-        elif serializer.instance.imovel.imobiliaria == self.request.tenant:
-            if serializer.validated_data.get('principal', False): 
+        elif hasattr(self.request.user, 'perfil') and self.request.user.perfil.cargo == PerfilUsuario.Cargo.ADMIN and serializer.instance.imovel.imobiliaria == self.request.tenant:
+            if serializer.validated_data.get('principal', False):
                 ImagemImovel.objects.filter(imovel=serializer.instance.imovel, principal=True).update(principal=False)
             serializer.save()
         else:
             raise Exception("Você não tem permissão para atualizar esta imagem. O imóvel associado não pertence à sua imobiliária.")
 
     def perform_destroy(self, instance):
+        # Apenas ADMINs e superusuários podem excluir imagens.
         if self.request.user.is_superuser:
             instance.delete()
             if instance.principal:
@@ -177,7 +200,7 @@ class ImagemImovelViewSet(viewsets.ModelViewSet):
                 if remaining_images:
                     remaining_images.principal = True
                     remaining_images.save()
-        elif instance.imovel.imobiliaria == self.request.tenant:
+        elif hasattr(self.request.user, 'perfil') and self.request.user.perfil.cargo == PerfilUsuario.Cargo.ADMIN and instance.imovel.imobiliaria == self.request.tenant:
             instance.delete()
             if instance.principal:
                 remaining_images = ImagemImovel.objects.filter(imovel=instance.imovel).order_by('data_upload').first()

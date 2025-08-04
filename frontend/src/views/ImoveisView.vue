@@ -37,10 +37,10 @@
             <router-link :to="`/imoveis/editar/${imovel.id}`" class="btn-secondary">
               Editar
             </router-link>
-            <router-link :to="`/imoveis/${imovel.id}/imagens`" class="btn-info">
+            <router-link v-if="userCargo === 'ADMIN'" :to="`/imoveis/${imovel.id}/imagens`" class="btn-info">
               Imagens
             </router-link>
-            <button @click="handleInativar(imovel.id)" class="btn-danger">
+            <button v-if="userCargo === 'ADMIN'" @click="handleInativar(imovel.id)" class="btn-danger">
               Inativar
             </button>
           </td>
@@ -60,18 +60,15 @@ import apiClient from '@/services/api';
 const imoveis = ref<any[]>([]);
 const isLoading = ref(true);
 const error = ref<string | null>(null);
-
-// ESTADO PARA O TERMO DE PESQUISA (NOVO)
 const searchTerm = ref('');
+const userCargo = ref(''); // NOVO: Estado para guardar o cargo do utilizador
 
-// FUNÇÃO DE BUSCA ATUALIZADA PARA INCLUIR A LÓGICA DE PESQUISA
 async function fetchImoveis() {
   isLoading.value = true;
   try {
     const params = {
-      search: searchTerm.value, // Adiciona o parâmetro 'search' ao pedido
+      search: searchTerm.value,
     };
-    // O pedido GET agora inclui os parâmetros de pesquisa
     const response = await apiClient.get('/v1/imoveis/imoveis/', { params });
     imoveis.value = response.data;
   } catch (err) {
@@ -82,12 +79,12 @@ async function fetchImoveis() {
   }
 }
 
-// LÓGICA onMounted (INTACTA)
 onMounted(() => {
   fetchImoveis();
+  // NOVO: Lê o cargo do localStorage quando a página é carregada
+  userCargo.value = localStorage.getItem('userCargo') || '';
 });
 
-// LÓGICA handleInativar (INTACTA)
 async function handleInativar(imovelId: number) {
   if (!window.confirm('Tem a certeza de que deseja inativar este imóvel? Ele não aparecerá mais nas listas.')) {
     return;
@@ -122,7 +119,6 @@ async function handleInativar(imovelId: number) {
   border: none;
   cursor: pointer;
 }
-/* ESTILO PARA A BARRA DE PESQUISA (NOVO) */
 .search-bar {
   margin-bottom: 1.5rem;
 }

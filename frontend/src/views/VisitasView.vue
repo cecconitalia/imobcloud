@@ -30,7 +30,7 @@
             <router-link :to="`/visitas/editar/${visita.id}`" class="btn-secondary">
               Editar
             </router-link>
-            <button @click="handleCancelar(visita.id)" class="btn-danger">
+            <button v-if="userCargo === 'ADMIN'" @click="handleCancelar(visita.id)" class="btn-danger">
               Cancelar
             </button>
           </td>
@@ -50,11 +50,11 @@ import apiClient from '@/services/api';
 const visitas = ref<any[]>([]);
 const isLoading = ref(true);
 const error = ref<string | null>(null);
+const userCargo = ref(''); // NOVO: Estado para guardar o cargo do utilizador
 
 async function fetchVisitas() {
   isLoading.value = true;
   try {
-    // Usamos o endpoint que já existe no backend para clientes
     const response = await apiClient.get('/v1/clientes/visitas/');
     visitas.value = response.data;
   } catch (err) {
@@ -67,6 +67,8 @@ async function fetchVisitas() {
 
 onMounted(() => {
   fetchVisitas();
+  // NOVO: Lê o cargo do localStorage quando a página é carregada
+  userCargo.value = localStorage.getItem('userCargo') || '';
 });
 
 async function handleCancelar(visitaId: number) {
@@ -74,10 +76,7 @@ async function handleCancelar(visitaId: number) {
     return;
   }
   try {
-    // Para cancelar, vamos "editar" a visita, alterando o seu status.
-    // O backend não tem um endpoint DELETE para visitas, então usamos um PATCH.
     await apiClient.patch(`/v1/clientes/visitas/${visitaId}/`, { status: 'Cancelada' });
-    // Atualiza a lista para refletir a alteração
     await fetchVisitas();
   } catch (error) {
     console.error("Erro ao cancelar visita:", error);
@@ -85,7 +84,6 @@ async function handleCancelar(visitaId: number) {
   }
 }
 
-// Função para formatar a data para um formato mais legível
 function formatarData(data: string) {
   const options: Intl.DateTimeFormatOptions = {
     year: 'numeric', month: '2-digit', day: '2-digit',
