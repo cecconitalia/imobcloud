@@ -252,3 +252,11 @@ CSRF_TRUSTED_ORIGINS = [
     # 'https://seusistema.com',
     # 'https://*.seusistema.com',
 ]
+
+EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+EMAIL_HOST = 'mail.ofertacobrasil.com.br'
+EMAIL_PORT = 587
+EMAIL_USE_TLS = True
+EMAIL_HOST_USER = 'estilomusical@ofertacobrasil.com.br'
+EMAIL_HOST_PASSWORD = 'P5jNfHUWb@K#$R9'
+DEFAULT_FROM_EMAIL = 'estilomusical@ofertacobrasil.com.br'

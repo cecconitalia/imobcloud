@@ -21,6 +21,12 @@
           <i class="icon-contratos"></i>
           <span>Contratos</span>
         </router-link>
+        
+        <router-link to="/visitas" class="nav-link">
+          <i class="icon-visitas"></i>
+          <span>Visitas</span>
+        </router-link>
+
       </nav>
       <div class="sidebar-footer">
         <button @click="handleLogout" class="logout-button">
