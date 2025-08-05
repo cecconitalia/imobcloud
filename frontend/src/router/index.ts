@@ -102,6 +102,15 @@ const router = createRouter({
           }
         },
         {
+          path: 'oportunidades/editar/:id',
+          name: 'oportunidade-editar',
+          component: OportunidadeFormView,
+          meta: {
+            title: 'Editar Oportunidade',
+            requiresAuth: true
+          }
+        },
+        {
           path: 'imoveis',
           name: 'imoveis',
           component: ImoveisView,
