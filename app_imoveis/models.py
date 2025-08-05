@@ -80,11 +80,15 @@ class ContatoImovel(models.Model):
     telefone = models.CharField(max_length=20, blank=True, null=True, verbose_name="Telefone (Opcional)")
     mensagem = models.TextField(verbose_name="Mensagem")
     data_contato = models.DateTimeField(auto_now_add=True, verbose_name="Data do Contato")
+    # Este campo foi adicionado no passo anterior
+    arquivado = models.BooleanField(default=False, verbose_name="Arquivado")
 
     class Meta:
+        # ATUALIZADO
         verbose_name = "Contato de Imóvel"
         verbose_name_plural = "Contatos de Imóveis"
         ordering = ['-data_contato']
 
     def __str__(self):
+        # ATUALIZADO
         return f"Contato de {self.nome} para o imóvel: {self.imovel.endereco}"

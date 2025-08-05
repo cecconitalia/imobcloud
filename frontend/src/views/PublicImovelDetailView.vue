@@ -50,10 +50,10 @@
       </div>
       
       <div class="contato-section">
-        <h3>Ficou interessado? Contacte-nos!</h3>
+        <h3>Ficou interessado? Contate-nos!</h3>
 
         <div v-if="contatoEnviado" class="success-message">
-          A sua mensagem foi enviada com sucesso! Entraremos em contacto em breve.
+          A sua mensagem foi enviada com sucesso! Entraremos em contato em breve.
         </div>
 
         <form v-else @submit.prevent="handleContatoSubmit" class="contato-form">
@@ -96,23 +96,21 @@ const isLoading = ref(true);
 const error = ref<string | null>(null);
 const imagemPrincipal = ref('');
 
-// NOVOS ESTADOS PARA O FORMULÁRIO DE CONTATO
 const contato = ref({
   imovel: 0,
   nome: '',
   email: '',
   telefone: '',
+  // ATUALIZADO
   mensagem: `Olá, tenho interesse neste imóvel (${route.params.id}) e gostaria de mais informações.`
 });
 const isSubmittingContato = ref(false);
 const contatoEnviado = ref(false);
 
 
-// --- FUNÇÃO fetchImovel ATUALIZADA ---
 async function fetchImovel() {
   isLoading.value = true;
   try {
-    // Extrai o subdomínio da mesma forma que na página principal
     const hostname = window.location.hostname;
     const parts = hostname.split('.');
     let subdomain = null;
@@ -125,14 +123,12 @@ async function fetchImovel() {
       return;
     }
 
-    // Envia o subdomínio como um parâmetro para que o backend saiba onde procurar
     const response = await publicApiClient.get(`/v1/imoveis/imoveis/${imovelId}/`, {
       params: { subdomain: subdomain }
     });
     
     imovel.value = response.data;
     imagemPrincipal.value = getPrincipalImage(imovel.value.imagens);
-    // Atribuímos o ID do imóvel ao nosso formulário
     if (response.data) {
         contato.value.imovel = response.data.id;
     }
@@ -144,12 +140,11 @@ async function fetchImovel() {
   }
 }
 
-// NOVA FUNÇÃO PARA SUBMETER O CONTATO
 async function handleContatoSubmit() {
   isSubmittingContato.value = true;
   try {
     await publicApiClient.post('/v1/imoveis/contatos/', contato.value);
-    contatoEnviado.value = true; // Mostra a mensagem de sucesso
+    contatoEnviado.value = true;
   } catch (err) {
     console.error("Erro ao enviar mensagem:", err);
     alert('Ocorreu um erro ao enviar a sua mensagem. Por favor, tente novamente.');
@@ -203,7 +198,6 @@ function formatarPreco(imovel: any) {
   border-radius: 8px;
   box-shadow: 0 4px 12px rgba(0,0,0,0.1);
   grid-template-columns: 2fr 1fr;
-  /* Adicionamos uma nova linha no grid para o formulário */
   grid-template-rows: auto auto; 
 }
 @media (max-width: 992px) {
@@ -309,9 +303,8 @@ function formatarPreco(imovel: any) {
   border-radius: 5px;
 }
 
-/* NOVOS ESTILOS PARA O FORMULÁRIO */
 .contato-section {
-  grid-column: 1 / -1; /* Ocupa a largura total */
+  grid-column: 1 / -1;
   grid-row: 2 / 3;
   margin-top: 2rem;
   padding-top: 2rem;

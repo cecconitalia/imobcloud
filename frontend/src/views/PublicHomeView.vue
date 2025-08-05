@@ -1,5 +1,38 @@
 <template>
   <div class="container">
+    <div class="filters-container">
+      <div class="filter-group">
+        <label for="finalidade">Finalidade</label>
+        <select id="finalidade" v-model="filters.finalidade" @change="fetchImoveis">
+          <option value="">Todas</option>
+          <option value="Venda">Venda</option>
+          <option value="Aluguel">Aluguel</option>
+        </select>
+      </div>
+      <div class="filter-group">
+        <label for="tipo">Tipo de Imóvel</label>
+        <select id="tipo" v-model="filters.tipo" @change="fetchImoveis">
+          <option value="">Todos</option>
+          <option value="Casa">Casa</option>
+          <option value="Apartamento">Apartamento</option>
+          <option value="Terreno">Terreno</option>
+          <option value="Sala Comercial">Sala Comercial</option>
+          <option value="Galpão">Galpão</option>
+          <option value="Outro">Outro</option>
+        </select>
+      </div>
+      <div class="filter-group">
+        <label for="cidade">Cidade</label>
+        <input 
+          type="text" 
+          id="cidade" 
+          v-model="filters.cidade" 
+          @input="fetchImoveis"
+          placeholder="Nome da cidade..." 
+        />
+      </div>
+    </div>
+
     <div v-if="isLoading">A carregar imóveis...</div>
     <div v-if="error" class="error-message">{{ error }}</div>
 
@@ -20,8 +53,8 @@
       </div>
     </div>
 
-    <div v-if="!isLoading && imoveis.length === 0 && !error">
-      <p>Nenhum imóvel disponível no momento.</p>
+    <div v-if="!isLoading && imoveis.length === 0 && !error" class="no-results">
+      <p>Nenhum imóvel encontrado com os filtros selecionados.</p>
     </div>
   </div>
 </template>
@@ -34,11 +67,17 @@ const imoveis = ref<any[]>([]);
 const isLoading = ref(true);
 const error = ref<string | null>(null);
 
+// NOVO: Estado reativo para os filtros
+const filters = ref({
+  finalidade: '',
+  tipo: '',
+  cidade: ''
+});
+
 async function fetchImoveis() {
   isLoading.value = true;
   try {
-    // --- LÓGICA DE SUBDOMÍNIO ADICIONADA ---
-    const hostname = window.location.hostname; // ex: "sol.localhost"
+    const hostname = window.location.hostname;
     const parts = hostname.split('.');
     let subdomain = null;
 
@@ -47,17 +86,18 @@ async function fetchImoveis() {
     }
     
     if (!subdomain) {
-      // Se não houver subdomínio, não faz sentido procurar imóveis
       imoveis.value = [];
-      // Opcional: definir uma mensagem de erro
       error.value = "Site não encontrado. Aceda através de um endereço de imobiliária válido.";
       return;
     }
+    
+    // ATUALIZADO: Adiciona os filtros aos parâmetros da API
+    const params = {
+        subdomain: subdomain,
+        ...filters.value // Adiciona os valores do objeto de filtros
+    };
 
-    // Envia o subdomínio como um parâmetro de pesquisa para a API
-    const response = await publicApiClient.get('/v1/imoveis/imoveis/', {
-      params: { subdomain: subdomain }
-    });
+    const response = await publicApiClient.get('/v1/imoveis/imoveis/', { params });
     imoveis.value = response.data;
 
   } catch (err) {
@@ -92,7 +132,40 @@ function formatarPreco(imovel: any) {
 </script>
 
 <style scoped>
-/* O seu CSS permanece sem alterações */
+/* NOVOS ESTILOS PARA OS FILTROS */
+.filters-container {
+  background-color: #fff;
+  padding: 1.5rem;
+  border-radius: 8px;
+  box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+  display: flex;
+  gap: 1.5rem;
+  margin-bottom: 2rem;
+  flex-wrap: wrap;
+}
+.filter-group {
+  display: flex;
+  flex-direction: column;
+  flex-grow: 1;
+}
+.filter-group label {
+  margin-bottom: 0.5rem;
+  font-weight: bold;
+  color: #333;
+}
+.filter-group select, .filter-group input {
+  padding: 10px;
+  border-radius: 4px;
+  border: 1px solid #ccc;
+  font-size: 1rem;
+}
+.no-results {
+  text-align: center;
+  padding: 2rem;
+  color: #6c757d;
+}
+
+/* O seu CSS existente permanece sem alterações */
 .container {
   max-width: 1200px;
   margin: 0 auto;

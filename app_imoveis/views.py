@@ -5,6 +5,7 @@ from rest_framework import permissions
 from django.shortcuts import get_object_or_404
 from rest_framework import filters
 from django.core.mail import send_mail
+from rest_framework.decorators import action
 
 from .models import Imovel, ImagemImovel, ContatoImovel
 from .serializers import ImovelSerializer, ImagemImovelSerializer, ContatoImovelSerializer
@@ -14,25 +15,35 @@ class ImovelViewSet(viewsets.ModelViewSet):
     queryset = Imovel.objects.all()
     serializer_class = ImovelSerializer
     permission_classes = [permissions.IsAuthenticatedOrReadOnly]
+    # O SearchFilter continua útil para a pesquisa geral no painel de admin
     filter_backends = [filters.SearchFilter]
     search_fields = ['endereco', 'cidade', 'descricao']
 
     def get_queryset(self):
         base_queryset = Imovel.objects.exclude(status='Desativado')
 
-        # Lógica para utilizadores autenticados (painel) continua a funcionar como antes
+        # --- LÓGICA DE FILTRO ATUALIZADA ---
+
+        # 1. Filtros para o site público (vindos como query params)
+        finalidade = self.request.query_params.get('finalidade', None)
+        tipo = self.request.query_params.get('tipo', None)
+        cidade = self.request.query_params.get('cidade', None)
+
+        if finalidade:
+            base_queryset = base_queryset.filter(finalidade=finalidade)
+        if tipo:
+            base_queryset = base_queryset.filter(tipo=tipo)
+        if cidade:
+            # Usamos __icontains para uma pesquisa de texto flexível (case-insensitive)
+            base_queryset = base_queryset.filter(cidade__icontains=cidade)
+
+        # 2. Lógica de tenant (multi-imobiliária)
         if self.request.user.is_authenticated:
             if self.request.user.is_superuser:
                 return base_queryset.all()
             elif self.request.tenant:
-                # O middleware já garante que apenas vemos imóveis da nossa imobiliária
                 return base_queryset.filter(imobiliaria=self.request.tenant)
 
-        # Lógica para o site público (utilizadores anónimos)
-        if self.request.tenant:
-            return base_queryset.filter(imobiliaria=self.request.tenant)
-        
-        # Fallback para o site público, que irá enviar um parâmetro de URL
         subdomain_param = self.request.query_params.get('subdomain', None)
         if subdomain_param:
             try:
@@ -41,11 +52,9 @@ class ImovelViewSet(viewsets.ModelViewSet):
             except Imobiliaria.DoesNotExist:
                 return Imovel.objects.none()
 
-        # Se nenhum tenant for identificado, retorna uma lista vazia
         return Imovel.objects.none()
 
     def perform_create(self, serializer):
-        # Um corretor pode criar imóveis, mas só na sua própria imobiliária
         if self.request.user.is_superuser and 'imobiliaria' in self.request.data:
             imobiliaria_id = self.request.data['imobiliaria']
             imobiliaria_obj = get_object_or_404(Imobiliaria, pk=imobiliaria_id)
@@ -56,17 +65,14 @@ class ImovelViewSet(viewsets.ModelViewSet):
             raise Exception("Não foi possível associar o imóvel a uma imobiliária. Tenant não identificado ou inválido.")
 
     def perform_update(self, serializer):
-        # Um corretor só pode atualizar imóveis da sua imobiliária
         if self.request.user.is_superuser:
             serializer.save()
-        # Adicionamos a verificação de cargo para clareza
         elif hasattr(self.request.user, 'perfil') and self.request.user.perfil.cargo in [PerfilUsuario.Cargo.ADMIN, PerfilUsuario.Cargo.CORRETOR] and serializer.instance.imobiliaria == self.request.tenant:
             serializer.save()
         else:
             raise Exception("Você não tem permissão para atualizar este imóvel. Ele não pertence à sua imobiliária.")
 
     def perform_destroy(self, instance):
-        # Apenas ADMINs e superusuários podem inativar imóveis. Corretores não podem.
         if self.request.user.is_superuser or (hasattr(self.request.user, 'perfil') and self.request.user.perfil.cargo == PerfilUsuario.Cargo.ADMIN and instance.imobiliaria == self.request.tenant):
             instance.status = 'Desativado'
             instance.save()
@@ -75,12 +81,14 @@ class ImovelViewSet(viewsets.ModelViewSet):
             raise Exception("Você não tem permissão para inativar este imóvel. Ele não pertence à sua imobiliária.")
 
 
+# ... O restante do ficheiro (ContatoImovelViewSet, ImagemImovelViewSet) permanece igual ...
 class ContatoImovelViewSet(viewsets.ModelViewSet):
     """
     Endpoint para receber mensagens de contato do site público.
     Permite a criação (envio do formulário) sem autenticação,
     mas restringe as demais operações a utilizadores autenticados.
     """
+    # ATUALIZADO
     queryset = ContatoImovel.objects.all()
     serializer_class = ContatoImovelSerializer
     
@@ -93,11 +101,13 @@ class ContatoImovelViewSet(viewsets.ModelViewSet):
         return super().get_permissions()
 
     def get_queryset(self):
-        # Filtra os contactos para que cada utilizador veja apenas os da sua imobiliária
+        # ATUALIZADO
+        base_queryset = ContatoImovel.objects.filter(arquivado=False)
         if self.request.user.is_superuser:
-            return ContatoImovel.objects.all()
+            return base_queryset.all()
         elif self.request.user.is_authenticated and self.request.tenant:
-            return ContatoImovel.objects.filter(imovel__imobiliaria=self.request.tenant)
+            # ATUALIZADO
+            return base_queryset.filter(imovel__imobiliaria=self.request.tenant)
         return ContatoImovel.objects.none()
 
     def perform_create(self, serializer):
@@ -140,6 +150,31 @@ class ContatoImovelViewSet(viewsets.ModelViewSet):
         except Exception as e:
             # Se o email falhar, não quebramos a aplicação, apenas registamos o erro
             print(f"ERRO AO ENVIAR EMAIL DE NOTIFICAÇÃO: {e}")
+
+    # NOVO: Ação para arquivar um contacto
+    @action(detail=True, methods=['post'], permission_classes=[permissions.IsAuthenticated])
+    def arquivar(self, request, pk=None):
+        """
+        Marca um contacto como arquivado.
+        """
+        contato = self.get_object()
+        # Verifica a permissão (só superuser ou admin da imobiliária do contacto)
+        is_superuser = request.user.is_superuser
+        is_admin_of_tenant = (
+            hasattr(request.user, 'perfil') and
+            request.user.perfil.cargo == PerfilUsuario.Cargo.ADMIN and
+            contato.imovel.imobiliaria == request.tenant
+        )
+
+        if not (is_superuser or is_admin_of_tenant):
+            return Response(
+                {"detail": "Você não tem permissão para arquivar este contacto."},
+                status=status.HTTP_403_FORBIDDEN
+            )
+            
+        contato.arquivado = True
+        contato.save()
+        return Response({'status': 'Contacto arquivado com sucesso'}, status=status.HTTP_200_OK)
 
 
 class ImagemImovelViewSet(viewsets.ModelViewSet):

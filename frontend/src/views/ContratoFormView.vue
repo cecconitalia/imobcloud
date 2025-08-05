@@ -75,6 +75,11 @@
         </button>
       </div>
     </form>
+
+    <ContratoFinanceiro
+      v-if="isEditing && contrato.tipo_contrato === 'Aluguel'"
+      :contrato="contrato"
+    />
   </div>
 </template>
 
@@ -82,11 +87,12 @@
 import { ref, onMounted, computed } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import apiClient from '@/services/api';
+// NOVO: Importar o componente que criámos
+import ContratoFinanceiro from '@/components/ContratoFinanceiro.vue';
 
 const route = useRoute();
 const router = useRouter();
 
-// Determina se estamos em modo de edição
 const contratoId = computed(() => route.params.id as string | undefined);
 const isEditing = computed(() => !!contratoId.value);
 
@@ -100,11 +106,12 @@ const contrato = ref({
   condicoes_pagamento: '',
   valor_total: null,
   status_contrato: 'Ativo',
+  pagamentos: [] // NOVO: Inicializar a lista de pagamentos
 });
 
 const imoveis = ref<any[]>([]);
 const clientes = ref<any[]>([]);
-const isLoadingData = ref(false); // Renomeado para maior clareza
+const isLoadingData = ref(false);
 const isSubmitting = ref(false);
 
 async function fetchDropdownData() {
@@ -139,8 +146,8 @@ async function fetchContratoData() {
 
 onMounted(async () => {
   isLoadingData.value = true;
-  await fetchDropdownData(); // Sempre busca os dados dos dropdowns
-  await fetchContratoData(); // Busca os dados do contrato se estiver a editar
+  await fetchDropdownData();
+  await fetchContratoData();
   isLoadingData.value = false;
 });
 

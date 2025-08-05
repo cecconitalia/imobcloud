@@ -3,6 +3,7 @@
 from rest_framework import serializers
 from .models import Imovel, ImagemImovel, ContatoImovel
 
+
 class ImagemImovelSerializer(serializers.ModelSerializer):
     class Meta:
         model = ImagemImovel
@@ -27,6 +28,7 @@ class ContatoImovelSerializer(serializers.ModelSerializer):
     imovel_obj = ImovelDisplaySerializer(source='imovel', read_only=True)
 
     class Meta:
+        # ATUALIZADO
         model = ContatoImovel
         fields = ['id', 'imovel', 'imovel_obj', 'nome', 'email', 'telefone', 'mensagem', 'data_contato']
         read_only_fields = ['imovel_obj', 'data_contato']
