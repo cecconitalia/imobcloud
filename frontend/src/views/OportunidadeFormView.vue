@@ -1,7 +1,7 @@
 <template>
   <div class="form-container">
     <header class="view-header">
-      <h1>Adicionar Nova Oportunidade</h1>
+      <h1>{{ isEditing ? 'Editar Oportunidade' : 'Adicionar Nova Oportunidade' }}</h1>
     </header>
 
     <div v-if="isLoadingData" class="loading-message">
@@ -52,7 +52,7 @@
       <div class="form-actions full-width">
         <button type="button" @click="handleCancel" class="btn-secondary">Cancelar</button>
         <button type="submit" class="btn-primary" :disabled="isSubmitting">
-          {{ isSubmitting ? 'A Guardar...' : 'Criar Oportunidade' }}
+          {{ isSubmitting ? 'A Guardar...' : (isEditing ? 'Guardar Alterações' : 'Criar Oportunidade') }}
         </button>
       </div>
     </form>
@@ -60,13 +60,16 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue';
-import { useRouter } from 'vue-router';
+import { ref, onMounted, computed } from 'vue';
+import { useRoute, useRouter } from 'vue-router';
 import apiClient from '@/services/api';
 
 const router = useRouter();
+const route = useRoute();
 
-// Estado para o formulário
+const oportunidadeId = computed(() => route.params.id as string | undefined);
+const isEditing = computed(() => !!oportunidadeId.value);
+
 const oportunidade = ref({
   titulo: '',
   cliente: '',
@@ -76,46 +79,53 @@ const oportunidade = ref({
   fase: 'LEAD'
 });
 
-// Estados para carregar dados dos dropdowns
 const clientes = ref<any[]>([]);
 const imoveis = ref<any[]>([]);
-const corretores = ref<any[]>([]); // NOVO: Estado para a lista de corretores
+const corretores = ref<any[]>([]);
 const isLoadingData = ref(true);
 const isSubmitting = ref(false);
 
-// ATUALIZADO: Busca agora também os corretores
-async function fetchDropdownData() {
+async function fetchData() {
   isLoadingData.value = true;
   try {
     const [clientesResponse, imoveisResponse, corretoresResponse] = await Promise.all([
       apiClient.get('/v1/clientes/clientes/'),
       apiClient.get('/v1/imoveis/imoveis/'),
-      apiClient.get('/v1/core/corretores/') // NOVO: Chamada ao novo endpoint
+      apiClient.get('/v1/core/corretores/')
     ]);
     clientes.value = clientesResponse.data;
     imoveis.value = imoveisResponse.data;
-    corretores.value = corretoresResponse.data; // NOVO: Guardar os corretores
+    corretores.value = corretoresResponse.data;
+
+    if (isEditing.value) {
+      const oportunidadeResponse = await apiClient.get(`/v1/clientes/oportunidades/${oportunidadeId.value}/`);
+      oportunidade.value = oportunidadeResponse.data;
+    }
+
   } catch (error) {
-    console.error("Erro ao carregar dados para o formulário:", error);
-    alert('Não foi possível carregar os dados necessários para o formulário.');
+    console.error("Erro ao carregar dados:", error);
+    alert('Não foi possível carregar os dados necessários.');
   } finally {
     isLoadingData.value = false;
   }
 }
 
 onMounted(() => {
-  fetchDropdownData();
+  fetchData();
 });
 
-// Lida com a submissão do formulário
 async function handleSubmit() {
   isSubmitting.value = true;
   try {
-    await apiClient.post('/v1/clientes/oportunidades/', oportunidade.value);
+    if (isEditing.value) {
+      await apiClient.put(`/v1/clientes/oportunidades/${oportunidadeId.value}/`, oportunidade.value);
+    } else {
+      await apiClient.post('/v1/clientes/oportunidades/', oportunidade.value);
+    }
     router.push({ name: 'funil-vendas' });
   } catch (error) {
-    console.error("Erro ao criar oportunidade:", error.response?.data || error);
-    alert('Ocorreu um erro ao criar a oportunidade. Verifique os dados.');
+    console.error("Erro ao guardar oportunidade:", error.response?.data || error);
+    alert('Ocorreu um erro ao guardar a oportunidade. Verifique os dados.');
   } finally {
     isSubmitting.value = false;
   }
@@ -127,7 +137,6 @@ function handleCancel() {
 </script>
 
 <style scoped>
-/* Estilos podem ser reutilizados de outros formulários */
 .form-container { padding: 2rem; }
 .view-header { margin-bottom: 1.5rem; }
 .oportunidade-form { display: flex; flex-wrap: wrap; gap: 1.5rem; }

@@ -23,15 +23,17 @@
           :data-fase-id="fase.id"
         >
           <template #item="{ element: oportunidade }">
-            <div class="oportunidade-card">
-              <h4 class="card-titulo">{{ oportunidade.titulo }}</h4>
-              <p class="card-cliente">{{ oportunidade.cliente_obj?.nome_completo || 'Cliente não definido' }}</p>
-              <p class="card-imovel">{{ oportunidade.imovel_obj?.endereco || 'Sem imóvel associado' }}</p>
-              <div class="card-footer">
-                <span class="card-valor">{{ formatarValor(oportunidade.valor_estimado) }}</span>
-                <span class="card-responsavel">{{ oportunidade.responsavel_obj?.username.charAt(0).toUpperCase() || '?' }}</span>
+            <router-link :to="`/oportunidades/editar/${oportunidade.id}`" class="oportunidade-card-link">
+              <div class="oportunidade-card">
+                <h4 class="card-titulo">{{ oportunidade.titulo }}</h4>
+                <p class="card-cliente">{{ oportunidade.cliente_obj?.nome_completo || 'Cliente não definido' }}</p>
+                <p class="card-imovel">{{ oportunidade.imovel_obj?.endereco || 'Sem imóvel associado' }}</p>
+                <div class="card-footer">
+                  <span class="card-valor">{{ formatarValor(oportunidade.valor_estimado) }}</span>
+                  <span class="card-responsavel">{{ oportunidade.responsavel_obj?.username.charAt(0).toUpperCase() || '?' }}</span>
+                </div>
               </div>
-            </div>
+            </router-link>
           </template>
         </draggable>
 
@@ -113,7 +115,10 @@ onMounted(() => {
 </script>
 
 <style scoped>
-/* Estilos para o novo botão e para alinhar o header */
+.oportunidade-card-link {
+  text-decoration: none;
+  color: inherit;
+}
 .view-header {
   display: flex;
   justify-content: space-between;
@@ -137,14 +142,12 @@ onMounted(() => {
 .funil-container {
   padding: 2rem;
 }
-
 .funil-board {
   display: flex;
   gap: 1rem;
   overflow-x: auto;
   padding-bottom: 1rem;
 }
-
 .funil-coluna {
   flex: 1;
   min-width: 280px;
@@ -152,13 +155,11 @@ onMounted(() => {
   border-radius: 8px;
   padding: 0.5rem;
 }
-
 .coluna-titulo {
   padding: 0.5rem 0.75rem;
   font-size: 1rem;
   font-weight: bold;
 }
-
 .oportunidade-card {
   background-color: white;
   border-radius: 5px;
@@ -170,31 +171,26 @@ onMounted(() => {
 .oportunidade-card:hover {
   box-shadow: 0 3px 6px rgba(0,0,0,0.15);
 }
-
 .card-titulo {
   font-size: 1rem;
   font-weight: 600;
   margin: 0 0 0.5rem 0;
 }
-
 .card-cliente, .card-imovel {
   font-size: 0.85rem;
   color: #6c757d;
   margin: 0 0 0.25rem 0;
 }
-
 .card-footer {
   display: flex;
   justify-content: space-between;
   align-items: center;
   margin-top: 1rem;
 }
-
 .card-valor {
   font-weight: bold;
   color: #28a745;
 }
-
 .card-responsavel {
   width: 24px;
   height: 24px;
