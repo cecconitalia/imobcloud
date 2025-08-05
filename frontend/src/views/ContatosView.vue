@@ -1,13 +1,13 @@
 <template>
-  <div class="contactos-container">
+  <div class="contatos-container">
     <header class="view-header">
-      <h1>Contactos Recebidos</h1>
+      <h1>Contatos Recebidos</h1>
     </header>
 
-    <div v-if="isLoading" class="loading-message">Carregando contactos...</div>
+    <div v-if="isLoading" class="loading-message">Carregando contatos...</div>
     <div v-if="error" class="error-message">{{ error }}</div>
 
-    <table v-if="contactos.length > 0">
+    <table v-if="contatos.length > 0">
       <thead>
         <tr>
           <th>Imóvel</th>
@@ -20,22 +20,22 @@
         </tr>
       </thead>
       <tbody>
-        <tr v-for="contacto in contactos" :key="contacto.id">
-          <td>{{ contacto.imovel_obj?.endereco || 'N/A' }} ({{ contacto.imovel_obj?.tipo || 'N/A' }})</td>
-          <td>{{ contacto.nome }}</td>
-          <td>{{ contacto.email }}</td>
-          <td>{{ contacto.telefone || 'Não informado' }}</td>
-          <td>{{ contacto.mensagem }}</td>
-          <td>{{ formatarData(contacto.data_contato) }}</td>
+        <tr v-for="contato in contatos" :key="contato.id">
+          <td>{{ contato.imovel_obj?.endereco || 'N/A' }} ({{ contato.imovel_obj?.tipo || 'N/A' }})</td>
+          <td>{{ contato.nome }}</td>
+          <td>{{ contato.email }}</td>
+          <td>{{ contato.telefone || 'Não informado' }}</td>
+          <td>{{ contato.mensagem }}</td>
+          <td>{{ formatarData(contato.data_contato) }}</td>
           <td class="actions-cell">
-            <button class="btn-secondary" @click="handleResponder(contacto)">Responder</button>
-            <button class="btn-info" @click="handleArquivar(contacto)">Arquivar</button>
+            <button class="btn-secondary" @click="handleResponder(contato)">Responder</button>
+            <button class="btn-info" @click="handleArquivar(contato)">Arquivar</button>
           </td>
         </tr>
       </tbody>
     </table>
-    <div v-if="!isLoading && contactos.length === 0 && !error" class="no-data-message">
-      <p>Nenhum contacto encontrado.</p>
+    <div v-if="!isLoading && contatos.length === 0 && !error" class="no-data-message">
+      <p>Nenhum contato encontrado.</p>
     </div>
   </div>
 </template>
@@ -44,25 +44,25 @@
 import { ref, onMounted } from 'vue';
 import apiClient from '@/services/api';
 
-const contactos = ref<any[]>([]);
+const contatos = ref<any[]>([]);
 const isLoading = ref(true);
 const error = ref<string | null>(null);
 
-async function fetchContactos() {
+async function fetchContatos() {
   isLoading.value = true;
   try {
     const response = await apiClient.get('/v1/imoveis/contatos/');
-    contactos.value = response.data;
+    contatos.value = response.data;
   } catch (err) {
-    console.error("Erro ao buscar contactos:", err);
-    error.value = 'Não foi possível carregar os contactos.';
+    console.error("Erro ao buscar contatos:", err);
+    error.value = 'Não foi possível carregar os contatos.';
   } finally {
     isLoading.value = false;
   }
 }
 
 onMounted(() => {
-  fetchContactos();
+  fetchContatos();
 });
 
 function formatarData(data: string) {
@@ -74,18 +74,27 @@ function formatarData(data: string) {
 }
 
 // Funções de ação (apenas de exemplo)
-function handleResponder(contacto: any) {
-  alert(`Ação de responder para ${contacto.email}.`);
+function handleResponder(contato: any) {
+  alert(`Ação de responder para ${contato.email}.`);
 }
 
-function handleArquivar(contacto: any) {
-  alert(`Ação de arquivar o contacto de ${contacto.nome}.`);
-  // Futuramente, você pode implementar a lógica para marcar o contacto como "arquivado" no backend.
+function handleArquivar(contato: any) {
+  if (!window.confirm(`Tem a certeza de que deseja arquivar o contato de ${contato.nome}?`)) {
+    return;
+  }
+  try {
+    // Futuramente, você pode implementar a lógica para marcar o contacto como "arquivado" no backend.
+    apiClient.post(`/v1/imoveis/contatos/${contato.id}/arquivar/`).then(() => {
+        contatos.value = contatos.value.filter(c => c.id !== contato.id);
+    });
+  } catch(err) {
+    alert(`Ocorreu um erro ao arquivar o contato de ${contato.nome}.`);
+  }
 }
 </script>
 
 <style scoped>
-.contactos-container {
+.contatos-container {
   padding: 2rem;
 }
 .view-header {

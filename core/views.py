@@ -2,6 +2,8 @@
 
 from rest_framework_simplejwt.views import TokenObtainPairView
 from .serializers import MyTokenObtainPairSerializer, CorretorRegistrationSerializer
+from app_clientes.serializers import CorretorDisplaySerializer
+from django.contrib.auth import get_user_model
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
@@ -12,8 +14,9 @@ from django.shortcuts import get_object_or_404
 from app_imoveis.models import Imovel
 from app_clientes.models import Cliente
 from app_contratos.models import Contrato
-from core.models import PerfilUsuario # NOVO: Importamos o PerfilUsuario
+from core.models import PerfilUsuario
 
+User = get_user_model()
 
 class MyTokenObtainPairView(TokenObtainPairView):
     """
@@ -43,7 +46,7 @@ class DashboardStatsView(APIView):
         ).count()
 
         clientes_ativos = Cliente.objects.filter(
-            imobiliaria=tenant, 
+            imobiliaria=tenant,
             ativo=True
         ).count()
 
@@ -67,7 +70,23 @@ class DashboardStatsView(APIView):
         
         return Response(data)
 
-# NOVO: View para registo de corretores
+# NOVO: View para listar corretores da imobiliária
+class CorretorListView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, *args, **kwargs):
+        if not request.tenant:
+            return Response({"error": "Nenhuma imobiliária associada."}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Filtra todos os perfis de usuário que pertencem à imobiliária do tenant
+        perfis = PerfilUsuario.objects.filter(imobiliaria=request.tenant)
+        # Extrai os objetos User a partir dos perfis
+        users = [perfil.user for perfil in perfis]
+        
+        serializer = CorretorDisplaySerializer(users, many=True)
+        return Response(serializer.data)
+
+
 class CorretorRegistrationView(APIView):
     permission_classes = [IsAuthenticated]
 

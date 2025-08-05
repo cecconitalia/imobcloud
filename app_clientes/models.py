@@ -1,7 +1,8 @@
 # C:\wamp64\www\ImobCloud\app_clientes\models.py
 from django.db import models
-from core.models import Imobiliaria # Importa o modelo Imobiliaria
-from app_imoveis.models import Imovel # Importa Imovel para a ForeignKey em Visita
+from core.models import Imobiliaria
+from app_imoveis.models import Imovel
+from django.conf import settings
 
 class Cliente(models.Model):
     imobiliaria = models.ForeignKey(Imobiliaria, on_delete=models.CASCADE, verbose_name="Imobiliária")
@@ -11,8 +12,6 @@ class Cliente(models.Model):
     telefone = models.CharField(max_length=20, verbose_name="Telefone")
     preferencias_imovel = models.TextField(blank=True, null=True, verbose_name="Preferências de Imóvel")
     
-    # ## CAMPO ADICIONADO ##
-    # Este campo irá controlar se o cliente está ativo ou inativo.
     ativo = models.BooleanField(default=True, verbose_name="Ativo")
 
     data_cadastro = models.DateTimeField(auto_now_add=True, verbose_name="Data de Cadastro")
@@ -43,3 +42,73 @@ class Visita(models.Model):
 
     def __str__(self):
         return f"Visita de {self.cliente.nome_completo} a {self.imovel.endereco} em {self.data_hora.strftime('%d/%m/%Y %H:%M')}"
+
+
+class Atividade(models.Model):
+    TIPO_ATIVIDADE_CHOICES = [
+        ('NOTA', 'Nota'),
+        ('TAREFA', 'Tarefa'),
+        ('VISITA', 'Visita Agendada'),
+        ('CONTRATO', 'Contrato Criado'),
+        ('EMAIL', 'Email'),
+        ('LIGACAO', 'Ligação'),
+    ]
+
+    cliente = models.ForeignKey(Cliente, on_delete=models.CASCADE, related_name="atividades", verbose_name="Cliente")
+    tipo = models.CharField(max_length=20, choices=TIPO_ATIVIDADE_CHOICES, verbose_name="Tipo de Atividade")
+    descricao = models.TextField(verbose_name="Descrição da Atividade")
+    data_criacao = models.DateTimeField(auto_now_add=True, verbose_name="Data de Criação")
+    
+    registrado_por = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True, blank=True,
+        verbose_name="Registrado por"
+    )
+    
+    data_conclusao = models.DateTimeField(null=True, blank=True, verbose_name="Data de Conclusão (para tarefas)")
+    concluida = models.BooleanField(default=False, verbose_name="Tarefa Concluída")
+
+    class Meta:
+        verbose_name = "Atividade do Cliente"
+        verbose_name_plural = "Atividades dos Clientes"
+        ordering = ['-data_criacao']
+
+    def __str__(self):
+        return f"{self.tipo} para {self.cliente.nome_completo} em {self.data_criacao.strftime('%d/%m/%Y')}"
+
+
+# NOVO MODELO PARA O FUNIL DE VENDAS
+class Oportunidade(models.Model):
+    """
+    Representa uma oportunidade de negócio no funil de vendas.
+    """
+    FASE_FUNIL_CHOICES = [
+        ('LEAD', 'Novo Lead'),
+        ('CONTATO', 'Primeiro Contato'),
+        ('VISITA', 'Visita Agendada'),
+        ('PROPOSTA', 'Proposta Enviada'),
+        ('NEGOCIACAO', 'Em Negociação'),
+        ('GANHO', 'Negócio Ganho'),
+        ('PERDIDO', 'Negócio Perdido'),
+    ]
+
+    titulo = models.CharField(max_length=255, verbose_name="Título da Oportunidade")
+    cliente = models.ForeignKey(Cliente, on_delete=models.CASCADE, related_name="oportunidades", verbose_name="Cliente")
+    imovel = models.ForeignKey(Imovel, on_delete=models.SET_NULL, null=True, blank=True, related_name="oportunidades", verbose_name="Imóvel de Interesse")
+    responsavel = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name="oportunidades", verbose_name="Corretor Responsável")
+    imobiliaria = models.ForeignKey(Imobiliaria, on_delete=models.CASCADE, verbose_name="Imobiliária")
+
+    fase = models.CharField(max_length=20, choices=FASE_FUNIL_CHOICES, default='LEAD', verbose_name="Fase do Funil")
+    valor_estimado = models.DecimalField(max_digits=15, decimal_places=2, null=True, blank=True, verbose_name="Valor Estimado do Negócio")
+    
+    data_criacao = models.DateTimeField(auto_now_add=True)
+    data_fechamento = models.DateField(null=True, blank=True, verbose_name="Data Prevista de Fechamento")
+
+    class Meta:
+        verbose_name = "Oportunidade"
+        verbose_name_plural = "Oportunidades"
+        ordering = ['-data_criacao']
+
+    def __str__(self):
+        return self.titulo

@@ -5,11 +5,12 @@ from django.shortcuts import get_object_or_404
 from rest_framework import filters
 from rest_framework.response import Response
 from rest_framework import status
+from rest_framework.decorators import action
 
-from .models import Cliente, Visita
-from .serializers import ClienteSerializer, VisitaSerializer
+from .models import Cliente, Visita, Atividade, Oportunidade
+from .serializers import ClienteSerializer, VisitaSerializer, AtividadeSerializer, OportunidadeSerializer
 from app_imoveis.models import Imovel
-from core.models import PerfilUsuario # NOVO: Importamos o PerfilUsuario
+from core.models import PerfilUsuario
 
 class ClienteViewSet(viewsets.ModelViewSet):
     queryset = Cliente.objects.all()
@@ -27,7 +28,6 @@ class ClienteViewSet(viewsets.ModelViewSet):
         return Cliente.objects.none()
 
     def perform_create(self, serializer):
-        # Apenas ADMINs, CORRETORES e superusuários podem criar clientes
         if self.request.user.is_superuser:
             if 'imobiliaria' in self.request.data:
                 imobiliaria_id = self.request.data['imobiliaria']
@@ -41,7 +41,6 @@ class ClienteViewSet(viewsets.ModelViewSet):
             raise Exception("Não foi possível associar o cliente a uma imobiliária. Tenant não identificado ou sem permissão.")
 
     def perform_update(self, serializer):
-        # Apenas ADMINs, CORRETORES e superusuários podem editar clientes
         if self.request.user.is_superuser:
             serializer.save()
         elif hasattr(self.request.user, 'perfil') and self.request.user.perfil.cargo in [PerfilUsuario.Cargo.ADMIN, PerfilUsuario.Cargo.CORRETOR] and serializer.instance.imobiliaria == self.request.tenant:
@@ -50,13 +49,19 @@ class ClienteViewSet(viewsets.ModelViewSet):
             raise Exception("Você não tem permissão para atualizar este cliente.")
 
     def perform_destroy(self, instance):
-        # Apenas ADMINs, CORRETORES e superusuários podem inativar clientes
         if self.request.user.is_superuser or (hasattr(self.request.user, 'perfil') and self.request.user.perfil.cargo in [PerfilUsuario.Cargo.ADMIN, PerfilUsuario.Cargo.CORRETOR] and instance.imobiliaria == self.request.tenant):
             instance.ativo = False
             instance.save()
             return Response(status=status.HTTP_204_NO_CONTENT)
         else:
             raise Exception("Você não tem permissão para inativar este cliente.")
+
+    @action(detail=True, methods=['get'])
+    def atividades(self, request, pk=None):
+        cliente = self.get_object()
+        atividades = cliente.atividades.all() # Usando o related_name
+        serializer = AtividadeSerializer(atividades, many=True)
+        return Response(serializer.data)
 
 
 class VisitaViewSet(viewsets.ModelViewSet):
@@ -72,7 +77,6 @@ class VisitaViewSet(viewsets.ModelViewSet):
         return Visita.objects.none()
 
     def perform_create(self, serializer):
-        # Apenas ADMINs, CORRETORES e superusuários podem agendar visitas
         if self.request.user.is_superuser:
             imovel_id = self.request.data.get('imovel')
             cliente_id = self.request.data.get('cliente')
@@ -93,7 +97,6 @@ class VisitaViewSet(viewsets.ModelViewSet):
             raise Exception("Não foi possível associar a visita. Tenant não identificado ou inválido.")
 
     def perform_update(self, serializer):
-        # Apenas ADMINs, CORRETORES e superusuários podem atualizar visitas
         if self.request.user.is_superuser:
             serializer.save()
         elif hasattr(self.request.user, 'perfil') and self.request.user.perfil.cargo in [PerfilUsuario.Cargo.ADMIN, PerfilUsuario.Cargo.CORRETOR] and serializer.instance.imobiliaria == self.request.tenant:
@@ -102,10 +105,53 @@ class VisitaViewSet(viewsets.ModelViewSet):
             raise Exception("Você não tem permissão para atualizar esta visita.")
 
     def perform_destroy(self, instance):
-        # Apenas ADMINs, CORRETORES e superusuários podem excluir visitas
         if self.request.user.is_superuser:
             instance.delete()
         elif hasattr(self.request.user, 'perfil') and self.request.user.perfil.cargo in [PerfilUsuario.Cargo.ADMIN, PerfilUsuario.Cargo.CORRETOR] and instance.imobiliaria == self.request.tenant:
             instance.delete()
         else:
             raise Exception("Você não tem permissão para excluir esta visita.")
+
+
+class AtividadeViewSet(viewsets.ModelViewSet):
+    queryset = Atividade.objects.all()
+    serializer_class = AtividadeSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        user = self.request.user
+        if user.is_superuser:
+            return Atividade.objects.all()
+        elif hasattr(user, 'perfil') and user.perfil.imobiliaria:
+            return Atividade.objects.filter(cliente__imobiliaria=user.perfil.imobiliaria)
+        return Atividade.objects.none()
+
+    def perform_create(self, serializer):
+        cliente_id = self.request.data.get('cliente')
+        cliente = get_object_or_404(Cliente, pk=cliente_id)
+
+        if not (self.request.user.is_superuser or cliente.imobiliaria == self.request.tenant):
+            raise PermissionError("Você não tem permissão para adicionar atividades a este cliente.")
+
+        serializer.save(cliente=cliente, registrado_por=self.request.user)
+
+
+class OportunidadeViewSet(viewsets.ModelViewSet):
+    queryset = Oportunidade.objects.all()
+    serializer_class = OportunidadeSerializer
+    permission_classes = [IsAuthenticated]
+
+    # Filtra as oportunidades para mostrar apenas as da imobiliária do utilizador
+    def get_queryset(self):
+        user = self.request.user
+        if user.is_superuser:
+            return Oportunidade.objects.all()
+        elif self.request.tenant:
+            return Oportunidade.objects.filter(imobiliaria=self.request.tenant)
+        return Oportunidade.objects.none()
+
+    # Define a imobiliária automaticamente ao criar uma nova oportunidade
+    def perform_create(self, serializer):
+        if not self.request.tenant:
+             raise PermissionError("Apenas utilizadores associados a uma imobiliária podem criar oportunidades.")
+        serializer.save(imobiliaria=self.request.tenant)

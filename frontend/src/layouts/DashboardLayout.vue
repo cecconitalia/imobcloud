@@ -12,6 +12,10 @@
           <i class="icon-dashboard"></i>
           <span>Dashboard</span>
         </router-link>
+        <router-link to="/funil-vendas" class="nav-link">
+          <i class="icon-funil"></i>
+          <span>Funil de Vendas</span>
+        </router-link>
         <router-link to="/imoveis" class="nav-link">
           <i class="icon-imoveis"></i>
           <span>Imóveis</span>
@@ -32,8 +36,8 @@
         <div v-if="userCargo === 'ADMIN'" class="nav-section-header">
           <span>Administração</span>
         </div>
-        <router-link v-if="userCargo === 'ADMIN'" to="/contactos" class="nav-link">
-          <i class="icon-contactos"></i>
+        <router-link v-if="userCargo === 'ADMIN'" to="/contatos" class="nav-link">
+          <i class="icon-contatos"></i>
           <span>Contatos</span>
         </router-link>
         <router-link v-if="userCargo === 'ADMIN'" to="/corretor/novo" class="nav-link">

@@ -4,6 +4,7 @@ from django.db import models
 from core.models import Imobiliaria
 from app_imoveis.models import Imovel
 from app_clientes.models import Cliente
+from django.utils import timezone
 
 class Contrato(models.Model):
     imobiliaria = models.ForeignKey(Imobiliaria, on_delete=models.CASCADE, verbose_name="Imobiliária")
@@ -15,8 +16,6 @@ class Contrato(models.Model):
     valor_total = models.DecimalField(max_digits=15, decimal_places=2, verbose_name="Valor Total do Contrato")
     condicoes_pagamento = models.TextField(verbose_name="Condições de Pagamento")
     
-    # ## CAMPO ATUALIZADO ##
-    # Adicionamos a opção 'Inativo' à lista de escolhas.
     status_contrato = models.CharField(
         max_length=50, 
         default='Ativo', 
@@ -25,7 +24,7 @@ class Contrato(models.Model):
             ('Ativo', 'Ativo'), 
             ('Concluído', 'Concluído'), 
             ('Rescindido', 'Rescindido'),
-            ('Inativo', 'Inativo') # <- OPÇÃO ADICIONADA
+            ('Inativo', 'Inativo')
         ]
     )
     
@@ -39,3 +38,33 @@ class Contrato(models.Model):
 
     def __str__(self):
         return f"Contrato de {self.tipo_contrato} - {self.imovel.endereco} ({self.imobiliaria.nome})"
+
+
+class Pagamento(models.Model):
+    """
+    Representa uma parcela de pagamento de um contrato,
+    especialmente útil para aluguéis.
+    """
+    STATUS_PAGAMENTO_CHOICES = [
+        ('PENDENTE', 'Pendente'),
+        ('PAGO', 'Pago'),
+        ('ATRASADO', 'Atrasado'),
+    ]
+
+    contrato = models.ForeignKey(Contrato, on_delete=models.CASCADE, related_name="pagamentos", verbose_name="Contrato")
+    valor = models.DecimalField(max_digits=15, decimal_places=2, verbose_name="Valor do Pagamento")
+    data_vencimento = models.DateField(verbose_name="Data de Vencimento")
+    data_pagamento = models.DateField(null=True, blank=True, verbose_name="Data de Pagamento")
+    status = models.CharField(max_length=20, choices=STATUS_PAGAMENTO_CHOICES, default='PENDENTE', verbose_name="Status")
+
+    class Meta:
+        verbose_name = "Pagamento"
+        verbose_name_plural = "Pagamentos"
+        ordering = ['data_vencimento']
+
+    def __str__(self):
+        return f"Pagamento de {self.valor} para o contrato #{self.contrato.id} com vencimento em {self.data_vencimento}"
+
+    @property
+    def esta_atrasado(self):
+        return timezone.now().date() > self.data_vencimento and self.status == 'PENDENTE'

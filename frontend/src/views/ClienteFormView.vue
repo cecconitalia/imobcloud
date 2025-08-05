@@ -39,6 +39,9 @@
         </button>
       </div>
     </form>
+
+    <ClienteAtividades v-if="isEditing && clienteId" :clienteId="clienteId" />
+
   </div>
 </template>
 
@@ -46,11 +49,12 @@
 import { ref, onMounted, computed } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import apiClient from '@/services/api';
+// NOVO: Importar o componente que criámos
+import ClienteAtividades from '@/components/ClienteAtividades.vue';
 
 const route = useRoute();
 const router = useRouter();
 
-// Determina se estamos em modo de edição com base no parâmetro 'id' do URL
 const clienteId = computed(() => route.params.id as string | undefined);
 const isEditing = computed(() => !!clienteId.value);
 
@@ -62,17 +66,15 @@ const cliente = ref({
   preferencias_imovel: '',
 });
 
-// Controlo de estados da UI
 const isLoadingData = ref(false);
 const isSubmitting = ref(false);
 
-// Função para buscar os dados de um cliente existente
 async function fetchClienteData() {
   if (isEditing.value) {
     isLoadingData.value = true;
     try {
       const response = await apiClient.get(`/v1/clientes/clientes/${clienteId.value}/`);
-      cliente.value = response.data; // Preenche o formulário com os dados da API
+      cliente.value = response.data;
     } catch (error) {
       console.error("Erro ao buscar dados do cliente:", error);
       alert("Não foi possível carregar os dados do cliente para edição.");
@@ -83,23 +85,19 @@ async function fetchClienteData() {
   }
 }
 
-// Quando o componente é montado, verifica se precisa de buscar dados
 onMounted(() => {
   fetchClienteData();
 });
 
-// Função de submissão que agora lida com criar (POST) e editar (PUT)
 async function handleSubmit() {
   isSubmitting.value = true;
   try {
     if (isEditing.value) {
-      // MODO EDIÇÃO: Usa o método PUT para atualizar o cliente existente
       await apiClient.put(`/v1/clientes/clientes/${clienteId.value}/`, cliente.value);
     } else {
-      // MODO CRIAÇÃO: Usa o método POST para criar um novo cliente
       await apiClient.post('/v1/clientes/clientes/', cliente.value);
     }
-    router.push({ name: 'clientes' }); // Redireciona para a lista após o sucesso
+    router.push({ name: 'clientes' });
   } catch (error) {
     console.error("Erro ao guardar o cliente:", error.response?.data || error);
     alert('Ocorreu um erro ao guardar o cliente. Verifique os dados.');
@@ -114,7 +112,7 @@ function handleCancel() {
 </script>
 
 <style scoped>
-/* Estilos podem ser reutilizados de outros formulários */
+/* Os estilos existentes permanecem iguais */
 .form-container { padding: 2rem; }
 .view-header { margin-bottom: 1.5rem; }
 .cliente-form { display: flex; flex-wrap: wrap; gap: 1.5rem; }

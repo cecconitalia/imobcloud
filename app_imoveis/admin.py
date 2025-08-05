@@ -21,9 +21,9 @@ class ContatoImovelAdmin(admin.ModelAdmin):
     list_display = ('imovel', 'nome', 'email', 'data_contato')
     list_filter = ('data_contato', 'imovel')
     search_fields = ('nome', 'email', 'mensagem')
-    # Definimos todos os campos como apenas de leitura, pois um contacto não deve ser editado
+    # ATUALIZADO
     readonly_fields = ('imovel', 'nome', 'email', 'telefone', 'mensagem', 'data_contato')
 
     def has_add_permission(self, request):
-        # Impede a criação de novos contactos através do painel de admin
+        # Impede a criação de novos contatos através do painel de admin
         return False

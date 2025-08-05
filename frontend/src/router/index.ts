@@ -16,8 +16,10 @@ import ContratosView from '@/views/ContratosView.vue'
 import ContratoFormView from '@/views/ContratoFormView.vue'
 import VisitasView from '@/views/VisitasView.vue'
 import VisitaFormView from '@/views/VisitaFormView.vue'
-import ContactosView from '@/views/ContactosView.vue'
+import ContatosView from '@/views/ContatosView.vue'
 import CorretorRegistrationView from '@/views/CorretorRegistrationView.vue'
+import FunilVendasView from '@/views/FunilVendasView.vue'
+import OportunidadeFormView from '@/views/OportunidadeFormView.vue'
 
 // Importações das views do Site Público
 import PublicHomeView from '@/views/PublicHomeView.vue'
@@ -28,6 +30,7 @@ declare module 'vue-router' {
   interface RouteMeta {
     requiresAuth?: boolean;
     isAdmin?: boolean;
+    title?: string;
   }
 }
 
@@ -78,6 +81,24 @@ const router = createRouter({
           component: DashboardView,
           meta: {
             title: 'Dashboard'
+          }
+        },
+        {
+          path: 'funil-vendas',
+          name: 'funil-vendas',
+          component: FunilVendasView,
+          meta: {
+            title: 'Funil de Vendas',
+            requiresAuth: true
+          }
+        },
+        {
+          path: 'oportunidades/nova',
+          name: 'oportunidade-nova',
+          component: OportunidadeFormView,
+          meta: {
+            title: 'Nova Oportunidade',
+            requiresAuth: true
           }
         },
         {
@@ -195,11 +216,11 @@ const router = createRouter({
           }
         },
         {
-          path: 'contactos',
-          name: 'contactos',
-          component: ContactosView,
+          path: 'contatos',
+          name: 'contatos',
+          component: ContatosView,
           meta: {
-            title: 'Gerir Contactos',
+            title: 'Gerir Contatos',
             requiresAuth: true,
             isAdmin: true
           }
