@@ -36,13 +36,26 @@ class PerfilUsuario(models.Model):
         related_name='usuarios_imobiliaria'
     )
 
-    # NOVO CAMPO ADICIONADO
     cargo = models.CharField(
         max_length=10,
         choices=Cargo.choices,
         default=Cargo.CORRETOR,
         verbose_name="Cargo"
     )
+
+    # NOVOS CAMPOS ADICIONADOS
+    creci = models.CharField(max_length=20, blank=True, null=True, verbose_name="CRECI")
+    telefone = models.CharField(max_length=20, blank=True, null=True, verbose_name="Telefone")
+    endereco_logradouro = models.CharField(max_length=255, blank=True, null=True, verbose_name="Logradouro")
+    endereco_numero = models.CharField(max_length=10, blank=True, null=True, verbose_name="Número")
+    endereco_bairro = models.CharField(max_length=100, blank=True, null=True, verbose_name="Bairro")
+    endereco_cidade = models.CharField(max_length=100, blank=True, null=True, verbose_name="Cidade")
+    endereco_estado = models.CharField(max_length=2, blank=True, null=True, verbose_name="Estado")
+    endereco_cep = models.CharField(max_length=9, blank=True, null=True, verbose_name="CEP")
+    observacoes = models.TextField(blank=True, null=True, verbose_name="Observações")
+    
+    # NOVO: Campo para o arquivo JSON de credenciais do Google Calendar
+    google_json_file = models.FileField(upload_to='google_credentials/', blank=True, null=True, verbose_name="Arquivo de Credenciais do Google")
 
     class Meta:
         verbose_name = "Perfil de Usuário"

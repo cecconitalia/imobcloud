@@ -11,7 +11,7 @@
       <input
         type="text"
         v-model="searchTerm"
-        placeholder="Pesquisar por nome de utilizador..."
+        placeholder="Pesquisar por nome, email, CRECI..."
         @input="applyFilters"
       />
       <select v-model="filterCargo" @change="applyFilters">
@@ -27,17 +27,23 @@
     <table v-if="filteredUsers.length > 0">
       <thead>
         <tr>
-          <th>ID</th>
+          <th>Nome Completo</th>
           <th>Nome de Utilizador</th>
+          <th>Email</th>
+          <th>CRECI</th>
+          <th>Telefone</th>
           <th>Cargo</th>
           <th>Ações</th>
         </tr>
       </thead>
       <tbody>
         <tr v-for="user in filteredUsers" :key="user.id">
-          <td>{{ user.id }}</td>
+          <td>{{ user.first_name }}</td>
           <td>{{ user.username }}</td>
-          <td>{{ user.cargo }}</td>
+          <td>{{ user.email }}</td>
+          <td>{{ user.perfil?.creci || 'N/A' }}</td>
+          <td>{{ user.perfil?.telefone || 'N/A' }}</td>
+          <td>{{ user.perfil?.cargo || 'N/A' }}</td>
           <td class="actions-cell">
              <router-link :to="`/corretores/editar/${user.id}`" class="btn-secondary">
               Editar
@@ -68,13 +74,15 @@ const filteredUsers = computed(() => {
   let filteredList = users.value;
   
   if (filterCargo.value) {
-    filteredList = filteredList.filter(user => user.cargo === filterCargo.value);
+    filteredList = filteredList.filter(user => user.perfil?.cargo === filterCargo.value);
   }
 
   if (searchTerm.value) {
     const searchLower = searchTerm.value.toLowerCase();
     filteredList = filteredList.filter(user => 
-      user.username.toLowerCase().includes(searchLower)
+      user.first_name.toLowerCase().includes(searchLower) ||
+      user.email.toLowerCase().includes(searchLower) ||
+      user.perfil?.creci?.toLowerCase().includes(searchLower)
     );
   }
 

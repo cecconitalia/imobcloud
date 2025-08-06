@@ -14,7 +14,7 @@ from django.shortcuts import get_object_or_404
 from app_imoveis.models import Imovel
 from app_clientes.models import Cliente
 from app_contratos.models import Contrato
-from core.models import PerfilUsuario
+from core.models import PerfilUsuario, Imobiliaria
 
 User = get_user_model()
 
@@ -36,8 +36,20 @@ class DashboardStatsView(APIView):
     def get(self, request, *args, **kwargs):
         tenant = request.tenant
 
+        # Adiciona a lógica para superusuários
+        if not tenant and request.user.is_superuser:
+            # Encontra a primeira imobiliária como padrão para superusuários
+            try:
+                tenant = Imobiliaria.objects.first()
+                if not tenant:
+                    return Response({"error": "Nenhuma imobiliária cadastrada no sistema."}, status=404)
+            except Imobiliaria.DoesNotExist:
+                return Response({"error": "Nenhuma imobiliária cadastrada no sistema."}, status=404)
+        
+        # Se ainda não houver tenant (e não for superusuário), retorna erro
         if not tenant:
             return Response({"error": "Nenhuma imobiliária selecionada."}, status=400)
+
 
         imoveis_ativos = Imovel.objects.filter(
             imobiliaria=tenant
@@ -94,8 +106,7 @@ class CorretorViewSet(viewsets.ModelViewSet):
         if not hasattr(self.request.user, 'perfil') or self.request.user.perfil.cargo != PerfilUsuario.Cargo.ADMIN:
             raise PermissionError("Apenas administradores podem registar novos utilizadores.")
 
-        # O serializer agora lida com a lógica de criação do perfil
-        serializer.save()
+        serializer.save(imobiliaria=self.request.tenant)
 
     def perform_update(self, serializer):
         instance = self.get_object()
@@ -108,5 +119,4 @@ class CorretorViewSet(viewsets.ModelViewSet):
         else:
             raise PermissionError("Você não tem permissão para editar este utilizador.")
 
-        # O serializer agora lida com a lógica de atualização do perfil
-        serializer.save()
+        serializer.save(imobiliaria=self.request.tenant)

@@ -16,13 +16,8 @@
         </div>
 
         <div class="form-group">
-          <label for="first_name">Primeiro Nome</label>
+          <label for="first_name">Nome completo</label>
           <input type="text" id="first_name" v-model="user.first_name" required />
-        </div>
-        
-        <div class="form-group">
-          <label for="last_name">Apelido</label>
-          <input type="text" id="last_name" v-model="user.last_name" required />
         </div>
         
         <div class="form-group">
@@ -31,10 +26,15 @@
         </div>
         
         <div class="form-group">
-          <label for="password">Nova Palavra-passe (opcional)</label>
-          <input type="password" id="password" v-model="user.password" :placeholder="isEditing ? 'Deixe vazio para manter a atual' : ''" :required="!isEditing" />
+          <label for="creci">CRECI</label>
+          <input type="text" id="creci" v-model="user.perfil.creci" />
         </div>
         
+        <div class="form-group">
+          <label for="telefone">Telefone</label>
+          <input type="tel" id="telefone" v-model="user.perfil.telefone" />
+        </div>
+
         <div class="form-group">
           <label for="cargo">Cargo</label>
           <select id="cargo" v-model="user.perfil.cargo" required>
@@ -42,7 +42,56 @@
             <option value="ADMIN">Administrador</option>
           </select>
         </div>
+        
+        <div class="form-group full-width">
+          <h3>Endereço</h3>
+        </div>
 
+        <div class="form-group">
+          <label for="logradouro">Logradouro</label>
+          <input type="text" id="logradouro" v-model="user.perfil.endereco_logradouro" />
+        </div>
+
+        <div class="form-group">
+          <label for="numero">Número</label>
+          <input type="text" id="numero" v-model="user.perfil.endereco_numero" />
+        </div>
+        
+        <div class="form-group">
+          <label for="bairro">Bairro</label>
+          <input type="text" id="bairro" v-model="user.perfil.endereco_bairro" />
+        </div>
+        
+        <div class="form-group">
+          <label for="cidade">Cidade</label>
+          <input type="text" id="cidade" v-model="user.perfil.endereco_cidade" />
+        </div>
+        
+        <div class="form-group">
+          <label for="estado">Estado (UF)</label>
+          <input type="text" id="estado" maxlength="2" v-model="user.perfil.endereco_estado" />
+        </div>
+        
+        <div class="form-group">
+          <label for="cep">CEP</label>
+          <input type="text" id="cep" v-model="user.perfil.endereco_cep" />
+        </div>
+        
+        <div class="form-group full-width">
+          <label for="observacoes">Observações</label>
+          <textarea id="observacoes" v-model="user.perfil.observacoes"></textarea>
+        </div>
+        
+        <div class="form-group full-width">
+            <label for="google_json_file">Credenciais do Google Calendar (arquivo JSON)</label>
+            <input type="file" id="google_json_file" @change="handleFileUpload" accept=".json" />
+        </div>
+
+        <div class="form-group full-width">
+          <label for="password">Nova Palavra-passe (opcional)</label>
+          <input type="password" id="password" v-model="user.password" :placeholder="isEditing ? 'Deixe vazio para manter a atual' : ''" :required="!isEditing" />
+        </div>
+        
         <div v-if="successMessage" class="success-message">
           {{ successMessage }}
         </div>
@@ -50,7 +99,8 @@
           {{ errorMessage }}
         </div>
 
-        <div class="form-actions">
+        <div class="form-actions full-width">
+          <button type="button" @click="handleCancel" class="btn-secondary">Cancelar</button>
           <button type="submit" class="btn-primary" :disabled="isSubmitting">
             {{ isSubmitting ? 'A guardar...' : (isEditing ? 'Guardar Alterações' : 'Registar Utilizador') }}
           </button>
@@ -77,7 +127,19 @@ const user = ref({
   last_name: '',
   email: '',
   password: '',
-  perfil: { cargo: 'CORRETOR' },
+  perfil: {
+    cargo: 'CORRETOR',
+    creci: '',
+    telefone: '',
+    endereco_logradouro: '',
+    endereco_numero: '',
+    endereco_bairro: '',
+    endereco_cidade: '',
+    endereco_estado: '',
+    endereco_cep: '',
+    observacoes: '',
+    google_json_file: null as File | null,
+  },
 });
 
 const isLoadingData = ref(false);
@@ -94,8 +156,7 @@ async function fetchUserData() {
       user.value.first_name = response.data.first_name;
       user.value.last_name = response.data.last_name;
       user.value.email = response.data.email;
-      user.value.perfil.cargo = response.data.perfil.cargo;
-      
+      user.value.perfil = response.data.perfil;
     } catch (error) {
       console.error("Erro ao buscar dados do utilizador:", error);
       alert("Não foi possível carregar os dados do utilizador para edição.");
@@ -106,29 +167,71 @@ async function fetchUserData() {
   }
 }
 
+function handleFileUpload(event: Event) {
+    const target = event.target as HTMLInputElement;
+    if (target.files && target.files[0]) {
+        user.value.perfil.google_json_file = target.files[0];
+    }
+}
+
 async function handleSubmit() {
   isSubmitting.value = true;
   successMessage.value = '';
   errorMessage.value = '';
 
-  try {
-    const payload = {
-      username: user.value.username,
-      first_name: user.value.first_name,
-      last_name: user.value.last_name,
-      email: user.value.email,
-      password: user.value.password,
-      perfil: user.value.perfil,
-    };
-    if (isEditing.value && !payload.password) {
-      delete payload.password;
-    }
+  const formData = new FormData();
+  formData.append('username', user.value.username);
+  formData.append('first_name', user.value.first_name);
+  formData.append('last_name', user.value.last_name);
+  formData.append('email', user.value.email);
+  if (user.value.password) {
+    formData.append('password', user.value.password);
+  }
+  
+  if (user.value.perfil.cargo) {
+    formData.append('perfil.cargo', user.value.perfil.cargo);
+  }
+  if (user.value.perfil.creci) {
+    formData.append('perfil.creci', user.value.perfil.creci);
+  }
+  if (user.value.perfil.telefone) {
+    formData.append('perfil.telefone', user.value.perfil.telefone);
+  }
+  if (user.value.perfil.endereco_logradouro) {
+    formData.append('perfil.endereco_logradouro', user.value.perfil.endereco_logradouro);
+  }
+  if (user.value.perfil.endereco_numero) {
+    formData.append('perfil.endereco_numero', user.value.perfil.endereco_numero);
+  }
+  if (user.value.perfil.endereco_bairro) {
+    formData.append('perfil.endereco_bairro', user.value.perfil.endereco_bairro);
+  }
+  if (user.value.perfil.endereco_cidade) {
+    formData.append('perfil.endereco_cidade', user.value.perfil.endereco_cidade);
+  }
+  if (user.value.perfil.endereco_estado) {
+    formData.append('perfil.endereco_estado', user.value.perfil.endereco_estado);
+  }
+  if (user.value.perfil.endereco_cep) {
+    formData.append('perfil.endereco_cep', user.value.perfil.endereco_cep);
+  }
+  if (user.value.perfil.observacoes) {
+    formData.append('perfil.observacoes', user.value.perfil.observacoes);
+  }
+  if (user.value.perfil.google_json_file) {
+    formData.append('perfil.google_json_file', user.value.perfil.google_json_file);
+  }
 
+  try {
     if (isEditing.value) {
-      await apiClient.put(`/v1/core/corretores/${userId.value}/`, payload);
+      await apiClient.put(`/v1/core/corretores/${userId.value}/`, formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
       successMessage.value = 'Utilizador atualizado com sucesso!';
     } else {
-      await apiClient.post('/v1/core/corretores/', payload);
+      await apiClient.post('/v1/core/corretores/', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
       successMessage.value = 'Utilizador registado com sucesso!';
       user.value = {
         username: '',
@@ -136,7 +239,19 @@ async function handleSubmit() {
         last_name: '',
         email: '',
         password: '',
-        perfil: { cargo: 'CORRETOR' }
+        perfil: {
+          cargo: 'CORRETOR',
+          creci: '',
+          telefone: '',
+          endereco_logradouro: '',
+          endereco_numero: '',
+          endereco_bairro: '',
+          endereco_cidade: '',
+          endereco_estado: '',
+          endereco_cep: '',
+          observacoes: '',
+          google_json_file: null,
+        }
       };
     }
     
@@ -158,6 +273,10 @@ async function handleSubmit() {
   }
 }
 
+function handleCancel() {
+  router.push({ name: 'corretores' });
+}
+
 onMounted(() => {
   fetchUserData();
 });
@@ -177,16 +296,25 @@ onMounted(() => {
   padding: 2rem;
   border-radius: 8px;
   box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1.5rem;
 }
 .form-group {
   margin-bottom: 1rem;
+  flex: 1 1 calc(50% - 1.5rem);
+  display: flex;
+  flex-direction: column;
+}
+.form-group.full-width {
+    flex-basis: 100%;
 }
 label {
   display: block;
   font-weight: bold;
   margin-bottom: 0.5rem;
 }
-input, select {
+input, select, textarea {
   width: 100%;
   padding: 10px;
   border: 1px solid #ccc;
@@ -195,6 +323,10 @@ input, select {
 .form-actions {
   margin-top: 1.5rem;
   text-align: right;
+  flex-basis: 100%;
+  display: flex;
+  justify-content: flex-end;
+  gap: 1rem;
 }
 .btn-primary, .btn-secondary { padding: 10px 20px; border: none; border-radius: 5px; cursor: pointer; }
 .btn-primary { background-color: #007bff; color: white; }

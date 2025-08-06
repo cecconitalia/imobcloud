@@ -1,17 +1,21 @@
 # C:\wamp64\www\ImobCloud\app_clientes\views.py
-from rest_framework import viewsets
+from rest_framework import viewsets, mixins, status
 from rest_framework.permissions import IsAuthenticated
 from django.shortcuts import get_object_or_404
 from rest_framework import filters
 from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.decorators import action
+from django.contrib.auth import get_user_model
+from rest_framework.views import APIView
+from django.http import HttpResponse, HttpResponseRedirect
+from django.urls import reverse
 
-from .models import Cliente, Visita, Atividade, Oportunidade
-from .serializers import ClienteSerializer, VisitaSerializer, AtividadeSerializer, OportunidadeSerializer
+from .models import Cliente, Visita, Atividade, Oportunidade, Tarefa
+from .serializers import ClienteSerializer, VisitaSerializer, AtividadeSerializer, OportunidadeSerializer, TarefaSerializer
 from app_imoveis.models import Imovel
 from core.models import PerfilUsuario
-from django.contrib.auth import get_user_model
+from .utils import agendar_tarefa_no_calendario
 
 User = get_user_model()
 
@@ -32,9 +36,14 @@ class ClienteViewSet(viewsets.ModelViewSet):
 
     def perform_create(self, serializer):
         if self.request.user.is_superuser:
-            serializer.save()
+            if 'imobiliaria' in self.request.data:
+                imobiliaria_id = self.request.data['imobiliaria']
+                imobiliaria_obj = get_object_or_404(self.request.tenant._meta.model, pk=imobiliaria_id)
+                serializer.save(imobiliaria=imobiliaria_obj)
+            else:
+                raise Exception("Para superusuário, a imobiliária é obrigatória.")
         elif hasattr(self.request.user, 'perfil') and self.request.user.perfil.cargo in [PerfilUsuario.Cargo.ADMIN, PerfilUsuario.Cargo.CORRETOR]:
-            serializer.save()
+            serializer.save(imobiliaria=self.request.tenant)
         else:
             raise Exception("Não foi possível associar o cliente a uma imobiliária. Tenant não identificado ou sem permissão.")
 
@@ -58,7 +67,7 @@ class ClienteViewSet(viewsets.ModelViewSet):
     @action(detail=True, methods=['get'])
     def atividades(self, request, pk=None):
         cliente = self.get_object()
-        atividades = cliente.atividades.all() # Usando o related_name
+        atividades = cliente.atividades.all()
         serializer = AtividadeSerializer(atividades, many=True)
         return Response(serializer.data)
 
@@ -170,10 +179,11 @@ class OportunidadeViewSet(viewsets.ModelViewSet):
             oportunidade.refresh_from_db()
             fase_nova = oportunidade.get_fase_display()
             
+            descricao = f"Oportunidade '{oportunidade.titulo}' movida da fase '{fase_anterior}' para '{fase_nova}'."
             Atividade.objects.create(
                 cliente=oportunidade.cliente,
                 tipo='NOTA',
-                descricao=f"Oportunidade '{oportunidade.titulo}' movida da fase '{fase_anterior}' para '{fase_nova}'.",
+                descricao=descricao,
                 registrado_por=request.user
             )
         
@@ -184,7 +194,6 @@ class OportunidadeViewSet(viewsets.ModelViewSet):
         oportunidade = self.get_object()
         user = request.user
         
-        # 1. Verificação de permissões
         if not (user.is_superuser or (hasattr(user, 'perfil') and user.perfil.cargo == PerfilUsuario.Cargo.ADMIN) or (oportunidade.responsavel == user)):
             return Response(
                 {"detail": "Você não tem permissão para transferir esta oportunidade."},
@@ -206,17 +215,17 @@ class OportunidadeViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_404_NOT_FOUND
             )
 
-        corretor_anterior_nome = oportunidade.responsavel.username
+        corretor_anterior_nome = oportunidade.responsavel.first_name if oportunidade.responsavel else 'N/A'
+        corretor_anterior_username = oportunidade.responsavel.username if oportunidade.responsavel else 'N/A'
         
-        # 2. Atualiza a oportunidade
         oportunidade.responsavel = novo_corretor
         oportunidade.save(update_fields=['responsavel'])
         
-        # 3. Cria um registro de atividade
+        descricao = f"Oportunidade '{oportunidade.titulo}' transferida de '{corretor_anterior_nome}' ({corretor_anterior_username}) para '{novo_corretor.first_name}' ({novo_corretor.username})."
         Atividade.objects.create(
             cliente=oportunidade.cliente,
             tipo='NOTA',
-            descricao=f"Oportunidade '{oportunidade.titulo}' transferida de '{corretor_anterior_nome}' para '{novo_corretor.username}'.",
+            descricao=descricao,
             registrado_por=user
         )
 
@@ -224,3 +233,43 @@ class OportunidadeViewSet(viewsets.ModelViewSet):
             {"detail": "Oportunidade transferida com sucesso."},
             status=status.HTTP_200_OK
         )
+
+
+class TarefaViewSet(viewsets.ModelViewSet):
+    serializer_class = TarefaSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        oportunidade_id = self.kwargs['oportunidade_pk']
+        return Tarefa.objects.filter(oportunidade_id=oportunidade_id)
+
+    def perform_create(self, serializer):
+        oportunidade = get_object_or_404(Oportunidade, pk=self.kwargs['oportunidade_pk'])
+        
+        user = self.request.user
+        if not (user.is_superuser or (hasattr(user, 'perfil') and user.perfil.cargo == PerfilUsuario.Cargo.ADMIN) or (oportunidade.responsavel == user)):
+            raise PermissionError("Você não tem permissão para adicionar tarefas a esta oportunidade.")
+        
+        tarefa = serializer.save(oportunidade=oportunidade, responsavel=self.request.user)
+        
+        descricao = f"Nova tarefa adicionada: '{tarefa.descricao}'. Prazo: {tarefa.data_conclusao}."
+        Atividade.objects.create(
+            cliente=oportunidade.cliente,
+            tipo='TAREFA',
+            descricao=descricao,
+            registrado_por=self.request.user
+        )
+
+class MinhasTarefasView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, *args, **kwargs):
+        user = request.user
+        
+        if user.is_superuser:
+            tarefas = Tarefa.objects.filter(concluida=False)
+        else:
+            tarefas = Tarefa.objects.filter(responsavel=user, concluida=False)
+        
+        serializer = TarefaSerializer(tarefas, many=True)
+        return Response(serializer.data)
