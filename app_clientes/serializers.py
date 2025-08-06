@@ -3,6 +3,7 @@ from rest_framework import serializers
 from .models import Cliente, Visita, Atividade, Oportunidade # ATUALIZADO: Importar Oportunidade
 from app_imoveis.serializers import ImovelDisplaySerializer
 from django.contrib.auth import get_user_model
+from core.models import Imobiliaria # Importar Imobiliaria
 
 User = get_user_model()
 
@@ -29,7 +30,18 @@ class ClienteSerializer(serializers.ModelSerializer):
     class Meta:
         model = Cliente
         fields = '__all__'
-        read_only_fields = ('imobiliaria',)
+        read_only_fields = ('imobiliaria',) # Manter como read_only_fields
+
+    def create(self, validated_data):
+        # A imobiliária é obtida do contexto da requisição
+        imobiliaria = self.context['request'].tenant
+        if not imobiliaria:
+            raise serializers.ValidationError("Imobiliária não identificada para este cliente.")
+        
+        # Cria o cliente associando-o à imobiliária do tenant
+        cliente = Cliente.objects.create(imobiliaria=imobiliaria, **validated_data)
+        return cliente
+
 
 class VisitaSerializer(serializers.ModelSerializer):
     imovel_obj = ImovelDisplaySerializer(source='imovel', read_only=True)
