@@ -12,7 +12,10 @@
 
     <div v-if="!isLoading" class="funil-board">
       <div v-for="fase in fasesDoFunil" :key="fase.id" class="funil-coluna">
-        <h3 class="coluna-titulo">{{ fase.titulo }} ({{ getOportunidadesPorFase(fase.id).length }})</h3>
+        <h3 class="coluna-titulo">
+          {{ fase.titulo }} ({{ getOportunidadesPorFase(fase.id).length }})
+          <span class="coluna-total">{{ calcularValorTotal(fase.id) }}</span>
+        </h3>
         
         <draggable
           class="coluna-content"
@@ -92,14 +95,16 @@ async function handleDragEnd(event: any) {
 
   if (oportunidadeMovida && oportunidadeMovida.fase !== novaFaseId) {
     try {
+      // Usamos PATCH para enviar apenas o campo que mudou
       await apiClient.patch(`/v1/clientes/oportunidades/${oportunidadeId}/`, {
         fase: novaFaseId,
       });
+      // Atualiza o estado local para refletir a mudança
       oportunidadeMovida.fase = novaFaseId;
     } catch (error) {
       console.error('Erro ao atualizar a fase da oportunidade:', error);
       alert('Não foi possível mover a oportunidade. A página será recarregada para reverter a mudança.');
-      fetchOportunidades();
+      fetchOportunidades(); // Recarrega os dados em caso de erro
     }
   }
 }
@@ -109,12 +114,34 @@ function formatarValor(valor: number | null) {
   return parseFloat(valor.toString()).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 }
 
+// --- NOVA FUNÇÃO PARA CALCULAR O VALOR TOTAL DA COLUNA ---
+function calcularValorTotal(faseId: string) {
+  const total = getOportunidadesPorFase(faseId).reduce((sum, op) => {
+    // Garante que o valor é um número antes de somar
+    const valor = op.valor_estimado ? parseFloat(op.valor_estimado) : 0;
+    return sum + valor;
+  }, 0);
+  
+  if (total === 0) return '';
+  return formatarValor(total);
+}
+
+
 onMounted(() => {
   fetchOportunidades();
 });
 </script>
 
 <style scoped>
+/* Adicionado estilo para o total da coluna */
+.coluna-total {
+  display: block;
+  font-size: 0.85em;
+  font-weight: normal;
+  color: #6c757d;
+  margin-top: 4px;
+}
+
 .oportunidade-card-link {
   text-decoration: none;
   color: inherit;
