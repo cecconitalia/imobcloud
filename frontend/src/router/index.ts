@@ -21,7 +21,9 @@ import CorretorRegistrationView from '@/views/CorretorRegistrationView.vue'
 import FunilVendasView from '@/views/FunilVendasView.vue'
 import OportunidadeFormView from '@/views/OportunidadeFormView.vue'
 import CorretoresView from '@/views/CorretoresView.vue'
-import CalendarView from '@/views/CalendarView.vue' // Importa o novo componente
+import CalendarView from '@/views/CalendarView.vue'
+// NOVO: Importe a view de Relatórios
+import RelatoriosView from '@/views/RelatoriosView.vue'
 
 // Importações das views do Site Público
 import PublicHomeView from '@/views/PublicHomeView.vue'
@@ -273,6 +275,17 @@ const router = createRouter({
           meta: {
             title: 'Meu Calendário',
             requiresAuth: true
+          }
+        },
+        // NOVO: Rota para Relatórios
+        {
+          path: 'relatorios',
+          name: 'relatorios',
+          component: RelatoriosView,
+          meta: {
+            title: 'Relatórios',
+            requiresAuth: true,
+            isAdmin: true // Apenas admins podem ver
           }
         },
       ]

@@ -31,6 +31,34 @@
           placeholder="Nome da cidade..." 
         />
       </div>
+
+      <div class="filter-group">
+        <label for="quartos_min">Quartos (mínimo)</label>
+        <select id="quartos_min" v-model="filters.quartos_min" @change="fetchImoveis">
+          <option value="">Qualquer</option>
+          <option value="1">1+</option>
+          <option value="2">2+</option>
+          <option value="3">3+</option>
+          <option value="4">4+</option>
+        </select>
+      </div>
+      <div class="filter-group">
+        <label for="vagas_min">Vagas de Garagem (mínimo)</label>
+        <select id="vagas_min" v-model="filters.vagas_min" @change="fetchImoveis">
+          <option value="">Qualquer</option>
+          <option value="1">1+</option>
+          <option value="2">2+</option>
+          <option value="3">3+</option>
+        </select>
+      </div>
+      <div class="filter-group">
+        <label for="valor_min">Valor Mínimo (R$)</label>
+        <input type="number" id="valor_min" v-model="filters.valor_min" @change="fetchImoveis" placeholder="Ex: 100000" />
+      </div>
+      <div class="filter-group">
+        <label for="valor_max">Valor Máximo (R$)</label>
+        <input type="number" id="valor_max" v-model="filters.valor_max" @change="fetchImoveis" placeholder="Ex: 500000" />
+      </div>
     </div>
 
     <div v-if="isLoading">A carregar imóveis...</div>
@@ -67,11 +95,14 @@ const imoveis = ref<any[]>([]);
 const isLoading = ref(true);
 const error = ref<string | null>(null);
 
-// NOVO: Estado reativo para os filtros
 const filters = ref({
   finalidade: '',
   tipo: '',
-  cidade: ''
+  cidade: '',
+  quartos_min: '',
+  vagas_min: '',
+  valor_min: '',
+  valor_max: ''
 });
 
 async function fetchImoveis() {
@@ -91,11 +122,12 @@ async function fetchImoveis() {
       return;
     }
     
-    // ATUALIZADO: Adiciona os filtros aos parâmetros da API
-    const params = {
-        subdomain: subdomain,
-        ...filters.value // Adiciona os valores do objeto de filtros
-    };
+    const params: { [key: string]: any } = { subdomain };
+    for (const key in filters.value) {
+      if (filters.value[key as keyof typeof filters.value]) {
+        params[key] = filters.value[key as keyof typeof filters.value];
+      }
+    }
 
     const response = await publicApiClient.get('/v1/imoveis/imoveis/', { params });
     imoveis.value = response.data;
@@ -112,7 +144,6 @@ onMounted(() => {
   fetchImoveis();
 });
 
-// As funções `getPrincipalImage` e `formatarPreco` permanecem iguais
 function getPrincipalImage(imagens: any[]) {
   if (!imagens || imagens.length === 0) {
     return 'https://via.placeholder.com/400x300.png?text=Sem+Imagem';
@@ -132,26 +163,25 @@ function formatarPreco(imovel: any) {
 </script>
 
 <style scoped>
-/* NOVOS ESTILOS PARA OS FILTROS */
 .filters-container {
   background-color: #fff;
   padding: 1.5rem;
   border-radius: 8px;
   box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-  display: flex;
-  gap: 1.5rem;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 1rem;
   margin-bottom: 2rem;
-  flex-wrap: wrap;
 }
 .filter-group {
   display: flex;
   flex-direction: column;
-  flex-grow: 1;
 }
 .filter-group label {
   margin-bottom: 0.5rem;
   font-weight: bold;
   color: #333;
+  font-size: 0.9em;
 }
 .filter-group select, .filter-group input {
   padding: 10px;
@@ -165,7 +195,6 @@ function formatarPreco(imovel: any) {
   color: #6c757d;
 }
 
-/* O seu CSS existente permanece sem alterações */
 .container {
   max-width: 1200px;
   margin: 0 auto;

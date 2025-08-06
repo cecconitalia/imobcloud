@@ -35,6 +35,13 @@
             >
               Marcar como Pago
             </button>
+            <button
+              v-if="pagamento.status === 'PAGO'"
+              @click="gerarRecibo(pagamento.id)"
+              class="btn-recibo"
+            >
+              Gerar Recibo
+            </button>
           </td>
         </tr>
       </tbody>
@@ -57,19 +64,23 @@ const pagamentos = ref<any[]>([]);
 const isLoading = ref(true);
 const isSubmitting = ref(false);
 
-// Usamos um computed property para ter a lista de pagamentos reativa
 const listaDePagamentos = computed(() => props.contrato.pagamentos || []);
 
 async function carregarPagamentos() {
     isLoading.value = true;
-    // Os pagamentos já são passados via props, então apenas atualizamos o estado
     pagamentos.value = props.contrato.pagamentos || [];
-    // Verificamos o status de cada pagamento
     verificarStatusPagamentos();
     isLoading.value = false;
 }
 
-// Função para marcar um pagamento como "PAGO"
+// NOVA FUNÇÃO para gerar o recibo
+function gerarRecibo(pagamentoId: number) {
+  // O token de autenticação será adicionado automaticamente pelo interceptor do `apiClient`
+  const reciboUrl = `${apiClient.defaults.baseURL}/v1/contratos/recibo/pagamento/${pagamentoId}/`;
+  // Abre a URL em uma nova aba, onde o navegador irá renderizar o HTML retornado pela API
+  window.open(reciboUrl, '_blank');
+}
+
 async function marcarComoPago(pagamento: any) {
   if (!window.confirm(`Confirma o recebimento de ${formatarValor(pagamento.valor)}?`)) return;
   
@@ -80,7 +91,6 @@ async function marcarComoPago(pagamento: any) {
       status: 'PAGO',
       data_pagamento: hoje
     });
-    // Atualiza o objeto localmente para feedback imediato
     pagamento.status = 'PAGO';
     pagamento.data_pagamento = hoje;
   } catch (error) {
@@ -91,10 +101,9 @@ async function marcarComoPago(pagamento: any) {
   }
 }
 
-// Verifica se algum pagamento pendente está atrasado
 function verificarStatusPagamentos() {
     const hoje = new Date();
-    hoje.setHours(0, 0, 0, 0); // Zera a hora para comparar apenas a data
+    hoje.setHours(0, 0, 0, 0);
 
     pagamentos.value.forEach(p => {
         const dataVencimento = new Date(p.data_vencimento);
@@ -108,11 +117,9 @@ onMounted(() => {
   carregarPagamentos();
 });
 
-// Funções de formatação
 function formatarData(data: string) {
   if (!data) return '-';
   const dataObj = new Date(data);
-  // Adiciona um dia para corrigir problemas de fuso horário na exibição
   dataObj.setDate(dataObj.getDate() + 1);
   return dataObj.toLocaleDateString('pt-BR');
 }
@@ -159,14 +166,18 @@ function getStatusClass(pagamento: any) {
 .status-atrasado { background-color: #dc3545; }
 
 .atrasado-row {
-    background-color: #f8d7da; /* Vermelho claro */
+    background-color: #f8d7da;
 }
 .pago-row {
-    background-color: #d4edda; /* Verde claro */
+    background-color: #d4edda;
 }
 
 .actions-cell {
   text-align: center;
+  /* ATUALIZADO: para alinhar múltiplos botões */
+  display: flex;
+  gap: 0.5rem;
+  justify-content: center;
 }
 .btn-pagar {
   background-color: #007bff;
@@ -178,5 +189,17 @@ function getStatusClass(pagamento: any) {
 }
 .btn-pagar:disabled {
   background-color: #a0cfff;
+}
+/* NOVO ESTILO */
+.btn-recibo {
+  background-color: #6c757d;
+  color: white;
+  border: none;
+  padding: 6px 12px;
+  border-radius: 4px;
+  cursor: pointer;
+}
+.btn-recibo:hover {
+  background-color: #5a6268;
 }
 </style>

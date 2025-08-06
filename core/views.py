@@ -2,8 +2,6 @@
 
 from rest_framework_simplejwt.views import TokenObtainPairView
 from rest_framework import viewsets
-from .serializers import MyTokenObtainPairSerializer, CorretorRegistrationSerializer, CorretorDisplaySerializer
-from django.contrib.auth import get_user_model
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
@@ -11,10 +9,25 @@ from rest_framework import status
 from django.utils import timezone
 from datetime import timedelta
 from django.shortcuts import get_object_or_404
+from django.contrib.auth import get_user_model
+from django.db.models import Sum
+
+# Importações dos modelos de outros apps
 from app_imoveis.models import Imovel
 from app_clientes.models import Cliente
-from app_contratos.models import Contrato
-from core.models import PerfilUsuario, Imobiliaria
+from app_contratos.models import Contrato, Pagamento
+
+# Importações locais do app 'core'
+from .models import PerfilUsuario, Imobiliaria, Notificacao
+from .serializers import (
+    MyTokenObtainPairSerializer, 
+    CorretorRegistrationSerializer, 
+    CorretorDisplaySerializer,
+    NotificacaoSerializer
+)
+# Importação do 'action'
+from rest_framework.decorators import action
+
 
 User = get_user_model()
 
@@ -36,9 +49,7 @@ class DashboardStatsView(APIView):
     def get(self, request, *args, **kwargs):
         tenant = request.tenant
 
-        # Adiciona a lógica para superusuários
         if not tenant and request.user.is_superuser:
-            # Encontra a primeira imobiliária como padrão para superusuários
             try:
                 tenant = Imobiliaria.objects.first()
                 if not tenant:
@@ -46,10 +57,8 @@ class DashboardStatsView(APIView):
             except Imobiliaria.DoesNotExist:
                 return Response({"error": "Nenhuma imobiliária cadastrada no sistema."}, status=404)
         
-        # Se ainda não houver tenant (e não for superusuário), retorna erro
         if not tenant:
             return Response({"error": "Nenhuma imobiliária selecionada."}, status=400)
-
 
         imoveis_ativos = Imovel.objects.filter(
             imobiliaria=tenant
@@ -72,15 +81,52 @@ class DashboardStatsView(APIView):
             imobiliaria=tenant,
             data_cadastro__gte=trinta_dias_atras
         ).count()
+        
+        faturamento_30d = Pagamento.objects.filter(
+            contrato__imobiliaria=tenant,
+            status='PAGO',
+            data_pagamento__gte=trinta_dias_atras
+        ).aggregate(total=Sum('valor'))['total'] or 0
+
+        pagamentos_pendentes = Pagamento.objects.filter(
+            contrato__imobiliaria=tenant,
+            status__in=['PENDENTE', 'ATRASADO']
+        ).aggregate(total=Sum('valor'))['total'] or 0
+
+        total_vendas_ativas = Contrato.objects.filter(
+            imobiliaria=tenant,
+            status_contrato='Ativo',
+            tipo_contrato='Venda'
+        ).aggregate(total=Sum('valor_total'))['total'] or 0
 
         data = {
             'imoveis_ativos': imoveis_ativos,
             'clientes_ativos': clientes_ativos,
             'contratos_ativos': contratos_ativos,
             'novos_clientes_30d': novos_clientes,
+            'faturamento_30d': faturamento_30d,
+            'pagamentos_pendentes': pagamentos_pendentes,
+            'total_vendas_ativas': total_vendas_ativas,
         }
         
         return Response(data)
+
+# VIEWSET DEDICADA PARA NOTIFICAÇÕES
+class NotificacaoViewSet(viewsets.GenericViewSet):
+    queryset = Notificacao.objects.all()
+    serializer_class = NotificacaoSerializer
+    permission_classes = [IsAuthenticated]
+
+    @action(detail=True, methods=['post'], url_path='marcar-como-lida')
+    def marcar_como_lida(self, request, pk=None):
+        try:
+            notificacao = self.get_queryset().get(pk=pk, destinatario=request.user)
+            notificacao.lida = True
+            notificacao.save()
+            return Response({'status': 'Notificação marcada como lida'}, status=status.HTTP_200_OK)
+        except Notificacao.DoesNotExist:
+            return Response({'error': 'Notificação não encontrada ou não pertence a você.'}, status=status.HTTP_404_NOT_FOUND)
+
 
 class CorretorViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated]
@@ -120,3 +166,9 @@ class CorretorViewSet(viewsets.ModelViewSet):
             raise PermissionError("Você não tem permissão para editar este utilizador.")
 
         serializer.save(imobiliaria=self.request.tenant)
+
+    @action(detail=False, methods=['get'], url_path='minhas-notificacoes')
+    def minhas_notificacoes(self, request):
+        notificacoes = Notificacao.objects.filter(destinatario=request.user, lida=False)
+        serializer = NotificacaoSerializer(notificacoes, many=True)
+        return Response(serializer.data)

@@ -9,13 +9,13 @@ from rest_framework.decorators import action
 
 from .models import Imovel, ImagemImovel, ContatoImovel
 from .serializers import ImovelSerializer, ImagemImovelSerializer, ContatoImovelSerializer
-from core.models import Imobiliaria, PerfilUsuario
+from core.models import Imobiliaria, PerfilUsuario, Notificacao
+from app_clientes.models import Oportunidade
 
 class ImovelViewSet(viewsets.ModelViewSet):
     queryset = Imovel.objects.all()
     serializer_class = ImovelSerializer
     permission_classes = [permissions.IsAuthenticatedOrReadOnly]
-    # O SearchFilter continua útil para a pesquisa geral no painel de admin
     filter_backends = [filters.SearchFilter]
     search_fields = ['endereco', 'cidade', 'descricao']
 
@@ -28,14 +28,29 @@ class ImovelViewSet(viewsets.ModelViewSet):
         finalidade = self.request.query_params.get('finalidade', None)
         tipo = self.request.query_params.get('tipo', None)
         cidade = self.request.query_params.get('cidade', None)
+        
+        # NOVOS FILTROS AVANÇADOS
+        valor_min = self.request.query_params.get('valor_min', None)
+        valor_max = self.request.query_params.get('valor_max', None)
+        quartos_min = self.request.query_params.get('quartos_min', None)
+        vagas_min = self.request.query_params.get('vagas_min', None)
 
         if finalidade:
             base_queryset = base_queryset.filter(finalidade=finalidade)
         if tipo:
             base_queryset = base_queryset.filter(tipo=tipo)
         if cidade:
-            # Usamos __icontains para uma pesquisa de texto flexível (case-insensitive)
             base_queryset = base_queryset.filter(cidade__icontains=cidade)
+        
+        # APLICAÇÃO DOS NOVOS FILTROS
+        if valor_min:
+            base_queryset = base_queryset.filter(valor_venda__gte=valor_min)
+        if valor_max:
+            base_queryset = base_queryset.filter(valor_venda__lte=valor_max)
+        if quartos_min:
+            base_queryset = base_queryset.filter(quartos__gte=quartos_min)
+        if vagas_min:
+            base_queryset = base_queryset.filter(vagas_garagem__gte=vagas_min)
 
         # 2. Lógica de tenant (multi-imobiliária)
         if self.request.user.is_authenticated:
@@ -81,19 +96,11 @@ class ImovelViewSet(viewsets.ModelViewSet):
             raise Exception("Você não tem permissão para inativar este imóvel. Ele não pertence à sua imobiliária.")
 
 
-# ... O restante do ficheiro (ContatoImovelViewSet, ImagemImovelViewSet) permanece igual ...
 class ContatoImovelViewSet(viewsets.ModelViewSet):
-    """
-    Endpoint para receber mensagens de contato do site público.
-    Permite a criação (envio do formulário) sem autenticação,
-    mas restringe as demais operações a utilizadores autenticados.
-    """
-    # ATUALIZADO
     queryset = ContatoImovel.objects.all()
     serializer_class = ContatoImovelSerializer
     
     def get_permissions(self):
-        # Permite POST (criação) para todos, mas exige autenticação para outras operações.
         if self.action in ['list', 'retrieve', 'update', 'partial_update', 'destroy']:
             self.permission_classes = [permissions.IsAuthenticated]
         else:
@@ -101,27 +108,21 @@ class ContatoImovelViewSet(viewsets.ModelViewSet):
         return super().get_permissions()
 
     def get_queryset(self):
-        # ATUALIZADO
         base_queryset = ContatoImovel.objects.filter(arquivado=False)
         if self.request.user.is_superuser:
             return base_queryset.all()
         elif self.request.user.is_authenticated and self.request.tenant:
-            # ATUALIZADO
             return base_queryset.filter(imovel__imobiliaria=self.request.tenant)
         return ContatoImovel.objects.none()
 
     def perform_create(self, serializer):
-        # Guardamos o objeto de contacto primeiro para ter acesso a ele
         contato = serializer.save()
 
-        # Lógica de envio de email
         try:
             imobiliaria = contato.imovel.imobiliaria
             
-            # Verifica se a imobiliária tem um email de contato configurado
             if hasattr(imobiliaria, 'email_contato') and imobiliaria.email_contato:
                 destinatario_email = imobiliaria.email_contato
-
                 assunto = f"Novo Contato para o Imóvel: {contato.imovel.endereco}"
                 mensagem_corpo = f"""
                 Você recebeu um novo contato através do site!
@@ -134,31 +135,28 @@ class ContatoImovelViewSet(viewsets.ModelViewSet):
                 Mensagem:
                 {contato.mensagem}
                 """
-                remetente = 'nao-responda@imobcloud.com' # Remetente genérico
-
-                send_mail(
-                    assunto,
-                    mensagem_corpo,
-                    remetente,
-                    [destinatario_email], # O destinatário deve estar numa lista
-                    fail_silently=False,
-                )
+                remetente = 'nao-responda@imobcloud.com'
+                send_mail(assunto, mensagem_corpo, remetente, [destinatario_email], fail_silently=False)
                 print(f"DEBUG: Email de notificação preparado para {destinatario_email}.")
             else:
                 print(f"AVISO: Imobiliária '{imobiliaria.nome}' não possui email de contato configurado. Email não enviado.")
 
-        except Exception as e:
-            # Se o email falhar, não quebramos a aplicação, apenas registamos o erro
-            print(f"ERRO AO ENVIAR EMAIL DE NOTIFICAÇÃO: {e}")
+            oportunidade_associada = Oportunidade.objects.filter(imovel=contato.imovel).first()
+            if oportunidade_associada and oportunidade_associada.responsavel:
+                destinatario_notificacao = oportunidade_associada.responsavel
+                Notificacao.objects.create(
+                    destinatario=destinatario_notificacao,
+                    mensagem=f"Novo contato de '{contato.nome}' para o imóvel '{contato.imovel.endereco}'.",
+                    link=f"/contatos"
+                )
+                print(f"DEBUG: Notificação interna criada para o corretor {destinatario_notificacao.username}.")
 
-    # NOVO: Ação para arquivar um contacto
+        except Exception as e:
+            print(f"ERRO AO ENVIAR NOTIFICAÇÕES: {e}")
+            
     @action(detail=True, methods=['post'], permission_classes=[permissions.IsAuthenticated])
     def arquivar(self, request, pk=None):
-        """
-        Marca um contacto como arquivado.
-        """
         contato = self.get_object()
-        # Verifica a permissão (só superuser ou admin da imobiliária do contacto)
         is_superuser = request.user.is_superuser
         is_admin_of_tenant = (
             hasattr(request.user, 'perfil') and
@@ -200,7 +198,6 @@ class ImagemImovelViewSet(viewsets.ModelViewSet):
 
     def perform_create(self, serializer):
         imovel_id = self.request.data.get('imovel')
-        # Apenas ADMINs e superusuários podem criar imagens. Corretores não podem.
         if self.request.user.is_superuser:
             imovel = get_object_or_404(Imovel, pk=imovel_id)
         elif hasattr(self.request.user, 'perfil') and self.request.user.perfil.cargo == PerfilUsuario.Cargo.ADMIN and self.request.tenant:
@@ -216,7 +213,6 @@ class ImagemImovelViewSet(viewsets.ModelViewSet):
         serializer.save(imovel=imovel)
 
     def perform_update(self, serializer):
-        # Apenas ADMINs e superusuários podem atualizar imagens.
         if self.request.user.is_superuser:
             serializer.save()
         elif hasattr(self.request.user, 'perfil') and self.request.user.perfil.cargo == PerfilUsuario.Cargo.ADMIN and serializer.instance.imovel.imobiliaria == self.request.tenant:
@@ -227,7 +223,6 @@ class ImagemImovelViewSet(viewsets.ModelViewSet):
             raise Exception("Você não tem permissão para atualizar esta imagem. O imóvel associado não pertence à sua imobiliária.")
 
     def perform_destroy(self, instance):
-        # Apenas ADMINs e superusuários podem excluir imagens.
         if self.request.user.is_superuser:
             instance.delete()
             if instance.principal:

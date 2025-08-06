@@ -37,10 +37,10 @@
             <router-link :to="`/imoveis/editar/${imovel.id}`" class="btn-secondary">
               Editar
             </router-link>
-            <router-link v-if="userCargo === 'ADMIN'" :to="`/imoveis/${imovel.id}/imagens`" class="btn-info">
+            <router-link v-if="userIsAdmin" :to="`/imoveis/${imovel.id}/imagens`" class="btn-info">
               Imagens
             </router-link>
-            <button v-if="userCargo === 'ADMIN'" @click="handleInativar(imovel.id)" class="btn-danger">
+            <button v-if="userIsAdmin" @click="handleInativar(imovel.id)" class="btn-danger">
               Inativar
             </button>
           </td>
@@ -54,14 +54,20 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue';
+import { ref, onMounted, computed } from 'vue';
 import apiClient from '@/services/api';
 
 const imoveis = ref<any[]>([]);
 const isLoading = ref(true);
 const error = ref<string | null>(null);
 const searchTerm = ref('');
-const userCargo = ref(''); // NOVO: Estado para guardar o cargo do utilizador
+const userCargo = ref('');
+
+// LÓGICA DE VERIFICAÇÃO DE ADMIN MAIS ROBUSTA
+const userIsAdmin = computed(() => {
+  const cargo = localStorage.getItem('userCargo');
+  return cargo === 'ADMIN';
+});
 
 async function fetchImoveis() {
   isLoading.value = true;
@@ -81,7 +87,6 @@ async function fetchImoveis() {
 
 onMounted(() => {
   fetchImoveis();
-  // NOVO: Lê o cargo do localStorage quando a página é carregada
   userCargo.value = localStorage.getItem('userCargo') || '';
 });
 
@@ -100,6 +105,7 @@ async function handleInativar(imovelId: number) {
 </script>
 
 <style scoped>
+/* Estilos permanecem os mesmos */
 .imoveis-container {
   padding: 2rem;
 }

@@ -2,7 +2,6 @@
 from rest_framework import viewsets, status
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
-# ATUALIZADO: Importação correta do PermissionDenied
 from rest_framework.exceptions import PermissionDenied
 from rest_framework import filters
 from django.shortcuts import get_object_or_404
@@ -17,6 +16,11 @@ from .serializers import (
     PagamentoSerializer
 )
 from dateutil.relativedelta import relativedelta
+# NOVAS IMPORTAÇÕES
+from rest_framework.views import APIView
+from django.http import HttpResponse
+from django.template.loader import render_to_string
+from django.utils import timezone
 
 
 class ContratoViewSet(viewsets.ModelViewSet):
@@ -90,3 +94,43 @@ class PagamentoViewSet(viewsets.ModelViewSet):
         elif self.request.tenant:
             return Pagamento.objects.filter(contrato__imobiliaria=self.request.tenant)
         return Pagamento.objects.none()
+
+
+# NOVA VIEW PARA GERAR RECIBO
+class GerarReciboView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, pagamento_id, *args, **kwargs):
+        try:
+            pagamento = get_object_or_404(
+                Pagamento.objects.select_related(
+                    'contrato__cliente', 
+                    'contrato__imovel', 
+                    'contrato__imobiliaria'
+                ), 
+                pk=pagamento_id
+            )
+
+            # Verificação de segurança: Garante que o usuário tem permissão para ver este recibo
+            user = request.user
+            if not user.is_superuser and pagamento.contrato.imobiliaria != request.tenant:
+                raise PermissionDenied("Você não tem permissão para gerar este recibo.")
+
+            context = {
+                'pagamento': pagamento,
+                'contrato': pagamento.contrato,
+                'cliente': pagamento.contrato.cliente,
+                'imovel': pagamento.contrato.imovel,
+                'imobiliaria': pagamento.contrato.imobiliaria,
+                'data_emissao': timezone.now().date(),
+            }
+
+            # Renderiza o template HTML com o contexto
+            html_string = render_to_string('recibo_template.html', context)
+            
+            return HttpResponse(html_string)
+
+        except Pagamento.DoesNotExist:
+            return HttpResponse("Pagamento não encontrado.", status=404)
+        except Exception as e:
+            return HttpResponse(f"Ocorreu um erro: {e}", status=500)
