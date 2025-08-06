@@ -19,17 +19,17 @@
           <label for="first_name">Nome completo</label>
           <input type="text" id="first_name" v-model="user.first_name" required />
         </div>
-        
+
         <div class="form-group">
           <label for="email">Email</label>
           <input type="email" id="email" v-model="user.email" required />
         </div>
-        
+
         <div class="form-group">
           <label for="creci">CRECI</label>
           <input type="text" id="creci" v-model="user.perfil.creci" />
         </div>
-        
+
         <div class="form-group">
           <label for="telefone">Telefone</label>
           <input type="tel" id="telefone" v-model="user.perfil.telefone" />
@@ -42,7 +42,7 @@
             <option value="ADMIN">Administrador</option>
           </select>
         </div>
-        
+
         <div class="form-group full-width">
           <h3>Endereço</h3>
         </div>
@@ -56,42 +56,55 @@
           <label for="numero">Número</label>
           <input type="text" id="numero" v-model="user.perfil.endereco_numero" />
         </div>
-        
+
         <div class="form-group">
           <label for="bairro">Bairro</label>
           <input type="text" id="bairro" v-model="user.perfil.endereco_bairro" />
         </div>
-        
+
         <div class="form-group">
           <label for="cidade">Cidade</label>
           <input type="text" id="cidade" v-model="user.perfil.endereco_cidade" />
         </div>
-        
+
         <div class="form-group">
           <label for="estado">Estado (UF)</label>
           <input type="text" id="estado" maxlength="2" v-model="user.perfil.endereco_estado" />
         </div>
-        
+
         <div class="form-group">
           <label for="cep">CEP</label>
           <input type="text" id="cep" v-model="user.perfil.endereco_cep" />
         </div>
-        
+
         <div class="form-group full-width">
           <label for="observacoes">Observações</label>
           <textarea id="observacoes" v-model="user.perfil.observacoes"></textarea>
         </div>
-        
+
         <div class="form-group full-width">
             <label for="google_json_file">Credenciais do Google Calendar (arquivo JSON)</label>
             <input type="file" id="google_json_file" @change="handleFileUpload" accept=".json" />
+        </div>
+
+        <div class="form-group full-width" v-if="isEditing && user.perfil.google_json_file">
+          <h3>Integração com o Google Calendar</h3>
+          <div v-if="user.perfil.google_calendar_token">
+            <p class="success-message">Conta do Google Calendar já conectada!</p>
+          </div>
+          <div v-else>
+            <p>Conecte-se à sua conta do Google para agendar tarefas automaticamente no seu calendário.</p>
+            <button type="button" @click="handleGoogleAuth" class="btn-google">
+              Conectar com o Google
+            </button>
+          </div>
         </div>
 
         <div class="form-group full-width">
           <label for="password">Nova Palavra-passe (opcional)</label>
           <input type="password" id="password" v-model="user.password" :placeholder="isEditing ? 'Deixe vazio para manter a atual' : ''" :required="!isEditing" />
         </div>
-        
+
         <div v-if="successMessage" class="success-message">
           {{ successMessage }}
         </div>
@@ -139,6 +152,7 @@ const user = ref({
     endereco_cep: '',
     observacoes: '',
     google_json_file: null as File | null,
+    google_calendar_token: null as string | null, // NOVO: Adicionado campo do token
   },
 });
 
@@ -174,6 +188,11 @@ function handleFileUpload(event: Event) {
     }
 }
 
+// NOVO: Função para iniciar o fluxo de autenticação do Google
+function handleGoogleAuth() {
+  window.location.href = `${apiClient.defaults.baseURL}/v1/clientes/google-calendar-auth/`;
+}
+
 async function handleSubmit() {
   isSubmitting.value = true;
   successMessage.value = '';
@@ -187,39 +206,24 @@ async function handleSubmit() {
   if (user.value.password) {
     formData.append('password', user.value.password);
   }
-  
-  if (user.value.perfil.cargo) {
-    formData.append('perfil.cargo', user.value.perfil.cargo);
-  }
-  if (user.value.perfil.creci) {
-    formData.append('perfil.creci', user.value.perfil.creci);
-  }
-  if (user.value.perfil.telefone) {
-    formData.append('perfil.telefone', user.value.perfil.telefone);
-  }
-  if (user.value.perfil.endereco_logradouro) {
-    formData.append('perfil.endereco_logradouro', user.value.perfil.endereco_logradouro);
-  }
-  if (user.value.perfil.endereco_numero) {
-    formData.append('perfil.endereco_numero', user.value.perfil.endereco_numero);
-  }
-  if (user.value.perfil.endereco_bairro) {
-    formData.append('perfil.endereco_bairro', user.value.perfil.endereco_bairro);
-  }
-  if (user.value.perfil.endereco_cidade) {
-    formData.append('perfil.endereco_cidade', user.value.perfil.endereco_cidade);
-  }
-  if (user.value.perfil.endereco_estado) {
-    formData.append('perfil.endereco_estado', user.value.perfil.endereco_estado);
-  }
-  if (user.value.perfil.endereco_cep) {
-    formData.append('perfil.endereco_cep', user.value.perfil.endereco_cep);
-  }
-  if (user.value.perfil.observacoes) {
-    formData.append('perfil.observacoes', user.value.perfil.observacoes);
-  }
+
+  // ATUALIZADO: Usamos 'perfil.propriedade' para que o backend consiga processar o FormData
+  if (user.value.perfil.cargo) { formData.append('perfil.cargo', user.value.perfil.cargo); }
+  if (user.value.perfil.creci) { formData.append('perfil.creci', user.value.perfil.creci); }
+  if (user.value.perfil.telefone) { formData.append('perfil.telefone', user.value.perfil.telefone); }
+  if (user.value.perfil.endereco_logradouro) { formData.append('perfil.endereco_logradouro', user.value.perfil.endereco_logradouro); }
+  if (user.value.perfil.endereco_numero) { formData.append('perfil.endereco_numero', user.value.perfil.endereco_numero); }
+  if (user.value.perfil.endereco_bairro) { formData.append('perfil.endereco_bairro', user.value.perfil.endereco_bairro); }
+  if (user.value.perfil.endereco_cidade) { formData.append('perfil.endereco_cidade', user.value.perfil.endereco_cidade); }
+  if (user.value.perfil.endereco_estado) { formData.append('perfil.endereco_estado', user.value.perfil.endereco_estado); }
+  if (user.value.perfil.endereco_cep) { formData.append('perfil.endereco_cep', user.value.perfil.endereco_cep); }
+  if (user.value.perfil.observacoes) { formData.append('perfil.observacoes', user.value.perfil.observacoes); }
   if (user.value.perfil.google_json_file) {
     formData.append('perfil.google_json_file', user.value.perfil.google_json_file);
+  }
+  // NOVO: Adiciona o token do calendário se ele existir
+  if (user.value.perfil.google_calendar_token) {
+    formData.append('perfil.google_calendar_token', user.value.perfil.google_calendar_token);
   }
 
   try {
@@ -234,27 +238,16 @@ async function handleSubmit() {
       });
       successMessage.value = 'Utilizador registado com sucesso!';
       user.value = {
-        username: '',
-        first_name: '',
-        last_name: '',
-        email: '',
-        password: '',
+        username: '', first_name: '', last_name: '', email: '', password: '',
         perfil: {
-          cargo: 'CORRETOR',
-          creci: '',
-          telefone: '',
-          endereco_logradouro: '',
-          endereco_numero: '',
-          endereco_bairro: '',
-          endereco_cidade: '',
-          endereco_estado: '',
-          endereco_cep: '',
-          observacoes: '',
-          google_json_file: null,
+          cargo: 'CORRETOR', creci: '', telefone: '', endereco_logradouro: '',
+          endereco_numero: '', endereco_bairro: '', endereco_cidade: '',
+          endereco_estado: '', endereco_cep: '', observacoes: '',
+          google_json_file: null, google_calendar_token: null,
         }
       };
     }
-    
+
     setTimeout(() => {
         router.push({ name: 'corretores' });
     }, 1500);
@@ -320,6 +313,18 @@ input, select, textarea {
   border: 1px solid #ccc;
   border-radius: 4px;
 }
+.btn-google {
+  background-color: #4285F4;
+  color: white;
+  padding: 10px 15px;
+  border-radius: 5px;
+  border: none;
+  cursor: pointer;
+  font-weight: bold;
+}
+.btn-google:hover {
+  background-color: #357ae8;
+}
 .form-actions {
   margin-top: 1.5rem;
   text-align: right;
@@ -332,4 +337,6 @@ input, select, textarea {
 .btn-primary { background-color: #007bff; color: white; }
 .btn-secondary { background-color: #6c757d; color: white; }
 .loading-message { text-align: center; padding: 2rem; }
+.success-message { color: green; font-weight: bold; }
+.error-message { color: red; font-weight: bold; }
 </style>

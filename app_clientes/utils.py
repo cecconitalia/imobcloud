@@ -8,9 +8,54 @@ from google.oauth2.credentials import Credentials
 from googleapiclient.discovery import build
 from django.conf import settings
 from django.core.files.storage import default_storage
+import json # NOVO: Importar json
 
 SCOPES = ['https://www.googleapis.com/auth/calendar.events']
 CREDENTIALS_DIR = os.path.join(settings.MEDIA_ROOT, 'google_credentials')
+
+
+def get_google_calendar_service(perfil):
+    """
+    Cria e retorna um objeto de serviço da Google Calendar API, utilizando o token
+    armazenado no perfil do utilizador. Se o token não existir, retorna None.
+    """
+    if not perfil.google_calendar_token:
+        return None
+    
+    try:
+        credentials_data = json.loads(perfil.google_calendar_token)
+        credentials = Credentials(**credentials_data)
+        
+        # O flow precisa de ser criado para que o refresh do token funcione
+        json_file_path = default_storage.path(perfil.google_json_file.name)
+        flow = Flow.from_client_secrets_file(
+            json_file_path,
+            scopes=SCOPES,
+            redirect_uri='oob'
+        )
+        # Associa as credenciais ao flow, permitindo o refresh automático
+        flow.credentials = credentials
+        
+        # Se o token expirou, ele será renovado automaticamente se houver um refresh_token
+        if credentials.expired and credentials.refresh_token:
+            flow.refresh_token(credentials.refresh_token)
+            # Guarda o novo token atualizado
+            perfil.google_calendar_token = json.dumps({
+                'token': credentials.token,
+                'refresh_token': credentials.refresh_token,
+                'token_uri': credentials.token_uri,
+                'client_id': credentials.client_id,
+                'client_secret': credentials.client_secret,
+                'scopes': credentials.scopes
+            })
+            perfil.save()
+            
+        return build('calendar', 'v3', credentials=credentials)
+
+    except Exception as e:
+        print(f"Erro ao carregar o token do Google Calendar: {e}")
+        return None
+
 
 def agendar_tarefa_no_calendario(tarefa):
     """
@@ -19,29 +64,16 @@ def agendar_tarefa_no_calendario(tarefa):
     try:
         corretor = tarefa.responsavel
         
-        # 1. Carregar o arquivo de credenciais do corretor
-        if not corretor.perfil.google_json_file:
-            print(f"AVISO: O corretor {corretor.first_name} não tem um arquivo de credenciais do Google. Agendamento ignorado.")
+        if not (hasattr(corretor, 'perfil') and corretor.perfil.google_calendar_token):
+            print(f"AVISO: O corretor {corretor.first_name} não tem uma conta do Google Calendar conectada. Agendamento ignorado.")
             return
 
-        json_file_path = default_storage.path(corretor.perfil.google_json_file.name)
-
-        # 2. Iniciar o fluxo OAuth para obter o token de acesso
-        # Como o processo OAuth requer interação, este é um fluxo de exemplo.
-        # Numa aplicação real, a autenticação seria feita de forma separada.
-        flow = Flow.from_client_secrets_file(
-            json_file_path,
-            scopes=SCOPES,
-            redirect_uri='oob' # Usar "out of band" para um fluxo sem servidor de frontend
-        )
-        # Note: Esta parte do código é uma simplificação. A autenticação completa requer um fluxo web.
-        # Vamos assumir que um token já foi obtido e está guardado no perfil do utilizador.
-        # Por enquanto, o código abaixo é apenas um exemplo.
-
-        # 3. Criar o evento no Google Calendar
-        credentials = Credentials(token='YOUR_ACCESS_TOKEN_HERE') # Substituir pelo token real
-        service = build('calendar', 'v3', credentials=credentials)
-
+        # ATUALIZADO: Usamos a nova função utilitária para obter o serviço
+        service = get_google_calendar_service(corretor.perfil)
+        if not service:
+            print(f"AVISO: Não foi possível obter o serviço do Google Calendar para {corretor.first_name}. Agendamento ignorado.")
+            return
+            
         event = {
             'summary': f"Tarefa: {tarefa.descricao}",
             'description': f"Tarefa da oportunidade '{tarefa.oportunidade.titulo}'",
@@ -50,7 +82,7 @@ def agendar_tarefa_no_calendario(tarefa):
                 'timeZone': 'America/Sao_Paulo',
             },
             'end': {
-                'date': (tarefa.data_conclusao + timedelta(days=1)).isoformat(), # Exemplo de evento de 1 dia
+                'date': (tarefa.data_conclusao + timedelta(days=1)).isoformat(),
                 'timeZone': 'America/Sao_Paulo',
             },
             'attendees': [

@@ -31,6 +31,7 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'django.contrib.sites',
+    'sslserver',
 
     'rest_framework', # Django REST Framework
     'corsheaders',    # CORS Headers for cross-origin requests
