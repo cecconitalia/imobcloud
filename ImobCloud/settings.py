@@ -1,7 +1,11 @@
 # ImobCloud/settings.py
 
 import os
-from datetime import timedelta # Importado para as configurações JWT
+from datetime import timedelta
+from dotenv import load_dotenv # Adicionado para carregar variáveis de ambiente
+
+# Carrega as variáveis de ambiente do arquivo .env
+load_dotenv()
 
 # Build paths inside the project like this: os.path.join(BASE_DIR, ...)
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -11,7 +15,8 @@ BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 # See https://docs.djangoproject.com/en/5.0/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-@e^z-v*796s^86^!%5)2k(4z&h!j09c1(m%c@7s9n%w7g&^m9n' # ALtere isso em produção!
+# A SECRET_KEY agora é lida a partir das variáveis de ambiente
+SECRET_KEY = os.getenv('SECRET_KEY')
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
@@ -87,7 +92,7 @@ DATABASES = {
         'ENGINE': 'django.db.backends.postgresql_psycopg2',
         'NAME': 'imobcloud_db',
         'USER': 'imobcloud_user',
-        'PASSWORD': 'D8h5..12', # <--- COLOQUE SUA SENHA REAL AQUI!
+        'PASSWORD': os.getenv('DB_PASSWORD'), # <--- ALTERADO para usar variável de ambiente
         'HOST': 'localhost',
         'PORT': '5432',
     }
@@ -254,10 +259,14 @@ CSRF_TRUSTED_ORIGINS = [
     # 'https://*.seusistema.com',
 ]
 
+# =============================================================
+# Configurações de E-mail
+# =============================================================
 EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
 EMAIL_HOST = 'mail.ofertacobrasil.com.br'
 EMAIL_PORT = 587
 EMAIL_USE_TLS = True
-EMAIL_HOST_USER = 'estilomusical@ofertacobrasil.com.br'
-EMAIL_HOST_PASSWORD = 'P5jNfHUWb@K#$R9'
-DEFAULT_FROM_EMAIL = 'estilomusical@ofertacobrasil.com.br'
+# ALTERADO para usar variáveis de ambiente
+EMAIL_HOST_USER = os.getenv('EMAIL_HOST_USER')
+EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD')
+DEFAULT_FROM_EMAIL = os.getenv('EMAIL_HOST_USER')
