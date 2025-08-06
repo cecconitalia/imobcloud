@@ -141,7 +141,6 @@ class OportunidadeViewSet(viewsets.ModelViewSet):
     serializer_class = OportunidadeSerializer
     permission_classes = [IsAuthenticated]
 
-    # Filtra as oportunidades para mostrar apenas as da imobiliária do utilizador
     def get_queryset(self):
         user = self.request.user
         if user.is_superuser:
@@ -150,8 +149,31 @@ class OportunidadeViewSet(viewsets.ModelViewSet):
             return Oportunidade.objects.filter(imobiliaria=self.request.tenant)
         return Oportunidade.objects.none()
 
-    # Define a imobiliária automaticamente ao criar uma nova oportunidade
     def perform_create(self, serializer):
         if not self.request.tenant:
              raise PermissionError("Apenas utilizadores associados a uma imobiliária podem criar oportunidades.")
         serializer.save(imobiliaria=self.request.tenant)
+    
+    # --- MÉTODO ATUALIZADO PARA CRIAR ATIVIDADE AUTOMATICAMENTE ---
+    def partial_update(self, request, *args, **kwargs):
+        oportunidade = self.get_object()
+        fase_anterior = oportunidade.get_fase_display() # Pega o texto legível da fase
+        fase_nova_key = request.data.get('fase')
+
+        # Chama o método original para fazer a atualização
+        response = super().partial_update(request, *args, **kwargs)
+
+        # Se a fase mudou, cria o registro de atividade
+        if fase_nova_key and fase_nova_key != oportunidade.fase:
+            # Atualiza o objeto para obter a nova fase
+            oportunidade.refresh_from_db()
+            fase_nova = oportunidade.get_fase_display()
+            
+            Atividade.objects.create(
+                cliente=oportunidade.cliente,
+                tipo='NOTA',
+                descricao=f"Oportunidade '{oportunidade.titulo}' movida da fase '{fase_anterior}' para '{fase_nova}'.",
+                registrado_por=request.user
+            )
+        
+        return response

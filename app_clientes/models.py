@@ -92,6 +92,14 @@ class Oportunidade(models.Model):
         ('GANHO', 'Negócio Ganho'),
         ('PERDIDO', 'Negócio Perdido'),
     ]
+    
+    FONTE_CHOICES = [
+        ('SITE', 'Site'),
+        ('INDICACAO', 'Indicação'),
+        ('ANUNCIO', 'Anúncio Online'),
+        ('CLIENTE_ANTIGO', 'Cliente Antigo'),
+        ('OUTRO', 'Outro'),
+    ]
 
     titulo = models.CharField(max_length=255, verbose_name="Título da Oportunidade")
     cliente = models.ForeignKey(Cliente, on_delete=models.CASCADE, related_name="oportunidades", verbose_name="Cliente")
@@ -104,6 +112,12 @@ class Oportunidade(models.Model):
     
     data_criacao = models.DateTimeField(auto_now_add=True)
     data_fechamento = models.DateField(null=True, blank=True, verbose_name="Data Prevista de Fechamento")
+
+    # --- NOVOS CAMPOS ADICIONADOS ---
+    fonte = models.CharField(max_length=20, choices=FONTE_CHOICES, null=True, blank=True, verbose_name="Fonte do Lead")
+    motivo_perda = models.TextField(null=True, blank=True, verbose_name="Motivo da Perda")
+    data_proximo_contato = models.DateField(null=True, blank=True, verbose_name="Data do Próximo Contato")
+    probabilidade = models.PositiveIntegerField(default=10, verbose_name="Probabilidade de Fechamento (%)")
 
     class Meta:
         verbose_name = "Oportunidade"

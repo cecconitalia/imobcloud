@@ -23,7 +23,6 @@
           </option>
         </select>
       </div>
-
       <div class="form-group">
         <label for="imovel">Imóvel de Interesse (opcional)</label>
         <select id="imovel" v-model="oportunidade.imovel">
@@ -38,6 +37,26 @@
         <label for="valor_estimado">Valor Estimado (R$)</label>
         <input type="number" step="0.01" id="valor_estimado" v-model="oportunidade.valor_estimado" />
       </div>
+      <div class="form-group">
+        <label for="fonte">Fonte do Lead</label>
+        <select id="fonte" v-model="oportunidade.fonte">
+          <option :value="null">Não informada</option>
+          <option value="SITE">Site</option>
+          <option value="INDICACAO">Indicação</option>
+          <option value="ANUNCIO">Anúncio Online</option>
+          <option value="CLIENTE_ANTIGO">Cliente Antigo</option>
+          <option value="OUTRO">Outro</option>
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label for="probabilidade">Probabilidade de Fechamento (%)</label>
+        <input type="number" id="probabilidade" v-model="oportunidade.probabilidade" min="0" max="100" />
+      </div>
+      <div class="form-group">
+        <label for="data_proximo_contato">Data do Próximo Contato</label>
+        <input type="date" id="data_proximo_contato" v-model="oportunidade.data_proximo_contato" />
+      </div>
 
       <div class="form-group">
         <label for="responsavel">Corretor Responsável</label>
@@ -47,6 +66,11 @@
             {{ corretor.username }}
           </option>
         </select>
+      </div>
+
+      <div v-if="oportunidade.fase === 'PERDIDO'" class="form-group full-width">
+        <label for="motivo_perda">Motivo da Perda</label>
+        <textarea id="motivo_perda" v-model="oportunidade.motivo_perda" rows="3" placeholder="Descreva por que este negócio foi perdido..."></textarea>
       </div>
 
       <div class="form-actions full-width">
@@ -70,13 +94,19 @@ const route = useRoute();
 const oportunidadeId = computed(() => route.params.id as string | undefined);
 const isEditing = computed(() => !!oportunidadeId.value);
 
+// ATUALIZADO: Adicionados os novos campos com valores padrão
 const oportunidade = ref({
   titulo: '',
   cliente: '',
   imovel: null,
   valor_estimado: null,
   responsavel: null,
-  fase: 'LEAD'
+  fase: 'LEAD',
+  // Novos campos
+  fonte: null,
+  probabilidade: 10,
+  data_proximo_contato: null,
+  motivo_perda: ''
 });
 
 const clientes = ref<any[]>([]);
@@ -88,6 +118,7 @@ const isSubmitting = ref(false);
 async function fetchData() {
   isLoadingData.value = true;
   try {
+    // Busca os dados dos dropdowns
     const [clientesResponse, imoveisResponse, corretoresResponse] = await Promise.all([
       apiClient.get('/v1/clientes/clientes/'),
       apiClient.get('/v1/imoveis/imoveis/'),
@@ -97,6 +128,7 @@ async function fetchData() {
     imoveis.value = imoveisResponse.data;
     corretores.value = corretoresResponse.data;
 
+    // Se estiver a editar, busca os dados da oportunidade
     if (isEditing.value) {
       const oportunidadeResponse = await apiClient.get(`/v1/clientes/oportunidades/${oportunidadeId.value}/`);
       oportunidade.value = oportunidadeResponse.data;
@@ -143,7 +175,7 @@ function handleCancel() {
 .form-group { display: flex; flex-direction: column; flex: 1 1 calc(50% - 1.5rem); }
 .form-group.full-width { flex-basis: 100%; }
 label { margin-bottom: 0.5rem; font-weight: bold; }
-input, select { padding: 10px; border: 1px solid #ccc; border-radius: 4px; font-size: 1rem; }
+input, select, textarea { padding: 10px; border: 1px solid #ccc; border-radius: 4px; font-size: 1rem; }
 .form-actions { display: flex; justify-content: flex-end; gap: 1rem; width: 100%; margin-top: 1rem; }
 .btn-primary, .btn-secondary { padding: 10px 20px; border: none; border-radius: 5px; cursor: pointer; }
 .btn-primary { background-color: #007bff; color: white; }
