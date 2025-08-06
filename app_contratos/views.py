@@ -1,8 +1,8 @@
 # C:\wamp64\www\ImobCloud\app_contratos\views.py
 from rest_framework import viewsets, status
 from rest_framework.response import Response
-# ATUALIZADO: PermissionDenied foi movido para rest_framework.exceptions
 from rest_framework.permissions import IsAuthenticated
+# ATUALIZADO: Importação correta do PermissionDenied
 from rest_framework.exceptions import PermissionDenied
 from rest_framework import filters
 from django.shortcuts import get_object_or_404
@@ -70,7 +70,7 @@ class ContratoViewSet(viewsets.ModelViewSet):
             raise PermissionDenied("Você não tem permissão para atualizar este contrato.")
 
     def perform_destroy(self, instance):
-        if self.request.user.is_superuser or (hasattr(self.request.user, 'perfil') and self.request.user.perfil.cargo == PerfilUsuario.Cargo.ADMIN and instance.imobiliaria == self.request.tenant):
+        if self.request.user.is_superuser or (hasattr(self.request.user, 'perfil') and instance.imobiliaria == self.request.tenant and self.request.user.perfil.cargo == PerfilUsuario.Cargo.ADMIN):
             instance.status_contrato = 'Inativo'
             instance.save()
             return Response(status=status.HTTP_204_NO_CONTENT)

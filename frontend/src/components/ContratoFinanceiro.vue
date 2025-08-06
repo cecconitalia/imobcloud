@@ -117,7 +117,7 @@ function formatarData(data: string) {
   return dataObj.toLocaleDateString('pt-BR');
 }
 function formatarValor(valor: number) {
-  return valor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+  return parseFloat(valor.toString()).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 }
 function getStatusClass(pagamento: any) {
   if (pagamento.status === 'ATRASADO') return 'atrasado-row';

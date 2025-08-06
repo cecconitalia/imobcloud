@@ -1,9 +1,10 @@
 # C:\wamp64\www\ImobCloud\app_contratos\serializers.py
 from rest_framework import serializers
-from .models import Contrato, Pagamento
+from .models import Contrato, Pagamento # ATUALIZADO: Importar Pagamento
 from app_imoveis.serializers import ImovelDisplaySerializer
 from app_clientes.serializers import ClienteDisplaySerializer
 
+# NOVO: Serializer para o modelo Pagamento
 class PagamentoSerializer(serializers.ModelSerializer):
     class Meta:
         model = Pagamento

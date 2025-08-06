@@ -16,11 +16,13 @@ class Contrato(models.Model):
     valor_total = models.DecimalField(max_digits=15, decimal_places=2, verbose_name="Valor Total do Contrato")
     condicoes_pagamento = models.TextField(verbose_name="Condições de Pagamento")
     
+    # ATUALIZADO: Adicionada a opção 'Pendente'
     status_contrato = models.CharField(
         max_length=50, 
         default='Ativo', 
         verbose_name="Status do Contrato", 
         choices=[
+            ('Pendente', 'Pendente'),
             ('Ativo', 'Ativo'), 
             ('Concluído', 'Concluído'), 
             ('Rescindido', 'Rescindido'),
