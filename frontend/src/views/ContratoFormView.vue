@@ -87,7 +87,6 @@
 import { ref, onMounted, computed } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import apiClient from '@/services/api';
-// NOVO: Importar o componente que criámos
 import ContratoFinanceiro from '@/components/ContratoFinanceiro.vue';
 
 const route = useRoute();
@@ -106,7 +105,7 @@ const contrato = ref({
   condicoes_pagamento: '',
   valor_total: null,
   status_contrato: 'Ativo',
-  pagamentos: [] // NOVO: Inicializar a lista de pagamentos
+  pagamentos: []
 });
 
 const imoveis = ref<any[]>([]);
@@ -151,17 +150,32 @@ onMounted(async () => {
   isLoadingData.value = false;
 });
 
+// ATUALIZADO: A função de submissão agora limpa os dados antes de enviar
 async function handleSubmit() {
   isSubmitting.value = true;
+  
+  // Prepara um objeto "limpo" apenas com os campos que o backend espera
+  const payload = {
+    imovel: contrato.value.imovel,
+    cliente: contrato.value.cliente,
+    tipo_contrato: contrato.value.tipo_contrato,
+    data_inicio: contrato.value.data_inicio,
+    data_fim: contrato.value.data_fim,
+    data_assinatura: contrato.value.data_assinatura,
+    valor_total: contrato.value.valor_total,
+    condicoes_pagamento: contrato.value.condicoes_pagamento,
+    status_contrato: contrato.value.status_contrato,
+  };
+
   try {
     if (isEditing.value) {
-      await apiClient.put(`/v1/contratos/contratos/${contratoId.value}/`, contrato.value);
+      await apiClient.put(`/v1/contratos/contratos/${contratoId.value}/`, payload);
     } else {
-      await apiClient.post('/v1/contratos/contratos/', contrato.value);
+      await apiClient.post('/v1/contratos/contratos/', payload);
     }
     router.push({ name: 'contratos' });
   } catch (error) {
-    console.error("Erro ao adicionar contrato:", error.response?.data || error);
+    console.error("Erro ao guardar o contrato:", error.response?.data || error);
     alert('Ocorreu um erro ao guardar o contrato. Verifique os dados.');
   } finally {
     isSubmitting.value = false;
