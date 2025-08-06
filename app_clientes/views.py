@@ -11,11 +11,14 @@ from rest_framework.views import APIView
 from django.http import HttpResponse, HttpResponseRedirect
 from django.urls import reverse
 
+# ADICIONADO: Importações para a nova view de relatórios
+from django.db.models import Count, Sum, Q
+from django.contrib.auth.models import User
+
 from .models import Cliente, Visita, Atividade, Oportunidade, Tarefa
 from .serializers import ClienteSerializer, VisitaSerializer, AtividadeSerializer, OportunidadeSerializer, TarefaSerializer
 from app_imoveis.models import Imovel
-from core.models import PerfilUsuario
-# ATUALIZADO: Importações para o Google Calendar
+from core.models import PerfilUsuario, Notificacao, Imobiliaria
 from google_auth_oauthlib.flow import Flow
 import os
 import json
@@ -23,11 +26,9 @@ import pickle
 from django.conf import settings
 from django.core.files.storage import default_storage
 
-# Adicionamos a importação da exceção específica
-from django.contrib.auth.models import User
 
 # ====================================================================
-# VIEWS CORRIGIDAS PARA O GOOGLE CALENDAR
+# VIEWS DO GOOGLE CALENDAR
 # ====================================================================
 SCOPES = ['https://www.googleapis.com/auth/calendar.events']
 CREDENTIALS_DIR = os.path.join(settings.MEDIA_ROOT, 'google_credentials')
@@ -60,7 +61,6 @@ class GoogleCalendarAuthView(APIView):
         except PerfilUsuario.DoesNotExist:
             return Response({"error": "O utilizador não tem um perfil associado."}, status=status.HTTP_400_BAD_REQUEST)
         except Exception as e:
-            # Em caso de qualquer outro erro, como o arquivo não ser encontrado
             return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
 class GoogleCalendarAuthCallbackView(APIView):
@@ -101,7 +101,7 @@ class GoogleCalendarAuthCallbackView(APIView):
             return HttpResponse(f"Erro ao processar o callback: {e}", status=400)
 
 # ====================================================================
-# VIEWS EXISTENTES (SEM ALTERAÇÕES)
+# VIEWS DO CRM
 # ====================================================================
 
 class ClienteViewSet(viewsets.ModelViewSet):
@@ -313,6 +313,12 @@ class OportunidadeViewSet(viewsets.ModelViewSet):
             registrado_por=user
         )
 
+        Notificacao.objects.create(
+            destinatario=novo_corretor,
+            mensagem=f"A oportunidade '{oportunidade.titulo}' foi transferida para você.",
+            link=f"/oportunidades/editar/{oportunidade.id}"
+        )
+
         return Response(
             {"detail": "Oportunidade transferida com sucesso."},
             status=status.HTTP_200_OK
@@ -357,3 +363,60 @@ class MinhasTarefasView(APIView):
         
         serializer = TarefaSerializer(tarefas, many=True)
         return Response(serializer.data)
+
+
+# NOVA VIEW PARA OS RELATÓRIOS DE DESEMPENHO
+class RelatoriosView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, *args, **kwargs):
+        if not (request.user.is_superuser or (hasattr(request.user, 'perfil') and request.user.perfil.cargo == PerfilUsuario.Cargo.ADMIN)):
+            return Response({"detail": "Você não tem permissão para acessar esta página."}, status=status.HTTP_403_FORBIDDEN)
+
+        tenant = request.tenant
+        if not tenant and request.user.is_superuser:
+            tenant = Imobiliaria.objects.first()
+        
+        if not tenant:
+            return Response({"error": "Nenhuma imobiliária associada."}, status=status.HTTP_400_BAD_REQUEST)
+
+        # 1. Relatório do Funil de Vendas
+        total_oportunidades = Oportunidade.objects.filter(imobiliaria=tenant).count()
+        fases_contagem = Oportunidade.objects.filter(imobiliaria=tenant)\
+            .values('fase')\
+            .annotate(total=Count('fase'))\
+            .order_by('fase')
+        
+        # 2. Relatório de Origem de Leads
+        fontes_contagem = Oportunidade.objects.filter(imobiliaria=tenant)\
+            .values('fonte')\
+            .annotate(total=Count('fonte'))\
+            .order_by('-total')
+
+        # 3. Relatório de Desempenho dos Corretores
+        corretores = User.objects.filter(perfil__imobiliaria=tenant)
+        desempenho_corretores = []
+        for corretor in corretores:
+            oportunidades_ganhas = Oportunidade.objects.filter(responsavel=corretor, fase='GANHO', imobiliaria=tenant)
+            oportunidades_perdidas = Oportunidade.objects.filter(responsavel=corretor, fase='PERDIDO', imobiliaria=tenant)
+            
+            valor_total_ganho = oportunidades_ganhas.aggregate(total=Sum('valor_estimado'))['total'] or 0
+            
+            desempenho_corretores.append({
+                'corretor_id': corretor.id,
+                'nome': corretor.first_name or corretor.username,
+                'oportunidades_ganhas': oportunidades_ganhas.count(),
+                'oportunidades_perdidas': oportunidades_perdidas.count(),
+                'valor_total_ganho': valor_total_ganho,
+            })
+
+        data = {
+            'funil_vendas': {
+                'total_oportunidades': total_oportunidades,
+                'fases': list(fases_contagem)
+            },
+            'origem_leads': list(fontes_contagem),
+            'desempenho_corretores': desempenho_corretores,
+        }
+
+        return Response(data)

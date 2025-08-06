@@ -29,6 +29,19 @@
         <h3 class="stat-title">Novos Clientes (Últimos 30 dias)</h3>
         <p class="stat-value">{{ stats.novos_clientes_30d }}</p>
       </div>
+      
+      <div class="stat-card financial">
+        <h3 class="stat-title">Faturamento (Últimos 30 dias)</h3>
+        <p class="stat-value">{{ formatCurrency(stats.faturamento_30d) }}</p>
+      </div>
+      <div class="stat-card financial">
+        <h3 class="stat-title">Pagamentos Pendentes</h3>
+        <p class="stat-value">{{ formatCurrency(stats.pagamentos_pendentes) }}</p>
+      </div>
+      <div class="stat-card financial">
+        <h3 class="stat-title">Valor em Vendas (Ativas)</h3>
+        <p class="stat-value">{{ formatCurrency(stats.total_vendas_ativas) }}</p>
+      </div>
     </div>
   </div>
 </template>
@@ -40,6 +53,17 @@ import apiClient from '@/services/api';
 const stats = ref<any>(null);
 const isLoading = ref(true);
 const error = ref<string | null>(null);
+
+// NOVA FUNÇÃO para formatar valores monetários
+function formatCurrency(value: number) {
+  if (typeof value !== 'number') {
+    return 'R$ 0,00';
+  }
+  return value.toLocaleString('pt-BR', {
+    style: 'currency',
+    currency: 'BRL',
+  });
+}
 
 onMounted(async () => {
   try {
@@ -71,7 +95,8 @@ onMounted(async () => {
 }
 .stats-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  /* ATUALIZADO: Ajustado para 4 colunas em telas grandes */
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
   gap: 1.5rem;
 }
 .stat-card {
@@ -80,6 +105,11 @@ onMounted(async () => {
   border-radius: 8px;
   box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
   text-align: center;
+  border-left: 5px solid #007bff; /* Borda azul padrão */
+}
+/* NOVO: Estilo para cartões financeiros */
+.stat-card.financial {
+  border-left-color: #28a745; /* Borda verde para finanças */
 }
 .stat-title {
   font-size: 1rem;

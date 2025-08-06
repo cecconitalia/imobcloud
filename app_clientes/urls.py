@@ -9,8 +9,9 @@ from .views import (
     OportunidadeViewSet,
     TarefaViewSet,
     MinhasTarefasView,
-    GoogleCalendarAuthView, # NOVO: Importa a view de autenticação
-    GoogleCalendarAuthCallbackView, # NOVO: Importa a view de callback
+    GoogleCalendarAuthView,
+    GoogleCalendarAuthCallbackView,
+    RelatoriosView # <-- View importada
 )
 
 # Roteador principal
@@ -29,7 +30,9 @@ urlpatterns = [
     path('', include(oportunidades_router.urls)),
     path('minhas_tarefas/', MinhasTarefasView.as_view(), name='minhas-tarefas'),
     
-    # NOVOS URLs para a integração com o Google Calendar
     path('google-calendar-auth/', GoogleCalendarAuthView.as_view(), name='google-calendar-auth'),
     path('google-calendar-auth/callback/', GoogleCalendarAuthCallbackView.as_view(), name='google-calendar-auth-callback'),
+    
+    # NOVA URL PARA OS RELATÓRIOS
+    path('relatorios/', RelatoriosView.as_view(), name='relatorios'),
 ]

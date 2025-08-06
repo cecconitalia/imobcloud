@@ -48,7 +48,6 @@ class PerfilUsuario(models.Model):
     
     google_json_file = models.FileField(upload_to='google_credentials/', blank=True, null=True, verbose_name="Arquivo de Credenciais do Google")
     
-    # NOVO: Campo para armazenar o token de acesso do Google Calendar serializado
     google_calendar_token = models.TextField(blank=True, null=True, verbose_name="Token de Acesso do Google Calendar")
 
     class Meta:
@@ -57,3 +56,19 @@ class PerfilUsuario(models.Model):
 
     def __str__(self):
         return f"Perfil de {self.user.username} ({self.imobiliaria.nome if self.imobiliaria else 'Nenhuma Imobiliária'})"
+
+# NOVO MODELO DE NOTIFICAÇÃO
+class Notificacao(models.Model):
+    destinatario = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='notificacoes')
+    mensagem = models.CharField(max_length=255)
+    lida = models.BooleanField(default=False)
+    data_criacao = models.DateTimeField(auto_now_add=True)
+    link = models.CharField(max_length=255, blank=True, null=True) # Opcional: para redirecionar o usuário
+
+    class Meta:
+        ordering = ['-data_criacao']
+        verbose_name = "Notificação"
+        verbose_name_plural = "Notificações"
+
+    def __str__(self):
+        return f"Notificação para {self.destinatario.username}: {self.mensagem}"

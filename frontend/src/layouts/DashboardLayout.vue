@@ -57,17 +57,27 @@
       </div>
     </aside>
 
-    <main class="main-content">
-      <div class="content-wrapper">
-        <router-view />
-      </div>
-    </main>
+    <div class="main-container">
+      <header class="main-header">
+        <div class="header-content">
+          <div class="spacer"></div>
+          <NotificationBell />
+        </div>
+      </header>
+      <main class="main-content">
+        <div class="content-wrapper">
+          <router-view />
+        </div>
+      </main>
+    </div>
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
+// Importa o novo componente
+import NotificationBell from '@/components/NotificationBell.vue';
 
 const router = useRouter();
 const userCargo = ref('');
@@ -90,37 +100,36 @@ onMounted(() => {
 </script>
 
 <style scoped>
-.nav-section-header {
-  color: #a0a0a0;
-  font-weight: bold;
-  padding: 12px 15px;
-  margin-top: 1rem;
-  text-transform: uppercase;
-  font-size: 0.8em;
-  border-bottom: 1px solid #34495e;
-}
-.header-link {
-  text-decoration: none;
-  color: white;
-}
-.sidebar-header {
-  padding-bottom: 1rem;
-  border-bottom: 1px solid #34495e;
+/* Adicionando FontAwesome para os ícones */
+@import url('https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css');
+
+/* Definição dos ícones para o menu */
+.nav-link i::before {
+  font-family: "Font Awesome 5 Free";
+  font-weight: 900;
+  margin-right: 10px;
+  width: 20px;
   text-align: center;
 }
-.sidebar-header h2 {
-  margin: 0;
+.icon-bell::before {
+  font-family: "Font Awesome 5 Free";
+  font-weight: 900;
+  content: "\f0f3"; /* sino */
 }
-.user-name {
-  margin: 0;
-  color: #c0c0c0;
-  font-size: 0.9em;
-  font-weight: 500;
-}
+.icon-dashboard::before { content: "\f3fd"; }
+.icon-funil::before { content: "\f1de"; }
+.icon-calendario::before { content: "\f073"; }
+.icon-imoveis::before { content: "\f279"; }
+.icon-clientes::before { content: "\f0c0"; }
+.icon-contratos::before { content: "\f15c"; }
+.icon-visitas::before { content: "\f0f3"; }
+.icon-contatos::before { content: "\f0e0"; }
+.icon-users::before { content: "\f500"; }
+
+
 .dashboard-layout {
   display: flex;
   min-height: 100vh;
-  background-color: #f4f7f6;
 }
 .sidebar {
   width: 250px;
@@ -129,22 +138,55 @@ onMounted(() => {
   display: flex;
   flex-direction: column;
   padding: 1rem;
+  flex-shrink: 0;
+}
+.sidebar-header {
+  padding-bottom: 1rem;
+  border-bottom: 1px solid #34495e;
+  text-align: center;
+}
+.header-link {
+  text-decoration: none;
+  color: white;
+}
+.sidebar-header h2 {
+  margin: 0;
+}
+.user-name {
+  margin-top: 0.5rem;
+  color: #bdc3c7;
+  font-size: 0.9em;
 }
 .sidebar-nav {
-  margin-top: 2rem;
+  margin-top: 1.5rem;
   flex-grow: 1;
 }
 .nav-link {
-  display: block;
+  display: flex;
+  align-items: center;
   padding: 12px 15px;
-  color: white;
+  color: #ecf0f1;
   text-decoration: none;
   border-radius: 4px;
   margin-bottom: 0.5rem;
-  transition: background-color 0.3s;
+  transition: background-color 0.2s, color 0.2s;
 }
-.nav-link:hover, .router-link-exact-active {
+.nav-link:hover {
   background-color: #34495e;
+}
+.nav-link.router-link-exact-active {
+  background-color: #3498db;
+  color: white;
+  font-weight: bold;
+}
+.nav-section-header {
+  color: #95a5a6;
+  font-weight: bold;
+  padding: 12px 15px;
+  margin-top: 1rem;
+  text-transform: uppercase;
+  font-size: 0.8em;
+  border-top: 1px solid #34495e;
 }
 .sidebar-footer {
   margin-top: auto;
@@ -159,16 +201,34 @@ onMounted(() => {
   cursor: pointer;
   font-size: 1rem;
 }
-.logout-button:hover {
-  background-color: #c0392b;
+.main-container {
+  flex-grow: 1;
+  display: flex;
+  flex-direction: column;
+  background-color: #f4f7f6;
+}
+.main-header {
+  background-color: #fff;
+  padding: 0 2rem;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+  z-index: 50;
+  flex-shrink: 0;
+}
+.header-content {
+  display: flex;
+  align-items: center;
+  height: 60px;
+}
+.spacer {
+  flex-grow: 1;
 }
 .main-content {
   flex-grow: 1;
-  padding: 2rem;
   overflow-y: auto;
 }
 .content-wrapper {
-  max-width: 1200px;
+  max-width: 1300px;
   margin: 0 auto;
+  padding: 2rem;
 }
 </style>

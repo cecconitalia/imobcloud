@@ -1,17 +1,22 @@
+# C:\wamp64\www\imobcloud\core\serializers.py
+
 from rest_framework import serializers
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 from django.contrib.auth import get_user_model
-from core.models import PerfilUsuario
+from core.models import PerfilUsuario, Notificacao
 
 User = get_user_model()
 
 class MyTokenObtainPairSerializer(TokenObtainPairSerializer):
     """
-    Personaliza o serializer de token para adicionar o subdomínio da imobiliária
-    e o cargo do utilizador na resposta do login.
+    Personaliza o serializer de token para adicionar o subdomínio da imobiliária,
+    o cargo e o nome do utilizador na resposta do login.
     """
     def validate(self, attrs):
         data = super().validate(attrs)
+
+        # Adiciona o nome do usuário para ser usado no frontend
+        data['user_name'] = self.user.first_name or self.user.username
 
         if hasattr(self.user, 'perfil') and self.user.perfil and self.user.perfil.imobiliaria:
             data['subdomain'] = self.user.perfil.imobiliaria.subdominio
@@ -19,15 +24,22 @@ class MyTokenObtainPairSerializer(TokenObtainPairSerializer):
             data['imobiliaria_name'] = self.user.perfil.imobiliaria.nome
         else:
             data['subdomain'] = None
-            data['cargo'] = 'ADMIN'
+            # Define 'ADMIN' como padrão para superusuários que não têm um perfil
+            data['cargo'] = 'ADMIN' if self.user.is_superuser else None
             data['imobiliaria_name'] = 'Superuser' if self.user.is_superuser else 'N/A'
 
         return data
 
+# SERIALIZER PARA O MODELO NOTIFICACAO
+class NotificacaoSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Notificacao
+        fields = ['id', 'mensagem', 'lida', 'data_criacao', 'link']
+
+
 class PerfilUsuarioSerializer(serializers.ModelSerializer):
     class Meta:
         model = PerfilUsuario
-        # ATUALIZADO: Adicionamos o novo campo 'google_calendar_token'
         fields = [
             'cargo', 'creci', 'telefone', 'endereco_logradouro', 'endereco_numero',
             'endereco_bairro', 'endereco_cidade', 'endereco_estado', 'endereco_cep',
@@ -52,6 +64,10 @@ class CorretorRegistrationSerializer(serializers.ModelSerializer):
         password = validated_data.pop('password')
         
         user = User.objects.create_user(**validated_data)
+        if password:
+            user.set_password(password)
+        user.save()
+
         PerfilUsuario.objects.create(
             user=user,
             imobiliaria=self.context['request'].tenant,
@@ -72,19 +88,8 @@ class CorretorRegistrationSerializer(serializers.ModelSerializer):
         
         perfil_instance = instance.perfil
         if perfil_data:
-            perfil_instance.cargo = perfil_data.get('cargo', perfil_instance.cargo)
-            perfil_instance.creci = perfil_data.get('creci', perfil_instance.creci)
-            perfil_instance.telefone = perfil_data.get('telefone', perfil_instance.telefone)
-            perfil_instance.endereco_logradouro = perfil_data.get('endereco_logradouro', perfil_instance.endereco_logradouro)
-            perfil_instance.endereco_numero = perfil_data.get('endereco_numero', perfil_instance.endereco_numero)
-            perfil_instance.endereco_bairro = perfil_data.get('endereco_bairro', perfil_instance.endereco_bairro)
-            perfil_instance.endereco_cidade = perfil_data.get('endereco_cidade', perfil_instance.endereco_cidade)
-            perfil_instance.endereco_estado = perfil_data.get('endereco_estado', perfil_instance.endereco_estado)
-            perfil_instance.endereco_cep = perfil_data.get('endereco_cep', perfil_instance.endereco_cep)
-            perfil_instance.observacoes = perfil_data.get('observacoes', perfil_instance.observacoes)
-            perfil_instance.google_json_file = perfil_data.get('google_json_file', perfil_instance.google_json_file)
-            # NOVO: Atualiza o novo campo
-            perfil_instance.google_calendar_token = perfil_data.get('google_calendar_token', perfil_instance.google_calendar_token)
+            for attr, value in perfil_data.items():
+                setattr(perfil_instance, attr, value)
             perfil_instance.save()
 
         return instance
