@@ -22,13 +22,17 @@ class MyTokenObtainPairSerializer(TokenObtainPairSerializer):
             data['cargo'] = 'ADMIN'
             data['imobiliaria_name'] = 'Superuser' if self.user.is_superuser else 'N/A'
 
-
         return data
 
 class PerfilUsuarioSerializer(serializers.ModelSerializer):
     class Meta:
         model = PerfilUsuario
-        fields = ['cargo', 'creci', 'telefone', 'endereco_logradouro', 'endereco_numero', 'endereco_bairro', 'endereco_cidade', 'endereco_estado', 'endereco_cep', 'observacoes', 'google_json_file']
+        # ATUALIZADO: Adicionamos o novo campo 'google_calendar_token'
+        fields = [
+            'cargo', 'creci', 'telefone', 'endereco_logradouro', 'endereco_numero',
+            'endereco_bairro', 'endereco_cidade', 'endereco_estado', 'endereco_cep',
+            'observacoes', 'google_json_file', 'google_calendar_token'
+        ]
 
 class CorretorRegistrationSerializer(serializers.ModelSerializer):
     perfil = PerfilUsuarioSerializer(required=True)
@@ -79,6 +83,8 @@ class CorretorRegistrationSerializer(serializers.ModelSerializer):
             perfil_instance.endereco_cep = perfil_data.get('endereco_cep', perfil_instance.endereco_cep)
             perfil_instance.observacoes = perfil_data.get('observacoes', perfil_instance.observacoes)
             perfil_instance.google_json_file = perfil_data.get('google_json_file', perfil_instance.google_json_file)
+            # NOVO: Atualiza o novo campo
+            perfil_instance.google_calendar_token = perfil_data.get('google_calendar_token', perfil_instance.google_calendar_token)
             perfil_instance.save()
 
         return instance

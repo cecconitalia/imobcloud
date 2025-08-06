@@ -15,9 +15,94 @@ from .models import Cliente, Visita, Atividade, Oportunidade, Tarefa
 from .serializers import ClienteSerializer, VisitaSerializer, AtividadeSerializer, OportunidadeSerializer, TarefaSerializer
 from app_imoveis.models import Imovel
 from core.models import PerfilUsuario
-from .utils import agendar_tarefa_no_calendario
+# ATUALIZADO: Importações para o Google Calendar
+from google_auth_oauthlib.flow import Flow
+import os
+import json
+import pickle
+from django.conf import settings
+from django.core.files.storage import default_storage
 
-User = get_user_model()
+# Adicionamos a importação da exceção específica
+from django.contrib.auth.models import User
+
+# ====================================================================
+# VIEWS CORRIGIDAS PARA O GOOGLE CALENDAR
+# ====================================================================
+SCOPES = ['https://www.googleapis.com/auth/calendar.events']
+CREDENTIALS_DIR = os.path.join(settings.MEDIA_ROOT, 'google_credentials')
+
+class GoogleCalendarAuthView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, *args, **kwargs):
+        try:
+            perfil = request.user.perfil
+            if not perfil.google_json_file:
+                 return Response({"error": "Nenhum arquivo de credenciais do Google foi encontrado."}, status=status.HTTP_400_BAD_REQUEST)
+                 
+            json_file_path = default_storage.path(perfil.google_json_file.name)
+            
+            flow = Flow.from_client_secrets_file(
+                json_file_path,
+                scopes=SCOPES,
+                redirect_uri=request.build_absolute_uri(reverse('google-calendar-auth-callback'))
+            )
+            
+            authorization_url, state = flow.authorization_url(
+                access_type='offline',
+                include_granted_scopes='true',
+                prompt='consent'
+            )
+    
+            request.session['oauth_state'] = state
+            return HttpResponseRedirect(authorization_url)
+        except PerfilUsuario.DoesNotExist:
+            return Response({"error": "O utilizador não tem um perfil associado."}, status=status.HTTP_400_BAD_REQUEST)
+        except Exception as e:
+            # Em caso de qualquer outro erro, como o arquivo não ser encontrado
+            return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+class GoogleCalendarAuthCallbackView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, *args, **kwargs):
+        state = request.session.pop('oauth_state', None)
+        if not state or state != request.query_params.get('state'):
+            return HttpResponse("Estado inválido. O processo de autenticação falhou.", status=400)
+        
+        try:
+            json_file_path = default_storage.path(request.user.perfil.google_json_file.name)
+    
+            flow = Flow.from_client_secrets_file(
+                json_file_path,
+                scopes=SCOPES,
+                redirect_uri=request.build_absolute_uri(reverse('google-calendar-auth-callback'))
+            )
+            
+            flow.fetch_token(authorization_response=request.get_full_path())
+            
+            credentials_json = {
+                'token': flow.credentials.token,
+                'refresh_token': flow.credentials.refresh_token,
+                'token_uri': flow.credentials.token_uri,
+                'client_id': flow.credentials.client_id,
+                'client_secret': flow.credentials.client_secret,
+                'scopes': flow.credentials.scopes
+            }
+            
+            request.user.perfil.google_calendar_token = json.dumps(credentials_json)
+            request.user.perfil.save()
+            
+            return HttpResponse("Conexão com o Google Calendar realizada com sucesso!")
+        except PerfilUsuario.DoesNotExist:
+            return HttpResponse("Erro: O utilizador não tem um perfil associado.", status=400)
+        except Exception as e:
+            return HttpResponse(f"Erro ao processar o callback: {e}", status=400)
+
+# ====================================================================
+# VIEWS EXISTENTES (SEM ALTERAÇÕES)
+# ====================================================================
 
 class ClienteViewSet(viewsets.ModelViewSet):
     queryset = Cliente.objects.all()
@@ -46,7 +131,6 @@ class ClienteViewSet(viewsets.ModelViewSet):
             serializer.save(imobiliaria=self.request.tenant)
         else:
             raise Exception("Não foi possível associar o cliente a uma imobiliária. Tenant não identificado ou sem permissão.")
-
 
     def perform_update(self, serializer):
         if self.request.user.is_superuser:
