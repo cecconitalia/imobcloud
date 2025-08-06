@@ -3,11 +3,9 @@ from django.urls import path, include
 from django.conf import settings
 from django.conf.urls.static import static
 
-# 1. Importe a sua nova view personalizada
+# Importe apenas a view de token personalizada aqui
 from core.views import MyTokenObtainPairView
-# A importação da view antiga (TokenObtainPairView) não é mais necessária aqui
 from rest_framework_simplejwt.views import TokenRefreshView
-
 
 urlpatterns = [
     path('admin/', admin.site.urls),
@@ -18,7 +16,7 @@ urlpatterns = [
     path('api/v1/contratos/', include('app_contratos.urls')),
     path('api/v1/core/', include('core.urls')),
 
-    # 2. A linha abaixo agora usa a sua view personalizada para o login
+    # A linha abaixo usa a sua view personalizada para o login
     path('api/token/', MyTokenObtainPairView.as_view(), name='token_obtain_pair'),
     
     # Endpoint para atualizar o token

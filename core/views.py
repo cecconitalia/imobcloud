@@ -1,8 +1,8 @@
 # C:\wamp64\www\ImobCloud\core\views.py
 
 from rest_framework_simplejwt.views import TokenObtainPairView
-from .serializers import MyTokenObtainPairSerializer, CorretorRegistrationSerializer
-from app_clientes.serializers import CorretorDisplaySerializer
+from rest_framework import viewsets
+from .serializers import MyTokenObtainPairSerializer, CorretorRegistrationSerializer, CorretorDisplaySerializer
 from django.contrib.auth import get_user_model
 from rest_framework.views import APIView
 from rest_framework.response import Response
@@ -70,53 +70,43 @@ class DashboardStatsView(APIView):
         
         return Response(data)
 
-# NOVO: View para listar corretores da imobiliária
-class CorretorListView(APIView):
+class CorretorViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated]
+    queryset = User.objects.all()
 
-    def get(self, request, *args, **kwargs):
-        if not request.tenant:
-            return Response({"error": "Nenhuma imobiliária associada."}, status=status.HTTP_400_BAD_REQUEST)
-
-        # Filtra todos os perfis de usuário que pertencem à imobiliária do tenant
-        perfis = PerfilUsuario.objects.filter(imobiliaria=request.tenant)
-        # Extrai os objetos User a partir dos perfis
-        users = [perfil.user for perfil in perfis]
+    def get_queryset(self):
+        user = self.request.user
+        if user.is_superuser:
+            return User.objects.all()
         
-        serializer = CorretorDisplaySerializer(users, many=True)
-        return Response(serializer.data)
+        if self.request.tenant:
+            perfis = PerfilUsuario.objects.filter(imobiliaria=self.request.tenant)
+            return User.objects.filter(perfil__in=perfis)
 
+        return User.objects.none()
 
-class CorretorRegistrationView(APIView):
-    permission_classes = [IsAuthenticated]
+    def get_serializer_class(self):
+        if self.action in ['create', 'update', 'partial_update']:
+            return CorretorRegistrationSerializer
+        return CorretorDisplaySerializer
 
-    def post(self, request, *args, **kwargs):
-        # Verifica se o utilizador logado é um administrador da imobiliária
-        if not hasattr(request.user, 'perfil') or request.user.perfil.cargo != PerfilUsuario.Cargo.ADMIN:
-            return Response(
-                {"error": "Apenas administradores podem registar novos corretores."},
-                status=status.HTTP_403_FORBIDDEN
-            )
+    def perform_create(self, serializer):
+        if not hasattr(self.request.user, 'perfil') or self.request.user.perfil.cargo != PerfilUsuario.Cargo.ADMIN:
+            raise PermissionError("Apenas administradores podem registar novos utilizadores.")
 
-        serializer = CorretorRegistrationSerializer(data=request.data)
-        if serializer.is_valid():
-            try:
-                # O método `create` do serializer apenas cria o objeto User
-                user = serializer.create(serializer.validated_data)
-                
-                # Criamos o perfil para o novo utilizador
-                PerfilUsuario.objects.create(
-                    user=user,
-                    imobiliaria=request.tenant,
-                    cargo=PerfilUsuario.Cargo.CORRETOR
-                )
-                return Response(
-                    {"message": "Corretor registado com sucesso!"},
-                    status=status.HTTP_201_CREATED
-                )
-            except Exception as e:
-                return Response(
-                    {"error": f"Erro ao criar o utilizador: {e}"},
-                    status=status.HTTP_400_BAD_REQUEST
-                )
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        # O serializer agora lida com a lógica de criação do perfil
+        serializer.save()
+
+    def perform_update(self, serializer):
+        instance = self.get_object()
+        user_perfil = instance.perfil
+
+        if self.request.user.is_superuser:
+            pass
+        elif hasattr(self.request.user, 'perfil') and self.request.user.perfil.cargo == PerfilUsuario.Cargo.ADMIN and user_perfil.imobiliaria == self.request.tenant:
+            pass
+        else:
+            raise PermissionError("Você não tem permissão para editar este utilizador.")
+
+        # O serializer agora lida com a lógica de atualização do perfil
+        serializer.save()

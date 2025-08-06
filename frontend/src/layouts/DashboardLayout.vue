@@ -40,9 +40,9 @@
           <i class="icon-contatos"></i>
           <span>Contatos</span>
         </router-link>
-        <router-link v-if="userCargo === 'ADMIN'" to="/corretor/novo" class="nav-link">
+        <router-link v-if="userCargo === 'ADMIN'" to="/corretores" class="nav-link">
           <i class="icon-users"></i>
-          <span>Novo Corretor</span>
+          <span>Gerir Utilizadores</span>
         </router-link>
       </nav>
       <div class="sidebar-footer">
