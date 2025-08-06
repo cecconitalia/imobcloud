@@ -20,6 +20,7 @@ import ContatosView from '@/views/ContatosView.vue'
 import CorretorRegistrationView from '@/views/CorretorRegistrationView.vue'
 import FunilVendasView from '@/views/FunilVendasView.vue'
 import OportunidadeFormView from '@/views/OportunidadeFormView.vue'
+import CorretoresView from '@/views/CorretoresView.vue'
 
 // Importações das views do Site Público
 import PublicHomeView from '@/views/PublicHomeView.vue'
@@ -234,12 +235,33 @@ const router = createRouter({
             isAdmin: true
           }
         },
+        // Rotas de utilizadores
         {
-          path: 'corretor/novo',
+          path: 'corretores',
+          name: 'corretores',
+          component: CorretoresView,
+          meta: {
+            title: 'Gerir Utilizadores',
+            requiresAuth: true,
+            isAdmin: true
+          }
+        },
+        {
+          path: 'corretores/novo',
           name: 'corretor-novo',
           component: CorretorRegistrationView,
           meta: {
-            title: 'Registar Novo Corretor',
+            title: 'Registar Novo Utilizador',
+            requiresAuth: true,
+            isAdmin: true
+          }
+        },
+         {
+          path: 'corretores/editar/:id',
+          name: 'corretor-editar',
+          component: CorretorRegistrationView,
+          meta: {
+            title: 'Editar Utilizador',
             requiresAuth: true,
             isAdmin: true
           }

@@ -1,16 +1,18 @@
 # C:\wamp64\www\ImobCloud\core\urls.py
+from django.urls import path, include
+from rest_framework.routers import DefaultRouter
 
-from django.urls import path
-# ATUALIZADO: Importar a nova view
-from .views import DashboardStatsView, CorretorRegistrationView, CorretorListView
+# ATUALIZADO: Importar o CorretorViewSet
+from .views import DashboardStatsView, CorretorViewSet
+
+router = DefaultRouter()
+# NOVO: Registrar o ViewSet para os utilizadores
+router.register(r'corretores', CorretorViewSet, basename='corretor')
 
 urlpatterns = [
     # URL para as estatísticas do dashboard
     path('stats/', DashboardStatsView.as_view(), name='dashboard_stats'),
     
-    # URL para o registo de corretores
-    path('register_corretor/', CorretorRegistrationView.as_view(), name='register_corretor'),
-
-    # NOVO: URL para listar os corretores da imobiliária
-    path('corretores/', CorretorListView.as_view(), name='lista_corretores'),
+    # URL para o registo e listagem de corretores (agora via ViewSet)
+    path('', include(router.urls)),
 ]
