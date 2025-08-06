@@ -23,7 +23,7 @@
         <div class="timeline-content">
           <p class="atividade-descricao">{{ atividade.descricao }}</p>
           <small class="atividade-meta">
-            <strong>{{ atividade.registrado_por_obj?.username || 'Sistema' }}</strong> em {{ formatarData(atividade.data_criacao) }}
+            <strong>{{ atividade.registrado_por_obj?.first_name || 'Sistema' }} ({{ atividade.registrado_por_obj?.username || 'N/A' }})</strong> em {{ formatarData(atividade.data_criacao) }}
           </small>
         </div>
       </li>
@@ -35,7 +35,6 @@
 import { ref, onMounted, defineProps } from 'vue';
 import apiClient from '@/services/api';
 
-// Este componente recebe o ID do cliente como uma "propriedade"
 const props = defineProps({
   clienteId: {
     type: [String, Number],
@@ -48,7 +47,6 @@ const isLoading = ref(true);
 const novaNota = ref('');
 const isSubmittingNota = ref(false);
 
-// Função para buscar as atividades do cliente na API
 async function fetchAtividades() {
   isLoading.value = true;
   try {
@@ -61,7 +59,6 @@ async function fetchAtividades() {
   }
 }
 
-// Função para adicionar uma nova nota
 async function adicionarNota() {
   if (!novaNota.value.trim()) return;
 
@@ -72,10 +69,9 @@ async function adicionarNota() {
       tipo: 'NOTA',
       descricao: novaNota.value,
     };
-    // Faz o POST para o endpoint geral de atividades
     await apiClient.post('/v1/clientes/atividades/', novaAtividade);
-    novaNota.value = ''; // Limpa o campo
-    await fetchAtividades(); // Recarrega a lista para mostrar a nova nota
+    novaNota.value = '';
+    await fetchAtividades();
   } catch (error) {
     console.error("Erro ao adicionar nota:", error);
     alert('Não foi possível adicionar a nota.');
@@ -84,12 +80,10 @@ async function adicionarNota() {
   }
 }
 
-// Executa a busca de atividades assim que o componente é montado
 onMounted(() => {
   fetchAtividades();
 });
 
-// Funções de ajuda para formatação
 function formatarData(data: string) {
   return new Date(data).toLocaleString('pt-BR', {
     day: '2-digit', month: '2-digit', year: 'numeric',
@@ -98,8 +92,6 @@ function formatarData(data: string) {
 }
 
 function getIconClass(tipo: string): string {
-  // Retorna uma classe CSS para o ícone com base no tipo de atividade
-  // (Poderíamos adicionar ícones reais para cada tipo no futuro)
   return `icon-${tipo.toLowerCase()}`;
 }
 </script>
@@ -153,7 +145,6 @@ function getIconClass(tipo: string): string {
   background-color: #e0e0e0;
   margin-right: 1rem;
   flex-shrink: 0;
-  /* Simples "ícones" com cores diferentes */
 }
 .icon-nota { background-color: #ffc107; }
 .icon-visita { background-color: #17a2b8; }
@@ -167,7 +158,7 @@ function getIconClass(tipo: string): string {
 }
 .atividade-descricao {
   margin: 0 0 0.5rem 0;
-  white-space: pre-wrap; /* Preserva as quebras de linha da nota */
+  white-space: pre-wrap;
 }
 .atividade-meta {
   color: #6c757d;

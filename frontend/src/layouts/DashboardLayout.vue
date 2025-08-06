@@ -6,6 +6,7 @@
           <h2 v-if="imobiliariaName">{{ imobiliariaName }}</h2>
           <h2 v-else>ImobCloud</h2>
         </router-link>
+        <p v-if="userName" class="user-name">{{ userName }}</p>
       </div>
       <nav class="sidebar-nav">
         <router-link to="/dashboard" class="nav-link">
@@ -15,6 +16,10 @@
         <router-link to="/funil-vendas" class="nav-link">
           <i class="icon-funil"></i>
           <span>Funil de Vendas</span>
+        </router-link>
+        <router-link to="/calendario" class="nav-link">
+          <i class="icon-calendario"></i>
+          <span>Calendário</span>
         </router-link>
         <router-link to="/imoveis" class="nav-link">
           <i class="icon-imoveis"></i>
@@ -67,22 +72,24 @@ import { useRouter } from 'vue-router';
 const router = useRouter();
 const userCargo = ref('');
 const imobiliariaName = ref('');
+const userName = ref('');
 
 function handleLogout() {
   localStorage.removeItem('authToken');
   localStorage.removeItem('userCargo');
   localStorage.removeItem('imobiliariaName');
+  localStorage.removeItem('userName');
   router.push({ name: 'login' });
 }
 
 onMounted(() => {
   userCargo.value = localStorage.getItem('userCargo') || '';
   imobiliariaName.value = localStorage.getItem('imobiliariaName') || '';
+  userName.value = localStorage.getItem('userName') || '';
 });
 </script>
 
 <style scoped>
-/* Adicionamos o estilo para o cabeçalho da nova seção */
 .nav-section-header {
   color: #a0a0a0;
   font-weight: bold;
@@ -99,10 +106,16 @@ onMounted(() => {
 .sidebar-header {
   padding-bottom: 1rem;
   border-bottom: 1px solid #34495e;
+  text-align: center;
 }
 .sidebar-header h2 {
-  text-align: center;
   margin: 0;
+}
+.user-name {
+  margin: 0;
+  color: #c0c0c0;
+  font-size: 0.9em;
+  font-weight: 500;
 }
 .dashboard-layout {
   display: flex;

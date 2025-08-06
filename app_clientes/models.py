@@ -3,6 +3,7 @@ from django.db import models
 from core.models import Imobiliaria
 from app_imoveis.models import Imovel
 from django.conf import settings
+from django.utils import timezone
 
 class Cliente(models.Model):
     imobiliaria = models.ForeignKey(Imobiliaria, on_delete=models.CASCADE, verbose_name="Imobiliária")
@@ -113,7 +114,6 @@ class Oportunidade(models.Model):
     data_criacao = models.DateTimeField(auto_now_add=True)
     data_fechamento = models.DateField(null=True, blank=True, verbose_name="Data Prevista de Fechamento")
 
-    # --- NOVOS CAMPOS ADICIONADOS ---
     fonte = models.CharField(max_length=20, choices=FONTE_CHOICES, null=True, blank=True, verbose_name="Fonte do Lead")
     motivo_perda = models.TextField(null=True, blank=True, verbose_name="Motivo da Perda")
     data_proximo_contato = models.DateField(null=True, blank=True, verbose_name="Data do Próximo Contato")
@@ -126,3 +126,21 @@ class Oportunidade(models.Model):
 
     def __str__(self):
         return self.titulo
+
+
+# NOVO MODELO: Tarefa
+class Tarefa(models.Model):
+    oportunidade = models.ForeignKey(Oportunidade, on_delete=models.CASCADE, related_name="tarefas", verbose_name="Oportunidade")
+    descricao = models.TextField(verbose_name="Descrição da Tarefa")
+    data_criacao = models.DateTimeField(auto_now_add=True, verbose_name="Data de Criação")
+    data_conclusao = models.DateField(null=True, blank=True, verbose_name="Data de Conclusão")
+    concluida = models.BooleanField(default=False, verbose_name="Concluída")
+    responsavel = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, verbose_name="Responsável")
+
+    class Meta:
+        verbose_name = "Tarefa"
+        verbose_name_plural = "Tarefas"
+        ordering = ['data_conclusao']
+
+    def __str__(self):
+        return f"Tarefa: {self.descricao[:50]}..."

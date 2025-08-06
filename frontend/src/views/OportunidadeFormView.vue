@@ -91,6 +91,37 @@
       :corretor-responsavel-id="oportunidade.responsavel"
       @transferido="handleTransferenciaConcluida"
     />
+
+    <div v-if="isEditing" class="tarefas-container">
+      <div class="tarefas-header">
+        <h3>Tarefas Agendadas</h3>
+        <button @click="showTarefaModal()" class="btn-primary-small">+ Adicionar Tarefa</button>
+      </div>
+      <div v-if="isLoadingTarefas" class="loading-message">A carregar tarefas...</div>
+      <div v-else-if="oportunidade.tarefas && oportunidade.tarefas.length === 0" class="no-tasks-message">
+        Nenhuma tarefa agendada.
+      </div>
+      <ul v-else class="tarefas-list">
+        <li v-for="tarefa in oportunidade.tarefas" :key="tarefa.id" class="tarefa-item">
+          <div class="tarefa-info">
+            <input type="checkbox" :checked="tarefa.concluida" @change="toggleConcluida(tarefa)">
+            <div class="tarefa-text-group">
+              <span class="tarefa-descricao" :class="{ 'concluida': tarefa.concluida }">{{ tarefa.descricao }}</span>
+              <span class="tarefa-data" v-if="tarefa.data_conclusao">Prazo: {{ formatarData(tarefa.data_conclusao) }}</span>
+            </div>
+          </div>
+          <button @click="showTarefaModal(tarefa)" class="btn-secondary-small">Editar</button>
+        </li>
+      </ul>
+    </div>
+    
+    <TarefaModal
+      v-if="tarefaModal.visible"
+      :oportunidade-id="oportunidadeId"
+      :tarefa="tarefaModal.tarefa"
+      @close="closeTarefaModal"
+      @saved="handleTarefaSalva"
+    />
   </div>
 </template>
 
@@ -99,6 +130,7 @@ import { ref, onMounted, computed } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import apiClient from '@/services/api';
 import OportunidadeTransferir from '@/components/OportunidadeTransferir.vue';
+import TarefaModal from '@/components/TarefaModal.vue';
 
 const router = useRouter();
 const route = useRoute();
@@ -116,14 +148,22 @@ const oportunidade = ref({
   fonte: null,
   probabilidade: 10,
   data_proximo_contato: null,
-  motivo_perda: ''
+  motivo_perda: '',
+  tarefas: [] as any[],
 });
 
 const clientes = ref<any[]>([]);
 const imoveis = ref<any[]>([]);
 const corretores = ref<any[]>([]);
 const isLoadingData = ref(true);
+const isLoadingTarefas = ref(false);
 const isSubmitting = ref(false);
+
+// NOVO: Estado para o modal de tarefas
+const tarefaModal = ref({
+  visible: false,
+  tarefa: null as any,
+});
 
 async function fetchData() {
   isLoadingData.value = true;
@@ -150,7 +190,34 @@ async function fetchData() {
   }
 }
 
-// Lógica corrigida para redirecionar o utilizador
+async function handleTarefaSalva() {
+  closeTarefaModal();
+  await fetchData(); // Recarrega os dados para atualizar a lista de tarefas
+}
+
+function showTarefaModal(tarefa = null) {
+  tarefaModal.value.tarefa = tarefa;
+  tarefaModal.value.visible = true;
+}
+
+function closeTarefaModal() {
+  tarefaModal.value.visible = false;
+  tarefaModal.value.tarefa = null;
+}
+
+async function toggleConcluida(tarefa: any) {
+  const newStatus = !tarefa.concluida;
+  try {
+    await apiClient.patch(`/v1/clientes/oportunidades/${oportunidadeId.value}/tarefas/${tarefa.id}/`, {
+      concluida: newStatus,
+    });
+    tarefa.concluida = newStatus;
+  } catch (error) {
+    console.error("Erro ao atualizar status da tarefa:", error);
+    alert('Não foi possível atualizar o status da tarefa.');
+  }
+}
+
 function handleTransferenciaConcluida() {
   alert('Oportunidade transferida com sucesso!');
   router.push({ name: 'funil-vendas' });
@@ -159,6 +226,11 @@ function handleTransferenciaConcluida() {
 onMounted(() => {
   fetchData();
 });
+
+function formatarData(data: string) {
+  const [year, month, day] = data.split('-');
+  return `${day}/${month}/${year}`;
+}
 
 async function handleSubmit() {
   isSubmitting.value = true;
@@ -183,6 +255,7 @@ function handleCancel() {
 </script>
 
 <style scoped>
+/* Estilos existentes */
 .form-container { padding: 2rem; }
 .view-header { margin-bottom: 1.5rem; }
 .oportunidade-form { display: flex; flex-wrap: wrap; gap: 1.5rem; }
@@ -196,4 +269,77 @@ input, select, textarea { padding: 10px; border: 1px solid #ccc; border-radius: 
 .btn-secondary { background-color: #6c757d; color: white; }
 .btn-info { background-color: #17a2b8; color: white; text-decoration: none;}
 .loading-message { text-align: center; padding: 2rem; }
+
+/* NOVO: Estilos para a seção de tarefas */
+.tarefas-container {
+  margin-top: 2rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid #e0e0e0;
+}
+.tarefas-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1.5rem;
+}
+.tarefas-header h3 {
+  margin: 0;
+}
+.btn-primary-small {
+  background-color: #007bff;
+  color: white;
+  padding: 8px 12px;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+  font-size: 0.9em;
+}
+.tarefas-list {
+  list-style: none;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+.tarefa-item {
+  background-color: #f8f9fa;
+  padding: 1rem;
+  border-radius: 5px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.tarefa-info {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+.tarefa-text-group {
+  display: flex;
+  flex-direction: column;
+}
+.tarefa-descricao {
+  font-weight: bold;
+}
+.tarefa-descricao.concluida {
+  text-decoration: line-through;
+  color: #6c757d;
+}
+.tarefa-data {
+  font-size: 0.9em;
+  color: #6c757d;
+}
+.no-tasks-message {
+  text-align: center;
+  color: #6c757d;
+  padding: 2rem;
+}
+.btn-secondary-small {
+  background-color: #6c757d;
+  color: white;
+  padding: 6px 12px;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+}
 </style>

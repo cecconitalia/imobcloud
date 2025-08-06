@@ -44,11 +44,13 @@ async function handleLogin() {
     
     const accessToken = response.data.access;
     const userCargo = response.data.cargo;
-    const imobiliariaName = response.data.imobiliaria_name; // NOVO: Captura o nome da imobiliária
+    const imobiliariaName = response.data.imobiliaria_name;
+    const userName = response.data.user_name; // NOVO: Captura o nome do utilizador
 
     localStorage.setItem('authToken', accessToken);
     localStorage.setItem('userCargo', userCargo);
-    localStorage.setItem('imobiliariaName', imobiliariaName); // NOVO: Armazena o nome da imobiliária
+    localStorage.setItem('imobiliariaName', imobiliariaName);
+    localStorage.setItem('userName', userName); // NOVO: Armazena o nome do utilizador
     
     router.push({ name: 'dashboard' });
 

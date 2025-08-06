@@ -21,6 +21,7 @@ import CorretorRegistrationView from '@/views/CorretorRegistrationView.vue'
 import FunilVendasView from '@/views/FunilVendasView.vue'
 import OportunidadeFormView from '@/views/OportunidadeFormView.vue'
 import CorretoresView from '@/views/CorretoresView.vue'
+import CalendarView from '@/views/CalendarView.vue' // Importa o novo componente
 
 // Importações das views do Site Público
 import PublicHomeView from '@/views/PublicHomeView.vue'
@@ -235,7 +236,6 @@ const router = createRouter({
             isAdmin: true
           }
         },
-        // Rotas de utilizadores
         {
           path: 'corretores',
           name: 'corretores',
@@ -264,6 +264,15 @@ const router = createRouter({
             title: 'Editar Utilizador',
             requiresAuth: true,
             isAdmin: true
+          }
+        },
+        {
+          path: 'calendario',
+          name: 'calendario',
+          component: CalendarView,
+          meta: {
+            title: 'Meu Calendário',
+            requiresAuth: true
           }
         },
       ]

@@ -28,7 +28,7 @@ class MyTokenObtainPairSerializer(TokenObtainPairSerializer):
 class PerfilUsuarioSerializer(serializers.ModelSerializer):
     class Meta:
         model = PerfilUsuario
-        fields = ['cargo']
+        fields = ['cargo', 'creci', 'telefone', 'endereco_logradouro', 'endereco_numero', 'endereco_bairro', 'endereco_cidade', 'endereco_estado', 'endereco_cep', 'observacoes', 'google_json_file']
 
 class CorretorRegistrationSerializer(serializers.ModelSerializer):
     perfil = PerfilUsuarioSerializer(required=True)
@@ -36,7 +36,7 @@ class CorretorRegistrationSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = User
-        fields = ['id', 'username', 'first_name', 'last_name', 'email', 'password', 'perfil']
+        fields = ['id', 'username', 'first_name', 'email', 'password', 'perfil']
         extra_kwargs = {
             'username': {'required': True},
             'email': {'required': True},
@@ -59,27 +59,34 @@ class CorretorRegistrationSerializer(serializers.ModelSerializer):
         perfil_data = validated_data.pop('perfil', {})
         password = validated_data.pop('password', None)
         
-        # Atualiza os dados do utilizador
         instance.username = validated_data.get('username', instance.username)
         instance.first_name = validated_data.get('first_name', instance.first_name)
-        instance.last_name = validated_data.get('last_name', instance.last_name)
         instance.email = validated_data.get('email', instance.email)
         if password:
             instance.set_password(password)
         instance.save()
         
-        # Atualiza os dados do perfil, se existirem
         perfil_instance = instance.perfil
         if perfil_data:
             perfil_instance.cargo = perfil_data.get('cargo', perfil_instance.cargo)
+            perfil_instance.creci = perfil_data.get('creci', perfil_instance.creci)
+            perfil_instance.telefone = perfil_data.get('telefone', perfil_instance.telefone)
+            perfil_instance.endereco_logradouro = perfil_data.get('endereco_logradouro', perfil_instance.endereco_logradouro)
+            perfil_instance.endereco_numero = perfil_data.get('endereco_numero', perfil_instance.endereco_numero)
+            perfil_instance.endereco_bairro = perfil_data.get('endereco_bairro', perfil_instance.endereco_bairro)
+            perfil_instance.endereco_cidade = perfil_data.get('endereco_cidade', perfil_instance.endereco_cidade)
+            perfil_instance.endereco_estado = perfil_data.get('endereco_estado', perfil_instance.endereco_estado)
+            perfil_instance.endereco_cep = perfil_data.get('endereco_cep', perfil_instance.endereco_cep)
+            perfil_instance.observacoes = perfil_data.get('observacoes', perfil_instance.observacoes)
+            perfil_instance.google_json_file = perfil_data.get('google_json_file', perfil_instance.google_json_file)
             perfil_instance.save()
 
         return instance
 
 
 class CorretorDisplaySerializer(serializers.ModelSerializer):
-    cargo = serializers.CharField(source='perfil.cargo', read_only=True)
+    perfil = PerfilUsuarioSerializer(read_only=True)
     
     class Meta:
         model = User
-        fields = ['id', 'username', 'cargo', 'first_name', 'last_name', 'email']
+        fields = ['id', 'username', 'first_name', 'email', 'perfil']
