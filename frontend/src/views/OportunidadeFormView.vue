@@ -60,7 +60,7 @@
 
       <div class="form-group">
         <label for="responsavel">Corretor Responsável</label>
-        <select id="responsavel" v-model="oportunidade.responsavel">
+        <select id="responsavel" v-model="oportunidade.responsavel" disabled>
           <option :value="null">Ninguém</option>
           <option v-for="corretor in corretores" :key="corretor.id" :value="corretor.id">
             {{ corretor.username }}
@@ -72,14 +72,25 @@
         <label for="motivo_perda">Motivo da Perda</label>
         <textarea id="motivo_perda" v-model="oportunidade.motivo_perda" rows="3" placeholder="Descreva por que este negócio foi perdido..."></textarea>
       </div>
-
+      
       <div class="form-actions full-width">
+        <router-link v-if="isEditing && oportunidade.cliente" :to="{ name: 'cliente-editar', params: { id: oportunidade.cliente } }" class="btn-info">
+          Ver Histórico do Cliente
+        </router-link>
+        
         <button type="button" @click="handleCancel" class="btn-secondary">Cancelar</button>
         <button type="submit" class="btn-primary" :disabled="isSubmitting">
           {{ isSubmitting ? 'A Guardar...' : (isEditing ? 'Guardar Alterações' : 'Criar Oportunidade') }}
         </button>
       </div>
     </form>
+    
+    <OportunidadeTransferir
+      v-if="isEditing"
+      :oportunidade-id="oportunidadeId"
+      :corretor-responsavel-id="oportunidade.responsavel"
+      @transferido="handleTransferenciaConcluida"
+    />
   </div>
 </template>
 
@@ -87,6 +98,7 @@
 import { ref, onMounted, computed } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import apiClient from '@/services/api';
+import OportunidadeTransferir from '@/components/OportunidadeTransferir.vue';
 
 const router = useRouter();
 const route = useRoute();
@@ -94,7 +106,6 @@ const route = useRoute();
 const oportunidadeId = computed(() => route.params.id as string | undefined);
 const isEditing = computed(() => !!oportunidadeId.value);
 
-// ATUALIZADO: Adicionados os novos campos com valores padrão
 const oportunidade = ref({
   titulo: '',
   cliente: '',
@@ -102,7 +113,6 @@ const oportunidade = ref({
   valor_estimado: null,
   responsavel: null,
   fase: 'LEAD',
-  // Novos campos
   fonte: null,
   probabilidade: 10,
   data_proximo_contato: null,
@@ -118,7 +128,6 @@ const isSubmitting = ref(false);
 async function fetchData() {
   isLoadingData.value = true;
   try {
-    // Busca os dados dos dropdowns
     const [clientesResponse, imoveisResponse, corretoresResponse] = await Promise.all([
       apiClient.get('/v1/clientes/clientes/'),
       apiClient.get('/v1/imoveis/imoveis/'),
@@ -128,7 +137,6 @@ async function fetchData() {
     imoveis.value = imoveisResponse.data;
     corretores.value = corretoresResponse.data;
 
-    // Se estiver a editar, busca os dados da oportunidade
     if (isEditing.value) {
       const oportunidadeResponse = await apiClient.get(`/v1/clientes/oportunidades/${oportunidadeId.value}/`);
       oportunidade.value = oportunidadeResponse.data;
@@ -140,6 +148,12 @@ async function fetchData() {
   } finally {
     isLoadingData.value = false;
   }
+}
+
+// Lógica corrigida para redirecionar o utilizador
+function handleTransferenciaConcluida() {
+  alert('Oportunidade transferida com sucesso!');
+  router.push({ name: 'funil-vendas' });
 }
 
 onMounted(() => {
@@ -177,8 +191,9 @@ function handleCancel() {
 label { margin-bottom: 0.5rem; font-weight: bold; }
 input, select, textarea { padding: 10px; border: 1px solid #ccc; border-radius: 4px; font-size: 1rem; }
 .form-actions { display: flex; justify-content: flex-end; gap: 1rem; width: 100%; margin-top: 1rem; }
-.btn-primary, .btn-secondary { padding: 10px 20px; border: none; border-radius: 5px; cursor: pointer; }
+.btn-primary, .btn-secondary, .btn-info { padding: 10px 20px; border: none; border-radius: 5px; cursor: pointer; }
 .btn-primary { background-color: #007bff; color: white; }
 .btn-secondary { background-color: #6c757d; color: white; }
+.btn-info { background-color: #17a2b8; color: white; text-decoration: none;}
 .loading-message { text-align: center; padding: 2rem; }
 </style>
