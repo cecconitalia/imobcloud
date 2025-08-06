@@ -36,9 +36,10 @@ class CorretorRegistrationSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = User
-        fields = ['id', 'username', 'password', 'perfil']
+        fields = ['id', 'username', 'first_name', 'last_name', 'email', 'password', 'perfil']
         extra_kwargs = {
             'username': {'required': True},
+            'email': {'required': True},
             'id': {'read_only': True}
         }
     
@@ -60,6 +61,9 @@ class CorretorRegistrationSerializer(serializers.ModelSerializer):
         
         # Atualiza os dados do utilizador
         instance.username = validated_data.get('username', instance.username)
+        instance.first_name = validated_data.get('first_name', instance.first_name)
+        instance.last_name = validated_data.get('last_name', instance.last_name)
+        instance.email = validated_data.get('email', instance.email)
         if password:
             instance.set_password(password)
         instance.save()
@@ -78,4 +82,4 @@ class CorretorDisplaySerializer(serializers.ModelSerializer):
     
     class Meta:
         model = User
-        fields = ['id', 'username', 'cargo']
+        fields = ['id', 'username', 'cargo', 'first_name', 'last_name', 'email']

@@ -16,6 +16,21 @@
         </div>
 
         <div class="form-group">
+          <label for="first_name">Primeiro Nome</label>
+          <input type="text" id="first_name" v-model="user.first_name" required />
+        </div>
+        
+        <div class="form-group">
+          <label for="last_name">Apelido</label>
+          <input type="text" id="last_name" v-model="user.last_name" required />
+        </div>
+        
+        <div class="form-group">
+          <label for="email">Email</label>
+          <input type="email" id="email" v-model="user.email" required />
+        </div>
+        
+        <div class="form-group">
           <label for="password">Nova Palavra-passe (opcional)</label>
           <input type="password" id="password" v-model="user.password" :placeholder="isEditing ? 'Deixe vazio para manter a atual' : ''" :required="!isEditing" />
         </div>
@@ -58,6 +73,9 @@ const isEditing = computed(() => !!userId.value);
 
 const user = ref({
   username: '',
+  first_name: '',
+  last_name: '',
+  email: '',
   password: '',
   perfil: { cargo: 'CORRETOR' },
 });
@@ -73,8 +91,11 @@ async function fetchUserData() {
     try {
       const response = await apiClient.get(`/v1/core/corretores/${userId.value}/`);
       user.value.username = response.data.username;
-      user.value.perfil.cargo = response.data.cargo; // Atualiza o cargo no objeto aninhado
-      // A password não é preenchida por segurança
+      user.value.first_name = response.data.first_name;
+      user.value.last_name = response.data.last_name;
+      user.value.email = response.data.email;
+      user.value.perfil.cargo = response.data.perfil.cargo;
+      
     } catch (error) {
       console.error("Erro ao buscar dados do utilizador:", error);
       alert("Não foi possível carregar os dados do utilizador para edição.");
@@ -93,6 +114,9 @@ async function handleSubmit() {
   try {
     const payload = {
       username: user.value.username,
+      first_name: user.value.first_name,
+      last_name: user.value.last_name,
+      email: user.value.email,
       password: user.value.password,
       perfil: user.value.perfil,
     };
@@ -106,7 +130,14 @@ async function handleSubmit() {
     } else {
       await apiClient.post('/v1/core/corretores/', payload);
       successMessage.value = 'Utilizador registado com sucesso!';
-      user.value = { username: '', password: '', perfil: { cargo: 'CORRETOR' } };
+      user.value = {
+        username: '',
+        first_name: '',
+        last_name: '',
+        email: '',
+        password: '',
+        perfil: { cargo: 'CORRETOR' }
+      };
     }
     
     setTimeout(() => {
@@ -117,6 +148,8 @@ async function handleSubmit() {
     console.error("Erro ao guardar utilizador:", err.response?.data || err);
     if (err.response?.data?.username?.length > 0) {
         errorMessage.value = `Erro: ${err.response.data.username[0]}`;
+    } else if (err.response?.data?.email?.length > 0) {
+        errorMessage.value = `Erro: ${err.response.data.email[0]}`;
     } else {
         errorMessage.value = "Ocorreu um erro ao guardar o utilizador. Verifique os dados.";
     }
@@ -131,7 +164,6 @@ onMounted(() => {
 </script>
 
 <style scoped>
-/* Os estilos permanecem os mesmos que antes */
 .registration-container {
   padding: 2rem;
 }
@@ -164,31 +196,8 @@ input, select {
   margin-top: 1.5rem;
   text-align: right;
 }
-.btn-primary {
-  padding: 10px 20px;
-  background-color: #007bff;
-  color: white;
-  border: none;
-  border-radius: 5px;
-  cursor: pointer;
-}
-.btn-primary:disabled {
-  background-color: #a0cfff;
-}
-.success-message {
-  color: green;
-  background-color: #d4edda;
-  border: 1px solid #c3e6cb;
-  padding: 1rem;
-  border-radius: 5px;
-  margin-bottom: 1rem;
-}
-.error-message {
-  color: red;
-  background-color: #f8d7da;
-  border: 1px solid #f5c6cb;
-  padding: 1rem;
-  border-radius: 5px;
-  margin-bottom: 1rem;
-}
+.btn-primary, .btn-secondary { padding: 10px 20px; border: none; border-radius: 5px; cursor: pointer; }
+.btn-primary { background-color: #007bff; color: white; }
+.btn-secondary { background-color: #6c757d; color: white; }
+.loading-message { text-align: center; padding: 2rem; }
 </style>
