@@ -1,82 +1,97 @@
 <template>
-  <div class="container">
+  <div class="imovel-detail-container">
     <div v-if="isLoading" class="loading-message">A carregar detalhes do imóvel...</div>
     <div v-if="error" class="error-message">{{ error }}</div>
 
-    <div v-if="imovel" class="imovel-detail-container">
-      <div class="gallery">
-        <img :src="imagemPrincipal" alt="Imagem principal do imóvel" class="main-image" />
-        <div class="thumbnail-grid" v-if="imovel.imagens && imovel.imagens.length > 1">
-          <img
-            v-for="imagem in imovel.imagens"
-            :key="imagem.id"
-            :src="imagem.imagem"
-            alt="Thumbnail do imóvel"
-            @click="setImagemPrincipal(imagem.imagem)"
-            :class="{ active: imagem.imagem === imagemPrincipal }"
-            class="thumbnail"
-          />
-        </div>
-      </div>
-
-      <div class="details">
-        <h1 class="endereco">{{ imovel.endereco }}</h1>
-        <p class="cidade">{{ imovel.cidade }}, {{ imovel.estado }}</p>
-        <p class="preco">{{ formatarPreco(imovel) }}</p>
-
-        <div class="caracteristicas">
-          <div class="caracteristica-item" v-if="imovel.area_total">
-            <span>Área Total</span>
-            <strong>{{ imovel.area_total }} m²</strong>
-          </div>
-          <div class="caracteristica-item" v-if="imovel.quartos > 0">
-            <span>Quartos</span>
-            <strong>{{ imovel.quartos }}</strong>
-          </div>
-          <div class="caracteristica-item" v-if="imovel.banheiros > 0">
-            <span>WC</span>
-            <strong>{{ imovel.banheiros }}</strong>
-          </div>
-           <div class="caracteristica-item" v-if="imovel.vagas_garagem > 0">
-            <span>Garagem</span>
-            <strong>{{ imovel.vagas_garagem }}</strong>
-          </div>
-        </div>
-
-        <h3 class="descricao-titulo">Descrição</h3>
-        <p class="descricao-texto">{{ imovel.descricao || 'Nenhuma descrição disponível.' }}</p>
+    <div v-if="imovel" class="imovel-content">
+      <div class="main-column">
+        <h1 class="imovel-title">{{ imovel.titulo_anuncio }}</h1>
+        <p class="imovel-location">{{ imovel.endereco }}, {{ imovel.bairro }}, {{ imovel.cidade }} - {{ imovel.estado }}</p>
         
-        <router-link to="/site" class="btn-voltar">Voltar à Lista</router-link>
+        <div class="gallery">
+          <img :src="principalImage" alt="Imagem principal do imóvel" class="main-image">
+          <div class="thumbnail-grid">
+            <img v-for="imagem in imovel.imagens" :key="imagem.id" :src="imagem.imagem" @click="principalImage = imagem.imagem" :class="{ active: principalImage === imagem.imagem }" class="thumbnail">
+          </div>
+        </div>
+
+        <div class="details-section">
+            <h2>Destaques</h2>
+            <div class="highlights-grid">
+                <div class="highlight-item"><i class="fas fa-ruler-combined"></i> {{ imovel.area_util || imovel.area_construida }} m²</div>
+                <div class="highlight-item"><i class="fas fa-bed"></i> {{ imovel.quartos }} Quarto(s)</div>
+                <div class="highlight-item"><i class="fas fa-bath"></i> {{ imovel.suites }} Suíte(s)</div>
+                <div class="highlight-item"><i class="fas fa-car"></i> {{ imovel.vagas_garagem }} Vaga(s)</div>
+                <div v-if="imovel.piscina_privativa || imovel.piscina_condominio" class="highlight-item"><i class="fas fa-swimmer"></i> Piscina</div>
+                <div v-if="imovel.churrasqueira_privativa || imovel.churrasqueira_condominio" class="highlight-item"><i class="fas fa-utensils"></i> Churrasqueira</div>
+                <div v-if="imovel.academia" class="highlight-item"><i class="fas fa-dumbbell"></i> Academia</div>
+                <div v-if="imovel.aceita_pet" class="highlight-item"><i class="fas fa-paw"></i> Aceita Pet</div>
+                <div v-if="imovel.mobiliado" class="highlight-item"><i class="fas fa-couch"></i> Mobiliado</div>
+            </div>
+        </div>
+
+        <div class="details-section">
+          <h2>Descrição</h2>
+          <p class="description-text">{{ imovel.descricao_completa || 'Descrição não disponível.' }}</p>
+        </div>
+
+        <div class="details-section">
+          <h2>Características do Imóvel</h2>
+          <ul class="features-list">
+            <li v-if="imovel.area_util"><span>Área Útil:</span> {{ imovel.area_util }} m²</li>
+            <li v-if="imovel.area_construida"><span>Área Construída:</span> {{ imovel.area_construida }} m²</li>
+            <li v-if="imovel.area_total"><span>Área Total:</span> {{ imovel.area_total }} m²</li>
+            <li v-if="imovel.quartos"><span>Quartos:</span> {{ imovel.quartos }}</li>
+            <li v-if="imovel.suites"><span>Suítes:</span> {{ imovel.suites }}</li>
+            <li v-if="imovel.banheiros"><span>Banheiros:</span> {{ imovel.banheiros }}</li>
+            <li v-if="imovel.vagas_garagem"><span>Vagas de Garagem:</span> {{ imovel.vagas_garagem }}</li>
+            <li v-if="imovel.ano_construcao"><span>Ano de Construção:</span> {{ imovel.ano_construcao }}</li>
+            <li v-if="imovel.andar"><span>Andar:</span> {{ imovel.andar }}</li>
+            <li v-if="imovel.varanda"><span>Varanda / Sacada:</span> Sim</li>
+            <li v-if="imovel.ar_condicionado"><span>Ar Condicionado:</span> Sim</li>
+          </ul>
+        </div>
+
+        <div class="details-section" v-if="isCondominio">
+          <h2>Características do Condomínio</h2>
+          <ul class="features-list">
+            <li v-if="imovel.portaria_24h"><span>Portaria 24h:</span> Sim</li>
+            <li v-if="imovel.elevador"><span>Elevador:</span> Sim</li>
+            <li v-if="imovel.salao_festas"><span>Salão de Festas:</span> Sim</li>
+            <li v-if="imovel.academia"><span>Academia:</span> Sim</li>
+            <li v-if="imovel.piscina_condominio"><span>Piscina:</span> Sim</li>
+            <li v-if="imovel.playground"><span>Playground:</span> Sim</li>
+            <li v-if="imovel.quadra_esportiva"><span>Quadra Esportiva:</span> Sim</li>
+            <li v-if="imovel.espaco_gourmet"><span>Espaço Gourmet:</span> Sim</li>
+          </ul>
+        </div>
       </div>
       
-      <div class="contato-section">
-        <h3>Ficou interessado? Contate-nos!</h3>
+      <div class="info-sidebar">
+        <div class="sidebar-box">
+          <p class="imovel-ref">Ref: {{ imovel.codigo_referencia }}</p>
 
-        <div v-if="contatoEnviado" class="success-message">
-          A sua mensagem foi enviada com sucesso! Entraremos em contato em breve.
+          <div class="price-box">
+            <p class="price-label">{{ getPriceLabel(imovel) }}</p>
+            <p class="imovel-price">{{ formatarPreco(imovel) }}</p>
+            <p v-if="imovel.valor_condominio" class="imovel-condo">Condomínio: R$ {{ imovel.valor_condominio }}</p>
+            <p v-if="imovel.valor_iptu" class="imovel-iptu">IPTU: R$ {{ imovel.valor_iptu }} (anual)</p>
+          </div>
+
+          <div class="contact-form-section">
+            <h3>Fale com o corretor</h3>
+            <form @submit.prevent="handleContatoSubmit">
+              <input type="text" v-model="contatoForm.nome" placeholder="Seu nome" required>
+              <input type="email" v-model="contatoForm.email" placeholder="Seu e-mail" required>
+              <input type="tel" v-model="contatoForm.telefone" placeholder="Seu telefone (opcional)">
+              <textarea v-model="contatoForm.mensagem" rows="4" placeholder="Olá! Tenho interesse neste imóvel e gostaria de mais informações." required></textarea>
+              <button type="submit" :disabled="isSubmittingContato">
+                {{ isSubmittingContato ? 'A enviar...' : 'Enviar Mensagem' }}
+              </button>
+              <p v-if="contatoSuccess" class="success-message">Mensagem enviada com sucesso!</p>
+            </form>
+          </div>
         </div>
-
-        <form v-else @submit.prevent="handleContatoSubmit" class="contato-form">
-          <div class="form-group">
-            <label for="nome">Nome</label>
-            <input type="text" id="nome" v-model="contato.nome" required />
-          </div>
-          <div class="form-group">
-            <label for="email">Email</label>
-            <input type="email" id="email" v-model="contato.email" required />
-          </div>
-          <div class="form-group">
-            <label for="telefone">Telefone (Opcional)</label>
-            <input type="tel" id="telefone" v-model="contato.telefone" />
-          </div>
-          <div class="form-group form-group-full">
-            <label for="mensagem">Mensagem</label>
-            <textarea id="mensagem" v-model="contato.mensagem" rows="5" required></textarea>
-          </div>
-          <button type="submit" :disabled="isSubmittingContato" class="btn-submit">
-            {{ isSubmittingContato ? 'A enviar...' : 'Enviar Mensagem' }}
-          </button>
-        </form>
       </div>
 
     </div>
@@ -84,31 +99,32 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue';
+import { ref, onMounted, computed } from 'vue';
 import { useRoute } from 'vue-router';
 import publicApiClient from '@/services/publicApiClient';
 
 const route = useRoute();
-const imovelId = route.params.id as string;
-
 const imovel = ref<any>(null);
 const isLoading = ref(true);
 const error = ref<string | null>(null);
-const imagemPrincipal = ref('');
+const principalImage = ref('');
 
-const contato = ref({
-  imovel: 0,
+const contatoForm = ref({
   nome: '',
   email: '',
   telefone: '',
-  // ATUALIZADO
-  mensagem: `Olá, tenho interesse neste imóvel (${route.params.id}) e gostaria de mais informações.`
+  mensagem: 'Olá! Tenho interesse neste imóvel e gostaria de mais informações.',
+  imovel: route.params.id
 });
 const isSubmittingContato = ref(false);
-const contatoEnviado = ref(false);
+const contatoSuccess = ref(false);
 
+const isCondominio = computed(() => {
+    if (!imovel.value) return false;
+    return imovel.value.portaria_24h || imovel.value.elevador || imovel.value.piscina_condominio || imovel.value.academia || imovel.value.salao_festas;
+});
 
-async function fetchImovel() {
+async function fetchImovelDetail() {
   isLoading.value = true;
   try {
     const hostname = window.location.hostname;
@@ -117,110 +133,109 @@ async function fetchImovel() {
     if (parts.length > 1 && parts[0] !== 'www' && parts[0] !== 'localhost') {
       subdomain = parts[0];
     }
-
     if (!subdomain) {
-      error.value = "Endereço inválido.";
+      error.value = "Site não encontrado. Aceda através de um endereço de imobiliária válido.";
+      isLoading.value = false;
       return;
     }
 
-    const response = await publicApiClient.get(`/v1/imoveis/imoveis/${imovelId}/`, {
-      params: { subdomain: subdomain }
-    });
-    
+    const params = { subdomain };
+    const response = await publicApiClient.get(`/v1/imoveis/imoveis/${route.params.id}/`, { params });
     imovel.value = response.data;
-    imagemPrincipal.value = getPrincipalImage(imovel.value.imagens);
-    if (response.data) {
-        contato.value.imovel = response.data.id;
+
+    if (imovel.value.imagens && imovel.value.imagens.length > 0) {
+      const principal = imovel.value.imagens.find((img: any) => img.principal) || imovel.value.imagens[0];
+      principalImage.value = principal.imagem;
+    } else {
+      principalImage.value = 'https://via.placeholder.com/800x600.png?text=Sem+Imagem';
     }
   } catch (err) {
     console.error("Erro ao buscar detalhes do imóvel:", err);
-    error.value = 'Não foi possível carregar os detalhes deste imóvel.';
+    error.value = 'Não foi possível carregar os detalhes do imóvel.';
   } finally {
     isLoading.value = false;
   }
 }
 
 async function handleContatoSubmit() {
-  isSubmittingContato.value = true;
-  try {
-    await publicApiClient.post('/v1/imoveis/contatos/', contato.value);
-    contatoEnviado.value = true;
-  } catch (err) {
-    console.error("Erro ao enviar mensagem:", err);
-    alert('Ocorreu um erro ao enviar a sua mensagem. Por favor, tente novamente.');
-  } finally {
-    isSubmittingContato.value = false;
-  }
+    isSubmittingContato.value = true;
+    try {
+        await publicApiClient.post('/v1/imoveis/contatos/', contatoForm.value);
+        contatoSuccess.value = true;
+        contatoForm.value.nome = '';
+        contatoForm.value.email = '';
+        contatoForm.value.telefone = '';
+    } catch (error) {
+        console.error("Erro ao enviar contato:", error);
+        alert("Ocorreu um erro ao enviar sua mensagem. Tente novamente.");
+    } finally {
+        isSubmittingContato.value = false;
+    }
 }
 
 onMounted(() => {
-  fetchImovel();
+  fetchImovelDetail();
 });
 
-function setImagemPrincipal(url: string) {
-  imagemPrincipal.value = url;
-}
-
-function getPrincipalImage(imagens: any[]) {
-  if (!imagens || imagens.length === 0) {
-    return 'https://via.placeholder.com/800x600.png?text=Sem+Imagem';
-  }
-  const principal = imagens.find(img => img.principal);
-  return principal ? principal.imagem : imagens[0].imagem;
+function getPriceLabel(imovel: any): string {
+  if (imovel.status === 'A_VENDA') return 'Valor de Venda';
+  if (imovel.status === 'PARA_ALUGAR') return 'Valor do Aluguel';
+  return 'Valor';
 }
 
 function formatarPreco(imovel: any) {
-  if (imovel.finalidade === 'Venda' && imovel.valor_venda) {
+  if (imovel.status === 'A_VENDA' && imovel.valor_venda) {
     return parseFloat(imovel.valor_venda).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
   }
-  if (imovel.finalidade === 'Aluguel' && imovel.valor_aluguel) {
+  if (imovel.status === 'PARA_ALUGAR' && imovel.valor_aluguel) {
     return `${parseFloat(imovel.valor_aluguel).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })} /mês`;
   }
-  return 'Valor a consultar';
+  return 'A consultar';
 }
 </script>
 
 <style scoped>
-.container {
-  max-width: 1200px;
-  margin: 0 auto;
-  padding: 0 1rem;
-}
-.loading-message, .error-message {
-  text-align: center;
-  padding: 3rem;
-}
+@import url('https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css');
+
 .imovel-detail-container {
-  display: grid;
-  gap: 2rem;
-  background-color: #fff;
-  padding: 2rem;
-  border-radius: 8px;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-  grid-template-columns: 2fr 1fr;
-  grid-template-rows: auto auto; 
+  /* ATUALIZADO: Removida a largura máxima para ocupar o ecrã todo */
+  /* max-width: 1200px; */ 
+  margin: 2rem auto;
+  padding: 0 2rem; /* Aumentado o padding lateral para ecrãs grandes */
 }
-@media (max-width: 992px) {
-  .imovel-detail-container {
-    grid-template-columns: 1fr;
-  }
+.imovel-content {
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  gap: 2.5rem;
+  align-items: flex-start;
+}
+.main-column {
+    /* Não precisa de regras de grid aqui, o pai já cuida */
+}
+.info-sidebar {
+    position: sticky;
+    top: 2rem;
+}
+.sidebar-box {
+    background-color: #fff;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    overflow: hidden;
+}
+.imovel-title {
+  font-size: 2.2rem;
+  font-weight: bold;
+  margin-top: 0;
+  margin-bottom: 0.25rem;
+  line-height: 1.2;
+}
+.imovel-location {
+  color: #6c757d;
+  margin-bottom: 1.5rem;
+  font-size: 1.1rem;
 }
 .gallery {
-  grid-column: 1 / 2;
-  grid-row: 1 / 2;
-}
-.details {
-  grid-column: 2 / 3;
-  grid-row: 1 / 2;
-  padding-left: 1rem;
-}
-@media (max-width: 992px) {
-  .gallery, .details {
-    grid-column: 1 / -1;
-  }
-  .details {
-    padding-left: 0;
-  }
+  margin-bottom: 2rem;
 }
 .main-image {
   width: 100%;
@@ -228,12 +243,12 @@ function formatarPreco(imovel: any) {
   max-height: 500px;
   object-fit: cover;
   border-radius: 8px;
+  margin-bottom: 1rem;
 }
 .thumbnail-grid {
   display: grid;
-  grid-template-columns: repeat(5, 1fr);
+  grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
   gap: 0.5rem;
-  margin-top: 1rem;
 }
 .thumbnail {
   width: 100%;
@@ -247,109 +262,131 @@ function formatarPreco(imovel: any) {
 .thumbnail:hover, .thumbnail.active {
   border-color: #007bff;
 }
-.endereco {
-  font-size: 2rem;
-  font-weight: bold;
-  margin-top: 0;
-  margin-bottom: 0.5rem;
+.imovel-ref {
+    color: #6c757d;
+    font-size: 0.9rem;
+    background-color: #f8f9fa;
+    padding: 1rem 1.5rem;
+    border-bottom: 1px solid #e9ecef;
 }
-.cidade {
-  color: #6c757d;
-  font-size: 1.1rem;
-  margin-top: 0;
-  margin-bottom: 1.5rem;
+.price-box {
+  padding: 1.5rem;
+  border-bottom: 1px solid #e9ecef;
 }
-.preco {
+.price-label {
+    font-size: 1rem;
+    color: #6c757d;
+    margin-top: 0;
+}
+.imovel-price {
   font-size: 2.2rem;
   font-weight: bold;
   color: #007bff;
-  margin-bottom: 2rem;
+  margin: 0;
 }
-.caracteristicas {
-  display: flex;
-  gap: 2rem;
-  margin-bottom: 2rem;
-  border-top: 1px solid #e0e0e0;
-  border-bottom: 1px solid #e0e0e0;
-  padding: 1.5rem 0;
-}
-.caracteristica-item {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-}
-.caracteristica-item span {
-  font-size: 0.9rem;
+.imovel-condo, .imovel-iptu {
+  margin: 0.25rem 0 0 0;
   color: #6c757d;
 }
-.caracteristica-item strong {
-  font-size: 1.2rem;
+.contact-form-section {
+    padding: 1.5rem;
+}
+.contact-form-section h3 { margin-top: 0; }
+.contact-form-section form { display: flex; flex-direction: column; gap: 0.75rem; }
+.contact-form-section input,
+.contact-form-section textarea,
+.contact-form-section button {
+    width: 100%; padding: 10px; border-radius: 4px; border: 1px solid #ccc; font-size: 1rem;
+}
+.contact-form-section button { background-color: #28a745; color: white; font-weight: bold; cursor: pointer; }
+.success-message { color: #28a745; text-align: center; font-weight: bold; }
+
+.details-section {
+  margin-bottom: 2.5rem;
+}
+.details-section h2 {
+  border-bottom: 2px solid #007bff;
+  padding-bottom: 0.5rem;
+  margin-bottom: 1.5rem;
+  font-size: 1.5rem;
+}
+.description-text {
+    line-height: 1.7;
+    white-space: pre-wrap; /* Garante a quebra de linha do texto */
+}
+.highlights-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+    gap: 1.5rem;
+    text-align: center;
+}
+.highlight-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.5rem;
+}
+.highlight-item i {
+    font-size: 1.8rem;
+    color: #007bff;
+}
+.features-list {
+  list-style: none;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 0.75rem 1.5rem;
+}
+.features-list li {
+  display: flex;
+  justify-content: space-between;
+  padding: 0.5rem;
+  background: #f8f9fa;
+  border-radius: 4px;
+  border-left: 3px solid #007bff;
+}
+.features-list li span {
   font-weight: bold;
-}
-.descricao-titulo {
-  margin-bottom: 0.5rem;
-}
-.descricao-texto {
-  line-height: 1.6;
-  color: #333;
-}
-.btn-voltar {
-  display: inline-block;
-  margin-top: 2rem;
-  padding: 10px 20px;
-  background-color: #6c757d;
-  color: white;
-  text-decoration: none;
-  border-radius: 5px;
+  color: #343a40;
 }
 
-.contato-section {
-  grid-column: 1 / -1;
-  grid-row: 2 / 3;
-  margin-top: 2rem;
-  padding-top: 2rem;
-  border-top: 1px solid #e0e0e0;
-}
-.contato-form {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 1rem;
-}
-.form-group {
-  display: flex;
-  flex-direction: column;
-}
-.form-group-full {
-  grid-column: 1 / -1;
-}
-label {
-  margin-bottom: 0.5rem;
-  font-weight: 500;
-}
-input, textarea {
-  padding: 10px;
-  border: 1px solid #ccc;
-  border-radius: 4px;
-}
-.btn-submit {
-  grid-column: 1 / -1;
-  background-color: #28a745;
-  color: white;
-  padding: 12px;
-  border: none;
-  border-radius: 5px;
-  cursor: pointer;
-  font-size: 1rem;
-}
-.btn-submit:disabled {
-  background-color: #a3d9b1;
-}
-.success-message {
-  background-color: #d4edda;
-  color: #155724;
-  border: 1px solid #c3e6cb;
-  padding: 1rem;
-  border-radius: 5px;
+.loading-message, .error-message {
   text-align: center;
+  padding: 3rem;
+  font-size: 1.2rem;
+}
+
+/* --- REGRAS DE RESPONSIVIDADE --- */
+@media (max-width: 992px) {
+    .imovel-detail-container {
+        padding: 0 1rem; /* Reduz o padding em tablets */
+    }
+    .imovel-content {
+        display: flex;
+        flex-direction: column;
+    }
+    .main-column {
+        order: 1;
+    }
+    .info-sidebar {
+        order: 2;
+        position: static;
+        width: 100%;
+    }
+}
+
+@media (max-width: 576px) {
+    .imovel-title {
+        font-size: 1.8rem;
+    }
+    .imovel-price {
+        font-size: 1.8rem;
+    }
+    .highlights-grid, .features-list {
+        grid-template-columns: 1fr 1fr; 
+    }
+    .imovel-detail-container {
+        margin-top: 1rem;
+    }
 }
 </style>

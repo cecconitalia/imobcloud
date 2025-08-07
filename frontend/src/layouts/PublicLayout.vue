@@ -1,72 +1,70 @@
 <template>
   <div class="public-layout">
-    <header class="main-header">
-      <div class="container">
-        <h1 class="logo">Imobiliária</h1>
-        <nav class="main-nav">
-          <router-link to="/site">Início</router-link>
+    <header class="public-header">
+      <div class="container header-container">
+        <h1>{{ imobiliariaNome || 'Portal Imobiliário' }}</h1>
+        <nav>
           </nav>
       </div>
     </header>
-
     <main class="main-content">
       <router-view />
     </main>
-
-    <footer class="main-footer">
+    <footer class="public-footer">
       <div class="container">
-        <p>&copy; 2025 ImobCloud. Todos os direitos reservados.</p>
+        <p>&copy; {{ new Date().getFullYear() }} {{ imobiliariaNome }}. Todos os direitos reservados.</p>
       </div>
     </footer>
   </div>
 </template>
+
+<script setup lang="ts">
+import { ref, onMounted } from 'vue';
+
+const imobiliariaNome = ref('');
+
+onMounted(() => {
+  const hostname = window.location.hostname;
+  const parts = hostname.split('.');
+  if (parts.length > 1 && parts[0] !== 'www' && parts[0] !== 'localhost') {
+    // Transforma o subdomínio em nome com a primeira letra maiúscula
+    imobiliariaNome.value = parts[0].charAt(0).toUpperCase() + parts[0].slice(1);
+  }
+});
+</script>
 
 <style scoped>
 .public-layout {
   display: flex;
   flex-direction: column;
   min-height: 100vh;
-  font-family: sans-serif;
+  background-color: #f4f7f6;
 }
+.public-header {
+  background-color: #2c3e50;
+  color: white;
+  padding: 1rem 0;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+/* ATUALIZADO: Usando uma classe container para o alinhamento */
 .container {
   max-width: 1200px;
   margin: 0 auto;
   padding: 0 1rem;
 }
-.main-header {
-  background-color: #fff;
-  border-bottom: 1px solid #e0e0e0;
-  padding: 1rem 0;
-}
-.main-header .container {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-.logo {
-  font-size: 1.5rem;
-  font-weight: bold;
-  margin: 0;
-}
-.main-nav a {
-  margin-left: 1.5rem;
-  text-decoration: none;
-  color: #333;
-  font-weight: 500;
-}
-.main-nav a.router-link-exact-active {
-  color: #007bff;
+.header-container {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
 }
 .main-content {
   flex-grow: 1;
-  padding: 2rem 0;
-  background-color: #f8f9fa;
 }
-.main-footer {
-  background-color: #343a40;
-  color: white;
-  padding: 1.5rem 0;
+.public-footer {
+  background-color: #34495e;
+  color: #ecf0f1;
   text-align: center;
-  margin-top: auto;
+  padding: 1.5rem 0;
+  margin-top: 2rem;
 }
 </style>

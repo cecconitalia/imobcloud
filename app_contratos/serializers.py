@@ -1,47 +1,37 @@
 # C:\wamp64\www\ImobCloud\app_contratos\serializers.py
 from rest_framework import serializers
-from .models import Contrato, Pagamento # ATUALIZADO: Importar Pagamento
-from app_imoveis.serializers import ImovelDisplaySerializer
-from app_clientes.serializers import ClienteDisplaySerializer
+from .models import Contrato, Pagamento
+# ATUALIZADO: Corrigido o nome do serializer importado
+from app_imoveis.serializers import ImovelSerializer 
+from app_clientes.serializers import ClienteSerializer
 
-# NOVO: Serializer para o modelo Pagamento
 class PagamentoSerializer(serializers.ModelSerializer):
     class Meta:
         model = Pagamento
         fields = '__all__'
-        read_only_fields = ('contrato',)
 
-
-# Serializer para AÇÕES DE ESCRITA (Criar e Atualizar)
-class ContratoWriteSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = Contrato
-        # Apenas os campos que esperamos receber do frontend
-        fields = [
-            'imovel', 'cliente', 'tipo_contrato', 'data_inicio', 'data_fim',
-            'data_assinatura', 'valor_total', 'condicoes_pagamento', 'status_contrato'
-        ]
-
-
-# Serializer para a LISTA de contratos (Leitura)
 class ContratoListSerializer(serializers.ModelSerializer):
-    imovel_obj = ImovelDisplaySerializer(source='imovel', read_only=True)
-    cliente_obj = ClienteDisplaySerializer(source='cliente', read_only=True)
-
+    imovel = serializers.StringRelatedField()
+    cliente = serializers.StringRelatedField()
+    
     class Meta:
         model = Contrato
-        fields = [
-            'id', 'imovel_obj', 'cliente_obj', 'tipo_contrato', 'status_contrato'
-        ]
+        fields = ['id', 'imovel', 'cliente', 'tipo_contrato', 'data_inicio', 'status_contrato']
 
 
-# Serializer para os DETALHES de um contrato (Leitura)
 class ContratoDetailSerializer(serializers.ModelSerializer):
-    imovel_obj = ImovelDisplaySerializer(source='imovel', read_only=True)
-    cliente_obj = ClienteDisplaySerializer(source='cliente', read_only=True)
+    # Usando os serializers completos para exibir detalhes
+    imovel = ImovelSerializer(read_only=True)
+    cliente = ClienteSerializer(read_only=True)
     pagamentos = PagamentoSerializer(many=True, read_only=True)
 
     class Meta:
         model = Contrato
-        fields = '__all__' # Inclui todos os campos do modelo + os de cima
-        read_only_fields = ('imobiliaria',)
+        fields = '__all__'
+
+
+class ContratoWriteSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Contrato
+        # Exclui campos que são preenchidos automaticamente ou por lógica interna
+        exclude = ['imobiliaria']

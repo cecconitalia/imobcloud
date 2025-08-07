@@ -22,8 +22,10 @@ import FunilVendasView from '@/views/FunilVendasView.vue'
 import OportunidadeFormView from '@/views/OportunidadeFormView.vue'
 import CorretoresView from '@/views/CorretoresView.vue'
 import CalendarView from '@/views/CalendarView.vue'
-// NOVO: Importe a view de Relatórios
+// IMPORTAÇÕES DAS NOVAS VIEWS
 import RelatoriosView from '@/views/RelatoriosView.vue'
+import AutorizacoesView from '@/views/AutorizacoesView.vue'
+
 
 // Importações das views do Site Público
 import PublicHomeView from '@/views/PublicHomeView.vue'
@@ -277,7 +279,7 @@ const router = createRouter({
             requiresAuth: true
           }
         },
-        // NOVO: Rota para Relatórios
+        // ROTA ADICIONADA
         {
           path: 'relatorios',
           name: 'relatorios',
@@ -285,7 +287,18 @@ const router = createRouter({
           meta: {
             title: 'Relatórios',
             requiresAuth: true,
-            isAdmin: true // Apenas admins podem ver
+            isAdmin: true
+          }
+        },
+        // ROTA ADICIONADA
+        {
+          path: 'autorizacoes',
+          name: 'autorizacoes',
+          component: AutorizacoesView,
+          meta: {
+            title: 'Gestão de Autorizações',
+            requiresAuth: true,
+            isAdmin: true
           }
         },
       ]

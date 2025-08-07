@@ -158,7 +158,7 @@ function formatarPreco(imovel: any) {
   if (imovel.finalidade === 'Aluguel' && imovel.valor_aluguel) {
     return `${parseFloat(imovel.valor_aluguel).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })} /mês`;
   }
-  return 'Valor a consultar';
+  return 'A consultar';
 }
 </script>
 
@@ -198,7 +198,7 @@ function formatarPreco(imovel: any) {
 .container {
   max-width: 1200px;
   margin: 0 auto;
-  padding: 0 1rem;
+  padding: 2rem 1rem;
 }
 .error-message {
   color: red;

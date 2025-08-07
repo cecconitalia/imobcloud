@@ -1,8 +1,6 @@
 # C:\wamp64\www\ImobCloud\app_imoveis\serializers.py
-
 from rest_framework import serializers
 from .models import Imovel, ImagemImovel, ContatoImovel
-
 
 class ImagemImovelSerializer(serializers.ModelSerializer):
     class Meta:
@@ -10,25 +8,30 @@ class ImagemImovelSerializer(serializers.ModelSerializer):
         fields = ['id', 'imagem', 'descricao', 'principal']
 
 class ImovelSerializer(serializers.ModelSerializer):
+    # Serializer aninhado para incluir as imagens na listagem/detalhe do imóvel
     imagens = ImagemImovelSerializer(many=True, read_only=True)
 
     class Meta:
         model = Imovel
+        # '__all__' garante que todos os novos campos do modelo sejam incluídos
         fields = '__all__'
-        read_only_fields = ('imobiliaria',)
 
-# Esta classe já existe no seu projeto.
-class ImovelDisplaySerializer(serializers.ModelSerializer):
-    class Meta:
-        model = Imovel
-        fields = ['id', 'endereco', 'cidade', 'tipo']
-
-# NOVO: Modifique o ContatoImovelSerializer para usar o ImovelDisplaySerializer
 class ContatoImovelSerializer(serializers.ModelSerializer):
-    imovel_obj = ImovelDisplaySerializer(source='imovel', read_only=True)
-
+    # Adicionando campos read_only para exibir informações do imóvel no painel
+    imovel_endereco = serializers.CharField(source='imovel.endereco', read_only=True)
+    imovel_cidade = serializers.CharField(source='imovel.cidade', read_only=True)
+    
     class Meta:
-        # ATUALIZADO
         model = ContatoImovel
-        fields = ['id', 'imovel', 'imovel_obj', 'nome', 'email', 'telefone', 'mensagem', 'data_contato']
-        read_only_fields = ['imovel_obj', 'data_contato']
+        fields = [
+            'id', 
+            'imovel', 
+            'nome', 
+            'email', 
+            'telefone', 
+            'mensagem', 
+            'data_contato', 
+            'arquivado',
+            'imovel_endereco', # Campo read-only
+            'imovel_cidade'    # Campo read-only
+        ]
