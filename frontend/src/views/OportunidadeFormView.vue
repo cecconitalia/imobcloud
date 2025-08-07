@@ -88,7 +88,7 @@
     <OportunidadeTransferir
       v-if="isEditing"
       :oportunidade-id="oportunidadeId"
-      :corretor-responsavel-id="oportunidade.responsavel"
+      :corretor-responsavel-id="oportunidade.responsavel ? oportunidade.responsavel.id : null"
       @transferido="handleTransferenciaConcluida"
     />
 
@@ -179,7 +179,13 @@ async function fetchData() {
 
     if (isEditing.value) {
       const oportunidadeResponse = await apiClient.get(`/v1/clientes/oportunidades/${oportunidadeId.value}/`);
-      oportunidade.value = oportunidadeResponse.data;
+      // Extrair os IDs dos objetos relacionados para o formulário
+      oportunidade.value = {
+        ...oportunidadeResponse.data,
+        cliente: oportunidadeResponse.data.cliente.id,
+        imovel: oportunidadeResponse.data.imovel?.id || null,
+        responsavel: oportunidadeResponse.data.responsavel.id,
+      };
     }
 
   } catch (error) {
@@ -235,10 +241,24 @@ function formatarData(data: string) {
 async function handleSubmit() {
   isSubmitting.value = true;
   try {
+    // Cria um objeto de dados limpo para o payload da API
+    const payload = {
+      titulo: oportunidade.value.titulo,
+      valor_estimado: oportunidade.value.valor_estimado,
+      fase: oportunidade.value.fase,
+      fonte: oportunidade.value.fonte,
+      probabilidade: oportunidade.value.probabilidade,
+      data_proximo_contato: oportunidade.value.data_proximo_contato,
+      motivo_perda: oportunidade.value.motivo_perda,
+      cliente_id: oportunidade.value.cliente,
+      imovel_id: oportunidade.value.imovel,
+      responsavel_id: oportunidade.value.responsavel,
+    };
+
     if (isEditing.value) {
-      await apiClient.put(`/v1/clientes/oportunidades/${oportunidadeId.value}/`, oportunidade.value);
+      await apiClient.put(`/v1/clientes/oportunidades/${oportunidadeId.value}/`, payload);
     } else {
-      await apiClient.post('/v1/clientes/oportunidades/', oportunidade.value);
+      await apiClient.post('/v1/clientes/oportunidades/', payload);
     }
     router.push({ name: 'funil-vendas' });
   } catch (error) {

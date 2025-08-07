@@ -205,7 +205,7 @@
             <div v-if="isEditing && imovel.id" class="card">
               <div class="card-header">Gestor de Imagens</div>
               <div class="card-body">
-                <ImovelImagensView :imovelId="imovel.id" />
+                <ImovelImagensView :imovel-id="imovel.id" />
               </div>
             </div>
             <div v-else class="info-message">
@@ -411,6 +411,10 @@ async function gerarContratoPDF() {
 watch(imovelId, () => {
   fetchImovelData();
 }, { immediate: true }); 
+
+watch(() => route.query.tab, (newTab) => {
+  if (newTab) activeTab.value = newTab as string;
+});
 
 onMounted(() => {
   fetchClientes();

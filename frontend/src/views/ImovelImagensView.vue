@@ -34,7 +34,7 @@
           ghost-class="ghost-image">
           <template #item="{ element: image }">
             <div class="image-container" :class="{ 'is-principal': image.principal }">
-              <img :src="image.imagem" alt="Imagem do imóvel" class="preview-image"/>
+              <img :src="image.imagem" :alt="image.imagem" class="preview-image"/>
               <div class="image-actions">
                 <button @click="setAsPrincipal(image)" class="principal-btn" title="Definir como Principal"><i class="fas fa-star"></i></button>
                 <button @click="deleteImage(image.id)" class="delete-btn" title="Excluir Imagem"><i class="fas fa-trash"></i></button>
@@ -62,7 +62,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch } from 'vue';
+import { ref, watch, onMounted } from 'vue';
 import apiClient from '@/services/api';
 import FileUpload from 'vue-upload-component';
 import { VueDraggableNext as draggable } from 'vue-draggable-next';
@@ -82,6 +82,7 @@ const isLoading = ref(true);
 async function fetchImages() {
   if (!props.imovelId) {
     isLoading.value = false;
+    images.value = [];
     return;
   }
   isLoading.value = true;
@@ -159,6 +160,14 @@ watch(() => props.imovelId, (newId) => {
     fetchImages();
   }
 }, { immediate: true });
+
+onMounted(() => {
+  if (props.imovelId) {
+    fetchImages();
+  } else {
+    isLoading.value = false;
+  }
+});
 
 </script>
 
