@@ -41,6 +41,10 @@
         <div v-if="userCargo === 'ADMIN'" class="nav-section-header">
           <span>Administração</span>
         </div>
+        <router-link v-if="userCargo === 'ADMIN'" to="/autorizacoes" class="nav-link">
+          <i class="icon-autorizacoes"></i>
+          <span>Gestão de Autorizações</span>
+        </router-link>
         <router-link v-if="userCargo === 'ADMIN'" to="/contatos" class="nav-link">
           <i class="icon-contatos"></i>
           <span>Contatos</span>
@@ -48,6 +52,10 @@
         <router-link v-if="userCargo === 'ADMIN'" to="/corretores" class="nav-link">
           <i class="icon-users"></i>
           <span>Gerir Utilizadores</span>
+        </router-link>
+        <router-link v-if="userCargo === 'ADMIN'" to="/relatorios" class="nav-link">
+          <i class="icon-relatorios"></i>
+          <span>Relatórios</span>
         </router-link>
       </nav>
       <div class="sidebar-footer">
@@ -76,7 +84,6 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
-// Importa o novo componente
 import NotificationBell from '@/components/NotificationBell.vue';
 
 const router = useRouter();
@@ -100,21 +107,14 @@ onMounted(() => {
 </script>
 
 <style scoped>
-/* Adicionando FontAwesome para os ícones */
 @import url('https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css');
 
-/* Definição dos ícones para o menu */
 .nav-link i::before {
   font-family: "Font Awesome 5 Free";
   font-weight: 900;
   margin-right: 10px;
   width: 20px;
   text-align: center;
-}
-.icon-bell::before {
-  font-family: "Font Awesome 5 Free";
-  font-weight: 900;
-  content: "\f0f3"; /* sino */
 }
 .icon-dashboard::before { content: "\f3fd"; }
 .icon-funil::before { content: "\f1de"; }
@@ -125,7 +125,8 @@ onMounted(() => {
 .icon-visitas::before { content: "\f0f3"; }
 .icon-contatos::before { content: "\f0e0"; }
 .icon-users::before { content: "\f500"; }
-
+.icon-relatorios::before { content: "\f080"; }
+.icon-autorizacoes::before { content: "\f2b5"; } /* ícone de aperto de mão */
 
 .dashboard-layout {
   display: flex;
