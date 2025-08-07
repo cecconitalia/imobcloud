@@ -146,6 +146,7 @@ const router = createRouter({
           path: 'imoveis/:id/imagens',
           name: 'imovel-imagens',
           component: ImovelImagensView,
+          props: (route) => ({ imovelId: route.params.id }),
           meta: {
             title: 'Gerir Imagens do Imóvel',
             requiresAuth: true,

@@ -229,7 +229,7 @@ class AtividadeViewSet(viewsets.ModelViewSet):
 
 
 class OportunidadeViewSet(viewsets.ModelViewSet):
-    queryset = Oportunidade.objects.all()
+    queryset = Oportunidade.objects.all().select_related('cliente', 'imovel', 'responsavel__perfil')
     serializer_class = OportunidadeSerializer
     permission_classes = [IsAuthenticated]
 

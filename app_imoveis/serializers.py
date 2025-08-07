@@ -1,13 +1,19 @@
-# C:\wamp64\www\ImobCloud\app_imoveis\serializers.py
-
 from rest_framework import serializers
 from .models import Imovel, ImagemImovel, ContatoImovel
+from django.conf import settings
 
 class ImagemImovelSerializer(serializers.ModelSerializer):
+    imagem = serializers.SerializerMethodField()
+
     class Meta:
         model = ImagemImovel
-        # Garante que todos os campos necessários são expostos pela API
         fields = ['id', 'imagem', 'principal', 'ordem']
+
+    def get_imagem(self, obj):
+        if obj.imagem:
+            request = self.context.get('request')
+            return request.build_absolute_uri(obj.imagem.url)
+        return None
 
 class ContatoImovelSerializer(serializers.ModelSerializer):
     class Meta:
@@ -15,15 +21,10 @@ class ContatoImovelSerializer(serializers.ModelSerializer):
         fields = '__all__'
 
 class ImovelSerializer(serializers.ModelSerializer):
-    # CORREÇÃO CRÍTICA E DEFINITIVA:
-    # Esta linha instrui o serializador a encontrar todos os objetos 'ImagemImovel'
-    # relacionados com este imóvel e a usar o 'ImagemImovelSerializer' para os formatar.
-    # Sem isto, as imagens nunca seriam enviadas para o frontend.
     imagens = ImagemImovelSerializer(many=True, read_only=True)
 
     class Meta:
         model = Imovel
-        # Adiciona o campo 'imagens' à lista de campos que a API retorna.
         fields = [
             'id', 'titulo_anuncio', 'codigo_referencia', 'tipo', 'finalidade', 'status', 'situacao',
             'publicado_no_site', 'valor_venda', 'valor_aluguel', 'valor_condominio', 'valor_iptu',
@@ -35,6 +36,6 @@ class ImovelSerializer(serializers.ModelSerializer):
             'quitado', 'documentacao_ok', 'aceita_pet', 'proprietario', 'numero_matricula',
             'data_captacao', 'data_fim_autorizacao', 'possui_exclusividade', 'comissao_percentual',
             'informacoes_adicionais_autorizacao',
-            'imagens'  # O campo 'imagens' PRECISA estar listado aqui.
+            'imagens'
         ]
         read_only_fields = ('codigo_referencia',)

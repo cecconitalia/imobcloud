@@ -4,6 +4,9 @@ from rest_framework import serializers
 from .models import Cliente, Visita, Atividade, Oportunidade, Tarefa
 from core.models import PerfilUsuario
 from app_imoveis.models import Imovel
+from django.contrib.auth import get_user_model
+
+User = get_user_model()
 
 # Serializadores simples para representar os dados relacionados de forma segura
 class ClienteSimplificadoSerializer(serializers.ModelSerializer):
@@ -18,8 +21,8 @@ class ImovelSimplificadoSerializer(serializers.ModelSerializer):
 
 class ResponsavelSimplificadoSerializer(serializers.ModelSerializer):
     class Meta:
-        model = PerfilUsuario
-        fields = ['id', 'username']
+        model = User
+        fields = ['id', 'first_name', 'username']
 
 # CORREÇÃO PRINCIPAL: A view de Oportunidade foi reescrita
 class OportunidadeSerializer(serializers.ModelSerializer):
@@ -36,13 +39,14 @@ class OportunidadeSerializer(serializers.ModelSerializer):
         queryset=Imovel.objects.all(), source='imovel', write_only=True, required=False, allow_null=True
     )
     responsavel_id = serializers.PrimaryKeyRelatedField(
-        queryset=PerfilUsuario.objects.all(), source='responsavel', write_only=True
+        queryset=User.objects.all(), source='responsavel', write_only=True
     )
 
     class Meta:
         model = Oportunidade
         fields = [
-            'id', 'cliente', 'imovel', 'responsavel', 'status_funil', 'data_criacao',
+            'id', 'titulo', 'valor_estimado', 'fase', 'fonte', 'probabilidade',
+            'data_proximo_contato', 'motivo_perda', 'data_criacao', 'cliente', 'imovel', 'responsavel',
             'cliente_id', 'imovel_id', 'responsavel_id'
         ]
         read_only_fields = ('data_criacao',)

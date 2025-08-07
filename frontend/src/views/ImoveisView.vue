@@ -37,7 +37,7 @@
             <router-link :to="`/imoveis/editar/${imovel.id}`" class="btn-secondary">
               Editar
             </router-link>
-            <router-link v-if="userIsAdmin" :to="`/imoveis/${imovel.id}/imagens`" class="btn-info">
+            <router-link v-if="userIsAdmin" :to="{ name: 'imovel-imagens', params: { id: imovel.id } }" class="btn-info">
               Imagens
             </router-link>
             <button v-if="userIsAdmin" @click="handleInativar(imovel.id)" class="btn-danger">
