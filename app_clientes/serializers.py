@@ -1,26 +1,59 @@
 # C:\wamp64\www\ImobCloud\app_clientes\serializers.py
+
 from rest_framework import serializers
 from .models import Cliente, Visita, Atividade, Oportunidade, Tarefa
-# ATUALIZADO: Corrigido o nome do serializer importado
-from app_imoveis.serializers import ImovelSerializer 
+from core.models import PerfilUsuario
+from app_imoveis.models import Imovel
 
-class ClienteSerializer(serializers.ModelSerializer):
+# Serializadores simples para representar os dados relacionados de forma segura
+class ClienteSimplificadoSerializer(serializers.ModelSerializer):
     class Meta:
         model = Cliente
-        fields = '__all__'
+        fields = ['id', 'nome_completo']
+
+class ImovelSimplificadoSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Imovel
+        fields = ['id', 'titulo_anuncio', 'endereco']
+
+class ResponsavelSimplificadoSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = PerfilUsuario
+        fields = ['id', 'username']
+
+# CORREÇÃO PRINCIPAL: A view de Oportunidade foi reescrita
+class OportunidadeSerializer(serializers.ModelSerializer):
+    # Usando os serializadores simplificados para representar as relações
+    cliente = ClienteSimplificadoSerializer(read_only=True)
+    imovel = ImovelSimplificadoSerializer(read_only=True)
+    responsavel = ResponsavelSimplificadoSerializer(read_only=True)
+    
+    # IDs para escrita (para não precisar de enviar objetos complexos)
+    cliente_id = serializers.PrimaryKeyRelatedField(
+        queryset=Cliente.objects.all(), source='cliente', write_only=True
+    )
+    imovel_id = serializers.PrimaryKeyRelatedField(
+        queryset=Imovel.objects.all(), source='imovel', write_only=True, required=False, allow_null=True
+    )
+    responsavel_id = serializers.PrimaryKeyRelatedField(
+        queryset=PerfilUsuario.objects.all(), source='responsavel', write_only=True
+    )
+
+    class Meta:
+        model = Oportunidade
+        fields = [
+            'id', 'cliente', 'imovel', 'responsavel', 'status_funil', 'data_criacao',
+            'cliente_id', 'imovel_id', 'responsavel_id'
+        ]
+        read_only_fields = ('data_criacao',)
+
 
 class VisitaSerializer(serializers.ModelSerializer):
-    # Usando serializers aninhados para exibir informações mais detalhadas
-    cliente = serializers.StringRelatedField()
-    imovel = serializers.StringRelatedField()
-
     class Meta:
         model = Visita
         fields = '__all__'
 
 class AtividadeSerializer(serializers.ModelSerializer):
-    registrado_por = serializers.StringRelatedField()
-    
     class Meta:
         model = Atividade
         fields = '__all__'
@@ -29,32 +62,13 @@ class TarefaSerializer(serializers.ModelSerializer):
     class Meta:
         model = Tarefa
         fields = '__all__'
-        
-class OportunidadeSerializer(serializers.ModelSerializer):
-    # ATUALIZADO: Usando o serializer correto para exibir os detalhes do imóvel
-    imovel = ImovelSerializer(read_only=True)
-    cliente = ClienteSerializer(read_only=True)
-    responsavel_nome = serializers.CharField(source='responsavel.get_full_name', read_only=True)
+
+class ClienteSerializer(serializers.ModelSerializer):
+    visitas = VisitaSerializer(many=True, read_only=True)
+    atividades = AtividadeSerializer(many=True, read_only=True)
+    oportunidades = OportunidadeSerializer(many=True, read_only=True)
     tarefas = TarefaSerializer(many=True, read_only=True)
 
     class Meta:
-        model = Oportunidade
-        fields = [
-            'id', 
-            'titulo', 
-            'cliente', 
-            'imobiliaria', 
-            'responsavel', 
-            'responsavel_nome',
-            'imovel', 
-            'fase', 
-            'fonte', 
-            'valor_estimado', 
-            'data_criacao', 
-            'data_fechamento_prevista',
-            'tarefas'
-        ]
-        # Adicionado para permitir que 'responsavel' seja atualizado com um ID
-        extra_kwargs = {
-            'responsavel': {'write_only': True, 'required': False}
-        }
+        model = Cliente
+        fields = '__all__'

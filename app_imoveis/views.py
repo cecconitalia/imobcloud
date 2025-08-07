@@ -1,15 +1,20 @@
 # C:\wamp64\www\ImobCloud\app_imoveis\views.py
-from rest_framework import viewsets, status
+
+from rest_framework import viewsets, status, permissions
 from rest_framework.response import Response
-from rest_framework import permissions
-from django.shortcuts import get_object_or_404
 from rest_framework import filters
 from django.core.mail import send_mail
 from rest_framework.decorators import action
+from rest_framework.exceptions import PermissionDenied
+from rest_framework.views import APIView
 
+from django.db import models, transaction
+from django.shortcuts import get_object_or_404
 from django.http import HttpResponse
 from django.template.loader import render_to_string
-from rest_framework.views import APIView
+from django.utils import timezone
+from django.db.models import Count, Q, Case, When, Value, CharField, Max
+
 from io import BytesIO
 from xhtml2pdf import pisa
 import locale
@@ -17,13 +22,9 @@ from num2words import num2words
 from datetime import date, timedelta
 from decimal import Decimal
 
-# IMPORTAÇÕES PARA A VIEW DE STATUS
-from django.utils import timezone
-from django.db.models import Count, Q, Case, When, Value, CharField
-
 from .models import Imovel, ImagemImovel, ContatoImovel
 from .serializers import ImovelSerializer, ImagemImovelSerializer, ContatoImovelSerializer
-from core.models import Imobiliaria, PerfilUsuario, Notificacao
+from core.models import Imobiliaria, PerfilUsuario
 from app_clientes.models import Oportunidade
 
 class ImovelViewSet(viewsets.ModelViewSet):
@@ -36,7 +37,6 @@ class ImovelViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         base_queryset = Imovel.objects.exclude(status='DESATIVADO')
 
-        # Filtro para o site público
         if not self.request.user.is_authenticated or not self.request.tenant:
             base_queryset = base_queryset.filter(publicado_no_site=True)
 
@@ -63,7 +63,6 @@ class ImovelViewSet(viewsets.ModelViewSet):
         if vagas_min:
             base_queryset = base_queryset.filter(vagas_garagem__gte=vagas_min)
 
-        # Lógica de Tenant (Multi-imobiliária)
         if self.request.user.is_authenticated:
             if self.request.user.is_superuser:
                 return base_queryset.all()
@@ -88,29 +87,90 @@ class ImovelViewSet(viewsets.ModelViewSet):
         elif self.request.tenant:
             serializer.save(imobiliaria=self.request.tenant)
         else:
-            raise Exception("Não foi possível associar o imóvel a uma imobiliária. Tenant não identificado ou inválido.")
+            raise PermissionDenied("Não foi possível associar o imóvel a uma imobiliária.")
 
     def perform_update(self, serializer):
         if self.request.user.is_superuser:
             serializer.save()
-        elif hasattr(self.request.user, 'perfil') and self.request.user.perfil.cargo in [PerfilUsuario.Cargo.ADMIN, PerfilUsuario.Cargo.CORRETOR] and serializer.instance.imobiliaria == self.request.tenant:
+        elif hasattr(self.request.user, 'perfil') and serializer.instance.imobiliaria == self.request.tenant:
             serializer.save()
         else:
-            raise Exception("Você não tem permissão para atualizar este imóvel. Ele não pertence à sua imobiliária.")
+            raise PermissionDenied("Você não tem permissão para atualizar este imóvel.")
 
     def perform_destroy(self, instance):
-        if self.request.user.is_superuser or (hasattr(self.request.user, 'perfil') and self.request.user.perfil.cargo == PerfilUsuario.Cargo.ADMIN and instance.imobiliaria == self.request.tenant):
+        if self.request.user.is_superuser or (hasattr(self.request.user, 'perfil') and instance.imobiliaria == self.request.tenant):
             instance.status = 'DESATIVADO'
             instance.save()
             return Response(status=status.HTTP_204_NO_CONTENT)
         else:
-            raise Exception("Você não tem permissão para inativar este imóvel. Ele não pertence à sua imobiliária.")
+            raise PermissionDenied("Você não tem permissão para inativar este imóvel.")
+
+
+class ImagemImovelViewSet(viewsets.ModelViewSet):
+    queryset = ImagemImovel.objects.all()
+    serializer_class = ImagemImovelSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        if self.request.user.is_superuser:
+            return ImagemImovel.objects.all()
+        if self.request.tenant:
+            return ImagemImovel.objects.filter(imovel__imobiliaria=self.request.tenant)
+        return ImagemImovel.objects.none()
+
+    @action(detail=False, methods=['post'], url_path='reordenar')
+    @transaction.atomic
+    def reordenar_imagens(self, request, *args, **kwargs):
+        ordem_ids = request.data.get('ordem_ids', [])
+        if not ordem_ids:
+            return Response({'detail': 'A lista de IDs de imagem é necessária.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        imagens = ImagemImovel.objects.filter(id__in=ordem_ids)
+        if not request.user.is_superuser:
+            imagens = imagens.filter(imovel__imobiliaria=request.tenant)
+        
+        if len(ordem_ids) != imagens.count():
+            raise PermissionDenied("Uma ou mais imagens não foram encontradas ou não pertencem à sua imobiliária.")
+
+        for index, image_id in enumerate(ordem_ids):
+            ImagemImovel.objects.filter(id=image_id).update(ordem=index, principal=(index == 0))
+            
+        return Response({'status': 'Ordem das imagens atualizada com sucesso.'}, status=status.HTTP_200_OK)
+
+    def perform_create(self, serializer):
+        imovel_id = self.request.data.get('imovel')
+        imovel = get_object_or_404(Imovel, pk=imovel_id)
+
+        if not (self.request.user.is_superuser or (hasattr(self.request.user, 'perfil') and imovel.imobiliaria == self.request.tenant)):
+            raise PermissionDenied("Você não tem permissão para adicionar imagens a este imóvel.")
+
+        e_primeira_imagem = not ImagemImovel.objects.filter(imovel=imovel).exists()
+        
+        max_ordem_result = ImagemImovel.objects.filter(imovel=imovel).aggregate(Max('ordem'))
+        max_ordem = max_ordem_result['ordem__max'] if max_ordem_result['ordem__max'] is not None else -1
+        nova_ordem = max_ordem + 1
+
+        serializer.save(imovel=imovel, ordem=nova_ordem, principal=e_primeira_imagem)
+
+    def perform_destroy(self, instance):
+        if not (self.request.user.is_superuser or (hasattr(self.request.user, 'perfil') and instance.imovel.imobiliaria == self.request.tenant)):
+            raise PermissionDenied("Você não tem permissão para excluir esta imagem.")
+        
+        imovel_da_imagem = instance.imovel
+        era_principal = instance.principal
+        instance.delete()
+
+        if era_principal and ImagemImovel.objects.filter(imovel=imovel_da_imagem).exists():
+            proxima_imagem = ImagemImovel.objects.filter(imovel=imovel_da_imagem).order_by('ordem').first()
+            if proxima_imagem:
+                proxima_imagem.principal = True
+                proxima_imagem.save()
 
 
 class ContatoImovelViewSet(viewsets.ModelViewSet):
     queryset = ContatoImovel.objects.all()
     serializer_class = ContatoImovelSerializer
-    
+
     def get_permissions(self):
         if self.action in ['list', 'retrieve', 'update', 'partial_update', 'destroy']:
             self.permission_classes = [permissions.IsAuthenticated]
@@ -144,7 +204,7 @@ class ContatoImovelViewSet(viewsets.ModelViewSet):
                 """
                 remetente = 'nao-responda@imobcloud.com'
                 send_mail(assunto, mensagem_corpo, remetente, [destinatario_email], fail_silently=False)
-            
+
             oportunidade_associada = Oportunidade.objects.filter(imovel=contato.imovel).first()
             if oportunidade_associada and oportunidade_associada.responsavel:
                 destinatario_notificacao = oportunidade_associada.responsavel
@@ -159,84 +219,12 @@ class ContatoImovelViewSet(viewsets.ModelViewSet):
     @action(detail=True, methods=['post'], permission_classes=[permissions.IsAuthenticated])
     def arquivar(self, request, pk=None):
         contato = self.get_object()
-        is_superuser = request.user.is_superuser
-        is_admin_of_tenant = (
-            hasattr(request.user, 'perfil') and
-            request.user.perfil.cargo == PerfilUsuario.Cargo.ADMIN and
-            contato.imovel.imobiliaria == self.request.tenant
-        )
-        if not (is_superuser or is_admin_of_tenant):
-            return Response(
-                {"detail": "Você não tem permissão para arquivar este contacto."},
-                status=status.HTTP_403_FORBIDDEN
-            )
+        if not (request.user.is_superuser or (hasattr(request.user, 'perfil') and contato.imovel.imobiliaria == request.tenant)):
+            raise PermissionDenied("Você não tem permissão para arquivar este contacto.")
+        
         contato.arquivado = True
         contato.save()
         return Response({'status': 'Contacto arquivado com sucesso'}, status=status.HTTP_200_OK)
-
-
-class ImagemImovelViewSet(viewsets.ModelViewSet):
-    queryset = ImagemImovel.objects.all()
-    serializer_class = ImagemImovelSerializer
-    permission_classes = [permissions.IsAuthenticated]
-
-    def get_queryset(self):
-        if self.request.user.is_superuser:
-            return ImagemImovel.objects.all()
-        elif self.request.tenant:
-            return ImagemImovel.objects.filter(imovel__imobiliaria=self.request.tenant)
-        
-        subdomain_param = self.request.query_params.get('subdomain', None)
-        if subdomain_param:
-            try:
-                imobiliaria_por_param = Imobiliaria.objects.get(subdominio=subdomain_param)
-                return ImagemImovel.objects.filter(imovel__imobiliaria=imobiliaria_por_param)
-            except Imobiliaria.DoesNotExist:
-                return ImagemImovel.objects.none()
-        return ImagemImovel.objects.none()
-
-    def perform_create(self, serializer):
-        imovel_id = self.request.data.get('imovel')
-        if self.request.user.is_superuser:
-            imovel = get_object_or_404(Imovel, pk=imovel_id)
-        elif hasattr(self.request.user, 'perfil') and self.request.user.perfil.cargo == PerfilUsuario.Cargo.ADMIN and self.request.tenant:
-            imovel = get_object_or_404(Imovel, pk=imovel_id, imobiliaria=self.request.tenant)
-        else:
-            raise Exception("Você não tem permissão para adicionar imagens.")
-            
-        if self.request.data.get('principal', False):
-             ImagemImovel.objects.filter(imovel=imovel, principal=True).update(principal=False)
-        elif not ImagemImovel.objects.filter(imovel=imovel, principal=True).exists():
-             serializer.validated_data['principal'] = True
-        serializer.save(imovel=imovel)
-
-    def perform_update(self, serializer):
-        if self.request.user.is_superuser:
-            serializer.save()
-        elif hasattr(self.request.user, 'perfil') and self.request.user.perfil.cargo == PerfilUsuario.Cargo.ADMIN and serializer.instance.imovel.imobiliaria == self.request.tenant:
-            if serializer.validated_data.get('principal', False):
-                ImagemImovel.objects.filter(imovel=serializer.instance.imovel, principal=True).update(principal=False)
-            serializer.save()
-        else:
-            raise Exception("Você não tem permissão para atualizar esta imagem. O imóvel associado não pertence à sua imobiliária.")
-
-    def perform_destroy(self, instance):
-        if self.request.user.is_superuser:
-            instance.delete()
-            if instance.principal:
-                remaining_images = ImagemImovel.objects.filter(imovel=instance.imovel).order_by('data_upload').first()
-                if remaining_images:
-                    remaining_images.principal = True
-                    remaining_images.save()
-        elif hasattr(self.request.user, 'perfil') and self.request.user.perfil.cargo == PerfilUsuario.Cargo.ADMIN and instance.imovel.imobiliaria == self.request.tenant:
-            instance.delete()
-            if instance.principal:
-                remaining_images = ImagemImovel.objects.filter(imovel=instance.imovel).order_by('data_upload').first()
-                if remaining_images:
-                    remaining_images.principal = True
-                    remaining_images.save()
-        else:
-            raise Exception("Você não tem permissão para excluir esta imagem. O imóvel associado não pertence à sua imobiliária.")
 
 
 class GerarAutorizacaoPDFView(APIView):
@@ -247,7 +235,7 @@ class GerarAutorizacaoPDFView(APIView):
 
         if not request.user.is_superuser and imovel.imobiliaria != request.tenant:
             return HttpResponse("Acesso negado.", status=403)
-        
+
         if not imovel.proprietario:
             return HttpResponse("Erro: O imóvel não possui um proprietário vinculado.", status=400)
 
@@ -255,7 +243,7 @@ class GerarAutorizacaoPDFView(APIView):
             locale.setlocale(locale.LC_TIME, 'pt_BR.UTF-8')
         except locale.Error:
             locale.setlocale(locale.LC_TIME, 'Portuguese_Brazil.1252')
-            
+
         hoje = date.today()
         finalidade_texto = "venda" if imovel.status == 'A_VENDA' else "locação"
         valor = imovel.valor_venda if imovel.status == 'A_VENDA' else imovel.valor_aluguel
@@ -271,7 +259,6 @@ class GerarAutorizacaoPDFView(APIView):
             'imovel': imovel,
             'proprietario': imovel.proprietario,
             'imobiliaria': imovel.imobiliaria,
-            'proprietario_endereco': "[Endereço do Proprietário]",
             'finalidade_texto': finalidade_texto,
             'valor': valor,
             'valor_por_extenso': valor_por_extenso,
@@ -281,14 +268,14 @@ class GerarAutorizacaoPDFView(APIView):
         }
 
         html_string = render_to_string('autorizacao_template.html', context)
-        
+
         result = BytesIO()
         pdf = pisa.pisaDocument(BytesIO(html_string.encode("UTF-8")), result)
         if not pdf.err:
             response = HttpResponse(result.getvalue(), content_type='application/pdf')
             response['Content-Disposition'] = f'attachment; filename="autorizacao_imovel_{imovel.codigo_referencia}.pdf"'
             return response
-        
+
         return HttpResponse(f"Erro ao gerar o PDF: {pdf.err}", status=500)
 
 
@@ -302,7 +289,7 @@ class AutorizacaoStatusView(APIView):
         tenant = request.tenant
         if not tenant and request.user.is_superuser:
             tenant = Imobiliaria.objects.first()
-        
+
         if not tenant:
             return Response({"error": "Nenhuma imobiliária associada."}, status=status.HTTP_400_BAD_REQUEST)
 
@@ -328,7 +315,7 @@ class AutorizacaoStatusView(APIView):
                 output_field=CharField(),
             )
         ).values(
-            'id', 'codigo_referencia', 'titulo_anuncio', 'proprietario__nome_completo', 
+            'id', 'codigo_referencia', 'titulo_anuncio', 'proprietario__nome_completo',
             'data_captacao', 'data_fim_autorizacao', 'status_autorizacao'
         )
 
@@ -336,5 +323,5 @@ class AutorizacaoStatusView(APIView):
             'sumario': sumario,
             'imoveis': list(imoveis_com_status)
         }
-        
+
         return Response(data)

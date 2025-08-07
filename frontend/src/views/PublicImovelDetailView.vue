@@ -7,9 +7,9 @@
       <div class="main-column">
         <h1 class="imovel-title">{{ imovel.titulo_anuncio }}</h1>
         <p class="imovel-location">{{ imovel.endereco }}, {{ imovel.bairro }}, {{ imovel.cidade }} - {{ imovel.estado }}</p>
-        
+
         <div class="gallery">
-          <img :src="principalImage" alt="Imagem principal do imóvel" class="main-image">
+          <img :src="principalImage" alt="Imagem principal do imóvel" class="main-image" @click="openImageModal(principalImage)">
           <div class="thumbnail-grid">
             <img v-for="imagem in imovel.imagens" :key="imagem.id" :src="imagem.imagem" @click="principalImage = imagem.imagem" :class="{ active: principalImage === imagem.imagem }" class="thumbnail">
           </div>
@@ -66,7 +66,7 @@
           </ul>
         </div>
       </div>
-      
+
       <div class="info-sidebar">
         <div class="sidebar-box">
           <p class="imovel-ref">Ref: {{ imovel.codigo_referencia }}</p>
@@ -95,6 +95,14 @@
       </div>
 
     </div>
+
+    <div v-if="isModalVisible" class="image-modal-overlay" @click="closeImageModal">
+      <button class="modal-nav-btn prev-btn" @click.stop="prevImage">&lt;</button>
+      <div class="image-modal-content">
+        <img :src="modalImageUrl" alt="Imagem ampliada do imóvel">
+      </div>
+      <button class="modal-nav-btn next-btn" @click.stop="nextImage">&gt;</button>
+    </div>
   </div>
 </template>
 
@@ -108,6 +116,10 @@ const imovel = ref<any>(null);
 const isLoading = ref(true);
 const error = ref<string | null>(null);
 const principalImage = ref('');
+
+const isModalVisible = ref(false);
+const modalImageUrl = ref('');
+const currentImageIndex = ref(0);
 
 const contatoForm = ref({
   nome: '',
@@ -123,6 +135,34 @@ const isCondominio = computed(() => {
     if (!imovel.value) return false;
     return imovel.value.portaria_24h || imovel.value.elevador || imovel.value.piscina_condominio || imovel.value.academia || imovel.value.salao_festas;
 });
+
+function openImageModal(imageUrl: string) {
+  const foundIndex = imovel.value.imagens.findIndex((img: any) => img.imagem === imageUrl);
+  if (foundIndex !== -1) {
+    currentImageIndex.value = foundIndex;
+  }
+  modalImageUrl.value = imageUrl;
+  isModalVisible.value = true;
+}
+
+function closeImageModal() {
+  isModalVisible.value = false;
+}
+
+function nextImage() {
+  const newIndex = (currentImageIndex.value + 1) % imovel.value.imagens.length;
+  currentImageIndex.value = newIndex;
+  modalImageUrl.value = imovel.value.imagens[newIndex].imagem;
+  principalImage.value = imovel.value.imagens[newIndex].imagem;
+}
+
+function prevImage() {
+  const newIndex = (currentImageIndex.value - 1 + imovel.value.imagens.length) % imovel.value.imagens.length;
+  currentImageIndex.value = newIndex;
+  modalImageUrl.value = imovel.value.imagens[newIndex].imagem;
+  principalImage.value = imovel.value.imagens[newIndex].imagem;
+}
+
 
 async function fetchImovelDetail() {
   isLoading.value = true;
@@ -199,7 +239,7 @@ function formatarPreco(imovel: any) {
 
 .imovel-detail-container {
   /* ATUALIZADO: Removida a largura máxima para ocupar o ecrã todo */
-  /* max-width: 1200px; */ 
+  /* max-width: 1200px; */
   margin: 2rem auto;
   padding: 0 2rem; /* Aumentado o padding lateral para ecrãs grandes */
 }
@@ -244,6 +284,7 @@ function formatarPreco(imovel: any) {
   object-fit: cover;
   border-radius: 8px;
   margin-bottom: 1rem;
+  cursor: pointer;
 }
 .thumbnail-grid {
   display: grid;
@@ -356,6 +397,47 @@ function formatarPreco(imovel: any) {
   font-size: 1.2rem;
 }
 
+.image-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.8);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+}
+.image-modal-content {
+  max-width: 90%;
+  max-height: 90%;
+}
+.image-modal-content img {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+}
+.modal-nav-btn {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  background-color: rgba(255, 255, 255, 0.2);
+  color: white;
+  border: none;
+  font-size: 3rem;
+  cursor: pointer;
+  padding: 0.5rem 1.5rem;
+  border-radius: 8px;
+  user-select: none;
+}
+.prev-btn {
+  left: 20px;
+}
+.next-btn {
+  right: 20px;
+}
+
 /* --- REGRAS DE RESPONSIVIDADE --- */
 @media (max-width: 992px) {
     .imovel-detail-container {
@@ -383,7 +465,7 @@ function formatarPreco(imovel: any) {
         font-size: 1.8rem;
     }
     .highlights-grid, .features-list {
-        grid-template-columns: 1fr 1fr; 
+        grid-template-columns: 1fr 1fr;
     }
     .imovel-detail-container {
         margin-top: 1rem;
