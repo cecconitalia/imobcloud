@@ -202,19 +202,20 @@ class Imovel(models.Model):
 
 
 class ImagemImovel(models.Model):
-    imovel = models.ForeignKey(Imovel, on_delete=models.CASCADE, related_name='imagens', verbose_name="Imóvel")
-    imagem = models.ImageField(upload_to='imoveis_imagens/', verbose_name="Imagem")
-    descricao = models.CharField(max_length=255, blank=True, null=True, verbose_name="Descrição da Imagem")
-    principal = models.BooleanField(default=False, verbose_name="Imagem Principal")
-    data_upload = models.DateTimeField(auto_now_add=True, verbose_name="Data de Upload")
-
-    class Meta:
-        verbose_name = "Imagem do Imóvel"
-        verbose_name_plural = "Imagens dos Imóveis"
-        ordering = ['-principal', '-data_upload'] 
+    imovel = models.ForeignKey(Imovel, related_name='imagens', on_delete=models.CASCADE)
+    imagem = models.ImageField(upload_to='imoveis_imagens/')
+    principal = models.BooleanField(default=False)
+    data_upload = models.DateTimeField(auto_now_add=True)
+    # ##### NOVO CAMPO ADICIONADO AQUI #####
+    ordem = models.PositiveIntegerField(default=0, blank=False, null=False)
+    # ######################################
 
     def __str__(self):
-        return f"Imagem de {self.imovel.endereco} ({self.imovel.imobiliaria.nome})"
+        return f"Imagem de {self.imovel.titulo_anuncio} ({self.id})"
+
+    class Meta:
+        # Garante que as imagens serão ordenadas corretamente por defeito
+        ordering = ['ordem']
     
 class ContatoImovel(models.Model):
     imovel = models.ForeignKey(Imovel, on_delete=models.CASCADE, related_name='contatos', verbose_name="Imóvel")

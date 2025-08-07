@@ -15,6 +15,7 @@
         <button type="button" @click="activeTab = 'valores'" :class="{ active: activeTab === 'valores' }">Valores e Medidas</button>
         <button type="button" @click="activeTab = 'caracteristicas'" :class="{ active: activeTab === 'caracteristicas' }">Características</button>
         <button type="button" @click="activeTab = 'condominio'" :class="{ active: activeTab === 'condominio' }">Condomínio</button>
+        <button type="button" @click="activeTab = 'imagens'" :class="{ active: activeTab === 'imagens' }" :disabled="!isEditing">Imagens</button>
         <button type="button" @click="activeTab = 'autorizacao'" :class="{ active: activeTab === 'autorizacao' }">Autorização</button>
       </div>
 
@@ -194,9 +195,22 @@
                 <input type="checkbox" id="quadra_esportiva" v-model="imovel.quadra_esportiva">
                 <label for="quadra_esportiva">Quadra Esportiva</label>
             </div>
-             <div class="checkbox-group">
+            <div class="checkbox-group">
                 <input type="checkbox" id="espaco_pet" v-model="imovel.espaco_pet">
                 <label for="espaco_pet">Espaço Pet</label>
+            </div>
+        </div>
+        
+        <div v-show="activeTab === 'imagens'">
+            <div v-if="isEditing && imovel.id" class="card">
+              <div class="card-header">Gestor de Imagens</div>
+              <div class="card-body">
+                <ImovelImagensView :imovelId="imovel.id" />
+              </div>
+            </div>
+            <div v-else class="info-message">
+              <p>Para adicionar imagens, primeiro guarde o imóvel.</p>
+              <p>Preencha as informações nas outras abas e clique em "Salvar e Continuar".</p>
             </div>
         </div>
 
@@ -251,13 +265,12 @@
                 <textarea id="informacoes_adicionais_autorizacao" v-model="imovel.informacoes_adicionais_autorizacao" rows="4"></textarea>
             </div>
             
-            <div class="form-group full-width" v-if="isEditing">
+            <div class="form-group full-width" v-if="isEditing && imovel.id">
                 <button type="button" @click="gerarContratoPDF" class="btn-info">
                     Gerar Contrato de Autorização (PDF)
                 </button>
             </div>
         </div>
-
       </div>
 
       <div class="form-actions full-width">
@@ -274,9 +287,10 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, computed } from 'vue';
+import { ref, onMounted, computed, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import apiClient from '@/services/api';
+import ImovelImagensView from './ImovelImagensView.vue';
 
 const route = useRoute();
 const router = useRouter();
@@ -286,14 +300,14 @@ const isEditing = computed(() => !!imovelId.value);
 const activeTab = ref('geral');
 const clientes = ref<any[]>([]);
 
-const imovel = ref({
+const createEmptyImovel = () => ({
+  id: null,
   titulo_anuncio: '',
   codigo_referencia: '',
   tipo: 'CASA',
   finalidade: 'RESIDENCIAL',
   status: 'A_VENDA',
   situacao: null,
-  disponibilidade: null,
   publicado_no_site: true,
   valor_venda: null,
   valor_aluguel: null,
@@ -304,80 +318,40 @@ const imovel = ref({
   cidade: '',
   estado: '',
   cep: '',
-  posicao_solar: null,
-  andar: null,
-  vista: '',
-  ponto_referencia: '',
-  localizacao_condominio: '',
-  area_construida: null,
-  area_util: null,
-  area_total: null,
-  area_terreno: null,
-  dimensao_frente: null,
-  dimensao_fundos: null,
-  dimensao_direita: null,
-  dimensao_esquerda: null,
-  ano_construcao: null,
-  numero_pavimentos: 1,
-  unidades_por_andar: null,
-  tipo_construcao: null,
-  pe_direito: null,
   quartos: 0,
   suites: 0,
   banheiros: 0,
   vagas_garagem: 0,
   lavabo: false,
-  sala_estar: false,
-  sala_jantar: false,
-  sala_tv: false,
-  cozinha: false,
-  copa: false,
   escritorio: false,
-  area_servico: false,
-  despensa: false,
-  closet: false,
   varanda: false,
-  vaga_coberta: false,
-  vaga_privativa: false,
-  portao_eletronico: false,
+  mobiliado: false,
   ar_condicionado: false,
-  aquecimento: '',
-  gas_central: false,
-  hidrometro_individual: false,
-  piso: '',
   moveis_planejados: false,
-  churrasqueira_privativa: false,
   piscina_privativa: false,
-  piscina_condominio: false,
-  churrasqueira_condominio: false,
-  espaco_gourmet: false,
-  playground: false,
-  salao_festas: false,
-  academia: false,
-  quadra_esportiva: false,
-  sauna: false,
-  espaco_pet: false,
+  churrasqueira_privativa: false,
   portaria_24h: false,
   elevador: false,
-  vagas_visitantes: false,
-  bicicletario: false,
+  piscina_condominio: false,
+  academia: false,
+  salao_festas: false,
+  playground: false,
+  quadra_esportiva: false,
+  espaco_pet: false,
   financiavel: false,
-  aceita_permuta: false,
   quitado: false,
   documentacao_ok: false,
-  descricao_completa: '',
   aceita_pet: false,
-  mobiliado: false,
   proprietario: null,
   numero_matricula: '',
   data_captacao: null,
   data_fim_autorizacao: null,
   possui_exclusividade: false,
   comissao_percentual: null,
-  // NOVO CAMPO
   informacoes_adicionais_autorizacao: '',
 });
 
+const imovel = ref(createEmptyImovel());
 const isLoadingData = ref(false);
 const isSubmitting = ref(false);
 
@@ -387,36 +361,34 @@ async function fetchClientes() {
         clientes.value = response.data;
     } catch (error) {
         console.error("Erro ao buscar clientes:", error);
-        alert("Não foi possível carregar a lista de proprietários.");
     }
 }
 
 async function fetchImovelData() {
-  if (isEditing.value) {
+  if (imovelId.value) {
     isLoadingData.value = true;
     try {
       const response = await apiClient.get(`/v1/imoveis/imoveis/${imovelId.value}/`);
       imovel.value = response.data;
     } catch (error) {
       console.error("Erro ao buscar dados do imóvel:", error);
-      alert("Não foi possível carregar os dados do imóvel para edição.");
       router.push({ name: 'imoveis' });
     } finally {
       isLoadingData.value = false;
     }
+  } else {
+    imovel.value = createEmptyImovel();
   }
 }
 
 async function gerarContratoPDF() {
-    if (!imovelId.value) return;
+    if (!imovel.value.id) return;
     if (!imovel.value.proprietario || !imovel.value.data_captacao || !imovel.value.data_fim_autorizacao) {
-        alert("Para gerar o contrato, por favor, preencha os campos: Proprietário, Data de Captação e Data de Fim da Autorização.");
+        alert("Para gerar o contrato, preencha os campos: Proprietário, Data de Captação e Data de Fim da Autorização.");
         return;
     }
     try {
-        const response = await apiClient.get(`/v1/imoveis/imoveis/${imovelId.value}/gerar-autorizacao-pdf/`, {
-            responseType: 'blob',
-        });
+        const response = await apiClient.get(`/v1/imoveis/imoveis/${imovel.value.id}/gerar-autorizacao-pdf/`, { responseType: 'blob' });
         const url = window.URL.createObjectURL(new Blob([response.data]));
         const link = document.createElement('a');
         link.href = url;
@@ -424,8 +396,7 @@ async function gerarContratoPDF() {
         let fileName = `autorizacao_imovel_${imovel.value.codigo_referencia}.pdf`;
         if (contentDisposition) {
             const fileNameMatch = contentDisposition.match(/filename="(.+)"/);
-            if (fileNameMatch && fileNameMatch.length === 2)
-                fileName = fileNameMatch[1];
+            if (fileNameMatch && fileNameMatch.length === 2) fileName = fileNameMatch[1];
         }
         link.setAttribute('download', fileName);
         document.body.appendChild(link);
@@ -434,32 +405,26 @@ async function gerarContratoPDF() {
         window.URL.revokeObjectURL(url);
     } catch (error: any) {
         console.error("Erro ao gerar PDF:", error);
-        if (error.response && error.response.data) {
-            const reader = new FileReader();
-            reader.onload = () => {
-                alert(`Erro ao gerar PDF: ${reader.result}`);
-            };
-            reader.readAsText(error.response.data);
-        } else {
-            alert("Ocorreu um erro desconhecido ao gerar o PDF.");
-        }
     }
 }
 
+watch(imovelId, () => {
+  fetchImovelData();
+}, { immediate: true }); 
 
 onMounted(() => {
-  fetchImovelData();
   fetchClientes();
 });
 
 async function saveImovel() {
   isSubmitting.value = true;
   const payload = { ...imovel.value };
-  for (const key in payload) {
-    if (payload[key as keyof typeof payload] === null) {
-      delete payload[key as keyof typeof payload];
-    }
-  }
+  
+  delete payload.id;
+  Object.keys(payload).forEach(key => {
+    if (payload[key] === null) delete payload[key];
+  });
+
   try {
     if (isEditing.value) {
       return await apiClient.put(`/v1/imoveis/imoveis/${imovelId.value}/`, payload);
@@ -468,7 +433,7 @@ async function saveImovel() {
     }
   } catch (error: any) {
     console.error("Erro ao guardar o imóvel:", error.response?.data || error);
-    alert('Ocorreu um erro ao guardar o imóvel. Verifique os dados.');
+    alert('Ocorreu um erro ao guardar o imóvel.');
     return null;
   } finally {
     isSubmitting.value = false;
@@ -482,16 +447,26 @@ async function handleSaveAndExit() {
   }
 }
 
+// ######## CORREÇÃO DEFINITIVA ESTÁ AQUI ########
 async function handleSaveAndContinue() {
   const response = await saveImovel();
-  if (response) {
-    if (!isEditing.value) {
-      const newId = response.data.id;
-      router.push({ name: 'imovel-editar', params: { id: newId } });
+  if (response && response.data) {
+    const wasCreating = !isEditing.value;
+    
+    // Se estava a CRIAR um novo imóvel...
+    if (wasCreating && response.data.id) {
+      // 1. AWAIT: Pausa a execução aqui até que a navegação seja concluída.
+      // Isto garante que o 'watch' na rota tenha tempo de disparar e buscar os novos dados.
+      await router.push({ name: 'imovel-editar', params: { id: response.data.id } });
     } else {
+      // Se já estava a EDITAR, apenas damos um feedback e buscamos os dados mais recentes.
       alert('Imóvel guardado com sucesso!');
-      fetchImovelData();
+      await fetchImovelData();
     }
+    
+    // 2. Agora que temos a certeza de que o componente foi atualizado com o ID correto,
+    // é seguro mudar para a aba de imagens.
+    activeTab.value = 'imagens';
   }
 }
 
@@ -521,6 +496,10 @@ function handleCancel() {
   color: #6c757d;
   border-bottom: 2px solid transparent;
   margin-bottom: -2px;
+}
+.tabs button:disabled {
+  color: #ccc;
+  cursor: not-allowed;
 }
 .tabs button.active {
   color: #007bff;
@@ -572,4 +551,31 @@ input, select, textarea { padding: 10px; border: 1px solid #ccc; border-radius: 
   border: 1px solid #17a2b8;
 }
 .loading-message { text-align: center; padding: 2rem; }
+.info-message {
+  background-color: #e9f5ff;
+  border: 1px solid #b3d7f7;
+  color: #0d6efd;
+  padding: 1rem;
+  border-radius: 4px;
+  text-align: center;
+  width: 100%;
+}
+.card {
+  background-color: #fff;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  overflow: hidden;
+  width: 100%;
+}
+
+.card-header {
+  background-color: #f7f7f7;
+  padding: 1rem 1.5rem;
+  font-weight: bold;
+  border-bottom: 1px solid #e0e0e0;
+}
+
+.card-body {
+  padding: 1.5rem;
+}
 </style>
