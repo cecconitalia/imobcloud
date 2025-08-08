@@ -35,10 +35,8 @@ class ImovelViewSet(viewsets.ModelViewSet):
     search_fields = ['endereco', 'cidade', 'titulo_anuncio', 'codigo_referencia']
 
     def get_queryset(self):
-        base_queryset = Imovel.objects.exclude(status='DESATIVADO')
-
-        if not self.request.user.is_authenticated or not self.request.tenant:
-            base_queryset = base_queryset.filter(publicado_no_site=True)
+        # INÍCIO DA CORREÇÃO
+        base_queryset = Imovel.objects.all()
 
         finalidade = self.request.query_params.get('finalidade', None)
         tipo = self.request.query_params.get('tipo', None)
@@ -47,6 +45,19 @@ class ImovelViewSet(viewsets.ModelViewSet):
         valor_max = self.request.query_params.get('valor_max', None)
         quartos_min = self.request.query_params.get('quartos_min', None)
         vagas_min = self.request.query_params.get('vagas_min', None)
+        status_param = self.request.query_params.get('status', None)
+
+        # A exclusão de imóveis desativados deve ser o comportamento padrão apenas
+        # na listagem, a menos que um status específico seja filtrado.
+        if self.action == 'list':
+            if not status_param:
+                base_queryset = base_queryset.exclude(status='DESATIVADO')
+            else:
+                base_queryset = base_queryset.filter(status=status_param)
+        # FIM DA CORREÇÃO
+        
+        if not self.request.user.is_authenticated or not self.request.tenant:
+            base_queryset = base_queryset.filter(publicado_no_site=True)
 
         if finalidade:
             base_queryset = base_queryset.filter(finalidade=finalidade)
@@ -55,6 +66,7 @@ class ImovelViewSet(viewsets.ModelViewSet):
         if cidade:
             base_queryset = base_queryset.filter(cidade__icontains=cidade)
         if valor_min:
+        # Filtra por 'valor_venda'
             base_queryset = base_queryset.filter(valor_venda__gte=valor_min)
         if valor_max:
             base_queryset = base_queryset.filter(valor_venda__lte=valor_max)
@@ -62,7 +74,7 @@ class ImovelViewSet(viewsets.ModelViewSet):
             base_queryset = base_queryset.filter(quartos__gte=quartos_min)
         if vagas_min:
             base_queryset = base_queryset.filter(vagas_garagem__gte=vagas_min)
-
+        
         if self.request.user.is_authenticated:
             if self.request.user.is_superuser:
                 return base_queryset.all()
