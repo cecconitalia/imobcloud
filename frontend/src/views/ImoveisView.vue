@@ -12,9 +12,8 @@
         type="text"
         v-model="searchTerm"
         placeholder="Pesquisar por endereço, cidade..."
-        @input="fetchImoveis"
       />
-      <select v-model="filterStatus" @change="fetchImoveis">
+      <select v-model="filterStatus">
         <option value="">Todos os Status</option>
         <option value="A_VENDA">À Venda</option>
         <option value="PARA_ALUGAR">Para Alugar</option>
@@ -67,7 +66,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, computed } from 'vue';
+import { ref, onMounted, computed, watch } from 'vue';
 import apiClient from '@/services/api';
 // É necessário instalar o Font Awesome para os ícones
 // npm install --save-dev @fortawesome/fontawesome-free
@@ -79,6 +78,8 @@ const error = ref<string | null>(null);
 const searchTerm = ref('');
 const filterStatus = ref('');
 const userIsAdmin = computed(() => localStorage.getItem('userCargo') === 'ADMIN');
+
+let debounceTimeout: number | undefined = undefined;
 
 async function fetchImoveis() {
   isLoading.value = true;
@@ -144,6 +145,20 @@ async function handleInativar(imovelId: number) {
 
 onMounted(() => {
   fetchImoveis();
+});
+
+// Watchers para monitorar as mudanças nos filtros e chamar a API
+watch(filterStatus, () => {
+    fetchImoveis();
+});
+
+watch(searchTerm, () => {
+  if (debounceTimeout) {
+    clearTimeout(debounceTimeout);
+  }
+  debounceTimeout = setTimeout(() => {
+    fetchImoveis();
+  }, 500); // Espera 500ms para o usuário parar de digitar
 });
 </script>
 
