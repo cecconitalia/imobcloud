@@ -4,27 +4,29 @@ from django.db import models
 from core.models import Imobiliaria
 from django.conf import settings
 from django.utils import timezone
+from core.models import Imobiliaria, ImobiliariaManager # <--- IMPORTE O MANAGER
+
 
 # ====================================================================
 # NOVO MODELO PARA AS ETAPAS DINÂMICAS DO FUNIL
 # ====================================================================
 class EtapaFunil(models.Model):
-    """
-    Representa uma etapa personalizável no funil de vendas de uma imobiliária.
-    """
-    imobiliaria = models.ForeignKey(Imobiliaria, on_delete=models.CASCADE, related_name="etapas_funil", verbose_name="Imobiliária")
-    nome = models.CharField(max_length=100, verbose_name="Nome da Etapa")
-    ordem = models.PositiveIntegerField(default=0, verbose_name="Ordem de Exibição")
+    imobiliaria = models.ForeignKey(Imobiliaria, on_delete=models.CASCADE)
+    nome = models.CharField(max_length=50)
+    
+    # --- CAMPO NOVO ADICIONADO ---
+    # Guarda a posição da etapa no funil (ex: 1 para Lead, 2 para Contato, etc.)
+    ordem = models.PositiveIntegerField(default=0)
+    # ---------------------------
+
+    objects = ImobiliariaManager()
 
     class Meta:
+        unique_together = ('imobiliaria', 'nome')
         verbose_name = "Etapa do Funil"
         verbose_name_plural = "Etapas do Funil"
-        # Garante que a ordem seja única para cada imobiliária
-        ordering = ['imobiliaria', 'ordem']
-        unique_together = ('imobiliaria', 'nome')
-
-    def __str__(self):
-        return f"{self.nome} ({self.imobiliaria.nome})"
+        # Adiciona a ordenação padrão pelo novo campo
+        ordering = ['ordem']
 
 
 class Cliente(models.Model):
