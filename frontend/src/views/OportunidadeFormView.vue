@@ -53,10 +53,7 @@
         <label for="probabilidade">Probabilidade de Fechamento (%)</label>
         <input type="number" id="probabilidade" v-model="oportunidade.probabilidade" min="0" max="100" />
       </div>
-      <div class="form-group">
-        <label for="data_proximo_contato">Data do Próximo Contato</label>
-        <input type="date" id="data_proximo_contato" v-model="oportunidade.data_proximo_contato" />
-      </div>
+
 
       <div class="form-group">
         <label for="responsavel">Corretor Responsável</label>

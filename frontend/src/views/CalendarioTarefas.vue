@@ -1,6 +1,7 @@
 <template>
   <div class="calendar-container">
     <FullCalendar :options="calendarOptions" />
+    
     <TarefaModal
       v-if="modal.visible"
       :tarefa="modal.tarefa"
@@ -20,15 +21,13 @@ import dayGridPlugin from '@fullcalendar/daygrid';
 import timeGridPlugin from '@fullcalendar/timegrid';
 import interactionPlugin from '@fullcalendar/interaction';
 import TarefaModal from '@/components/TarefaModal.vue';
-import ptBrLocale from '@fullcalendar/core/locales/pt-br';
-import { format } from 'date-fns';
 
 interface Tarefa {
   id: number;
   descricao: string;
   data_conclusao: string;
   concluida: boolean;
-  oportunidade: number | null;
+  oportunidade: number | null; // CORREÇÃO: Adicionando o ID da oportunidade
   oportunidade_titulo: string;
   cliente_nome: string;
   responsavel_nome: string;
@@ -50,7 +49,7 @@ const calendarOptions = ref({
     center: 'title',
     right: 'dayGridMonth,timeGridWeek,timeGridDay'
   },
-  locale: ptBrLocale,
+  locale: 'pt-br',
   editable: true,
   selectable: true,
   select: handleDateSelect,
@@ -64,14 +63,13 @@ const calendarOptions = ref({
       });
       successCallback(response.data.map((tarefa: Tarefa) => ({
         id: tarefa.id,
-        // LINHA AJUSTADA: Mostra o nome do cliente ou a descrição
-        title: tarefa.cliente_nome || tarefa.descricao,
+        title: tarefa.oportunidade_titulo || tarefa.descricao,
         start: tarefa.data_conclusao,
         extendedProps: {
             status: tarefa.status_display,
             descricao: tarefa.descricao,
             responsavelNome: tarefa.responsavel_nome,
-            oportunidadeId: tarefa.oportunidade
+            oportunidadeId: tarefa.oportunidade // CORREÇÃO: Passando o ID da oportunidade
         },
         backgroundColor: getTaskColor(tarefa.status_display),
         borderColor: getTaskColor(tarefa.status_display),
