@@ -7,11 +7,11 @@
       </div>
 
       <div v-if="tarefaLocal.oportunidade_titulo" class="info-section">
-          <h4>Oportunidade: {{ tarefaLocal.oportunidade_titulo }}</h4>
-          <p v-if="tarefaLocal.cliente_nome">Cliente: {{ tarefaLocal.cliente_nome }}</p>
-          <p v-if="tarefaLocal.imovel_endereco">Imóvel: {{ tarefaLocal.imovel_endereco }}</p>
+        <h4>Oportunidade: {{ tarefaLocal.oportunidade_titulo }}</h4>
+        <p v-if="tarefaLocal.cliente_nome">Cliente: {{ tarefaLocal.cliente_nome }}</p>
+        <p v-if="tarefaLocal.imovel_endereco">Imóvel: {{ tarefaLocal.imovel_endereco }}</p>
       </div>
-      
+
       <form @submit.prevent="handleSubmit">
 
         <div class="form-group" v-if="!isEditing">
@@ -34,10 +34,10 @@
 
         <div class="form-group" v-if="!isEditing && clienteSelecionado">
           <label for="oportunidade-select">Oportunidade (Opcional)</label>
-          <v-select 
-            id="oportunidade-select" 
-            label="titulo" 
-            :options="oportunidadesFiltradas" 
+          <v-select
+            id="oportunidade-select"
+            label="titulo"
+            :options="oportunidadesFiltradas"
             v-model="oportunidadeSelecionada"
             placeholder="Selecione a oportunidade..."
           >
@@ -49,7 +49,7 @@
             </template>
           </v-select>
         </div>
-        
+
         <div class="form-group">
           <label for="descricao">Descrição</label>
           <textarea id="descricao" v-model="tarefaLocal.descricao" required></textarea>
@@ -180,12 +180,14 @@ async function handleSubmit() {
         if (tarefaLocal.value.oportunidade) {
             await apiClient.patch(`/v1/clientes/oportunidades/${tarefaLocal.value.oportunidade}/tarefas/${tarefaLocal.value.id}/`, payload);
         } else {
+            // CORREÇÃO: O URL deve incluir 'clientes/'
             await apiClient.patch(`/v1/clientes/tarefas/${tarefaLocal.value.id}/`, payload);
         }
     } else {
         if (tarefaLocal.value.oportunidade) {
             await apiClient.post(`/v1/clientes/oportunidades/${tarefaLocal.value.oportunidade}/tarefas/`, payload);
         } else {
+            // CORREÇÃO: O URL deve incluir 'clientes/'
             await apiClient.post(`/v1/clientes/tarefas/`, payload);
         }
     }
@@ -208,6 +210,7 @@ async function handleConcluir() {
     if (tarefaLocal.value.oportunidade) {
         await apiClient.patch(`/v1/clientes/oportunidades/${tarefaLocal.value.oportunidade}/tarefas/${tarefaLocal.value.id}/`, payload);
     } else {
+        // CORREÇÃO: O URL deve incluir 'clientes/'
         await apiClient.patch(`/v1/clientes/tarefas/${tarefaLocal.value.id}/`, payload);
     }
     emit('saved');
@@ -228,6 +231,7 @@ async function handleDelete() {
     if (tarefaLocal.value.oportunidade) {
         await apiClient.delete(`/v1/clientes/oportunidades/${tarefaLocal.value.oportunidade}/tarefas/${tarefaLocal.value.id}/`);
     } else {
+        // CORREÇÃO: O URL deve incluir 'clientes/'
         await apiClient.delete(`/v1/clientes/tarefas/${tarefaLocal.value.id}/`);
     }
     emit('saved');

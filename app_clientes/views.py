@@ -11,7 +11,6 @@ from django.utils import timezone
 from django.db.models.functions import TruncMonth
 from django.shortcuts import get_object_or_404
 from django.utils.dateparse import parse_date
-# ADICIONADO: Importações para as novas views e funcionalidades
 from django.contrib.auth import get_user_model
 from rest_framework.views import APIView
 from django.http import HttpResponse, HttpResponseRedirect
@@ -349,34 +348,25 @@ class OportunidadeViewSet(viewsets.ModelViewSet):
 
 class TarefaViewSet(viewsets.ModelViewSet):
     serializer_class = TarefaSerializer
-    permission_classes = [permissions.IsAuthenticated]
 
     def get_queryset(self):
-        # CORREÇÃO: Lógica para lidar com URLs aninhadas e não-aninhadas
-        queryset = Tarefa.objects.all()
-        if 'oportunidade_pk' in self.kwargs:
-            oportunidade_id = self.kwargs['oportunidade_pk']
-            queryset = queryset.filter(oportunidade_id=oportunidade_id)
+        user = self.request.user
+        tenant = self.request.tenant
 
-        if self.request.user.is_superuser:
-            return queryset
-        if self.request.tenant:
-            # CORREÇÃO: Filtro por imobiliária na oportunidade relacionada
-            queryset = queryset.filter(oportunidade__imobiliaria=self.request.tenant)
-            
-        start_date_str = self.request.query_params.get('start', None)
-        end_date_str = self.request.query_params.get('end', None)
-        if start_date_str and end_date_str:
-            start_date = parse_date(start_date_str)
-            end_date = parse_date(end_date_str)
-            if start_date and end_date:
-                queryset = queryset.filter(data_conclusao__date__gte=start_date, data_conclusao__date__lte=end_date)
+        if user.is_superuser:
+            return Tarefa.objects.all()
+
+        # CORREÇÃO: Filtrar as tarefas através do perfil do responsável.
+        # O modelo Tarefa não tem um campo 'tenant' direto.
+        queryset = Tarefa.objects.filter(responsavel__perfil__imobiliaria=tenant)
+
+        oportunidade_id = self.kwargs.get('oportunidade_oportunidade_pk')
+        if oportunidade_id:
+            queryset = queryset.filter(oportunidade__id=oportunidade_id)
         
         return queryset
 
     def perform_create(self, serializer):
-        # CORREÇÃO: Lógica para criar tarefa com ou sem oportunidade
-        # O campo responsavel agora é tratado como o usuário logado
         if 'oportunidade_pk' in self.kwargs:
             oportunidade = get_object_or_404(Oportunidade, pk=self.kwargs['oportunidade_pk'])
             if not (self.request.user.is_superuser or (hasattr(self.request.user, 'perfil') and oportunidade.imobiliaria == self.request.tenant)):
@@ -385,7 +375,6 @@ class TarefaViewSet(viewsets.ModelViewSet):
         else:
             if not self.request.tenant:
                 raise PermissionDenied("Não foi possível associar a tarefa a uma imobiliária.")
-            # A imobiliária e o responsável são definidos aqui para tarefas não aninhadas
             tarefa = serializer.save(responsavel=self.request.user)
 
 

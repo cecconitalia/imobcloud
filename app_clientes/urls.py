@@ -20,6 +20,7 @@ router.register(r'clientes', ClienteViewSet)
 router.register(r'visitas', VisitaViewSet)
 router.register(r'atividades', AtividadeViewSet)
 router.register(r'oportunidades', OportunidadeViewSet)
+router.register(r'tarefas', TarefaViewSet, basename='tarefa') # Rota para tarefas de nível superior, com basename
 
 # Roteador aninhado para tarefas de oportunidades
 oportunidades_router = routers.NestedSimpleRouter(router, r'oportunidades', lookup='oportunidade')
@@ -29,26 +30,10 @@ oportunidades_router.register(r'tarefas', TarefaViewSet, basename='oportunidade-
 router_minhas_tarefas = DefaultRouter()
 router_minhas_tarefas.register(r'minhas-tarefas', MinhasTarefasView, basename='minhas-tarefas')
 
-# O TarefaViewSet de nível superior precisa ser configurado manualmente
-tarefas_list = TarefaViewSet.as_view({
-    'get': 'list',
-    'post': 'create'
-})
-tarefas_detail = TarefaViewSet.as_view({
-    'get': 'retrieve',
-    'put': 'update',
-    'patch': 'partial_update',
-    'delete': 'destroy'
-})
-
 urlpatterns = [
     path('', include(router.urls)),
     path('', include(oportunidades_router.urls)),
     path('', include(router_minhas_tarefas.urls)),
-    
-    # CORREÇÃO: Rotas explícitas para tarefas de nível superior
-    path('tarefas/', tarefas_list, name='tarefa-list'),
-    path('tarefas/<int:pk>/', tarefas_detail, name='tarefa-detail'),
     
     path('google-calendar-auth/', GoogleCalendarAuthView.as_view(), name='google-calendar-auth'),
     path('google-calendar-auth/callback/', GoogleCalendarAuthCallbackView.as_view(), name='google-calendar-auth-callback'),
