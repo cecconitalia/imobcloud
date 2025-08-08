@@ -1,8 +1,6 @@
 # C:\wamp64\www\ImobCloud\app_clientes\models.py
 from django.db import models
 from core.models import Imobiliaria
-# A importação direta do Imovel foi removida para evitar o erro de importação circular
-# from app_imoveis.models import Imovel 
 from django.conf import settings
 from django.utils import timezone
 
@@ -30,7 +28,6 @@ class Cliente(models.Model):
 
 class Visita(models.Model):
     imobiliaria = models.ForeignKey(Imobiliaria, on_delete=models.CASCADE, verbose_name="Imobiliária")
-    # ATUALIZADO: Usando string para a ForeignKey para evitar importação circular
     imovel = models.ForeignKey('app_imoveis.Imovel', on_delete=models.CASCADE, verbose_name="Imóvel") 
     cliente = models.ForeignKey(Cliente, on_delete=models.CASCADE, verbose_name="Cliente")
     data_hora = models.DateTimeField(verbose_name="Data e Hora da Visita")
@@ -106,7 +103,7 @@ class Oportunidade(models.Model):
 
     titulo = models.CharField(max_length=255, verbose_name="Título da Oportunidade")
     cliente = models.ForeignKey(Cliente, on_delete=models.CASCADE, related_name="oportunidades", verbose_name="Cliente")
-    # ATUALIZADO: Usando string para a ForeignKey para evitar importação circular
+    # CORREÇÃO: Usando string para a ForeignKey para evitar importação circular
     imovel = models.ForeignKey('app_imoveis.Imovel', on_delete=models.SET_NULL, null=True, blank=True, related_name="oportunidades", verbose_name="Imóvel de Interesse") 
     responsavel = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name="oportunidades", verbose_name="Corretor Responsável")
     imobiliaria = models.ForeignKey(Imobiliaria, on_delete=models.CASCADE, verbose_name="Imobiliária")
@@ -133,7 +130,14 @@ class Oportunidade(models.Model):
 
 # NOVO MODELO: Tarefa
 class Tarefa(models.Model):
-    oportunidade = models.ForeignKey(Oportunidade, on_delete=models.CASCADE, related_name="tarefas", verbose_name="Oportunidade")
+    oportunidade = models.ForeignKey(
+        'app_clientes.Oportunidade', 
+        on_delete=models.CASCADE, 
+        related_name="tarefas", 
+        verbose_name="Oportunidade", 
+        null=True, 
+        blank=True
+    )
     descricao = models.TextField(verbose_name="Descrição da Tarefa")
     data_criacao = models.DateTimeField(auto_now_add=True, verbose_name="Data de Criação")
     data_conclusao = models.DateField(null=True, blank=True, verbose_name="Data de Conclusão")

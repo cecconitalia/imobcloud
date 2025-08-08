@@ -24,7 +24,6 @@ class ResponsavelSimplificadoSerializer(serializers.ModelSerializer):
         model = User
         fields = ['id', 'first_name', 'username']
 
-# CORREÇÃO PRINCIPAL: A view de Oportunidade foi reescrita
 class OportunidadeSerializer(serializers.ModelSerializer):
     # Usando os serializadores simplificados para representar as relações
     cliente = ClienteSimplificadoSerializer(read_only=True)
@@ -63,9 +62,29 @@ class AtividadeSerializer(serializers.ModelSerializer):
         fields = '__all__'
 
 class TarefaSerializer(serializers.ModelSerializer):
+    # CORREÇÃO: Campos de modelos relacionados
+    oportunidade_titulo = serializers.ReadOnlyField(source='oportunidade.titulo')
+    cliente_nome = serializers.ReadOnlyField(source='oportunidade.cliente.nome_completo')
+    responsavel_nome = serializers.ReadOnlyField(source='responsavel.first_name')
+    status_display = serializers.SerializerMethodField()
+
     class Meta:
         model = Tarefa
-        fields = '__all__'
+        # CORREÇÃO: Lista completa de campos explícitos para evitar o erro
+        fields = [
+            'id', 'descricao', 'data_criacao', 'data_conclusao', 'concluida', 
+            'oportunidade', 'oportunidade_id', 'responsavel', 'responsavel_id',
+            'oportunidade_titulo', 'cliente_nome', 'responsavel_nome', 'status_display'
+        ]
+        # CORREÇÃO: Adicionada a meta para tornar o campo 'oportunidade' não obrigatório no serializer
+        extra_kwargs = {
+            'oportunidade': {'required': False, 'allow_null': True}
+        }
+
+    def get_status_display(self, obj):
+        if obj.concluida:
+            return 'Concluída'
+        return 'Pendente'
 
 class ClienteSerializer(serializers.ModelSerializer):
     visitas = VisitaSerializer(many=True, read_only=True)
@@ -76,3 +95,32 @@ class ClienteSerializer(serializers.ModelSerializer):
     class Meta:
         model = Cliente
         fields = '__all__'
+
+# Serializers para Relatórios
+class FunilVendasSerializer(serializers.Serializer):
+    status = serializers.CharField(source='get_status_display')
+    total = serializers.IntegerField()
+
+class RelatorioOrigemSerializer(serializers.Serializer):
+    origem = serializers.CharField(source='get_origem_display')
+    total = serializers.IntegerField()
+
+class RelatorioCorretorSerializer(serializers.ModelSerializer):
+    nome_corretor = serializers.ReadOnlyField(source='user.first_name')
+    oportunidades_abertas = serializers.IntegerField()
+    oportunidades_ganhas = serializers.IntegerField()
+    oportunidades_perdidas = serializers.IntegerField()
+
+    class Meta:
+        model = PerfilUsuario
+        fields = ('id', 'nome_corretor', 'oportunidades_abertas', 'oportunidades_ganhas', 'oportunidades_perdidas')
+
+class RelatorioImobiliariaSerializer(serializers.Serializer):
+    sumario_mes_atual = serializers.DictField(
+        child=serializers.IntegerField()
+    )
+    oportunidades_por_mes = serializers.ListField(
+        child=serializers.DictField(
+            child=serializers.IntegerField()
+        )
+    )

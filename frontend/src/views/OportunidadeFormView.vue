@@ -88,7 +88,7 @@
     <OportunidadeTransferir
       v-if="isEditing"
       :oportunidade-id="oportunidadeId"
-      :corretor-responsavel-id="oportunidade.responsavel ? oportunidade.responsavel.id : null"
+      :corretor-responsavel-id="oportunidade.responsavel"
       @transferido="handleTransferenciaConcluida"
     />
 
@@ -126,7 +126,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, computed } from 'vue';
+import { ref, onMounted, computed, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import apiClient from '@/services/api';
 import OportunidadeTransferir from '@/components/OportunidadeTransferir.vue';
@@ -159,7 +159,6 @@ const isLoadingData = ref(true);
 const isLoadingTarefas = ref(false);
 const isSubmitting = ref(false);
 
-// NOVO: Estado para o modal de tarefas
 const tarefaModal = ref({
   visible: false,
   tarefa: null as any,
@@ -187,7 +186,6 @@ async function fetchData() {
         responsavel: oportunidadeResponse.data.responsavel.id,
       };
     }
-
   } catch (error) {
     console.error("Erro ao carregar dados:", error);
     alert('Não foi possível carregar os dados necessários.');
@@ -198,7 +196,7 @@ async function fetchData() {
 
 async function handleTarefaSalva() {
   closeTarefaModal();
-  await fetchData(); // Recarrega os dados para atualizar a lista de tarefas
+  await fetchData();
 }
 
 function showTarefaModal(tarefa = null) {
@@ -241,7 +239,6 @@ function formatarData(data: string) {
 async function handleSubmit() {
   isSubmitting.value = true;
   try {
-    // Cria um objeto de dados limpo para o payload da API
     const payload = {
       titulo: oportunidade.value.titulo,
       valor_estimado: oportunidade.value.valor_estimado,
