@@ -1,8 +1,31 @@
 # C:\wamp64\www\ImobCloud\app_clientes\models.py
+
 from django.db import models
 from core.models import Imobiliaria
 from django.conf import settings
 from django.utils import timezone
+
+# ====================================================================
+# NOVO MODELO PARA AS ETAPAS DINÂMICAS DO FUNIL
+# ====================================================================
+class EtapaFunil(models.Model):
+    """
+    Representa uma etapa personalizável no funil de vendas de uma imobiliária.
+    """
+    imobiliaria = models.ForeignKey(Imobiliaria, on_delete=models.CASCADE, related_name="etapas_funil", verbose_name="Imobiliária")
+    nome = models.CharField(max_length=100, verbose_name="Nome da Etapa")
+    ordem = models.PositiveIntegerField(default=0, verbose_name="Ordem de Exibição")
+
+    class Meta:
+        verbose_name = "Etapa do Funil"
+        verbose_name_plural = "Etapas do Funil"
+        # Garante que a ordem seja única para cada imobiliária
+        ordering = ['imobiliaria', 'ordem']
+        unique_together = ('imobiliaria', 'nome')
+
+    def __str__(self):
+        return f"{self.nome} ({self.imobiliaria.nome})"
+
 
 class Cliente(models.Model):
     imobiliaria = models.ForeignKey(Imobiliaria, on_delete=models.CASCADE, verbose_name="Imobiliária")
@@ -38,7 +61,7 @@ class Visita(models.Model):
     class Meta:
         verbose_name = "Visita"
         verbose_name_plural = "Visitas"
-        ordering = ['data_hora']
+        ordering = ['-data_hora']
 
     def __str__(self):
         return f"Visita de {self.cliente.nome_completo} a {self.imovel.endereco} em {self.data_hora.strftime('%d/%m/%Y %H:%M')}"
@@ -78,21 +101,12 @@ class Atividade(models.Model):
         return f"{self.tipo} para {self.cliente.nome_completo} em {self.data_criacao.strftime('%d/%m/%Y')}"
 
 
-# NOVO MODELO PARA O FUNIL DE VENDAS
+# MODELO OPORTUNIDADE ATUALIZADO
 class Oportunidade(models.Model):
     """
     Representa uma oportunidade de negócio no funil de vendas.
+    Agora vinculado a uma etapa dinâmica.
     """
-    FASE_FUNIL_CHOICES = [
-        ('LEAD', 'Novo Lead'),
-        ('CONTATO', 'Primeiro Contato'),
-        ('VISITA', 'Visita Agendada'),
-        ('PROPOSTA', 'Proposta Enviada'),
-        ('NEGOCIACAO', 'Em Negociação'),
-        ('GANHO', 'Negócio Ganho'),
-        ('PERDIDO', 'Negócio Perdido'),
-    ]
-    
     FONTE_CHOICES = [
         ('SITE', 'Site'),
         ('INDICACAO', 'Indicação'),
@@ -103,12 +117,15 @@ class Oportunidade(models.Model):
 
     titulo = models.CharField(max_length=255, verbose_name="Título da Oportunidade")
     cliente = models.ForeignKey(Cliente, on_delete=models.CASCADE, related_name="oportunidades", verbose_name="Cliente")
-    # CORREÇÃO: Usando string para a ForeignKey para evitar importação circular
     imovel = models.ForeignKey('app_imoveis.Imovel', on_delete=models.SET_NULL, null=True, blank=True, related_name="oportunidades", verbose_name="Imóvel de Interesse") 
     responsavel = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name="oportunidades", verbose_name="Corretor Responsável")
     imobiliaria = models.ForeignKey(Imobiliaria, on_delete=models.CASCADE, verbose_name="Imobiliária")
 
-    fase = models.CharField(max_length=20, choices=FASE_FUNIL_CHOICES, default='LEAD', verbose_name="Fase do Funil")
+    # --- CAMPO 'FASE' ATUALIZADO ---
+    # Agora é uma chave estrangeira para a etapa personalizável.
+    # on_delete=models.PROTECT impede que uma etapa seja excluída se houver oportunidades nela.
+    fase = models.ForeignKey(EtapaFunil, on_delete=models.PROTECT, null=True, blank=True, verbose_name="Fase do Funil")
+    
     valor_estimado = models.DecimalField(max_digits=15, decimal_places=2, null=True, blank=True, verbose_name="Valor Estimado do Negócio")
     
     data_criacao = models.DateTimeField(auto_now_add=True)
@@ -128,7 +145,6 @@ class Oportunidade(models.Model):
         return self.titulo
 
 
-# NOVO MODELO: Tarefa
 class Tarefa(models.Model):
     oportunidade = models.ForeignKey(
         'app_clientes.Oportunidade', 
@@ -147,7 +163,7 @@ class Tarefa(models.Model):
     class Meta:
         verbose_name = "Tarefa"
         verbose_name_plural = "Tarefas"
-        ordering = ['data_conclusao']
+        ordering = ['-data_conclusao']
 
     def __str__(self):
         return f"Tarefa: {self.descricao[:50]}..."
