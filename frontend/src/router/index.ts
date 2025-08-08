@@ -35,308 +35,308 @@ import PublicImovelDetailView from '@/views/PublicImovelDetailView.vue'
 
 // Adicionar um tipo para a meta das rotas
 declare module 'vue-router' {
-    interface RouteMeta {
-        requiresAuth?: boolean;
-        isAdmin?: boolean;
-        title?: string;
-    }
+    interface RouteMeta {
+        requiresAuth?: boolean;
+        isAdmin?: boolean;
+        title?: string;
+    }
 }
 
 const router = createRouter({
-    history: createWebHistory(import.meta.env.BASE_URL),
-    routes: [
-        // --- ROTAS DO SITE PÚBLICO ---
-        {
-            path: '/site',
-            component: PublicLayout,
-            children: [
-                {
-                    path: '',
-                    name: 'public-home',
-                    component: PublicHomeView,
-                    meta: { title: 'Início' }
-                },
-                {
-                    path: 'imovel/:id',
-                    name: 'public-imovel-detail',
-                    component: PublicImovelDetailView,
-                    meta: { title: 'Detalhes do Imóvel' }
-                }
-            ]
-        },
+    history: createWebHistory(import.meta.env.BASE_URL),
+    routes: [
+        // --- ROTAS DO SITE PÚBLICO ---
+        {
+            path: '/site',
+            component: PublicLayout,
+            children: [
+                {
+                    path: '',
+                    name: 'public-home',
+                    component: PublicHomeView,
+                    meta: { title: 'Início' }
+                },
+                {
+                    path: 'imovel/:id',
+                    name: 'public-imovel-detail',
+                    component: PublicImovelDetailView,
+                    meta: { title: 'Detalhes do Imóvel' }
+                }
+            ]
+        },
 
-        // --- ROTAS DO PAINEL DE GESTÃO ---
-        {
-            path: '/login',
-            name: 'login',
-            component: LoginView,
-            meta: {
-                title: 'Login'
-            }
-        },
-        {
-            path: '/',
-            component: DashboardLayout,
-            meta: { requiresAuth: true },
-            children: [
-                {
-                    path: '',
-                    redirect: '/dashboard'
-                },
-                {
-                    path: 'dashboard',
-                    name: 'dashboard',
-                    component: DashboardView,
-                    meta: {
-                        title: 'Dashboard'
-                    }
-                },
-                {
-                    path: 'funil-vendas',
-                    name: 'funil-vendas',
-                    component: FunilVendasView,
-                    meta: {
-                        title: 'Funil de Vendas',
-                        requiresAuth: true
-                    }
-                },
-                {
-                    path: 'oportunidades/nova',
-                    name: 'oportunidade-nova',
-                    component: OportunidadeFormView,
-                    meta: {
-                        title: 'Nova Oportunidade',
-                        requiresAuth: true
-                    }
-                },
-                {
-                    path: 'oportunidades/editar/:id',
-                    name: 'oportunidade-editar',
-                    component: OportunidadeFormView,
-                    meta: {
-                        title: 'Editar Oportunidade',
-                        requiresAuth: true
-                    }
-                },
-                {
-                    path: 'imoveis',
-                    name: 'imoveis',
-                    component: ImoveisView,
-                    meta: {
-                        title: 'Gerir Imóveis'
-                    }
-                },
-                {
-                    path: 'imoveis/novo',
-                    name: 'imovel-novo',
-                    component: ImovelFormView,
-                    meta: {
-                        title: 'Adicionar Novo Imóvel',
-                        requiresAuth: true
-                    }
-                },
-                {
-                    path: 'imoveis/editar/:id',
-                    name: 'imovel-editar',
-                    component: ImovelFormView,
-                    meta: {
-                        title: 'Editar Imóvel',
-                        requiresAuth: true
-                    }
-                },
-                {
-                    path: 'imoveis/:id/imagens',
-                    name: 'imovel-imagens',
-                    component: ImovelImagensView,
-                    props: (route) => ({ imovelId: route.params.id }),
-                    meta: {
-                        title: 'Gerir Imagens do Imóvel',
-                        requiresAuth: true,
-                        isAdmin: true
-                    }
-                },
-                {
-                    path: 'clientes',
-                    name: 'clientes',
-                    component: ClientesView,
-                    meta: {
-                        title: 'Gerir Clientes'
-                    }
-                },
-                {
-                    path: 'clientes/novo',
-                    name: 'cliente-novo',
-                    component: ClienteFormView,
-                    meta: {
-                        title: 'Adicionar Novo Cliente',
-                        requiresAuth: true
-                    }
-                },
-                {
-                    path: 'clientes/editar/:id',
-                    name: 'cliente-editar',
-                    component: ClienteFormView,
-                    meta: {
-                        title: 'Editar Cliente',
-                        requiresAuth: true
-                    }
-                },
-                {
-                    path: 'contratos',
-                    name: 'contratos',
-                    component: ContratosView,
-                    meta: {
-                        title: 'Gerir Contratos'
-                    }
-                },
-                {
-                    path: 'contratos/novo',
-                    name: 'contrato-novo',
-                    component: ContratoFormView,
-                    meta: {
-                        title: 'Adicionar Novo Contrato',
-                        requiresAuth: true
-                    }
-                },
-                {
-                    path: 'contratos/editar/:id',
-                    name: 'contrato-editar',
-                    component: ContratoFormView,
-                    meta: {
-                        title: 'Editar Contrato',
-                        requiresAuth: true
-                    }
-                },
-                {
-                    path: 'visitas',
-                    name: 'visitas',
-                    component: VisitasView,
-                    meta: {
-                        title: 'Gerir Visitas'
-                    }
-                },
-                {
-                    path: 'visitas/nova',
-                    name: 'visita-nova',
-                    component: VisitaFormView,
-                    meta: {
-                        title: 'Agendar Nova Visita',
-                        requiresAuth: true
-                    }
-                },
-                {
-                    path: 'visitas/editar/:id',
-                    name: 'visita-editar',
-                    component: VisitaFormView,
-                    meta: {
-                        title: 'Editar Visita',
-                        requiresAuth: true
-                    }
-                },
-                {
-                    path: 'contatos',
-                    name: 'contatos',
-                    component: ContatosView,
-                    meta: {
-                        title: 'Gerir Contatos',
-                        requiresAuth: true,
-                        isAdmin: true
-                    }
-                },
-                {
-                    path: 'corretores',
-                    name: 'corretores',
-                    component: CorretoresView,
-                    meta: {
-                        title: 'Gerir Utilizadores',
-                        requiresAuth: true,
-                        isAdmin: true
-                    }
-                },
-                {
-                    path: 'corretores/novo',
-                    name: 'corretor-novo',
-                    component: CorretorRegistrationView,
-                    meta: {
-                        title: 'Registar Novo Utilizador',
-                        requiresAuth: true,
-                        isAdmin: true
-                    }
-                },
-                {
-                    path: 'corretores/editar/:id',
-                    name: 'corretor-editar',
-                    component: CorretorRegistrationView,
-                    meta: {
-                        title: 'Editar Utilizador',
-                        requiresAuth: true,
-                        isAdmin: true
-                    }
-                },
-                // ADICIONADO/ALTERADO: Rota para o novo calendário de tarefas dinâmico
-                {
-                    path: 'calendario',
-                    name: 'calendario',
-                    component: CalendarioTarefas, // Alterado para o novo componente
-                    meta: {
-                        title: 'Meu Calendário',
-                        requiresAuth: true
-                    }
-                },
-                // ROTA ADICIONADA
-                {
-                    path: 'relatorios',
-                    name: 'relatorios',
-                    component: RelatoriosView,
-                    meta: {
-                        title: 'Relatórios',
-                        requiresAuth: true,
-                        isAdmin: true
-                    }
-                },
-                // ROTA ADICIONADA
-                {
-                    path: 'autorizacoes',
-                    name: 'autorizacoes',
-                    component: AutorizacoesView,
-                    meta: {
-                        title: 'Gestão de Autorizações',
-                        requiresAuth: true,
-                        isAdmin: true
-                    }
-                },
-            ]
-        },
-        
-        // Rota de fallback
-        {
-            path: '/:pathMatch(.*)*',
-            redirect: '/login'
-        }
-    ]
+        // --- ROTAS DO PAINEL DE GESTÃO ---
+        {
+            path: '/login',
+            name: 'login',
+            component: LoginView,
+            meta: {
+                title: 'Login'
+            }
+        },
+        {
+            path: '/',
+            component: DashboardLayout,
+            meta: { requiresAuth: true },
+            children: [
+                {
+                    path: '',
+                    redirect: '/dashboard'
+                },
+                {
+                    path: 'dashboard',
+                    name: 'dashboard',
+                    component: DashboardView,
+                    meta: {
+                        title: 'Dashboard'
+                    }
+                },
+                {
+                    path: 'funil-vendas',
+                    name: 'funil-vendas',
+                    component: FunilVendasView,
+                    meta: {
+                        title: 'Funil de Vendas',
+                        requiresAuth: true
+                    }
+                },
+                {
+                    path: 'oportunidades/nova',
+                    name: 'oportunidade-nova',
+                    component: OportunidadeFormView,
+                    meta: {
+                        title: 'Nova Oportunidade',
+                        requiresAuth: true
+                    }
+                },
+                {
+                    path: 'oportunidades/editar/:id',
+                    name: 'oportunidade-editar',
+                    component: OportunidadeFormView,
+                    meta: {
+                        title: 'Editar Oportunidade',
+                        requiresAuth: true
+                    }
+                },
+                {
+                    path: 'imoveis',
+                    name: 'imoveis',
+                    component: ImoveisView,
+                    meta: {
+                        title: 'Gerir Imóveis'
+                    }
+                },
+                {
+                    path: 'imoveis/novo',
+                    name: 'imovel-novo',
+                    component: ImovelFormView,
+                    meta: {
+                        title: 'Adicionar Novo Imóvel',
+                        requiresAuth: true
+                    }
+                },
+                {
+                    path: 'imoveis/editar/:id',
+                    name: 'imovel-editar',
+                    component: ImovelFormView,
+                    meta: {
+                        title: 'Editar Imóvel',
+                        requiresAuth: true
+                    }
+                },
+                {
+                    path: 'imoveis/:id/imagens',
+                    name: 'imovel-imagens',
+                    component: ImovelImagensView,
+                    props: (route) => ({ imovelId: route.params.id }),
+                    meta: {
+                        title: 'Gerir Imagens do Imóvel',
+                        requiresAuth: true,
+                        isAdmin: true
+                    }
+                },
+                {
+                    path: 'clientes',
+                    name: 'clientes',
+                    component: ClientesView,
+                    meta: {
+                        title: 'Gerir Clientes'
+                    }
+                },
+                {
+                    path: 'clientes/novo',
+                    name: 'cliente-novo',
+                    component: ClienteFormView,
+                    meta: {
+                        title: 'Adicionar Novo Cliente',
+                        requiresAuth: true
+                    }
+                },
+                {
+                    path: 'clientes/editar/:id',
+                    name: 'cliente-editar',
+                    component: ClienteFormView,
+                    meta: {
+                        title: 'Editar Cliente',
+                        requiresAuth: true
+                    }
+                },
+                {
+                    path: 'contratos',
+                    name: 'contratos',
+                    component: ContratosView,
+                    meta: {
+                        title: 'Gerir Contratos'
+                    }
+                },
+                {
+                    path: 'contratos/novo',
+                    name: 'contrato-novo',
+                    component: ContratoFormView,
+                    meta: {
+                        title: 'Adicionar Novo Contrato',
+                        requiresAuth: true
+                    }
+                },
+                {
+                    path: 'contratos/editar/:id',
+                    name: 'contrato-editar',
+                    component: ContratoFormView,
+                    meta: {
+                        title: 'Editar Contrato',
+                        requiresAuth: true
+                    }
+                },
+                {
+                    path: 'visitas',
+                    name: 'visitas',
+                    component: VisitasView,
+                    meta: {
+                        title: 'Gerir Visitas'
+                    }
+                },
+                {
+                    path: 'visitas/nova',
+                    name: 'visita-nova',
+                    component: VisitaFormView,
+                    meta: {
+                        title: 'Agendar Nova Visita',
+                        requiresAuth: true
+                    }
+                },
+                {
+                    path: 'visitas/editar/:id',
+                    name: 'visita-editar',
+                    component: VisitaFormView,
+                    meta: {
+                        title: 'Editar Visita',
+                        requiresAuth: true
+                    }
+                },
+                {
+                    path: 'contatos',
+                    name: 'contatos',
+                    component: ContatosView,
+                    meta: {
+                        title: 'Gerir Contatos',
+                        requiresAuth: true,
+                        isAdmin: true
+                    }
+                },
+                {
+                    path: 'corretores',
+                    name: 'corretores',
+                    component: CorretoresView,
+                    meta: {
+                        title: 'Gerir Utilizadores',
+                        requiresAuth: true,
+                        isAdmin: true
+                    }
+                },
+                {
+                    path: 'corretores/novo',
+                    name: 'corretor-novo',
+                    component: CorretorRegistrationView,
+                    meta: {
+                        title: 'Registar Novo Utilizador',
+                        requiresAuth: true,
+                        isAdmin: true
+                    }
+                },
+                {
+                    path: 'corretores/editar/:id',
+                    name: 'corretor-editar',
+                    component: CorretorRegistrationView,
+                    meta: {
+                        title: 'Editar Utilizador',
+                        requiresAuth: true,
+                        isAdmin: true
+                    }
+                },
+                // ADICIONADO/ALTERADO: Rota para o novo calendário de tarefas dinâmico
+                {
+                    path: 'calendario',
+                    name: 'calendario',
+                    component: CalendarioTarefas, // Alterado para o novo componente
+                    meta: {
+                        title: 'Meu Calendário',
+                        requiresAuth: true
+                    }
+                },
+                // ROTA ADICIONADA
+                {
+                    path: 'relatorios',
+                    name: 'relatorios',
+                    component: RelatoriosView,
+                    meta: {
+                        title: 'Relatórios',
+                        requiresAuth: true,
+                        isAdmin: true
+                    }
+                },
+                // ROTA ADICIONADA
+                {
+                    path: 'autorizacoes',
+                    name: 'autorizacoes',
+                    component: AutorizacoesView,
+                    meta: {
+                        title: 'Gestão de Autorizações',
+                        requiresAuth: true,
+                        isAdmin: true
+                    }
+                },
+            ]
+        },
+        
+        // Rota de fallback
+        {
+            path: '/:pathMatch(.*)*',
+            redirect: '/login'
+        }
+    ]
 })
 
 router.beforeEach((to, from, next) => {
-    document.title = `${to.meta.title || 'ImobCloud'}`
+    document.title = `${to.meta.title || 'ImobCloud'}`
 
-    const requiresAuth = to.matched.some(record => record.meta.requiresAuth)
-    const isAuthenticated = !!localStorage.getItem('authToken')
-    const userCargo = localStorage.getItem('userCargo')
+    const requiresAuth = to.matched.some(record => record.meta.requiresAuth)
+    const isAuthenticated = !!localStorage.getItem('authToken')
+    const userCargo = localStorage.getItem('userCargo')
 
-    if (requiresAuth && !isAuthenticated) {
-        next({ name: 'login' })
-    } else if (to.name === 'login' && isAuthenticated) {
-        next({ name: 'dashboard' })
-    } else if (isAuthenticated) {
-        if (to.meta.isAdmin && userCargo !== 'ADMIN') {
-            alert("Você não tem permissão para aceder a esta página.")
-            next({ name: 'dashboard' })
-        } else {
-            next()
-        }
-    } else {
-        next()
-    }
+    if (requiresAuth && !isAuthenticated) {
+        next({ name: 'login' })
+    } else if (to.name === 'login' && isAuthenticated) {
+        next({ name: 'dashboard' })
+    } else if (isAuthenticated) {
+        if (to.meta.isAdmin && userCargo !== 'ADMIN') {
+            alert("Você não tem permissão para aceder a esta página.")
+            next({ name: 'dashboard' })
+        } else {
+            next()
+        }
+    } else {
+        next()
+    }
 })
 
 export default router

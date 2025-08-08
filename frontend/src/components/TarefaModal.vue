@@ -33,7 +33,7 @@
         </div>
 
         <div class="form-group" v-if="!isEditing && clienteSelecionado">
-          <label for="oportunidade-select">Oportunidade <span v-if="clienteSelecionado">(Obrigatória)</span></label>
+          <label for="oportunidade-select">Oportunidade (Opcional)</label>
           <v-select
             id="oportunidade-select"
             label="titulo"
@@ -58,11 +58,6 @@
           <label for="data_conclusao">Prazo</label>
           <input type="date" id="data_conclusao" v-model="tarefaLocal.data_conclusao" />
         </div>
-
-        <div v-if="validationError" class="error-message">
-          {{ validationError }}
-        </div>
-        
         <div class="modal-actions">
           <button v-if="isEditing && !tarefaLocal.concluida" type="button" @click="handleConcluir" class="btn-success">
             Concluir Tarefa
@@ -99,8 +94,8 @@ const clientes = ref<any[]>([]);
 const oportunidades = ref<any[]>([]);
 const clienteSelecionado = ref(null);
 const oportunidadeSelecionada = ref(null);
+
 const oportunidadesFiltradas = ref<any[]>([]);
-const validationError = ref<string | null>(null);
 
 const tarefaLocal = ref({
   id: null,
@@ -173,14 +168,6 @@ onMounted(async () => {
 });
 
 async function handleSubmit() {
-  validationError.value = null;
-
-  // VERIFICAÇÃO ADICIONADA AQUI
-  if (clienteSelecionado.value && !oportunidadeSelecionada.value) {
-    validationError.value = 'Por favor, selecione uma oportunidade para o cliente.';
-    return;
-  }
-
   isSubmitting.value = true;
   try {
     const payload = {
@@ -193,19 +180,21 @@ async function handleSubmit() {
         if (tarefaLocal.value.oportunidade) {
             await apiClient.patch(`/v1/clientes/oportunidades/${tarefaLocal.value.oportunidade}/tarefas/${tarefaLocal.value.id}/`, payload);
         } else {
+            // CORREÇÃO: O URL deve incluir 'clientes/'
             await apiClient.patch(`/v1/clientes/tarefas/${tarefaLocal.value.id}/`, payload);
         }
     } else {
         if (tarefaLocal.value.oportunidade) {
             await apiClient.post(`/v1/clientes/oportunidades/${tarefaLocal.value.oportunidade}/tarefas/`, payload);
         } else {
+            // CORREÇÃO: O URL deve incluir 'clientes/'
             await apiClient.post(`/v1/clientes/tarefas/`, payload);
         }
     }
     emit('saved');
   } catch (error) {
     console.error("Erro ao salvar a tarefa:", error);
-    validationError.value = 'Ocorreu um erro ao salvar a tarefa. Verifique os dados.';
+    alert('Ocorreu um erro ao salvar a tarefa.');
   } finally {
     isSubmitting.value = false;
   }
@@ -221,6 +210,7 @@ async function handleConcluir() {
     if (tarefaLocal.value.oportunidade) {
         await apiClient.patch(`/v1/clientes/oportunidades/${tarefaLocal.value.oportunidade}/tarefas/${tarefaLocal.value.id}/`, payload);
     } else {
+        // CORREÇÃO: O URL deve incluir 'clientes/'
         await apiClient.patch(`/v1/clientes/tarefas/${tarefaLocal.value.id}/`, payload);
     }
     emit('saved');
@@ -241,6 +231,7 @@ async function handleDelete() {
     if (tarefaLocal.value.oportunidade) {
         await apiClient.delete(`/v1/clientes/oportunidades/${tarefaLocal.value.oportunidade}/tarefas/${tarefaLocal.value.id}/`);
     } else {
+        // CORREÇÃO: O URL deve incluir 'clientes/'
         await apiClient.delete(`/v1/clientes/tarefas/${tarefaLocal.value.id}/`);
     }
     emit('saved');
@@ -309,7 +300,8 @@ async function handleDelete() {
     margin-bottom: 0.5rem;
 }
 .form-group textarea,
-.form-group input {
+.form-group input,
+.form-group select {
     width: 100%;
     padding: 10px;
     border: 1px solid #ccc;
@@ -334,5 +326,4 @@ async function handleDelete() {
 .btn-danger { background-color: #dc3545; color: white; }
 .btn-success { background-color: #28a745; color: white; }
 .no-results-message { padding: 1rem; text-align: center; }
-.error-message { color: red; margin-bottom: 1rem; text-align: center; }
 </style>

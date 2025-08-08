@@ -1,161 +1,335 @@
 <template>
   <div class="funil-container">
-    <VueFlow v-if="nodes.length > 0" v-model:nodes="nodes" v-model:edges="edges" :fit-view-on-init="true">
-      <Background />
-      <MiniMap />
-      <Controls />
-    </VueFlow>
-    <div v-else class="loading-container">
-      <p>Carregando dados do funil...</p>
+    <header class="view-header">
+      <h1>Funil de Vendas</h1>
+      <router-link to="/oportunidades/nova" class="btn-primary">
+        + Nova Oportunidade
+      </router-link>
+    </header>
+
+    <div class="filter-bar">
+      <div class="filter-group">
+        <label for="search-input">Pesquisar:</label>
+        <input 
+          id="search-input" 
+          v-model="filtro.search" 
+          type="text" 
+          placeholder="Título, cliente ou endereço"
+          class="form-control search-input"
+        />
+      </div>
+      
+      <div class="filter-group">
+        <label for="responsavel-filter">Corretor:</label>
+        <select 
+          id="responsavel-filter" 
+          v-model="filtro.responsavel"
+          class="form-control"
+        >
+          <option value="">Todos</option>
+          <option v-for="resp in corretores" :key="resp.id" :value="resp.id">
+            {{ resp.first_name }}
+          </option>
+        </select>
+      </div>
+
+      <button @click="limparFiltros" class="btn-secondary">Limpar Filtros</button>
+    </div>
+
+    <div v-if="isLoading" class="loading-message">A carregar oportunidades...</div>
+    <div v-if="error" class="error-message">{{ error }}</div>
+
+    <div v-if="!isLoading" class="funil-board">
+      <div v-for="fase in fasesDoFunil" :key="fase.id" class="funil-coluna">
+        <h3 class="coluna-titulo">
+          {{ fase.titulo }} ({{ funilData[fase.id]?.length || 0 }})
+          <span class="coluna-total">{{ calcularValorTotal(funilData[fase.id]) }}</span>
+        </h3>
+        
+        <draggable
+          class="coluna-content"
+          v-model="funilData[fase.id]"
+          group="oportunidades"
+          itemKey="id"
+          @end="handleDragEnd"
+          :data-fase-id="fase.id"
+        >
+          <template #item="{ element: oportunidade }">
+            <router-link :to="`/oportunidades/editar/${oportunidade.id}`" class="oportunidade-card-link">
+              <div class="oportunidade-card" :data-id="oportunidade.id">
+                <h4 class="card-titulo">{{ oportunidade.titulo }}</h4>
+                <p class="card-cliente">{{ oportunidade.cliente?.nome_completo || 'Cliente não definido' }}</p>
+                <p class="card-imovel">{{ oportunidade.imovel?.endereco || 'Sem imóvel associado' }}</p>
+                <div class="card-footer">
+                  <span class="card-valor">{{ formatarValor(oportunidade.valor_estimado) }}</span>
+                  <span class="card-responsavel">{{ oportunidade.responsavel?.username.charAt(0).toUpperCase() || '?' }}</span>
+                </div>
+              </div>
+            </router-link>
+          </template>
+        </draggable>
+      </div>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue';
-
-// Componentes e Tipos do Vue Flow
-import { VueFlow } from '@vue-flow/core';
-import { Background } from '@vue-flow/background';
-import { MiniMap } from '@vue-flow/minimap';
-import { Controls } from '@vue-flow/controls';
-import type { Node, Edge } from '@vue-flow/core';
-
-// Cliente API
+import { ref, onMounted, computed, watch } from 'vue';
 import apiClient from '@/services/api';
+import draggable from 'vuedraggable';
 
-// Estilos essenciais do Vue Flow
-import '@vue-flow/core/dist/style.css';
-import '@vue-flow/core/dist/theme-default.css';
+const oportunidades = ref<any[]>([]);
+const funilData = ref<{ [key: string]: any[] }>({});
+const isLoading = ref(true);
+const error = ref<string | null>(null);
+const corretores = ref<any[]>([]);
 
-// --- Interfaces para os dados da API ---
-interface OportunidadeAPI {
-  id: number;
-  nome: string;
-  valor: number;
-}
+const filtro = ref({
+  search: '',
+  responsavel: ''
+});
 
-interface FunilStageAPI {
-  etapa: string;
-  oportunidades: OportunidadeAPI[];
-}
+const fasesDoFunil = ref([
+  { id: 'LEAD', titulo: 'Novo Lead' },
+  { id: 'CONTATO', titulo: 'Primeiro Contato' },
+  { id: 'VISITA', titulo: 'Visita Agendada' },
+  { id: 'PROPOSTA', titulo: 'Proposta Enviada' },
+  { id: 'NEGOCIACAO', titulo: 'Em Negociação' },
+  { id: 'GANHO', titulo: 'Negócio Ganho' },
+  { id: 'PERDIDO', titulo: 'Negócio Perdido' },
+]);
 
-// --- Refs do Vue para o gráfico ---
-const nodes = ref<Node[]>([]);
-const edges = ref<Edge[]>([]);
+const oportunidadesFiltradas = computed(() => {
+  let lista = oportunidades.value;
 
-/**
- * Converte os dados da API para o formato de nós e arestas do Vue Flow.
- * @param data Os dados brutos do funil vindos do backend.
- */
-const parseFunilData = (data: FunilStageAPI[]) => {
-  const newNodes: Node[] = [];
-  const newEdges: Edge[] = [];
-  let previousStageNodeId: string | null = null;
-  const initialX = 100;
-  const stageY = 50;
-  const opportunityYOffset = 120;
-  const stageXOffset = 350;
-
-  let currentX = initialX;
-
-  data.forEach((stage) => {
-    if (stage.oportunidades.length === 0) {
-      return;
-    }
-
-    const stageNodeId = `stage-${stage.etapa.replace(/\s+/g, '-')}`;
-
-    newNodes.push({
-      id: stageNodeId,
-      label: `${stage.etapa} (${stage.oportunidades.length})`,
-      position: { x: currentX, y: stageY },
-      style: {
-        background: '#007bff',
-        color: 'white',
-        borderRadius: '8px',
-        padding: '10px 15px',
-        width: '280px',
-        textAlign: 'center',
-        fontSize: '16px',
-        fontWeight: 'bold',
-      },
+  if (filtro.value.search) {
+    const termo = filtro.value.search.toLowerCase();
+    lista = lista.filter(op => {
+      const titulo = op.titulo?.toLowerCase().includes(termo);
+      const clienteNome = op.cliente?.nome_completo?.toLowerCase().includes(termo);
+      const imovelEndereco = op.imovel?.endereco?.toLowerCase().includes(termo);
+      return titulo || clienteNome || imovelEndereco;
     });
-
-    if (previousStageNodeId) {
-      newEdges.push({
-        id: `e-${previousStageNodeId}-${stageNodeId}`,
-        source: previousStageNodeId,
-        target: stageNodeId,
-        animated: true,
-        style: { strokeWidth: 2, stroke: '#007bff' },
-      });
-    }
-    previousStageNodeId = stageNodeId;
-
-    stage.oportunidades.forEach((op, opIndex) => {
-      const opportunityNodeId = `op-${op.id}`;
-      newNodes.push({
-        id: opportunityNodeId,
-        label: `${op.nome} - R$ ${op.valor.toLocaleString('pt-BR')}`,
-        position: {
-          x: currentX,
-          y: stageY + opportunityYOffset + opIndex * 90,
-        },
-        style: {
-          background: '#ffffff',
-          border: '1px solid #ced4da',
-          borderRadius: '4px',
-          padding: '10px',
-          width: '280px',
-        },
-      });
-
-      newEdges.push({
-        id: `e-${stageNodeId}-${opportunityNodeId}`,
-        source: stageNodeId,
-        target: opportunityNodeId,
-        style: { stroke: '#adb5bd' },
-      });
-    });
-    
-    currentX += stageXOffset;
-  });
-
-  nodes.value = newNodes;
-  edges.value = newEdges;
-};
-
-// --- Ciclo de vida do componente ---
-onMounted(async () => {
-  try {
-    // **AQUI ESTÁ A CORREÇÃO FINAL:** Usando a URL completa que o Django espera.
-    // A baseURL do apiClient é '/api', então adicionamos o resto do caminho.
-    const response = await apiClient.get<FunilStageAPI[]>('/v1/clientes/funil-vendas/');
-    parseFunilData(response.data);
-  } catch (error) {
-    console.error('Erro ao buscar dados do funil de vendas:', error);
   }
+
+  if (filtro.value.responsavel) {
+    lista = lista.filter(op => op.responsavel?.id === parseInt(filtro.value.responsavel));
+  }
+
+  return lista;
+});
+
+// Watcher para preencher a estrutura de dados mutável do funil
+watch(oportunidadesFiltradas, (novaLista) => {
+  const agrupado: { [key: string]: any[] } = {};
+  fasesDoFunil.value.forEach(fase => {
+    agrupado[fase.id] = [];
+  });
+  novaLista.forEach(oportunidade => {
+    agrupado[oportunidade.fase].push(oportunidade);
+  });
+  funilData.value = agrupado;
+}, { immediate: true });
+
+async function fetchOportunidades() {
+  isLoading.value = true;
+  try {
+    const response = await apiClient.get('/v1/clientes/oportunidades/');
+    oportunidades.value = response.data;
+    const responsaveisUnicos = Array.from(new Set(oportunidades.value.map(op => op.responsavel?.id)))
+      .filter(id => id !== undefined)
+      .map(id => oportunidades.value.find(op => op.responsavel?.id === id).responsavel);
+    corretores.value = responsaveisUnicos;
+  } catch (err) {
+    console.error("Erro ao buscar oportunidades:", err);
+    error.value = "Não foi possível carregar o funil de vendas.";
+  } finally {
+    isLoading.value = false;
+  }
+}
+
+function limparFiltros() {
+  filtro.value.search = '';
+  filtro.value.responsavel = '';
+}
+
+async function handleDragEnd(event: any) {
+  const { to, item } = event;
+  const oportunidadeId = item.dataset.id;
+  const novaFaseId = to.dataset.faseId;
+
+  if (!oportunidadeId || !novaFaseId) {
+    console.error("Não foi possível obter o ID da oportunidade ou a nova fase.");
+    fetchOportunidades();
+    return;
+  }
+  
+  const oportunidadeMovida = oportunidades.value.find(op => op.id === parseInt(oportunidadeId));
+  if (oportunidadeMovida && oportunidadeMovida.fase !== novaFaseId) {
+    try {
+      await apiClient.patch(`/v1/clientes/oportunidades/${oportunidadeId}/`, {
+        fase: novaFaseId,
+      });
+      // Atualiza o estado da oportunidade no array principal. O watcher irá reagir e atualizar o funilData
+      oportunidadeMovida.fase = novaFaseId;
+    } catch (error) {
+      console.error('Erro ao atualizar a fase da oportunidade:', error);
+      alert('Não foi possível mover a oportunidade. A página será recarregada para reverter a mudança.');
+      fetchOportunidades();
+    }
+  }
+}
+
+function formatarValor(valor: number | null) {
+  if (!valor) return 'R$ -';
+  return parseFloat(valor.toString()).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+}
+
+function calcularValorTotal(oportunidadesDaFase: any[] | undefined) {
+  if (!oportunidadesDaFase) return '';
+  const total = oportunidadesDaFase.reduce((sum, op) => {
+    const valor = op.valor_estimado ? parseFloat(op.valor_estimado) : 0;
+    return sum + valor;
+  }, 0);
+  
+  if (total === 0) return '';
+  return formatarValor(total);
+}
+
+onMounted(() => {
+  fetchOportunidades();
 });
 </script>
 
-<style>
-.funil-container {
-  width: 100%;
-  height: 85vh;
-  background-color: #f8f9fa;
-}
-
-.loading-container {
+<style scoped>
+/* Estilos adicionados para a barra de filtro */
+.filter-bar {
   display: flex;
-  justify-content: center;
-  align-items: center;
-  height: 100%;
-  font-size: 1.2rem;
-  color: #6c757d;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+  align-items: flex-end;
+}
+.filter-group {
+  display: flex;
+  flex-direction: column;
+}
+.filter-group label {
+  font-weight: bold;
+  margin-bottom: 0.5rem;
+}
+.form-control {
+  padding: 8px 12px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+}
+.search-input {
+  width: 250px;
+}
+.btn-secondary {
+  background-color: #6c757d;
+  color: white;
+  padding: 10px 15px;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+  font-weight: bold;
+  height: 40px; /* Alinha com os outros campos */
 }
 
-.vue-flow__minimap {
+/* Restante dos estilos CSS */
+.coluna-total {
+  display: block;
+  font-size: 0.85em;
+  font-weight: normal;
+  color: #6c757d;
+  margin-top: 4px;
+}
+.oportunidade-card-link {
+  text-decoration: none;
+  color: inherit;
+}
+.view-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1.5rem;
+}
+.btn-primary {
+  background-color: #007bff;
+  color: white;
+  padding: 10px 15px;
+  border-radius: 5px;
+  text-decoration: none;
+  font-weight: bold;
+}
+.coluna-content {
+  padding: 0 0.5rem;
+  max-height: 70vh;
+  min-height: 100px;
+  overflow-y: auto;
+}
+.funil-container {
+  padding: 2rem;
+}
+.funil-board {
+  display: flex;
+  gap: 1rem;
+  overflow-x: auto;
+  padding-bottom: 1rem;
+}
+.funil-coluna {
+  flex: 1;
+  min-width: 280px;
+  background-color: #e9ecef;
   border-radius: 8px;
+  padding: 0.5rem;
+}
+.coluna-titulo {
+  padding: 0.5rem 0.75rem;
+  font-size: 1rem;
+  font-weight: bold;
+}
+.oportunidade-card {
+  background-color: white;
+  border-radius: 5px;
+  padding: 1rem;
+  margin-bottom: 0.75rem;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+  cursor: grab;
+}
+.oportunidade-card:hover {
+  box-shadow: 0 3px 6px rgba(0,0,0,0.15);
+}
+.card-titulo {
+  font-size: 1rem;
+  font-weight: 600;
+  margin: 0 0 0.5rem 0;
+}
+.card-cliente, .card-imovel {
+  font-size: 0.85rem;
+  color: #6c757d;
+  margin: 0 0 0.25rem 0;
+}
+.card-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 1rem;
+}
+.card-valor {
+  font-weight: bold;
+  color: #28a745;
+}
+.card-responsavel {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background-color: #007bff;
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: bold;
+  font-size: 0.8rem;
 }
 </style>

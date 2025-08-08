@@ -28,7 +28,7 @@ ALLOWED_HOSTS = ['*', 'localhost', '.localhost']
 # Application definition
 
 INSTALLED_APPS = [
-    'jazzmin', # ADICIONE ESTA LINHA AQUI E MANTENHA-A ANTES DE 'django.contrib.admin'
+    #'jazzmin', # ADICIONE ESTA LINHA AQUI E MANTENHA-A ANTES DE 'django.contrib.admin'
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
