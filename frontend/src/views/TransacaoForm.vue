@@ -10,19 +10,26 @@
 
     <div v-else class="form-card">
       <form @submit.prevent="submitForm">
+        
+        <div class="form-row">
+          <div class="form-group">
+            <label for="tipo" class="form-label">Tipo:</label>
+            <select id="tipo" v-model="transacao.tipo" class="form-input" required>
+              <option disabled value="">Selecione o tipo</option>
+              <option value="RECEITA">Receita</option>
+              <option value="DESPESA">Despesa</option>
+            </select>
+          </div>
 
-        <div class="form-group">
-          <label for="tipo" class="form-label">Tipo:</label>
-          <select id="tipo" v-model="transacao.tipo" class="form-input" required>
-            <option disabled value="">Selecione o tipo</option>
-            <option value="RECEITA">Receita</option>
-            <option value="DESPESA">Despesa</option>
-          </select>
-        </div>
-
-        <div class="form-group">
-          <label for="valor" class="form-label">Valor:</label>
-          <input type="number" id="valor" v-model.number="transacao.valor" class="form-input" required step="0.01">
+          <div class="form-group">
+            <label for="status" class="form-label">Status:</label>
+            <select id="status" v-model="transacao.status" class="form-input" required>
+              <option value="PENDENTE">Pendente</option>
+              <option value="PAGO">Pago</option>
+              <option value="ATRASADO">Atrasado</option>
+              <option value="CANCELADO">Cancelado</option>
+            </select>
+          </div>
         </div>
 
         <div class="form-group">
@@ -30,24 +37,40 @@
           <input type="text" id="descricao" v-model="transacao.descricao" class="form-input" required>
         </div>
 
-        <div class="form-group">
-          <label for="conta_bancaria" class="form-label">Conta Bancária:</label>
-          <select id="conta_bancaria" v-model="transacao.conta_bancaria" class="form-input" required>
-            <option disabled value="">Selecione uma conta</option>
-            <option v-for="conta in contasBancarias" :key="conta.id" :value="conta.id">
-              {{ conta.nome }} - {{ conta.banco }}
-            </option>
-          </select>
+        <div class="form-row">
+          <div class="form-group">
+            <label for="valor" class="form-label">Valor:</label>
+            <input type="number" id="valor" v-model.number="transacao.valor" class="form-input" required step="0.01">
+          </div>
+          <div class="form-group">
+            <label for="data_vencimento" class="form-label">Data de Vencimento:</label>
+            <input type="date" id="data_vencimento" v-model="transacao.data_vencimento" class="form-input" required>
+          </div>
+          <div class="form-group">
+            <label for="data_pagamento" class="form-label">Data de Pagamento (Opcional):</label>
+            <input type="date" id="data_pagamento" v-model="transacao.data_pagamento" class="form-input">
+          </div>
         </div>
         
-        <div class="form-group">
-          <label for="categoria" class="form-label">Categoria:</label>
-          <select id="categoria" v-model="transacao.categoria" class="form-input" required>
-            <option disabled value="">Selecione uma categoria</option>
-            <option v-for="categoria in categorias" :key="categoria.id" :value="categoria.id">
-              {{ categoria.nome }} ({{ categoria.tipo }})
-            </option>
-          </select>
+        <div class="form-row">
+          <div class="form-group">
+            <label for="conta_bancaria" class="form-label">Conta Bancária:</label>
+            <select id="conta_bancaria" v-model="transacao.conta_bancaria" class="form-input" required>
+              <option disabled value="">Selecione uma conta</option>
+              <option v-for="conta in contasBancarias" :key="conta.id" :value="conta.id">
+                {{ conta.nome }} - {{ conta.banco }}
+              </option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="categoria" class="form-label">Categoria:</label>
+            <select id="categoria" v-model="transacao.categoria" class="form-input" required>
+              <option disabled value="">Selecione uma categoria</option>
+              <option v-for="categoria in categorias" :key="categoria.id" :value="categoria.id">
+                {{ categoria.nome }} ({{ categoria.tipo }})
+              </option>
+            </select>
+          </div>
         </div>
 
         <div class="form-group">
@@ -74,7 +97,7 @@
             <button @click="clearImovel" type="button" class="clear-button">x</button>
           </div>
         </div>
-
+        
         <div v-if="error" class="error-message">
           {{ error }}
         </div>
@@ -93,6 +116,8 @@ import { ref, onMounted, computed } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import api from '@/services/api';
 
+// --- INÍCIO DAS ALTERAÇÕES NO SCRIPT ---
+
 interface Transacao {
   id?: number;
   tipo: 'RECEITA' | 'DESPESA' | '';
@@ -101,6 +126,10 @@ interface Transacao {
   conta_bancaria: number | null;
   categoria: number | null;
   imovel: number | null;
+  // Novos campos
+  data_vencimento: string;
+  data_pagamento: string | null;
+  status: 'PENDENTE' | 'PAGO' | 'ATRASADO' | 'CANCELADO';
 }
 
 interface ContaBancaria {
@@ -115,7 +144,6 @@ interface Categoria {
   tipo: 'RECEITA' | 'DESPESA';
 }
 
-// CORREÇÃO: A interface agora usa 'titulo_anuncio'
 interface Imovel {
   id: number;
   titulo_anuncio: string;
@@ -131,7 +159,13 @@ const transacao = ref<Transacao>({
   conta_bancaria: null,
   categoria: null,
   imovel: null,
+  // Inicialização dos novos campos
+  data_vencimento: new Date().toISOString().split('T')[0], // Padrão para hoje
+  data_pagamento: null,
+  status: 'PENDENTE',
 });
+
+// --- FIM DAS ALTERAÇÕES NO SCRIPT (o resto do script permanece igual) ---
 
 const contasBancarias = ref<ContaBancaria[]>([]);
 const categorias = ref<Categoria[]>([]);
@@ -151,12 +185,10 @@ const fetchData = async () => {
     const [contasResponse, categoriasResponse, imoveisResponse] = await Promise.all([
       api.get('/v1/financeiro/contas/'),
       api.get('/v1/financeiro/categorias/'),
-      api.get('/v1/imoveis/imoveis/'), // A rota correta é /imoveis/imoveis/
+      api.get('/v1/imoveis/imoveis/'),
     ]);
     contasBancarias.value = contasResponse.data;
     categorias.value = categoriasResponse.data;
-    
-    // CORREÇÃO: Acessar a propriedade 'results' se ela existir (paginação)
     imoveis.value = imoveisResponse.data.results || imoveisResponse.data;
 
     if (isEditing.value) {
@@ -166,7 +198,6 @@ const fetchData = async () => {
       if (transacao.value.imovel) {
         const imovelSelecionado = imoveis.value.find(i => i.id === transacao.value.imovel);
         if (imovelSelecionado) {
-          // CORREÇÃO: Usar 'titulo_anuncio'
           imovelSearchTerm.value = imovelSelecionado.titulo_anuncio;
         }
       }
@@ -184,6 +215,9 @@ const submitForm = async () => {
     const payload = { ...transacao.value };
     if (payload.imovel === null) {
       delete payload.imovel;
+    }
+    if (payload.data_pagamento === '') {
+      payload.data_pagamento = null;
     }
     
     if (isEditing.value) {
@@ -207,20 +241,17 @@ const filteredImoveis = computed(() => {
     return imoveis.value;
   }
   const term = imovelSearchTerm.value.toLowerCase();
-  // CORREÇÃO: Usar 'titulo_anuncio' para filtrar
   return imoveis.value.filter(imovel => imovel.titulo_anuncio.toLowerCase().includes(term));
 });
 
 const selectImovel = (imovel: Imovel) => {
   transacao.value.imovel = imovel.id;
-  // CORREÇÃO: Usar 'titulo_anuncio'
   imovelSearchTerm.value = imovel.titulo_anuncio;
   showImovelList.value = false;
 };
 
 const getImovelTitle = (id: number | null) => {
   const imovel = imoveis.value.find(i => i.id === id);
-  // CORREÇÃO: Usar 'titulo_anuncio'
   return imovel ? imovel.titulo_anuncio : '';
 };
 
@@ -243,7 +274,15 @@ onMounted(() => {
 </script>
 
 <style scoped>
-/* Nenhum estilo precisou de ser alterado */
+/* (Estilos permanecem os mesmos, mas adicionamos form-row) */
+.form-row {
+  display: flex;
+  gap: 1.5rem;
+}
+.form-row .form-group {
+  flex: 1;
+}
+/* (Resto dos estilos) */
 .page-container {
   max-width: 800px;
   margin: 2rem auto;

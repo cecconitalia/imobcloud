@@ -25,7 +25,7 @@ import CalendarioTarefas from '@/views/CalendarioTarefas.vue'
 import RelatoriosView from '@/views/RelatoriosView.vue'
 import AutorizacoesView from '@/views/AutorizacoesView.vue'
 
-// ADICIONADO: Importações das novas views do módulo financeiro
+// Importações das views do módulo financeiro
 import FinanceiroDashboardView from '@/views/FinanceiroDashboard.vue' 
 import ListaTransacoesView from '@/views/ListaTransacoes.vue' 
 import TransacaoFormView from '@/views/TransacaoForm.vue' 
@@ -33,7 +33,9 @@ import DREView from '@/views/DREView.vue'
 import ListaContasView from '@/views/ListaContasView.vue'
 import ContaFormView from '@/views/ContaFormView.vue'
 import ListaCategoriasView from '@/views/ListaCategoriasView.vue'
-import CategoriaFormView from '@/views/CategoriaFormView.vue' // NOVO: Importar o componente do formulário
+import CategoriaFormView from '@/views/CategoriaFormView.vue'
+// --- IMPORTAÇÃO DA NOVA PÁGINA ADICIONADA ---
+import ContasPendentes from '@/views/financeiro/ContasPendentes.vue'
 
 
 // Importações das views do Site Público
@@ -404,7 +406,6 @@ const router = createRouter({
                         isAdmin: true
                     }
                 },
-                // NOVO: Rota para adicionar uma nova categoria
                 {
                     path: 'financeiro/categorias/nova',
                     name: 'nova-categoria',
@@ -415,7 +416,6 @@ const router = createRouter({
                         isAdmin: true
                     }
                 },
-                // NOVO: Rota para editar uma categoria existente
                 {
                     path: 'financeiro/categorias/editar/:id',
                     name: 'editar-categoria',
@@ -424,6 +424,17 @@ const router = createRouter({
                         title: 'Editar Categoria',
                         requiresAuth: true,
                         isAdmin: true
+                    }
+                },
+                // --- ROTA CORRIGIDA E GARANTIDA ---
+                { 
+                    path: 'financeiro/contas-pendentes',
+                    name: 'contas-pendentes',
+                    component: ContasPendentes,
+                    meta: { 
+                        title: 'Contas a Pagar e Receber', 
+                        requiresAuth: true, 
+                        isAdmin: true 
                     }
                 },
             ]

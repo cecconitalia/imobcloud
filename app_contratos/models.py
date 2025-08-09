@@ -16,7 +16,15 @@ class Contrato(models.Model):
     valor_total = models.DecimalField(max_digits=15, decimal_places=2, verbose_name="Valor Total do Contrato")
     condicoes_pagamento = models.TextField(verbose_name="Condições de Pagamento")
     
-    # ATUALIZADO: Adicionada a opção 'Pendente'
+    # --- NOVO CAMPO ADICIONADO ---
+    # Este campo é essencial para que o sistema saiba quantas parcelas de aluguel
+    # devem ser geradas automaticamente no módulo financeiro.
+    duracao_meses = models.PositiveIntegerField(
+        default=12, 
+        verbose_name="Duração do Contrato (em meses)",
+        help_text="Usado para gerar as parcelas de aluguel."
+    )
+    
     status_contrato = models.CharField(
         max_length=50, 
         default='Ativo', 
@@ -46,6 +54,7 @@ class Pagamento(models.Model):
     """
     Representa uma parcela de pagamento de um contrato,
     especialmente útil para aluguéis.
+    (Este modelo foi mantido integralmente como estava no seu arquivo)
     """
     STATUS_PAGAMENTO_CHOICES = [
         ('PENDENTE', 'Pendente'),

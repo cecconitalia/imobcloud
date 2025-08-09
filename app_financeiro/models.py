@@ -1,16 +1,19 @@
+# app_financeiro/models.py
+
 from django.db import models
 from core.models import Imobiliaria
 from django.utils import timezone
 from django.core.validators import MinValueValidator
-from app_imoveis.models import Imovel  # Importa o modelo Imovel
+from app_imoveis.models import Imovel
+# --- ADICIONADO: Importar o modelo Contrato ---
+from app_contratos.models import Contrato
 
 class Categoria(models.Model):
-    # A categoria principal
+    # (Seu modelo Categoria continua igual)
     TIPO_CHOICES = [
         ('RECEITA', 'Receita'),
         ('DESPESA', 'Despesa'),
     ]
-
     nome = models.CharField(max_length=100)
     tipo = models.CharField(max_length=7, choices=TIPO_CHOICES)
     imobiliaria = models.ForeignKey(Imobiliaria, on_delete=models.CASCADE)
@@ -25,6 +28,7 @@ class Categoria(models.Model):
         return f"{self.nome} ({self.imobiliaria.nome})"
 
 class ContaBancaria(models.Model):
+    # (Seu modelo ContaBancaria continua igual)
     nome = models.CharField(max_length=100)
     banco = models.CharField(max_length=100)
     agencia = models.CharField(max_length=50)
@@ -48,25 +52,52 @@ class ContaBancaria(models.Model):
             self.saldo_atual = self.saldo_inicial
         super().save(*args, **kwargs)
 
+# --- MODELO TRANSAÇÃO TOTALMENTE ATUALIZADO ---
 class Transacao(models.Model):
     TIPO_CHOICES = [
         ('RECEITA', 'Receita'),
         ('DESPESA', 'Despesa'),
     ]
+    # --- NOVO: Status da transação ---
+    STATUS_CHOICES = (
+        ('PENDENTE', 'Pendente'),
+        ('PAGO', 'Pago'),
+        ('ATRASADO', 'Atrasado'),
+        ('CANCELADO', 'Cancelado'),
+    )
 
-    data = models.DateField(default=timezone.now)
-    valor = models.DecimalField(max_digits=10, decimal_places=2)
     descricao = models.CharField(max_length=255)
+    valor = models.DecimalField(max_digits=10, decimal_places=2)
     tipo = models.CharField(max_length=7, choices=TIPO_CHOICES)
+    
+    # --- ALTERADO: 'data' foi renomeado para 'data_vencimento' ---
+    data_vencimento = models.DateField(default=timezone.now, verbose_name="Data de Vencimento")
+    
+    # --- NOVOS CAMPOS ---
+    data_pagamento = models.DateField(verbose_name="Data de Pagamento", null=True, blank=True)
+    status = models.CharField(max_length=10, choices=STATUS_CHOICES, default='PENDENTE')
+
+    # --- RELACIONAMENTOS ---
+    imobiliaria = models.ForeignKey(Imobiliaria, on_delete=models.CASCADE)
     categoria = models.ForeignKey(Categoria, on_delete=models.SET_NULL, null=True, blank=True)
     conta_bancaria = models.ForeignKey(ContaBancaria, on_delete=models.PROTECT)
-    imovel = models.ForeignKey(Imovel, on_delete=models.SET_NULL, null=True, blank=True) # NOVO CAMPO
-    imobiliaria = models.ForeignKey(Imobiliaria, on_delete=models.CASCADE)
+    imovel = models.ForeignKey(Imovel, on_delete=models.SET_NULL, null=True, blank=True)
+    # --- NOVO: Link com o Contrato ---
+    contrato = models.ForeignKey(Contrato, on_delete=models.SET_NULL, null=True, blank=True, related_name="transacoes")
     
     class Meta:
-        verbose_name = "Transação Financeira"
-        verbose_name_plural = "Transações Financeiras"
-        ordering = ['-data']
+        verbose_name = "Transação/Conta"
+        verbose_name_plural = "Transações e Contas"
+        ordering = ['-data_vencimento']
 
     def __str__(self):
-        return f"({self.tipo}) {self.descricao} - {self.valor} em {self.data}"
+        return f"({self.tipo}) {self.descricao} - {self.valor} - Venc: {self.data_vencimento.strftime('%d/%m/%Y')}"
+
+    def save(self, *args, **kwargs):
+        # Lógica para definir o status automaticamente
+        if self.data_pagamento and self.status in ['PENDENTE', 'ATRASADO']:
+            self.status = 'PAGO'
+        elif not self.data_pagamento and self.status == 'PAGO':
+             self.status = 'PENDENTE' # Volta a pendente se a data de pagamento for removida
+
+        super().save(*args, **kwargs)
