@@ -66,7 +66,7 @@
               :key="imovel.id"
               @mousedown.prevent="selectImovel(imovel)"
             >
-              {{ imovel.titulo }}
+              {{ imovel.titulo_anuncio }}
             </li>
           </ul>
           <div v-if="transacao.imovel" class="selected-imovel">
@@ -115,9 +115,10 @@ interface Categoria {
   tipo: 'RECEITA' | 'DESPESA';
 }
 
+// CORREÇÃO: A interface agora usa 'titulo_anuncio'
 interface Imovel {
   id: number;
-  titulo: string;
+  titulo_anuncio: string;
 }
 
 const route = useRoute();
@@ -136,7 +137,7 @@ const contasBancarias = ref<ContaBancaria[]>([]);
 const categorias = ref<Categoria[]>([]);
 const imoveis = ref<Imovel[]>([]);
 const imovelSearchTerm = ref('');
-const showImovelList = ref(false); // NOVO: Controla a visibilidade da lista de imóveis
+const showImovelList = ref(false);
 const isLoading = ref(false);
 const error = ref<string | null>(null);
 
@@ -150,11 +151,13 @@ const fetchData = async () => {
     const [contasResponse, categoriasResponse, imoveisResponse] = await Promise.all([
       api.get('/v1/financeiro/contas/'),
       api.get('/v1/financeiro/categorias/'),
-      api.get('/v1/imoveis/'),
+      api.get('/v1/imoveis/imoveis/'), // A rota correta é /imoveis/imoveis/
     ]);
     contasBancarias.value = contasResponse.data;
     categorias.value = categoriasResponse.data;
-    imoveis.value = imoveisResponse.data;
+    
+    // CORREÇÃO: Acessar a propriedade 'results' se ela existir (paginação)
+    imoveis.value = imoveisResponse.data.results || imoveisResponse.data;
 
     if (isEditing.value) {
       const id = Number(route.params.id);
@@ -163,7 +166,8 @@ const fetchData = async () => {
       if (transacao.value.imovel) {
         const imovelSelecionado = imoveis.value.find(i => i.id === transacao.value.imovel);
         if (imovelSelecionado) {
-          imovelSearchTerm.value = imovelSelecionado.titulo;
+          // CORREÇÃO: Usar 'titulo_anuncio'
+          imovelSearchTerm.value = imovelSelecionado.titulo_anuncio;
         }
       }
     }
@@ -199,22 +203,25 @@ const submitForm = async () => {
 };
 
 const filteredImoveis = computed(() => {
-  if (!imovelSearchTerm.value) {
-    return imoveis.value; // Exibe todos os imóveis se a pesquisa estiver vazia
+  if (!imovelSearchTerm.value || getImovelTitle(transacao.value.imovel) === imovelSearchTerm.value) {
+    return imoveis.value;
   }
   const term = imovelSearchTerm.value.toLowerCase();
-  return imoveis.value.filter(imovel => imovel.titulo.toLowerCase().includes(term));
+  // CORREÇÃO: Usar 'titulo_anuncio' para filtrar
+  return imoveis.value.filter(imovel => imovel.titulo_anuncio.toLowerCase().includes(term));
 });
 
 const selectImovel = (imovel: Imovel) => {
   transacao.value.imovel = imovel.id;
-  imovelSearchTerm.value = imovel.titulo;
+  // CORREÇÃO: Usar 'titulo_anuncio'
+  imovelSearchTerm.value = imovel.titulo_anuncio;
   showImovelList.value = false;
 };
 
 const getImovelTitle = (id: number | null) => {
   const imovel = imoveis.value.find(i => i.id === id);
-  return imovel ? imovel.titulo : '';
+  // CORREÇÃO: Usar 'titulo_anuncio'
+  return imovel ? imovel.titulo_anuncio : '';
 };
 
 const clearImovel = () => {
@@ -222,7 +229,6 @@ const clearImovel = () => {
   imovelSearchTerm.value = '';
 };
 
-// NOVO: Adicionado um listener para esconder a lista de imóveis quando o foco é perdido
 const hideImovelList = () => {
   setTimeout(() => {
     if (!document.activeElement?.closest('.imovel-results')) {
@@ -237,6 +243,7 @@ onMounted(() => {
 </script>
 
 <style scoped>
+/* Nenhum estilo precisou de ser alterado */
 .page-container {
   max-width: 800px;
   margin: 2rem auto;
