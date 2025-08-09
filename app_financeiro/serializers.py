@@ -9,9 +9,7 @@ class CategoriaSerializer(serializers.ModelSerializer):
 class ContaBancariaSerializer(serializers.ModelSerializer):
     class Meta:
         model = ContaBancaria
-        # NOVO: Excluímos o campo 'imobiliaria' para que o serializador não o espere na entrada de dados.
-        # A imobiliária será injetada automaticamente pela view.
-        exclude = ['imobiliaria']
+        fields = ['id', 'nome', 'banco', 'agencia', 'numero_conta', 'saldo_inicial', 'saldo_atual', 'ativo'] # Alterado para incluir os novos campos
 
 class TransacaoSerializer(serializers.ModelSerializer):
     class Meta:

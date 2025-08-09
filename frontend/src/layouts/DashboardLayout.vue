@@ -53,6 +53,14 @@
           <i class="icon-dre"></i>
           <span>Relatório DRE</span>
         </router-link>
+        <router-link to="/financeiro/contas" class="nav-link">
+          <i class="icon-contas"></i>
+          <span>Gerir Contas</span>
+        </router-link>
+        <router-link to="/financeiro/categorias" class="nav-link">
+          <i class="icon-categorias"></i>
+          <span>Gerir Categorias</span>
+        </router-link>
 
         <div v-if="userCargo === 'ADMIN'" class="nav-section-header">
           <span>Administração</span>
@@ -146,7 +154,9 @@ onMounted(() => {
 /* NOVOS ÍCONES PARA O MÓDULO FINANCEIRO */
 .icon-financeiro::before { content: "\f53c"; }
 .icon-transacoes::before { content: "\f0d6"; }
-.icon-dre::before { content: "\f200"; } /* Ícone de gráfico de barras */
+.icon-dre::before { content: "\f200"; }
+.icon-contas::before { content: "\f53d"; }
+.icon-categorias::before { content: "\f02d"; }
 
 .dashboard-layout {
   display: flex;

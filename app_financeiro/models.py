@@ -1,63 +1,70 @@
 from django.db import models
-from django.utils import timezone
 from core.models import Imobiliaria
-from app_clientes.models import Oportunidade
-from app_contratos.models import Contrato
+from django.utils import timezone
+from django.core.validators import MinValueValidator
 
 class Categoria(models.Model):
+    # A categoria principal
     TIPO_CHOICES = [
         ('RECEITA', 'Receita'),
         ('DESPESA', 'Despesa'),
     ]
-    imobiliaria = models.ForeignKey(Imobiliaria, on_delete=models.CASCADE, verbose_name="Imobiliária")
-    nome = models.CharField(max_length=100, verbose_name="Nome da Categoria")
-    tipo = models.CharField(max_length=10, choices=TIPO_CHOICES, verbose_name="Tipo")
-    pai = models.ForeignKey('self', on_delete=models.SET_NULL, null=True, blank=True, related_name='subcategorias', verbose_name="Categoria Pai")
 
+    nome = models.CharField(max_length=100)
+    tipo = models.CharField(max_length=7, choices=TIPO_CHOICES)
+    imobiliaria = models.ForeignKey(Imobiliaria, on_delete=models.CASCADE)
+    pai = models.ForeignKey('self', on_delete=models.CASCADE, null=True, blank=True, related_name='subcategorias')
+    
     class Meta:
         verbose_name = "Categoria Financeira"
         verbose_name_plural = "Categorias Financeiras"
-        unique_together = ('imobiliaria', 'nome')
+        ordering = ['nome']
 
     def __str__(self):
-        return f"{self.nome} ({self.get_tipo_display()})"
+        return f"{self.nome} ({self.imobiliaria.nome})"
 
 class ContaBancaria(models.Model):
-    imobiliaria = models.ForeignKey(Imobiliaria, on_delete=models.CASCADE, verbose_name="Imobiliária")
-    nome = models.CharField(max_length=100, verbose_name="Nome da Conta")
-    saldo_inicial = models.DecimalField(max_digits=15, decimal_places=2, default=0, verbose_name="Saldo Inicial")
-    saldo_atual = models.DecimalField(max_digits=15, decimal_places=2, default=0, verbose_name="Saldo Atual")
-    banco = models.CharField(max_length=100, blank=True, null=True, verbose_name="Banco")
-    agencia = models.CharField(max_length=20, blank=True, null=True, verbose_name="Agência")
-    numero_conta = models.CharField(max_length=50, blank=True, null=True, verbose_name="Número da Conta")
+    nome = models.CharField(max_length=100)
+    banco = models.CharField(max_length=100)
+    agencia = models.CharField(max_length=50)  # NOVO CAMPO ADICIONADO
+    numero_conta = models.CharField(max_length=50)
+    saldo_inicial = models.DecimalField(max_digits=10, decimal_places=2, default=0.00, validators=[MinValueValidator(0)])
+    saldo_atual = models.DecimalField(max_digits=10, decimal_places=2, default=0.00, validators=[MinValueValidator(0)])
+    imobiliaria = models.ForeignKey(Imobiliaria, on_delete=models.CASCADE)
+    ativo = models.BooleanField(default=True)
 
     class Meta:
         verbose_name = "Conta Bancária"
         verbose_name_plural = "Contas Bancárias"
+        ordering = ['banco', 'nome']
+        unique_together = ('imobiliaria', 'numero_conta')
 
     def __str__(self):
-        return f"{self.nome} ({self.imobiliaria.nome})"
+        return f"{self.nome} - {self.banco} ({self.imobiliaria.nome})"
+
+    def save(self, *args, **kwargs):
+        if not self.pk:
+            self.saldo_atual = self.saldo_inicial
+        super().save(*args, **kwargs)
 
 class Transacao(models.Model):
     TIPO_CHOICES = [
         ('RECEITA', 'Receita'),
         ('DESPESA', 'Despesa'),
     ]
-    imobiliaria = models.ForeignKey(Imobiliaria, on_delete=models.CASCADE, verbose_name="Imobiliária")
-    tipo = models.CharField(max_length=10, choices=TIPO_CHOICES, verbose_name="Tipo de Transação")
-    descricao = models.CharField(max_length=255, verbose_name="Descrição")
-    valor = models.DecimalField(max_digits=15, decimal_places=2, verbose_name="Valor")
-    data = models.DateField(default=timezone.now, verbose_name="Data da Transação")
-    categoria = models.ForeignKey(Categoria, on_delete=models.SET_NULL, null=True, blank=True, verbose_name="Categoria")
-    conta_bancaria = models.ForeignKey(ContaBancaria, on_delete=models.SET_NULL, null=True, blank=True, verbose_name="Conta Bancária")
-    
-    oportunidade = models.ForeignKey(Oportunidade, on_delete=models.SET_NULL, null=True, blank=True, verbose_name="Oportunidade (opcional)")
-    contrato = models.ForeignKey(Contrato, on_delete=models.SET_NULL, null=True, blank=True, verbose_name="Contrato (opcional)")
 
+    data = models.DateField(default=timezone.now)
+    valor = models.DecimalField(max_digits=10, decimal_places=2)
+    descricao = models.CharField(max_length=255)
+    tipo = models.CharField(max_length=7, choices=TIPO_CHOICES)
+    categoria = models.ForeignKey(Categoria, on_delete=models.SET_NULL, null=True, blank=True)
+    conta_bancaria = models.ForeignKey(ContaBancaria, on_delete=models.PROTECT)
+    imobiliaria = models.ForeignKey(Imobiliaria, on_delete=models.CASCADE)
+    
     class Meta:
         verbose_name = "Transação Financeira"
         verbose_name_plural = "Transações Financeiras"
         ordering = ['-data']
 
     def __str__(self):
-        return f"{self.get_tipo_display()} - {self.descricao}"
+        return f"({self.tipo}) {self.descricao} - {self.valor} em {self.data}"
