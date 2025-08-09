@@ -1,140 +1,235 @@
 <template>
-  <div class="transacao-form-container">
-    <header class="view-header">
-      <h1>{{ isEditing ? 'Editar Transação' : 'Nova Transação' }}</h1>
-    </header>
-
-    <div v-if="isLoadingData" class="loading-message">
-      A carregar dados...
+  <div class="page-container">
+    <div class="header-section">
+      <h1 class="page-title">{{ formTitle }}</h1>
     </div>
 
-    <form v-else @submit.prevent="handleSubmit" class="transacao-form">
-      <div class="form-group">
-        <label for="tipo">Tipo de Transação</label>
-        <select id="tipo" v-model="transacao.tipo" required>
-          <option value="RECEITA">Receita</option>
-          <option value="DESPESA">Despesa</option>
-        </select>
-      </div>
+    <div v-if="isLoading" class="loading-state">
+      <p>A carregar dados...</p>
+    </div>
 
-      <div class="form-group">
-        <label for="valor">Valor (R$)</label>
-        <input type="number" step="0.01" id="valor" v-model="transacao.valor" required />
-      </div>
+    <div v-else class="form-card">
+      <form @submit.prevent="submitForm">
 
-      <div class="form-group">
-        <label for="data">Data</label>
-        <input type="date" id="data" v-model="transacao.data" required />
-      </div>
-      
-      <div class="form-group">
-        <label for="categoria">Categoria</label>
-        <select id="categoria" v-model="transacao.categoria" required>
-          <option disabled value="">Selecione uma categoria</option>
-          <option v-for="cat in categoriasFiltradas" :key="cat.id" :value="cat.id">
-            {{ cat.nome }}
-          </option>
-        </select>
-      </div>
+        <div class="form-group">
+          <label for="tipo" class="form-label">Tipo:</label>
+          <select id="tipo" v-model="transacao.tipo" class="form-input" required>
+            <option disabled value="">Selecione o tipo</option>
+            <option value="RECEITA">Receita</option>
+            <option value="DESPESA">Despesa</option>
+          </select>
+        </div>
 
-      <div class="form-group">
-        <label for="conta_bancaria">Conta Bancária</label>
-        <select id="conta_bancaria" v-model="transacao.conta_bancaria" required>
-          <option disabled value="">Selecione uma conta</option>
-          <option v-for="conta in contas" :key="conta.id" :value="conta.id">
-            {{ conta.nome }}
-          </option>
-        </select>
-      </div>
-      
-      <div class="form-group full-width">
-        <label for="descricao">Descrição</label>
-        <textarea id="descricao" v-model="transacao.descricao" rows="3" required></textarea>
-      </div>
+        <div class="form-group">
+          <label for="valor" class="form-label">Valor:</label>
+          <input type="number" id="valor" v-model.number="transacao.valor" class="form-input" required step="0.01">
+        </div>
 
-      <div class="form-actions full-width">
-        <button type="button" @click="handleCancel" class="btn-secondary">Cancelar</button>
-        <button type="submit" class="btn-primary" :disabled="isSubmitting">
-          {{ isSubmitting ? 'A Guardar...' : (isEditing ? 'Guardar Alterações' : 'Adicionar Transação') }}
-        </button>
-      </div>
-    </form>
+        <div class="form-group">
+          <label for="descricao" class="form-label">Descrição:</label>
+          <input type="text" id="descricao" v-model="transacao.descricao" class="form-input" required>
+        </div>
+
+        <div class="form-group">
+          <label for="conta_bancaria" class="form-label">Conta Bancária:</label>
+          <select id="conta_bancaria" v-model="transacao.conta_bancaria" class="form-input" required>
+            <option disabled value="">Selecione uma conta</option>
+            <option v-for="conta in contasBancarias" :key="conta.id" :value="conta.id">
+              {{ conta.nome }} - {{ conta.banco }}
+            </option>
+          </select>
+        </div>
+        
+        <div class="form-group">
+          <label for="categoria" class="form-label">Categoria:</label>
+          <select id="categoria" v-model="transacao.categoria" class="form-input" required>
+            <option disabled value="">Selecione uma categoria</option>
+            <option v-for="categoria in categorias" :key="categoria.id" :value="categoria.id">
+              {{ categoria.nome }} ({{ categoria.tipo }})
+            </option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Imóvel (Opcional):</label>
+          <input
+            type="text"
+            v-model="imovelSearchTerm"
+            placeholder="Pesquisar imóvel por título"
+            class="form-input"
+            @focus="showImovelList = true"
+            @blur="hideImovelList"
+          />
+          <ul v-show="showImovelList && filteredImoveis.length > 0" class="imovel-results">
+            <li
+              v-for="imovel in filteredImoveis"
+              :key="imovel.id"
+              @mousedown.prevent="selectImovel(imovel)"
+            >
+              {{ imovel.titulo }}
+            </li>
+          </ul>
+          <div v-if="transacao.imovel" class="selected-imovel">
+            Imóvel Selecionado: <span>{{ getImovelTitle(transacao.imovel) }}</span>
+            <button @click="clearImovel" type="button" class="clear-button">x</button>
+          </div>
+        </div>
+
+        <div v-if="error" class="error-message">
+          {{ error }}
+        </div>
+
+        <div class="actions">
+          <button type="submit" class="submit-button">Salvar</button>
+          <button @click="router.back()" type="button" class="cancel-link">Cancelar</button>
+        </div>
+      </form>
+    </div>
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import apiClient from '@/services/api';
+import api from '@/services/api';
 
-const router = useRouter();
+interface Transacao {
+  id?: number;
+  tipo: 'RECEITA' | 'DESPESA' | '';
+  valor: number;
+  descricao: string;
+  conta_bancaria: number | null;
+  categoria: number | null;
+  imovel: number | null;
+}
+
+interface ContaBancaria {
+  id: number;
+  nome: string;
+  banco: string;
+}
+
+interface Categoria {
+  id: number;
+  nome: string;
+  tipo: 'RECEITA' | 'DESPESA';
+}
+
+interface Imovel {
+  id: number;
+  titulo: string;
+}
+
 const route = useRoute();
+const router = useRouter();
 
-const transacaoId = computed(() => route.params.id as string | undefined);
-const isEditing = computed(() => !!transacaoId.value);
-
-const transacao = ref({
-  tipo: 'RECEITA',
-  valor: null as number | null,
-  data: new Date().toISOString().substr(0, 10),
+const transacao = ref<Transacao>({
+  tipo: '',
+  valor: 0,
   descricao: '',
-  categoria: null as number | null,
-  conta_bancaria: null as number | null,
-  oportunidade: null as number | null,
-  contrato: null as number | null,
+  conta_bancaria: null,
+  categoria: null,
+  imovel: null,
 });
 
-const categorias = ref<any[]>([]);
-const contas = ref<any[]>([]);
-const isLoadingData = ref(true);
-const isSubmitting = ref(false);
+const contasBancarias = ref<ContaBancaria[]>([]);
+const categorias = ref<Categoria[]>([]);
+const imoveis = ref<Imovel[]>([]);
+const imovelSearchTerm = ref('');
+const showImovelList = ref(false); // NOVO: Controla a visibilidade da lista de imóveis
+const isLoading = ref(false);
+const error = ref<string | null>(null);
 
-const categoriasFiltradas = computed(() => {
-  return categorias.value.filter(c => c.tipo === transacao.value.tipo);
-});
+const isEditing = computed(() => !!route.params.id);
+const formTitle = computed(() => isEditing.value ? 'Editar Transação' : 'Adicionar Nova Transação');
 
-async function fetchData() {
-  isLoadingData.value = true;
+const fetchData = async () => {
+  isLoading.value = true;
+  error.value = null;
   try {
-    const [categoriasResponse, contasResponse] = await Promise.all([
-      apiClient.get('/v1/financeiro/categorias/'),
-      apiClient.get('/v1/financeiro/contas-bancarias/')
+    const [contasResponse, categoriasResponse, imoveisResponse] = await Promise.all([
+      api.get('/v1/financeiro/contas/'),
+      api.get('/v1/financeiro/categorias/'),
+      api.get('/v1/imoveis/'),
     ]);
+    contasBancarias.value = contasResponse.data;
     categorias.value = categoriasResponse.data;
-    contas.value = contasResponse.data;
+    imoveis.value = imoveisResponse.data;
 
-    if (isEditing.value && transacaoId.value) {
-      const response = await apiClient.get(`/v1/financeiro/transacoes/${transacaoId.value}/`);
-      transacao.value = response.data;
+    if (isEditing.value) {
+      const id = Number(route.params.id);
+      const transacaoResponse = await api.get(`/v1/financeiro/transacoes/${id}/`);
+      transacao.value = transacaoResponse.data;
+      if (transacao.value.imovel) {
+        const imovelSelecionado = imoveis.value.find(i => i.id === transacao.value.imovel);
+        if (imovelSelecionado) {
+          imovelSearchTerm.value = imovelSelecionado.titulo;
+        }
+      }
     }
-  } catch (error) {
-    console.error("Erro ao carregar dados:", error);
-    alert('Não foi possível carregar os dados para o formulário.');
+  } catch (err) {
+    console.error('Erro ao carregar dados:', err);
+    error.value = 'Falha ao carregar dados. Verifique a conexão com a API.';
   } finally {
-    isLoadingData.value = false;
+    isLoading.value = false;
   }
-}
+};
 
-async function handleSubmit() {
-  isSubmitting.value = true;
+const submitForm = async () => {
   try {
-    if (isEditing.value && transacaoId.value) {
-      await apiClient.put(`/v1/financeiro/transacoes/${transacaoId.value}/`, transacao.value);
-    } else {
-      await apiClient.post('/v1/financeiro/transacoes/', transacao.value);
+    const payload = { ...transacao.value };
+    if (payload.imovel === null) {
+      delete payload.imovel;
     }
-    router.push('/financeiro/transacoes');
-  } catch (error) {
-    console.error("Erro ao guardar transação:", error);
-    alert('Ocorreu um erro ao guardar a transação. Verifique os dados.');
-  } finally {
-    isSubmitting.value = false;
+    
+    if (isEditing.value) {
+      await api.put(`/v1/financeiro/transacoes/${transacao.value.id}/`, payload);
+    } else {
+      await api.post('/v1/financeiro/transacoes/', payload);
+    }
+    router.push({ name: 'lista-transacoes' });
+  } catch (err: any) {
+    console.error('Erro ao salvar transação:', err);
+    if (err.response && err.response.data) {
+      error.value = JSON.stringify(err.response.data);
+    } else {
+      error.value = 'Falha ao salvar a transação. Verifique os dados e tente novamente.';
+    }
   }
-}
+};
 
-function handleCancel() {
-  router.push('/financeiro/transacoes');
-}
+const filteredImoveis = computed(() => {
+  if (!imovelSearchTerm.value) {
+    return imoveis.value; // Exibe todos os imóveis se a pesquisa estiver vazia
+  }
+  const term = imovelSearchTerm.value.toLowerCase();
+  return imoveis.value.filter(imovel => imovel.titulo.toLowerCase().includes(term));
+});
+
+const selectImovel = (imovel: Imovel) => {
+  transacao.value.imovel = imovel.id;
+  imovelSearchTerm.value = imovel.titulo;
+  showImovelList.value = false;
+};
+
+const getImovelTitle = (id: number | null) => {
+  const imovel = imoveis.value.find(i => i.id === id);
+  return imovel ? imovel.titulo : '';
+};
+
+const clearImovel = () => {
+  transacao.value.imovel = null;
+  imovelSearchTerm.value = '';
+};
+
+// NOVO: Adicionado um listener para esconder a lista de imóveis quando o foco é perdido
+const hideImovelList = () => {
+  setTimeout(() => {
+    if (!document.activeElement?.closest('.imovel-results')) {
+      showImovelList.value = false;
+    }
+  }, 100);
+};
 
 onMounted(() => {
   fetchData();
@@ -142,58 +237,153 @@ onMounted(() => {
 </script>
 
 <style scoped>
-.transacao-form-container {
-  padding: 2rem;
+.page-container {
+  max-width: 800px;
+  margin: 2rem auto;
+  padding: 0 1rem;
 }
-.view-header {
-  margin-bottom: 1.5rem;
+
+.header-section {
+  margin-bottom: 2rem;
+  text-align: center;
 }
-.transacao-form {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 1.5rem;
-}
-.form-group {
-  display: flex;
-  flex-direction: column;
-  flex: 1 1 calc(50% - 1.5rem);
-}
-.form-group.full-width {
-  flex-basis: 100%;
-}
-label {
-  margin-bottom: 0.5rem;
+
+.page-title {
+  font-size: 2rem;
   font-weight: bold;
+  color: #333;
 }
-input, select, textarea {
-  padding: 10px;
-  border: 1px solid #ccc;
-  border-radius: 4px;
-  font-size: 1rem;
+
+.form-card {
+  background-color: white;
+  padding: 2rem;
+  border-radius: 8px;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
 }
-.form-actions {
-  display: flex;
-  justify-content: flex-end;
-  gap: 1rem;
+
+.loading-state {
+  text-align: center;
+  font-size: 1.2rem;
+  color: #666;
+}
+
+.form-group {
+  margin-bottom: 1.5rem;
+  position: relative;
+}
+
+.form-label {
+  display: block;
+  font-weight: bold;
+  margin-bottom: 0.5rem;
+  color: #555;
+}
+
+.form-input {
   width: 100%;
-  margin-top: 1rem;
+  padding: 10px 12px;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  box-sizing: border-box;
+  font-size: 1rem;
+  transition: border-color 0.3s;
 }
-.btn-primary, .btn-secondary {
-  padding: 10px 20px;
-  border: none;
-  border-radius: 5px;
+
+.form-input:focus {
+  outline: none;
+  border-color: #007bff;
+}
+
+.imovel-results {
+  position: absolute;
+  width: 100%;
+  max-height: 200px;
+  overflow-y: auto;
+  background-color: white;
+  border: 1px solid #ccc;
+  border-top: none;
+  z-index: 10;
+  border-radius: 0 0 6px 6px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  list-style-type: none;
+  padding: 0;
+  margin: 0;
+}
+
+.imovel-results li {
+  padding: 10px 12px;
   cursor: pointer;
 }
-.btn-primary {
+
+.imovel-results li:hover {
+  background-color: #f1f1f1;
+}
+
+.selected-imovel {
+  margin-top: 10px;
+  padding: 8px 12px;
+  background-color: #e2f0ff;
+  border-radius: 4px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.clear-button {
+  background-color: #dc3545;
+  color: white;
+  border: none;
+  border-radius: 50%;
+  width: 24px;
+  height: 24px;
+  font-size: 0.8rem;
+  cursor: pointer;
+}
+
+.actions {
+  display: flex;
+  gap: 1rem;
+  justify-content: flex-end;
+  margin-top: 2rem;
+}
+
+.submit-button, .cancel-link {
+  padding: 12px 24px;
+  border-radius: 6px;
+  text-decoration: none;
+  font-size: 1rem;
+  font-weight: bold;
+  cursor: pointer;
+  transition: background-color 0.3s, color 0.3s;
+}
+
+.submit-button {
   background-color: #007bff;
   color: white;
+  border: none;
 }
-.btn-secondary {
+
+.submit-button:hover {
+  background-color: #0056b3;
+}
+
+.cancel-link {
   background-color: #6c757d;
   color: white;
+  border: none;
 }
-.loading-message {
+
+.cancel-link:hover {
+  background-color: #5a6268;
+}
+
+.error-message {
+  color: #d9534f;
+  background-color: #f2dede;
+  border: 1px solid #ebccd1;
+  padding: 10px;
+  border-radius: 4px;
   text-align: center;
-  padding: 2rem;
+  margin-bottom: 1rem;
 }
 </style>
