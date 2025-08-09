@@ -37,7 +37,8 @@ async function handleLogin() {
   isLoading.value = true;
   errorMessage.value = null;
   try {
-    const response = await apiClient.post('/token/', {
+    // CORREÇÃO: A URL foi alterada para '/v1/token/'
+    const response = await apiClient.post('/v1/token/', {
       username: username.value,
       password: password.value,
     });
@@ -45,12 +46,12 @@ async function handleLogin() {
     const accessToken = response.data.access;
     const userCargo = response.data.cargo;
     const imobiliariaName = response.data.imobiliaria_name;
-    const userName = response.data.user_name; // NOVO: Captura o nome do utilizador
+    const userName = response.data.user_name;
 
     localStorage.setItem('authToken', accessToken);
     localStorage.setItem('userCargo', userCargo);
     localStorage.setItem('imobiliariaName', imobiliariaName);
-    localStorage.setItem('userName', userName); // NOVO: Armazena o nome do utilizador
+    localStorage.setItem('userName', userName);
     
     router.push({ name: 'dashboard' });
 
