@@ -9,4 +9,6 @@ router.register(r'transacoes', TransacaoViewSet)
 
 urlpatterns = [
     path('', include(router.urls)),
+    path('stats/', TransacaoViewSet.as_view({'get': 'stats'}), name='stats-report'),
+    path('dre/', TransacaoViewSet.as_view({'get': 'dre'}), name='dre-report'),
 ]

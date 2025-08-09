@@ -58,8 +58,8 @@ function formatarValor(valor: number | null) {
 async function fetchStats() {
   isLoading.value = true;
   try {
-    // ESTA ROTA AINDA NÃO EXISTE NO BACKEND, mas assumimos que irá existir
-    const response = await apiClient.get('/v1/financeiro/stats/');
+    // URL CORRIGIDA PARA O ENDPOINT DA API
+    const response = await apiClient.get('/v1/financeiro/transacoes/stats/');
     stats.value = response.data;
   } catch (err) {
     console.error("Erro ao buscar estatísticas financeiras:", err);

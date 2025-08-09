@@ -1,5 +1,5 @@
 from django.db import models
-from django.utils import timezone # Adicione esta linha
+from django.utils import timezone
 from core.models import Imobiliaria
 from app_clientes.models import Oportunidade
 from app_contratos.models import Contrato
@@ -12,6 +12,7 @@ class Categoria(models.Model):
     imobiliaria = models.ForeignKey(Imobiliaria, on_delete=models.CASCADE, verbose_name="Imobiliária")
     nome = models.CharField(max_length=100, verbose_name="Nome da Categoria")
     tipo = models.CharField(max_length=10, choices=TIPO_CHOICES, verbose_name="Tipo")
+    pai = models.ForeignKey('self', on_delete=models.SET_NULL, null=True, blank=True, related_name='subcategorias', verbose_name="Categoria Pai")
 
     class Meta:
         verbose_name = "Categoria Financeira"

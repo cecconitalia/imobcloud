@@ -15,6 +15,8 @@ urlpatterns = [
     path('api/v1/clientes/', include('app_clientes.urls')),
     path('api/v1/contratos/', include('app_contratos.urls')),
     path('api/v1/core/', include('core.urls')),
+    # ADICIONADO: URL do novo módulo financeiro
+    path('api/v1/financeiro/', include('app_financeiro.urls')),
 
     # A linha abaixo usa a sua view personalizada para o login
     path('api/token/', MyTokenObtainPairView.as_view(), name='token_obtain_pair'),
