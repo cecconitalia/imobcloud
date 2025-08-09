@@ -1,14 +1,15 @@
 from rest_framework import viewsets, permissions, status
 from rest_framework.response import Response
 from rest_framework.decorators import action
+from rest_framework.exceptions import PermissionDenied
 from django.db.models import Sum, Q, F, DecimalField
 from django.db.models.functions import Coalesce
 from django.utils import timezone
-from datetime import timedelta
+from datetime import timedelta, datetime
 from .models import Categoria, ContaBancaria, Transacao
 from .serializers import CategoriaSerializer, ContaBancariaSerializer, TransacaoSerializer
 from core.permissions import IsCorretorOrReadOnly
-from core.models import PerfilUsuario
+from core.models import PerfilUsuario, Imobiliaria
 
 class CategoriaViewSet(viewsets.ModelViewSet):
     queryset = Categoria.objects.all()
@@ -28,11 +29,47 @@ class ContaBancariaViewSet(viewsets.ModelViewSet):
     permission_classes = [permissions.IsAuthenticated]
 
     def get_queryset(self):
+        queryset = super().get_queryset()
+        status_filter = self.request.query_params.get('status')
+        
+        # Filtra por imobiliaria do usuário logado ou retorna todos para superusuários
+        if not self.request.user.is_superuser and hasattr(self.request.user, 'perfil') and self.request.user.perfil:
+            queryset = queryset.filter(imobiliaria=self.request.user.perfil.imobiliaria)
+
+        # Se o filtro de status for "inativo", retorna apenas as contas inativas
+        if status_filter == 'inativo':
+            return queryset.filter(ativo=False)
+        
+        # Por padrão, retorna apenas as contas ativas
+        return queryset.filter(ativo=True)
+
+    def perform_create(self, serializer):
         if self.request.user.is_superuser:
-            return ContaBancaria.objects.all()
-        if hasattr(self.request.user, 'perfil') and self.request.user.perfil:
-            return ContaBancaria.objects.filter(imobiliaria=self.request.user.perfil.imobiliaria)
-        return ContaBancaria.objects.none()
+            if 'imobiliaria' in self.request.data:
+                imobiliaria_id = self.request.data['imobiliaria']
+                imobiliaria_obj = Imobiliaria.objects.get(pk=imobiliaria_id)
+                serializer.save(imobiliaria=imobiliaria_obj)
+            else:
+                raise PermissionDenied("Para superusuários, a imobiliária é obrigatória.")
+        else:
+            if not self.request.tenant:
+                raise PermissionDenied("Não foi possível associar a conta a uma imobiliária.")
+            serializer.save(imobiliaria=self.request.tenant)
+
+    def perform_update(self, serializer):
+        if self.request.user.is_superuser:
+            serializer.save()
+        elif hasattr(self.request.user, 'perfil') and serializer.instance.imobiliaria == self.request.tenant:
+            serializer.save()
+        else:
+            raise PermissionDenied("Você não tem permissão para atualizar esta conta bancária.")
+
+    # Sobrescreve o método de exclusão para impedir que o objeto seja removido
+    def destroy(self, request, *args, **kwargs):
+        instance = self.get_object()
+        instance.ativo = False
+        instance.save()
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
 class TransacaoViewSet(viewsets.ModelViewSet):
     queryset = Transacao.objects.all()
