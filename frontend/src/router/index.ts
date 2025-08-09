@@ -29,8 +29,9 @@ import AutorizacoesView from '@/views/AutorizacoesView.vue'
 import FinanceiroDashboardView from '@/views/FinanceiroDashboard.vue' 
 import ListaTransacoesView from '@/views/ListaTransacoes.vue' 
 import TransacaoFormView from '@/views/TransacaoForm.vue' 
+import DREView from '@/views/DREView.vue'
 
-// ADICIONADO: Importações para as rotas públicas que estavam a faltar
+// Importações das views do Site Público
 import PublicHomeView from '@/views/PublicHomeView.vue'
 import PublicImovelDetailView from '@/views/PublicImovelDetailView.vue'
 
@@ -306,7 +307,7 @@ const router = createRouter({
                 {
                   path: 'financeiro',
                   name: 'financeiro',
-                  redirect: 'financeiro/dashboard',
+                  redirect: '/financeiro/dashboard',
                 },
                 {
                   path: 'financeiro/dashboard',
@@ -344,6 +345,16 @@ const router = createRouter({
                   component: TransacaoFormView,
                   meta: {
                     title: 'Editar Transação',
+                    requiresAuth: true,
+                    isAdmin: true
+                  }
+                },
+                {
+                  path: 'financeiro/dre',
+                  name: 'dre',
+                  component: DREView,
+                  meta: {
+                    title: 'Relatório DRE',
                     requiresAuth: true,
                     isAdmin: true
                   }
