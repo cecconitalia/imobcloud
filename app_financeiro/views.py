@@ -23,6 +23,27 @@ class CategoriaViewSet(viewsets.ModelViewSet):
             return Categoria.objects.filter(imobiliaria=self.request.user.perfil.imobiliaria)
         return Categoria.objects.none()
 
+    def perform_create(self, serializer):
+        if self.request.user.is_superuser:
+            if 'imobiliaria' in self.request.data:
+                imobiliaria_id = self.request.data['imobiliaria']
+                imobiliaria_obj = Imobiliaria.objects.get(pk=imobiliaria_id)
+                serializer.save(imobiliaria=imobiliaria_obj)
+            else:
+                raise PermissionDenied("Para superusuários, a imobiliária é obrigatória.")
+        else:
+            if not self.request.tenant:
+                raise PermissionDenied("Não foi possível associar a categoria a uma imobiliária.")
+            serializer.save(imobiliaria=self.request.tenant)
+
+    def perform_update(self, serializer):
+        if self.request.user.is_superuser:
+            serializer.save()
+        elif hasattr(self.request.user, 'perfil') and serializer.instance.imobiliaria == self.request.tenant:
+            serializer.save()
+        else:
+            raise PermissionDenied("Você não tem permissão para atualizar esta categoria.")
+
 class ContaBancariaViewSet(viewsets.ModelViewSet):
     queryset = ContaBancaria.objects.all()
     serializer_class = ContaBancariaSerializer
@@ -32,15 +53,12 @@ class ContaBancariaViewSet(viewsets.ModelViewSet):
         queryset = super().get_queryset()
         status_filter = self.request.query_params.get('status')
         
-        # Filtra por imobiliaria do usuário logado ou retorna todos para superusuários
         if not self.request.user.is_superuser and hasattr(self.request.user, 'perfil') and self.request.user.perfil:
             queryset = queryset.filter(imobiliaria=self.request.user.perfil.imobiliaria)
 
-        # Se o filtro de status for "inativo", retorna apenas as contas inativas
         if status_filter == 'inativo':
             return queryset.filter(ativo=False)
         
-        # Por padrão, retorna apenas as contas ativas
         return queryset.filter(ativo=True)
 
     def perform_create(self, serializer):
@@ -64,7 +82,6 @@ class ContaBancariaViewSet(viewsets.ModelViewSet):
         else:
             raise PermissionDenied("Você não tem permissão para atualizar esta conta bancária.")
 
-    # Sobrescreve o método de exclusão para impedir que o objeto seja removido
     def destroy(self, request, *args, **kwargs):
         instance = self.get_object()
         instance.ativo = False
@@ -82,6 +99,31 @@ class TransacaoViewSet(viewsets.ModelViewSet):
         if hasattr(self.request.user, 'perfil') and self.request.user.perfil:
             return Transacao.objects.filter(imobiliaria=self.request.user.perfil.imobiliaria)
         return Transacao.objects.none()
+
+    def perform_create(self, serializer):
+        if self.request.user.is_superuser:
+            if 'imobiliaria' in self.request.data:
+                imobiliaria_id = self.request.data['imobiliaria']
+                imobiliaria_obj = Imobiliaria.objects.get(pk=imobiliaria_id)
+                serializer.save(imobiliaria=imobiliaria_obj)
+            else:
+                raise PermissionDenied("Para superusuários, a imobiliária é obrigatória.")
+        else:
+            if not self.request.tenant:
+                raise PermissionDenied("Não foi possível associar a transação a uma imobiliária.")
+            # CORREÇÃO: Adiciona a data atual ao objeto antes de salvar
+            if 'data' not in serializer.validated_data:
+                serializer.save(imobiliaria=self.request.tenant, data=timezone.now().date())
+            else:
+                serializer.save(imobiliaria=self.request.tenant)
+
+    def perform_update(self, serializer):
+        if self.request.user.is_superuser:
+            serializer.save()
+        elif hasattr(self.request.user, 'perfil') and serializer.instance.imobiliaria == self.request.tenant:
+            serializer.save()
+        else:
+            raise PermissionDenied("Você não tem permissão para atualizar esta transação.")
 
     @action(detail=False, methods=['get'])
     def stats(self, request):

@@ -2,6 +2,7 @@ from django.db import models
 from core.models import Imobiliaria
 from django.utils import timezone
 from django.core.validators import MinValueValidator
+from app_imoveis.models import Imovel  # Importa o modelo Imovel
 
 class Categoria(models.Model):
     # A categoria principal
@@ -26,7 +27,7 @@ class Categoria(models.Model):
 class ContaBancaria(models.Model):
     nome = models.CharField(max_length=100)
     banco = models.CharField(max_length=100)
-    agencia = models.CharField(max_length=50)  # NOVO CAMPO ADICIONADO
+    agencia = models.CharField(max_length=50)
     numero_conta = models.CharField(max_length=50)
     saldo_inicial = models.DecimalField(max_digits=10, decimal_places=2, default=0.00, validators=[MinValueValidator(0)])
     saldo_atual = models.DecimalField(max_digits=10, decimal_places=2, default=0.00, validators=[MinValueValidator(0)])
@@ -59,6 +60,7 @@ class Transacao(models.Model):
     tipo = models.CharField(max_length=7, choices=TIPO_CHOICES)
     categoria = models.ForeignKey(Categoria, on_delete=models.SET_NULL, null=True, blank=True)
     conta_bancaria = models.ForeignKey(ContaBancaria, on_delete=models.PROTECT)
+    imovel = models.ForeignKey(Imovel, on_delete=models.SET_NULL, null=True, blank=True) # NOVO CAMPO
     imobiliaria = models.ForeignKey(Imobiliaria, on_delete=models.CASCADE)
     
     class Meta:
