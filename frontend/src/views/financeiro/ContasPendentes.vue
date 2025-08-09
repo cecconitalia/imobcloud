@@ -47,11 +47,11 @@
             <td class="text-center">
               <button
                 v-if="conta.status !== 'PAGO'"
-                @click="marcarComoPaga(conta.id)"
+                @click="abrirFormularioPagamento(conta.id)"
                 class="action-button pay-button"
-                title="Marcar como Paga"
+                :title="activeTab === 'a-pagar' ? 'Pagar Conta' : 'Receber Conta'"
               >
-                ✓ Pagar
+                {{ activeTab === 'a-pagar' ? '✓ Pagar' : '✓ Receber' }}
               </button>
             </td>
           </tr>
@@ -63,6 +63,7 @@
 
 <script setup lang="ts">
 import { ref, onMounted, watch } from 'vue';
+import { useRouter } from 'vue-router'; // --- IMPORTADO O ROUTER ---
 import api from '@/services/api';
 
 interface Conta {
@@ -74,6 +75,7 @@ interface Conta {
   status: 'PENDENTE' | 'PAGO' | 'ATRASADO';
 }
 
+const router = useRouter(); // --- INSTANCIADO O ROUTER ---
 const isLoading = ref(true);
 const activeTab = ref<'a-pagar' | 'a-receber'>('a-pagar');
 const contas = ref<Conta[]>([]);
@@ -88,29 +90,22 @@ const fetchData = async () => {
     contas.value = response.data;
   } catch (error) {
     console.error(`Erro ao buscar contas (${activeTab.value}):`, error);
-    // A notificação de erro foi removida daqui
   } finally {
     isLoading.value = false;
   }
 };
 
-const marcarComoPaga = async (id: number) => {
-  if (confirm('Tem a certeza que deseja marcar esta conta como paga?')) {
-    try {
-      await api.post(`/v1/financeiro/transacoes/${id}/marcar-pago/`);
-      console.log('Conta marcada como paga!'); // Usamos console.log em vez de toast
-      fetchData(); 
-    } catch (error) {
-      console.error("Erro ao marcar como paga:", error);
-      alert('Ocorreu um erro ao processar o pagamento.'); // Usamos um alert simples para o erro
-    }
-  }
+// --- FUNÇÃO ANTIGA REMOVIDA E NOVA ADICIONADA ---
+const abrirFormularioPagamento = (id: number) => {
+  // Navega para a página de edição, passando o ID da transação
+  router.push({ name: 'transacao-editar', params: { id } });
 };
 
 const changeTab = (tabName: 'a-pagar' | 'a-receber') => {
     activeTab.value = tabName;
 };
 
+// Funções de formatação e status (continuam iguais)
 const formatDate = (dateString: string) => {
   const options: Intl.DateTimeFormatOptions = { day: '2-digit', month: '2-digit', year: 'numeric' };
   return new Date(dateString + 'T00:00:00').toLocaleDateString('pt-PT', options);
@@ -139,11 +134,11 @@ const getStatusLabel = (conta: Conta) => {
 }
 
 watch(activeTab, fetchData);
-
 onMounted(fetchData);
 </script>
 
 <style scoped>
+/* Os estilos permanecem os mesmos */
 .page-container { max-width: 1200px; margin: 2rem auto; padding: 0 1rem; }
 .header-section { margin-bottom: 2rem; text-align: left; }
 .page-title { font-size: 2.2rem; font-weight: bold; }
