@@ -45,6 +45,12 @@
           <i class="icon-financeiro"></i>
           <span>Dashboard</span>
         </router-link>
+        
+        <router-link to="/financeiro/contas-pendentes" class="nav-link">
+          <i class="icon-pendentes"></i>
+          <span>Contas a Pagar/Receber</span>
+        </router-link>
+
         <router-link to="/financeiro/transacoes" class="nav-link">
           <i class="icon-transacoes"></i>
           <span>Transações</span>
@@ -151,12 +157,14 @@ onMounted(() => {
 .icon-users::before { content: "\f500"; }
 .icon-relatorios::before { content: "\f080"; }
 .icon-autorizacoes::before { content: "\f2b5"; }
-/* NOVOS ÍCONES PARA O MÓDULO FINANCEIRO */
+/* ÍCONES DO MÓDULO FINANCEIRO */
 .icon-financeiro::before { content: "\f53c"; }
 .icon-transacoes::before { content: "\f0d6"; }
 .icon-dre::before { content: "\f200"; }
 .icon-contas::before { content: "\f53d"; }
 .icon-categorias::before { content: "\f02d"; }
+/* --- NOVO ÍCONE ADICIONADO --- */
+.icon-pendentes::before { content: "\f252"; } /* Ícone de ampulheta (hourglass-half) */
 
 .dashboard-layout {
   display: flex;
