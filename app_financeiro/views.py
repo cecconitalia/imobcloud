@@ -1,73 +1,96 @@
 from rest_framework import viewsets, permissions, status
 from rest_framework.response import Response
 from rest_framework.decorators import action
-from django.db.models import Sum
+from django.db.models import Sum, Q, F, DecimalField
+from django.db.models.functions import Coalesce
 from django.utils import timezone
 from datetime import timedelta
 from .models import Categoria, ContaBancaria, Transacao
 from .serializers import CategoriaSerializer, ContaBancariaSerializer, TransacaoSerializer
+from core.permissions import IsCorretorOrReadOnly
+from core.models import PerfilUsuario
 
 class CategoriaViewSet(viewsets.ModelViewSet):
     queryset = Categoria.objects.all()
     serializer_class = CategoriaSerializer
     permission_classes = [permissions.IsAuthenticated]
 
+    def get_queryset(self):
+        if self.request.user.is_superuser:
+            return Categoria.objects.all()
+        if hasattr(self.request.user, 'perfil') and self.request.user.perfil:
+            return Categoria.objects.filter(imobiliaria=self.request.user.perfil.imobiliaria)
+        return Categoria.objects.none()
+
 class ContaBancariaViewSet(viewsets.ModelViewSet):
     queryset = ContaBancaria.objects.all()
     serializer_class = ContaBancariaSerializer
     permission_classes = [permissions.IsAuthenticated]
 
+    def get_queryset(self):
+        if self.request.user.is_superuser:
+            return ContaBancaria.objects.all()
+        if hasattr(self.request.user, 'perfil') and self.request.user.perfil:
+            return ContaBancaria.objects.filter(imobiliaria=self.request.user.perfil.imobiliaria)
+        return ContaBancaria.objects.none()
+
 class TransacaoViewSet(viewsets.ModelViewSet):
     queryset = Transacao.objects.all()
     serializer_class = TransacaoSerializer
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [permissions.IsAuthenticated, IsCorretorOrReadOnly]
+
+    def get_queryset(self):
+        if self.request.user.is_superuser:
+            return Transacao.objects.all()
+        if hasattr(self.request.user, 'perfil') and self.request.user.perfil:
+            return Transacao.objects.filter(imobiliaria=self.request.user.perfil.imobiliaria)
+        return Transacao.objects.none()
 
     @action(detail=False, methods=['get'])
     def stats(self, request):
-        today = timezone.now().date()
-        start_of_month = today.replace(day=1)
+        if not hasattr(request.user, 'perfil') or not request.user.perfil:
+            return Response({"error": "Usuário sem perfil associado."}, status=status.HTTP_400_BAD_REQUEST)
         
-        # Correção para o erro 'perfilusuario'
-        if not hasattr(request.user, 'perfilusuario'):
-            return Response({"error": "O utilizador não tem um perfil associado."}, status=status.HTTP_400_BAD_REQUEST)
+        hoje = timezone.now().date()
+        inicio_do_mes = hoje.replace(day=1)
 
-        transacoes_mes = Transacao.objects.filter(imobiliaria=request.user.perfilusuario.imobiliaria, data__gte=start_of_month, data__lte=today)
-        
-        receitas_mes = transacoes_mes.filter(tipo='RECEITA').aggregate(total=Sum('valor'))['total'] or 0
-        despesas_mes = transacoes_mes.filter(tipo='DESPESA').aggregate(total=Sum('valor'))['total'] or 0
-        
-        saldo_mes = receitas_mes - despesas_mes
-        
-        data = {
-            'receitas_mes': receitas_mes,
-            'despesas_mes': despesas_mes,
-            'saldo_mes': saldo_mes,
-        }
-        
-        return Response(data)
+        transacoes_mes = Transacao.objects.filter(
+            imobiliaria=request.user.perfil.imobiliaria,
+            data__gte=inicio_do_mes,
+            data__lte=hoje
+        )
 
+        total_receitas = transacoes_mes.filter(tipo='RECEITA').aggregate(total=Coalesce(Sum('valor'), 0, output_field=DecimalField()))['total']
+        total_despesas = transacoes_mes.filter(tipo='DESPESA').aggregate(total=Coalesce(Sum('valor'), 0, output_field=DecimalField()))['total']
+        saldo_mes = total_receitas - total_despesas
+
+        return Response({
+            "receitas_mes": total_receitas,
+            "despesas_mes": total_despesas,
+            "saldo_mes": saldo_mes
+        })
+    
     @action(detail=False, methods=['get'])
     def dre(self, request):
-        # Correção para o erro 'perfilusuario'
-        if not hasattr(request.user, 'perfilusuario'):
-            return Response({"error": "O utilizador não tem um perfil associado."}, status=status.HTTP_400_BAD_REQUEST)
-        
+        if not hasattr(request.user, 'perfil') or not request.user.perfil:
+            return Response({"error": "Usuário sem perfil associado."}, status=status.HTTP_400_BAD_REQUEST)
+
         start_date = request.query_params.get('start_date')
         end_date = request.query_params.get('end_date')
 
-        transacoes = Transacao.objects.filter(imobiliaria=request.user.perfilusuario.imobiliaria)
+        transacoes = Transacao.objects.filter(imobiliaria=request.user.perfil.imobiliaria)
         if start_date:
             transacoes = transacoes.filter(data__gte=start_date)
         if end_date:
             transacoes = transacoes.filter(data__lte=end_date)
             
-        receitas = transacoes.filter(tipo='RECEITA').aggregate(total=Sum('valor'))['total'] or 0
-        despesas = transacoes.filter(tipo='DESPESA').aggregate(total=Sum('valor'))['total'] or 0
-        
+        receitas_brutas = transacoes.filter(tipo='RECEITA').aggregate(total=Coalesce(Sum('valor'), 0, output_field=DecimalField()))['total']
+        despesas_operacionais = transacoes.filter(tipo='DESPESA').aggregate(total=Coalesce(Sum('valor'), 0, output_field=DecimalField()))['total']
+
         dre_data = {
             "receita_bruta_servicos": {
                 "titulo": "Receita Bruta",
-                "valor": receitas,
+                "valor": receitas_brutas,
                 "subcategorias": []
             },
             "deducoes_receita": {
@@ -82,29 +105,29 @@ class TransacaoViewSet(viewsets.ModelViewSet):
             },
             "lucro_bruto": {
                 "titulo": "Lucro Bruto",
-                "valor": receitas - 0,
+                "valor": receitas_brutas,
             },
             "despesas_operacionais": {
                 "titulo": "Despesas Operacionais",
-                "valor": despesas,
+                "valor": despesas_operacionais,
                 "subcategorias": []
             },
             "lucro_liquido_antes_impostos": {
                 "titulo": "Lucro Líquido Antes dos Impostos",
-                "valor": receitas - despesas,
+                "valor": receitas_brutas - despesas_operacionais,
             },
         }
-        
-        for categoria in Categoria.objects.filter(imobiliaria=request.user.perfilusuario.imobiliaria, pai__isnull=True):
+
+        for categoria in Categoria.objects.filter(imobiliaria=request.user.perfil.imobiliaria, pai__isnull=True):
             subcategorias_data = []
             for subcategoria in categoria.subcategorias.all():
-                subtotal = transacoes.filter(categoria=subcategoria).aggregate(total=Sum('valor'))['total'] or 0
+                subtotal = transacoes.filter(categoria=subcategoria).aggregate(total=Coalesce(Sum('valor'), 0, output_field=DecimalField()))['total']
                 subcategorias_data.append({
                     "titulo": subcategoria.nome,
                     "valor": subtotal
                 })
             
-            total_categoria = transacoes.filter(categoria=categoria).aggregate(total=Sum('valor'))['total'] or 0
+            total_categoria = transacoes.filter(categoria=categoria).aggregate(total=Coalesce(Sum('valor'), 0, output_field=DecimalField()))['total']
             
             if categoria.tipo == 'RECEITA':
                 dre_data["receita_bruta_servicos"]["subcategorias"].append({

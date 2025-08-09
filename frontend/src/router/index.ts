@@ -30,6 +30,9 @@ import FinanceiroDashboardView from '@/views/FinanceiroDashboard.vue'
 import ListaTransacoesView from '@/views/ListaTransacoes.vue' 
 import TransacaoFormView from '@/views/TransacaoForm.vue' 
 import DREView from '@/views/DREView.vue'
+import ListaContasView from '@/views/ListaContasView.vue'
+import ListaCategoriasView from '@/views/ListaCategoriasView.vue'
+import ContaFormView from '@/views/ContaFormView.vue' // NOVO
 
 // Importações das views do Site Público
 import PublicHomeView from '@/views/PublicHomeView.vue'
@@ -304,61 +307,101 @@ const router = createRouter({
                         isAdmin: true
                     }
                 },
-                {
-                  path: 'financeiro',
-                  name: 'financeiro',
-                  redirect: '/financeiro/dashboard',
-                },
-                {
-                  path: 'financeiro/dashboard',
-                  name: 'financeiro-dashboard',
-                  component: FinanceiroDashboardView,
-                  meta: {
-                    title: 'Dashboard Financeiro',
-                    requiresAuth: true,
-                    isAdmin: true
-                  }
-                },
-                {
-                  path: 'financeiro/transacoes',
-                  name: 'lista-transacoes',
-                  component: ListaTransacoesView,
-                  meta: {
-                    title: 'Transações Financeiras',
-                    requiresAuth: true,
-                    isAdmin: true
-                  }
-                },
-                {
-                  path: 'financeiro/transacoes/nova',
-                  name: 'transacao-nova',
-                  component: TransacaoFormView,
-                  meta: {
-                    title: 'Nova Transação',
-                    requiresAuth: true,
-                    isAdmin: true
-                  }
-                },
-                {
-                  path: 'financeiro/transacoes/editar/:id',
-                  name: 'transacao-editar',
-                  component: TransacaoFormView,
-                  meta: {
-                    title: 'Editar Transação',
-                    requiresAuth: true,
-                    isAdmin: true
-                  }
-                },
-                {
-                  path: 'financeiro/dre',
-                  name: 'dre',
-                  component: DREView,
-                  meta: {
-                    title: 'Relatório DRE',
-                    requiresAuth: true,
-                    isAdmin: true
-                  }
-                },
+                {
+                  path: 'financeiro',
+                  name: 'financeiro',
+                  redirect: '/financeiro/dashboard',
+                },
+                {
+                  path: 'financeiro/dashboard',
+                  name: 'financeiro-dashboard',
+                  component: FinanceiroDashboardView,
+                  meta: {
+                    title: 'Dashboard Financeiro',
+                    requiresAuth: true,
+                    isAdmin: true
+                  }
+                },
+                {
+                  path: 'financeiro/transacoes',
+                  name: 'lista-transacoes',
+                  component: ListaTransacoesView,
+                  meta: {
+                    title: 'Transações Financeiras',
+                    requiresAuth: true,
+                    isAdmin: true
+                  }
+                },
+                {
+                  path: 'financeiro/transacoes/nova',
+                  name: 'transacao-nova',
+                  component: TransacaoFormView,
+                  meta: {
+                    title: 'Nova Transação',
+                    requiresAuth: true,
+                    isAdmin: true
+                  }
+                },
+                {
+                  path: 'financeiro/transacoes/editar/:id',
+                  name: 'transacao-editar',
+                  component: TransacaoFormView,
+                  meta: {
+                    title: 'Editar Transação',
+                    requiresAuth: true,
+                    isAdmin: true
+                  }
+                },
+                {
+                  path: 'financeiro/dre',
+                  name: 'dre',
+                  component: DREView,
+                  meta: {
+                    title: 'Relatório DRE',
+                    requiresAuth: true,
+                    isAdmin: true
+                  }
+                },
+                {
+                  path: 'financeiro/contas',
+                  name: 'lista-contas',
+                  component: ListaContasView,
+                  meta: {
+                    title: 'Gerir Contas Bancárias',
+                    requiresAuth: true,
+                    isAdmin: true
+                  }
+                },
+                {
+                  path: 'financeiro/contas/nova', // Rota de criação
+                  name: 'conta-nova',
+                  component: ContaFormView,
+                  meta: {
+                    title: 'Nova Conta Bancária',
+                    requiresAuth: true,
+                    isAdmin: true
+                  }
+                },
+                {
+                  path: 'financeiro/contas/editar/:id', // Rota de edição
+                  name: 'conta-editar',
+                  component: ContaFormView,
+                  meta: {
+                    title: 'Editar Conta Bancária',
+                    requiresAuth: true,
+                    isAdmin: true
+                  }
+                },
+                {
+                  path: 'financeiro/categorias',
+                  name: 'lista-categorias',
+                  component: ListaCategoriasView,
+                  meta: {
+                    title: 'Gerir Categorias Financeiras',
+                    requiresAuth: true,
+                    isAdmin: true
+                  }
+                },
             ]
         },
         
