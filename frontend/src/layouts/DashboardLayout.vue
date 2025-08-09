@@ -33,11 +33,6 @@
           <i class="icon-contratos"></i>
           <span>Contratos</span>
         </router-link>
-        <router-link to="/visitas" class="nav-link">
-          <i class="icon-visitas"></i>
-          <span>Visitas</span>
-        </router-link>
-
         <div v-if="userCargo === 'ADMIN'" class="nav-section-header">
           <span>Administração</span>
         </div>
@@ -122,7 +117,7 @@ onMounted(() => {
 .icon-imoveis::before { content: "\f279"; }
 .icon-clientes::before { content: "\f0c0"; }
 .icon-contratos::before { content: "\f15c"; }
-.icon-visitas::before { content: "\f0f3"; }
+.icon-visitas::before { content: "\f0f3"; } /* Este ícone não é mais usado, mas a regra de CSS permanece */
 .icon-contatos::before { content: "\f0e0"; }
 .icon-users::before { content: "\f500"; }
 .icon-relatorios::before { content: "\f080"; }

@@ -4,6 +4,13 @@
       <h1>{{ isEditing ? 'Editar Oportunidade' : 'Adicionar Nova Oportunidade' }}</h1>
     </header>
 
+    <div v-if="isEditing" class="phase-selector-wrapper">
+      <FaseSelector
+        :current-fase-id="oportunidade.fase"
+        @update:fase="handleFaseUpdate"
+      />
+    </div>
+
     <div v-if="isLoadingData" class="loading-message">
       A carregar dados...
     </div>
@@ -128,6 +135,7 @@ import { useRoute, useRouter } from 'vue-router';
 import apiClient from '@/services/api';
 import OportunidadeTransferir from '@/components/OportunidadeTransferir.vue';
 import TarefaModal from '@/components/TarefaModal.vue';
+import FaseSelector from '@/components/FaseSelector.vue';
 
 const router = useRouter();
 const route = useRoute();
@@ -188,6 +196,18 @@ async function fetchData() {
     alert('Não foi possível carregar os dados necessários.');
   } finally {
     isLoadingData.value = false;
+  }
+}
+
+async function handleFaseUpdate(novaFaseId: string) {
+  try {
+    await apiClient.patch(`/v1/clientes/oportunidades/${oportunidadeId.value}/`, {
+      fase: novaFaseId,
+    });
+    oportunidade.value.fase = novaFaseId;
+  } catch (error) {
+    console.error('Erro ao atualizar a fase:', error);
+    alert('Não foi possível atualizar a fase da oportunidade.');
   }
 }
 
@@ -284,7 +304,14 @@ input, select, textarea { padding: 10px; border: 1px solid #ccc; border-radius: 
 .btn-info { background-color: #17a2b8; color: white; text-decoration: none;}
 .loading-message { text-align: center; padding: 2rem; }
 
-/* NOVO: Estilos para a seção de tarefas */
+/* Estilo para envolver o seletor de fase */
+.phase-selector-wrapper {
+  margin-bottom: 2rem;
+  padding-bottom: 2rem;
+  border-bottom: 1px solid #e0e0e0;
+}
+
+/* Estilos para a seção de tarefas */
 .tarefas-container {
   margin-top: 2rem;
   padding-top: 1.5rem;
