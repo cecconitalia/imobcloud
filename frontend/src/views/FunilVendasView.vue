@@ -48,7 +48,7 @@
         
         <draggable
           class="coluna-content"
-          v-model="funilData[fase.id]"
+          :list="funilData[fase.id]"
           group="oportunidades"
           itemKey="id"
           @end="handleDragEnd"
@@ -119,7 +119,6 @@ const oportunidadesFiltradas = computed(() => {
   return lista;
 });
 
-// Watcher para preencher a estrutura de dados mutável do funil
 watch(oportunidadesFiltradas, (novaLista) => {
   const agrupado: { [key: string]: any[] } = {};
   fasesDoFunil.value.forEach(fase => {
@@ -148,15 +147,16 @@ async function fetchOportunidades() {
   }
 }
 
-function limparFiltros() {
-  filtro.value.search = '';
-  filtro.value.responsavel = '';
-}
-
 async function handleDragEnd(event: any) {
   const { to, item } = event;
-  const oportunidadeId = item.dataset.id;
+  console.log('Evento de drag-and-drop finalizado. Item:', item, 'Para:', to);
+  
+  // CORREÇÃO: Procura o elemento filho com o data-id
+  const oportunidadeId = item.querySelector('.oportunidade-card')?.dataset.id;
   const novaFaseId = to.dataset.faseId;
+
+  console.log('ID da Oportunidade:', oportunidadeId);
+  console.log('Nova Fase ID:', novaFaseId);
 
   if (!oportunidadeId || !novaFaseId) {
     console.error("Não foi possível obter o ID da oportunidade ou a nova fase.");
@@ -167,14 +167,18 @@ async function handleDragEnd(event: any) {
   const oportunidadeMovida = oportunidades.value.find(op => op.id === parseInt(oportunidadeId));
   if (oportunidadeMovida && oportunidadeMovida.fase !== novaFaseId) {
     try {
+      // Envia a requisição de atualização para a API
       await apiClient.patch(`/v1/clientes/oportunidades/${oportunidadeId}/`, {
         fase: novaFaseId,
       });
+
       // Atualiza o estado da oportunidade no array principal. O watcher irá reagir e atualizar o funilData
       oportunidadeMovida.fase = novaFaseId;
+
     } catch (error) {
       console.error('Erro ao atualizar a fase da oportunidade:', error);
       alert('Não foi possível mover a oportunidade. A página será recarregada para reverter a mudança.');
+      // Em caso de erro, recarrega os dados para reverter a alteração visual
       fetchOportunidades();
     }
   }
@@ -194,6 +198,11 @@ function calcularValorTotal(oportunidadesDaFase: any[] | undefined) {
   
   if (total === 0) return '';
   return formatarValor(total);
+}
+
+function limparFiltros() {
+  filtro.value.search = '';
+  filtro.value.responsavel = '';
 }
 
 onMounted(() => {
