@@ -33,6 +33,18 @@
           <i class="icon-contratos"></i>
           <span>Contratos</span>
         </router-link>
+        <div class="nav-section-header">
+          <span>Financeiro</span>
+        </div>
+        <router-link to="/financeiro/dashboard" class="nav-link">
+          <i class="icon-financeiro"></i>
+          <span>Dashboard</span>
+        </router-link>
+        <router-link to="/financeiro/transacoes" class="nav-link">
+          <i class="icon-transacoes"></i>
+          <span>Transações</span>
+        </router-link>
+
         <div v-if="userCargo === 'ADMIN'" class="nav-section-header">
           <span>Administração</span>
         </div>
@@ -117,11 +129,13 @@ onMounted(() => {
 .icon-imoveis::before { content: "\f279"; }
 .icon-clientes::before { content: "\f0c0"; }
 .icon-contratos::before { content: "\f15c"; }
-.icon-visitas::before { content: "\f0f3"; } /* Este ícone não é mais usado, mas a regra de CSS permanece */
 .icon-contatos::before { content: "\f0e0"; }
 .icon-users::before { content: "\f500"; }
 .icon-relatorios::before { content: "\f080"; }
-.icon-autorizacoes::before { content: "\f2b5"; } /* ícone de aperto de mão */
+.icon-autorizacoes::before { content: "\f2b5"; }
+/* NOVOS ÍCONES PARA O MÓDULO FINANCEIRO */
+.icon-financeiro::before { content: "\f53c"; } /* Ícone de dinheiro ou balanço */
+.icon-transacoes::before { content: "\f0d6"; } /* Ícone de lista ou extrato */
 
 .dashboard-layout {
   display: flex;

@@ -46,6 +46,7 @@ INSTALLED_APPS = [
     'app_imoveis.apps.AppImoveisConfig',
     'app_clientes.apps.AppClientesConfig',
     'app_contratos.apps.AppContratosConfig',
+    'app_financeiro.apps.AppFinanceiroConfig', 
 ]
 
 
