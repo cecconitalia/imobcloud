@@ -18,11 +18,11 @@ urlpatterns = [
     # ADICIONADO: URL do novo módulo financeiro
     path('api/v1/financeiro/', include('app_financeiro.urls')),
 
-    # A linha abaixo usa a sua view personalizada para o login
-    path('api/token/', MyTokenObtainPairView.as_view(), name='token_obtain_pair'),
+    # CORREÇÃO: Adicionada a rota '/v1/' à URL do token para consistência
+    path('api/v1/token/', MyTokenObtainPairView.as_view(), name='token_obtain_pair'),
     
-    # Endpoint para atualizar o token
-    path('api/token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
+    # CORREÇÃO: Adicionada a rota '/v1/' à URL de refresh do token
+    path('api/v1/token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
     
     # Adiciona os URLs de login/logout para a interface da API no navegador
     path('api-auth/', include('rest_framework.urls'))
