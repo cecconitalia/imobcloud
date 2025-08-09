@@ -77,31 +77,22 @@ class Atividade(models.Model):
     def __str__(self):
         return f"{self.tipo} para {self.cliente.nome_completo} em {self.data_criacao.strftime('%d/%m/%Y')}"
 
-# NOVO MODELO PARA AS FASES DO FUNIL
-class FaseFunil(models.Model):
-    """
-    Define as fases personalizadas do funil de vendas para cada imobiliária.
-    """
-    imobiliaria = models.ForeignKey(Imobiliaria, on_delete=models.CASCADE, related_name='fases_funil')
-    nome = models.CharField(max_length=50)
-    ordem = models.PositiveIntegerField(default=0)
-    cor = models.CharField(max_length=7, default='#007bff') # Para personalização visual
-    
-    class Meta:
-        verbose_name = "Fase do Funil"
-        verbose_name_plural = "Fases do Funil"
-        ordering = ['ordem']
-        unique_together = ('imobiliaria', 'nome',)
-        
-    def __str__(self):
-        return f"{self.imobiliaria.nome} - {self.nome}"
-
 
 # NOVO MODELO PARA O FUNIL DE VENDAS
 class Oportunidade(models.Model):
     """
     Representa uma oportunidade de negócio no funil de vendas.
     """
+    FASE_FUNIL_CHOICES = [
+        ('LEAD', 'Novo Lead'),
+        ('CONTATO', 'Primeiro Contato'),
+        ('VISITA', 'Visita Agendada'),
+        ('PROPOSTA', 'Proposta Enviada'),
+        ('NEGOCIACAO', 'Em Negociação'),
+        ('GANHO', 'Negócio Ganho'),
+        ('PERDIDO', 'Negócio Perdido'),
+    ]
+    
     FONTE_CHOICES = [
         ('SITE', 'Site'),
         ('INDICACAO', 'Indicação'),
@@ -117,9 +108,7 @@ class Oportunidade(models.Model):
     responsavel = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name="oportunidades", verbose_name="Corretor Responsável")
     imobiliaria = models.ForeignKey(Imobiliaria, on_delete=models.CASCADE, verbose_name="Imobiliária")
 
-    # CAMPO FASE MODIFICADO
-    fase = models.ForeignKey(FaseFunil, on_delete=models.SET_NULL, null=True, related_name='oportunidades', verbose_name="Fase do Funil")
-    
+    fase = models.CharField(max_length=20, choices=FASE_FUNIL_CHOICES, default='LEAD', verbose_name="Fase do Funil")
     valor_estimado = models.DecimalField(max_digits=15, decimal_places=2, null=True, blank=True, verbose_name="Valor Estimado do Negócio")
     
     data_criacao = models.DateTimeField(auto_now_add=True)
