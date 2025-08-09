@@ -81,7 +81,7 @@ async function fetchDRE() {
   isLoading.value = true;
   error.value = null;
   try {
-    const response = await apiClient.get('/v1/financeiro/dre/', {
+    const response = await apiClient.get('/v1/financeiro/transacoes/dre/', {
       params: {
         start_date: filters.value.startDate,
         end_date: filters.value.endDate,
