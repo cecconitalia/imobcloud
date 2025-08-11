@@ -10,6 +10,9 @@ from rest_framework_simplejwt.views import TokenRefreshView
 urlpatterns = [
     path('admin/', admin.site.urls),
 
+    path('api/publicacoes/', include('app_publicacoes.urls')),
+
+
     # Endpoints de cada app da sua API
     path('api/v1/imoveis/', include('app_imoveis.urls')),
     path('api/v1/clientes/', include('app_clientes.urls')),
