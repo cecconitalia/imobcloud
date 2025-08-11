@@ -338,7 +338,6 @@ const isEditing = computed(() => !!imovelId.value);
 const activeTab = ref('geral');
 const clientes = ref<any[]>([]);
 
-// ########## INÍCIO DA LÓGICA DA IA E PUBLICAÇÃO ##########
 const textoGerado = ref('');
 const loadingIA = ref(false);
 const isPublishing = ref(false);
@@ -370,43 +369,44 @@ const handlePublicar = async () => {
     }
     
     isPublishing.value = true;
-    const publicacoesBemSucedidas: string[] = [];
-    const publicacoesComErro: string[] = [];
 
-    for (const plataforma of plataformasSelecionadas.value) {
-        try {
-            await apiClient.post('/publicacoes/publicar/', {
-                imovel_id: imovelId.value,
-                plataforma: plataforma,
-                texto: textoGerado.value
-            });
-            publicacoesBemSucedidas.push(plataforma);
-        } catch (error) {
-            console.error(`Erro ao publicar no ${plataforma}:`, error);
-            publicacoesComErro.push(plataforma);
+    // Criamos o objeto de dados que será enviado
+    const payload = {
+        imovel_id: imovelId.value,
+        texto: textoGerado.value,
+        plataformas: plataformasSelecionadas.value
+    };
+
+    // --- PASSO DE DEPURAÇÃO CRUCIAL ---
+    // Esta linha irá imprimir o objeto 'payload' na consola do seu navegador
+    console.log("A ENVIAR PARA A API:", payload);
+    
+    try {
+        const response = await apiClient.post('/publicacoes/publicar/', payload);
+
+        const resultados = response.data;
+        let feedbackMessage = 'Resultados da publicação:\n';
+        if (resultados.facebook) {
+            feedbackMessage += `Facebook: ${resultados.facebook}\n`;
         }
-    }
+        if (resultados.instagram) {
+            feedbackMessage += `Instagram: ${resultados.instagram}\n`;
+        }
+        alert(feedbackMessage.trim());
 
-    isPublishing.value = false;
+        if (resultados.facebook?.includes('sucesso') || resultados.instagram?.includes('sucesso')) {
+            textoGerado.value = '';
+            plataformasSelecionadas.value = [];
+        }
 
-    // Feedback para o usuário
-    let feedbackMessage = '';
-    if (publicacoesBemSucedidas.length > 0) {
-        feedbackMessage += `Publicado com sucesso em: ${publicacoesBemSucedidas.join(', ')}.\n`;
-    }
-    if (publicacoesComErro.length > 0) {
-        feedbackMessage += `Falha ao publicar em: ${publicacoesComErro.join(', ')}.`;
-    }
-    alert(feedbackMessage.trim());
-
-    if (publicacoesBemSucedidas.length > 0) {
-        // Limpar os campos para evitar republicação acidental
-        textoGerado.value = '';
-        plataformasSelecionadas.value = [];
+    } catch (error) {
+        const errorMsg = (error as any).response?.data?.error || "Ocorreu um erro geral ao tentar publicar.";
+        console.error(`Erro ao publicar:`, error);
+        alert(`Falha na Publicação:\n${errorMsg}`);
+    } finally {
+        isPublishing.value = false;
     }
 };
-
-// ########## FIM DA LÓGICA DA IA E PUBLICAÇÃO ##########
 
 const createEmptyImovel = () => ({
   id: null,
