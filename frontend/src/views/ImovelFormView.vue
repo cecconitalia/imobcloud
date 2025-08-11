@@ -21,23 +21,23 @@
 
       <div class="tab-content">
         <div v-show="activeTab === 'geral'" class="form-grid">
-          <div class="form-group full-width">
+            <div class="form-group full-width">
             <label for="titulo_anuncio">Título do Anúncio</label>
             <input type="text" id="titulo_anuncio" v-model="imovel.titulo_anuncio" required />
-          </div>
-          <div class="form-group">
+            </div>
+            <div class="form-group">
             <label for="tipo">Tipo de Imóvel</label>
             <select id="tipo" v-model="imovel.tipo" required>
-              <option value="CASA">Casa</option>
-              <option value="APARTAMENTO">Apartamento</option>
-              <option value="TERRENO">Terreno</option>
-              <option value="SALA_COMERCIAL">Sala Comercial</option>
-              <option value="GALPAO">Galpão</option>
-              <option value="RURAL">Rural</option>
-              <option value="OUTRO">Outro</option>
+                <option value="CASA">Casa</option>
+                <option value="APARTAMENTO">Apartamento</option>
+                <option value="TERRENO">Terreno</option>
+                <option value="SALA_COMERCIAL">Sala Comercial</option>
+                <option value="GALPAO">Galpão</option>
+                <option value="RURAL">Rural</option>
+                <option value="OUTRO">Outro</option>
             </select>
-          </div>
-          <div class="form-group">
+            </div>
+            <div class="form-group">
             <label for="finalidade">Finalidade</label>
             <select id="finalidade" v-model="imovel.finalidade" required>
                 <option value="RESIDENCIAL">Residencial</option>
@@ -45,19 +45,19 @@
                 <option value="INDUSTRIAL">Industrial</option>
                 <option value="RURAL">Rural</option>
             </select>
-          </div>
-          <div class="form-group">
+            </div>
+            <div class="form-group">
             <label for="status">Status</label>
             <select id="status" v-model="imovel.status" required>
-              <option value="A_VENDA">À Venda</option>
-              <option value="PARA_ALUGAR">Para Alugar</option>
-              <option value="VENDIDO">Vendido</option>
-              <option value="ALUGADO">Alugado</option>
-              <option value="EM_CONSTRUCAO">Em Construção</option>
-              <option value="DESATIVADO">Desativado</option>
+                <option value="A_VENDA">À Venda</option>
+                <option value="PARA_ALUGAR">Para Alugar</option>
+                <option value="VENDIDO">Vendido</option>
+                <option value="ALUGADO">Alugado</option>
+                <option value="EM_CONSTRUCAO">Em Construção</option>
+                <option value="DESATIVADO">Desativado</option>
             </select>
-          </div>
-          <div class="form-group">
+            </div>
+            <div class="form-group">
             <label for="situacao">Situação do Imóvel</label>
             <select id="situacao" v-model="imovel.situacao">
                 <option :value="null">Não informado</option>
@@ -65,27 +65,27 @@
                 <option value="USADO">Usado</option>
                 <option value="NA_PLANTA">Na Planta</option>
             </select>
-          </div>
-          <div class="form-group full-width">
+            </div>
+            <div class="form-group full-width">
             <label for="endereco">Endereço Completo</label>
             <input type="text" id="endereco" v-model="imovel.endereco" required />
-          </div>
-          <div class="form-group">
+            </div>
+            <div class="form-group">
             <label for="bairro">Bairro</label>
             <input type="text" id="bairro" v-model="imovel.bairro" required />
-          </div>
-          <div class="form-group">
+            </div>
+            <div class="form-group">
             <label for="cidade">Cidade</label>
             <input type="text" id="cidade" v-model="imovel.cidade" required />
-          </div>
-          <div class="form-group">
+            </div>
+            <div class="form-group">
             <label for="estado">Estado (UF)</label>
             <input type="text" id="estado" maxlength="2" v-model="imovel.estado" required />
-          </div>
-          <div class="form-group">
+            </div>
+            <div class="form-group">
             <label for="cep">CEP</label>
             <input type="text" id="cep" v-model="imovel.cep" />
-          </div>
+            </div>
         </div>
 
         <div v-show="activeTab === 'valores'" class="form-grid">
@@ -272,7 +272,45 @@
             </div>
         </div>
       </div>
+      
+      <div v-if="isEditing" class="card mt-4 full-width">
+        <div class="card-header">
+          <h4>Gerar Publicação para Redes Sociais</h4>
+        </div>
+        <div class="card-body">
+          <p>
+            Use a Inteligência Artificial para gerar uma legenda e depois publique diretamente
+            nas suas redes sociais.
+          </p>
+          <button @click="gerarTextoParaRedeSocial" type="button" class="btn-info-outline" :disabled="loadingIA">
+            <span v-if="loadingIA" class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+            {{ loadingIA ? 'A gerar...' : 'Gerar Texto com IA' }}
+          </button>
 
+          <div v-if="textoGerado" class="mt-3">
+            <label for="textoGerado" class="form-label"><strong>Texto Sugerido:</strong></label>
+            <textarea id="textoGerado" v-model="textoGerado" class="form-control" rows="8"></textarea>
+            <small class="form-text text-muted">Pode editar o texto acima antes de publicar.</small>
+
+            <div class="plataformas-container mt-3">
+                <label class="form-label"><strong>Publicar em:</strong></label>
+                <div class="checkbox-group">
+                    <input type="checkbox" id="publicarInstagram" value="instagram" v-model="plataformasSelecionadas">
+                    <label for="publicarInstagram">Instagram</label>
+                </div>
+                <div class="checkbox-group">
+                    <input type="checkbox" id="publicarFacebook" value="facebook" v-model="plataformasSelecionadas">
+                    <label for="publicarFacebook">Facebook</label>
+                </div>
+            </div>
+
+            <button @click="handlePublicar" type="button" class="btn-primary mt-3" :disabled="isPublishing || plataformasSelecionadas.length === 0">
+              <span v-if="isPublishing" class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+              {{ isPublishing ? 'A publicar...' : 'Publicar Agora' }}
+            </button>
+          </div>
+        </div>
+      </div>
       <div class="form-actions full-width">
         <button type="button" @click="handleCancel" class="btn-secondary">Cancelar</button>
         <button type="button" @click="handleSaveAndContinue" class="btn-info-outline" :disabled="isSubmitting">
@@ -289,7 +327,7 @@
 <script setup lang="ts">
 import { ref, onMounted, computed, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import apiClient from '@/services/api';
+import apiClient from '@/services/api'; 
 import ImovelImagensView from './ImovelImagensView.vue';
 
 const route = useRoute();
@@ -299,6 +337,76 @@ const imovelId = computed(() => route.params.id as string | undefined);
 const isEditing = computed(() => !!imovelId.value);
 const activeTab = ref('geral');
 const clientes = ref<any[]>([]);
+
+// ########## INÍCIO DA LÓGICA DA IA E PUBLICAÇÃO ##########
+const textoGerado = ref('');
+const loadingIA = ref(false);
+const isPublishing = ref(false);
+const plataformasSelecionadas = ref<string[]>([]);
+
+const gerarTextoParaRedeSocial = async () => {
+  if (!imovelId.value) return;
+
+  loadingIA.value = true;
+  textoGerado.value = '';
+
+  try {
+    const response = await apiClient.post('/publicacoes/gerar-texto/', {
+      imovel_id: imovelId.value,
+    });
+    textoGerado.value = response.data.texto_sugerido;
+  } catch (error) {
+    console.error('Erro ao gerar texto com IA:', error);
+    alert('Ocorreu um erro ao gerar o texto.');
+  } finally {
+    loadingIA.value = false;
+  }
+};
+
+const handlePublicar = async () => {
+    if (plataformasSelecionadas.value.length === 0) {
+        alert("Por favor, selecione pelo menos uma plataforma para publicar.");
+        return;
+    }
+    
+    isPublishing.value = true;
+    const publicacoesBemSucedidas: string[] = [];
+    const publicacoesComErro: string[] = [];
+
+    for (const plataforma of plataformasSelecionadas.value) {
+        try {
+            await apiClient.post('/publicacoes/publicar/', {
+                imovel_id: imovelId.value,
+                plataforma: plataforma,
+                texto: textoGerado.value
+            });
+            publicacoesBemSucedidas.push(plataforma);
+        } catch (error) {
+            console.error(`Erro ao publicar no ${plataforma}:`, error);
+            publicacoesComErro.push(plataforma);
+        }
+    }
+
+    isPublishing.value = false;
+
+    // Feedback para o usuário
+    let feedbackMessage = '';
+    if (publicacoesBemSucedidas.length > 0) {
+        feedbackMessage += `Publicado com sucesso em: ${publicacoesBemSucedidas.join(', ')}.\n`;
+    }
+    if (publicacoesComErro.length > 0) {
+        feedbackMessage += `Falha ao publicar em: ${publicacoesComErro.join(', ')}.`;
+    }
+    alert(feedbackMessage.trim());
+
+    if (publicacoesBemSucedidas.length > 0) {
+        // Limpar os campos para evitar republicação acidental
+        textoGerado.value = '';
+        plataformasSelecionadas.value = [];
+    }
+};
+
+// ########## FIM DA LÓGICA DA IA E PUBLICAÇÃO ##########
 
 const createEmptyImovel = () => ({
   id: null,
@@ -451,25 +559,18 @@ async function handleSaveAndExit() {
   }
 }
 
-// ######## CORREÇÃO DEFINITIVA ESTÁ AQUI ########
 async function handleSaveAndContinue() {
   const response = await saveImovel();
   if (response && response.data) {
     const wasCreating = !isEditing.value;
     
-    // Se estava a CRIAR um novo imóvel...
     if (wasCreating && response.data.id) {
-      // 1. AWAIT: Pausa a execução aqui até que a navegação seja concluída.
-      // Isto garante que o 'watch' na rota tenha tempo de disparar e buscar os novos dados.
       await router.push({ name: 'imovel-editar', params: { id: response.data.id } });
     } else {
-      // Se já estava a EDITAR, apenas damos um feedback e buscamos os dados mais recentes.
       alert('Imóvel guardado com sucesso!');
       await fetchImovelData();
     }
     
-    // 2. Agora que temos a certeza de que o componente foi atualizado com o ID correto,
-    // é seguro mudar para a aba de imagens.
     activeTab.value = 'imagens';
   }
 }
@@ -480,106 +581,48 @@ function handleCancel() {
 </script>
 
 <style scoped>
+/* Estilos existentes */
 .form-container { padding: 2rem; }
 .view-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; }
-
-.tabs {
-  display: flex;
-  flex-wrap: wrap;
-  border-bottom: 2px solid #ccc;
-  margin-bottom: 1.5rem;
-  width: 100%;
-}
-.tabs button {
-  padding: 10px 20px;
-  border: none;
-  background: none;
-  cursor: pointer;
-  font-size: 1rem;
-  font-weight: 500;
-  color: #6c757d;
-  border-bottom: 2px solid transparent;
-  margin-bottom: -2px;
-}
-.tabs button:disabled {
-  color: #ccc;
-  cursor: not-allowed;
-}
-.tabs button.active {
-  color: #007bff;
-  border-bottom-color: #007bff;
-  font-weight: bold;
-}
-.tab-content {
-    width: 100%;
-}
-
+.tabs { display: flex; flex-wrap: wrap; border-bottom: 2px solid #ccc; margin-bottom: 1.5rem; width: 100%; }
+.tabs button { padding: 10px 20px; border: none; background: none; cursor: pointer; font-size: 1rem; font-weight: 500; color: #6c757d; border-bottom: 2px solid transparent; margin-bottom: -2px; }
+.tabs button:disabled { color: #ccc; cursor: not-allowed; }
+.tabs button.active { color: #007bff; border-bottom-color: #007bff; font-weight: bold; }
+.tab-content { width: 100%; }
 .imovel-form { display: flex; flex-wrap: wrap; gap: 1.5rem; }
-.form-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-    gap: 1.5rem;
-    width: 100%;
-}
+.form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 1.5rem; width: 100%; }
 .form-group { display: flex; flex-direction: column; }
 .form-group.full-width { grid-column: 1 / -1; }
 label { margin-bottom: 0.5rem; font-weight: bold; }
 input, select, textarea { padding: 10px; border: 1px solid #ccc; border-radius: 4px; font-size: 1rem; }
-
-.checkbox-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-    gap: 1rem;
-}
-.checkbox-group {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-}
-.checkbox-group input[type="checkbox"] {
-    width: auto;
-}
-.checkbox-group label {
-    margin-bottom: 0;
-    font-weight: normal;
-}
-
+.checkbox-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1rem; }
+.checkbox-group { display: flex; align-items: center; gap: 0.5rem; }
+.checkbox-group input[type="checkbox"] { width: auto; }
+.checkbox-group label { margin-bottom: 0; font-weight: normal; }
 .form-actions { display: flex; justify-content: flex-end; gap: 1rem; width: 100%; margin-top: 1rem; }
 .btn-primary, .btn-secondary, .btn-info, .btn-info-outline { padding: 10px 20px; border: none; border-radius: 5px; cursor: pointer; text-decoration: none; font-weight: bold; }
 .btn-primary { background-color: #007bff; color: white; }
 .btn-secondary { background-color: #6c757d; color: white; }
-.btn-info { background-color: #17a2b8; color: white; width: 100%; }
-.btn-info-outline {
-  background-color: white;
-  color: #17a2b8;
-  border: 1px solid #17a2b8;
-}
+.btn-info { background-color: #17a2b8; color: white; }
+.btn-info-outline { background-color: white; color: #17a2b8; border: 1px solid #17a2b8; }
 .loading-message { text-align: center; padding: 2rem; }
-.info-message {
-  background-color: #e9f5ff;
-  border: 1px solid #b3d7f7;
-  color: #0d6efd;
-  padding: 1rem;
-  border-radius: 4px;
-  text-align: center;
-  width: 100%;
-}
-.card {
-  background-color: #fff;
-  border-radius: 8px;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-  overflow: hidden;
-  width: 100%;
-}
+.info-message { background-color: #e9f5ff; border: 1px solid #b3d7f7; color: #0d6efd; padding: 1rem; border-radius: 4px; text-align: center; width: 100%; }
+.card { background-color: #fff; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); overflow: hidden; width: 100%; }
+.mt-4 { margin-top: 1.5rem; }
+.mt-3 { margin-top: 1rem; }
+.card-header { background-color: #f7f7f7; padding: 1rem 1.5rem; font-weight: bold; border-bottom: 1px solid #e0e0e0; }
+.card-body { padding: 1.5rem; }
+.form-label { font-weight: bold; }
+.form-control { width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 4px; font-size: 1rem; }
+.spinner-border { display: inline-block; width: 1rem; height: 1rem; vertical-align: text-bottom; border: .2em solid currentColor; border-right-color: transparent; border-radius: 50%; -webkit-animation: spinner-border .75s linear infinite; animation: spinner-border .75s linear infinite; }
+@-webkit-keyframes spinner-border { to { -webkit-transform: rotate(360deg); } }
+@keyframes spinner-border { to { transform: rotate(360deg); } }
+.spinner-border-sm { width: 0.8rem; height: 0.8rem; border-width: .15em; }
 
-.card-header {
-  background-color: #f7f7f7;
-  padding: 1rem 1.5rem;
-  font-weight: bold;
-  border-bottom: 1px solid #e0e0e0;
-}
-
-.card-body {
-  padding: 1.5rem;
+/* Novos estilos para a seção de publicação */
+.plataformas-container {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
 }
 </style>
