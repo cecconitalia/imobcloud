@@ -1,13 +1,11 @@
-# app_publicacoes/urls.py
+# C:\wamp64\www\imobcloud\app_publicacoes\urls.py
 
 from django.urls import path
-# ATUALIZADO: Importe a nova View
-from .views import GerarTextoPublicacaoView, PublicarPostView 
+# Importamos a view com o nome novo que criamos: PublicacaoRedeSocialView
+from .views import GerarTextoPublicacaoView, PublicacaoRedeSocialView
 
 urlpatterns = [
-    # Rota existente para gerar o texto
     path('gerar-texto/', GerarTextoPublicacaoView.as_view(), name='gerar_texto_publicacao'),
-
-    # NOVA ROTA: Adicione esta linha para a publicação
-    path('publicar/', PublicarPostView.as_view(), name='publicar_post'),
+    # E usamos o nome novo da view aqui também
+    path('publicar/', PublicacaoRedeSocialView.as_view(), name='publicar_rede_social'),
 ]
