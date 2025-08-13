@@ -36,6 +36,7 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'django.contrib.sites',
+
     #'sslserver',
 
 
@@ -49,6 +50,7 @@ INSTALLED_APPS = [
     'app_contratos.apps.AppContratosConfig',
     'app_financeiro.apps.AppFinanceiroConfig', 
     'app_publicacoes',
+    'app_config_ia',
 ]
 
 
@@ -255,11 +257,6 @@ MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 CSRF_TRUSTED_ORIGINS = [
     'http://localhost:5173',
     'http://127.0.0.1:5173',
-    # Se você estiver usando subdomínios, adicione-os também para CSRF
-    # Ex: 'http://sol.localhost:5173',
-    # Para produção, você listaria os domínios reais:
-    # 'https://seusistema.com',
-    # 'https://*.seusistema.com',
 ]
 
 # =============================================================
@@ -269,7 +266,25 @@ EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
 EMAIL_HOST = 'mail.ofertacobrasil.com.br'
 EMAIL_PORT = 587
 EMAIL_USE_TLS = True
-# ALTERADO para usar variáveis de ambiente
 EMAIL_HOST_USER = os.getenv('EMAIL_HOST_USER')
 EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD')
 DEFAULT_FROM_EMAIL = os.getenv('EMAIL_HOST_USER')
+
+# ===================================================================
+# CONFIGURAÇÕES DO CELERY E REDIS (ADICIONADAS)
+# ===================================================================
+CELERY_BROKER_URL = 'redis://localhost:6379/0'
+CELERY_RESULT_BACKEND = 'redis://localhost:6379/0'
+CELERY_ACCEPT_CONTENT = ['json']
+CELERY_TASK_SERIALIZER = 'json'
+CELERY_RESULT_SERIALIZER = 'json'
+CELERY_TIMEZONE = 'America/Sao_Paulo' # Ajuste para o seu fuso horário
+
+# Configuração do Celery Beat (Agendador de Tarefas Periódicas)
+CELERY_BEAT_SCHEDULE = {
+    'verificar-posts-agendados': {
+        'task': 'app_publicacoes.tasks.publicar_posts_agendados',
+        'schedule': 60.0,  # Executar a cada 60 segundos
+    },
+}
+# ===================================================================

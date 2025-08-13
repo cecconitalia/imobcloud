@@ -1,11 +1,25 @@
-# C:\wamp64\www\imobcloud\app_publicacoes\urls.py
+# app_publicacoes/urls.py
 
 from django.urls import path
-# Importamos a view com o nome novo que criamos: PublicacaoRedeSocialView
-from .views import GerarTextoPublicacaoView, PublicacaoRedeSocialView
+from .views import (
+    GerarTextoPublicacaoView,
+    PublicacaoRedeSocialView,
+    AgendarPublicacaoView,
+    CalendarioPublicacoesView
+)
 
 urlpatterns = [
-    path('gerar-texto/', GerarTextoPublicacaoView.as_view(), name='gerar_texto_publicacao'),
-    # E usamos o nome novo da view aqui também
-    path('publicar/', PublicacaoRedeSocialView.as_view(), name='publicar_rede_social'),
+    # Esta linha regista a rota para a sua view de IA
+    path('gerar-texto/', GerarTextoPublicacaoView.as_view(), name='gerar-texto-publicacao'),
+    
+    # Esta linha regista a rota para a publicação efetiva nas redes sociais
+    path('publicar/', PublicacaoRedeSocialView.as_view(), name='publicar-rede-social'),
+
+    # NOVA ROTA DE AGENDAMENTO ---
+    path('agendar/', AgendarPublicacaoView.as_view(), name='agendar-publicacao'),
+    
+    # ROTA DO CALENDÁRIO
+    path('calendario/', CalendarioPublicacoesView.as_view(), name='calendario-publicacoes'),
+
+
 ]

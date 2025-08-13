@@ -4,7 +4,7 @@ from django.urls import path, include
 from rest_framework.routers import DefaultRouter
 
 # ATUALIZADO: Importar o CorretorViewSet e a nova NotificacaoViewSet
-from .views import DashboardStatsView, CorretorViewSet, NotificacaoViewSet
+from .views import DashboardStatsView, CorretorViewSet, NotificacaoViewSet, IntegracaoRedesSociaisView
 
 router = DefaultRouter()
 router.register(r'corretores', CorretorViewSet, basename='corretor')
@@ -14,7 +14,10 @@ router.register(r'notificacoes', NotificacaoViewSet, basename='notificacao')
 urlpatterns = [
     # URL para as estatísticas do dashboard
     path('stats/', DashboardStatsView.as_view(), name='dashboard_stats'),
+
+    path('integracoes/redes-sociais/', IntegracaoRedesSociaisView.as_view(), name='integracoes-redes-sociais'),
     
     # Inclui todas as URLs geradas pelo router (para corretores e notificações)
     path('', include(router.urls)),
 ]
+urlpatterns += router.urls

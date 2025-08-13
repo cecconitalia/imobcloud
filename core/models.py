@@ -1,17 +1,29 @@
 # C:\wamp64\www\ImobCloud\core\models.py
 
 from django.db import models
-from django.conf import settings # Importa settings para User model
+from django.conf import settings
+# Adicionamos a importação do novo modelo que criamos
+from app_config_ia.models import OpcaoVozDaMarca
 
 class Imobiliaria(models.Model):
     nome = models.CharField(max_length=255, unique=True)
     subdominio = models.CharField(max_length=255, unique=True)
     email_contato = models.EmailField(max_length=254, blank=True, null=True, verbose_name="Email para Notificações")
     
-    # NOVOS CAMPOS ADICIONADOS AQUI
     facebook_page_id = models.CharField(max_length=255, blank=True, null=True, verbose_name="ID da Página do Facebook")
     facebook_page_access_token = models.CharField(max_length=512, blank=True, null=True, verbose_name="Token de Acesso da Página do Facebook")
     instagram_business_account_id = models.CharField(max_length=255, blank=True, null=True, verbose_name="ID da Conta Business do Instagram")
+
+    # --- NOVO CAMPO ADICIONADO ---
+    # Este campo irá guardar a preferência de tom de voz para a IA.
+    voz_da_marca_preferida = models.ForeignKey(
+        OpcaoVozDaMarca,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        help_text="A voz da marca que a IA usará para as publicações desta imobiliária."
+    )
+    # --- FIM DO NOVO CAMPO ---
 
     class Meta:
         verbose_name_plural = "Imobiliárias"
@@ -62,13 +74,12 @@ class PerfilUsuario(models.Model):
     def __str__(self):
         return f"Perfil de {self.user.username} ({self.imobiliaria.nome if self.imobiliaria else 'Nenhuma Imobiliária'})"
 
-# NOVO MODELO DE NOTIFICAÇÃO
 class Notificacao(models.Model):
     destinatario = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='notificacoes')
     mensagem = models.CharField(max_length=255)
     lida = models.BooleanField(default=False)
     data_criacao = models.DateTimeField(auto_now_add=True)
-    link = models.CharField(max_length=255, blank=True, null=True) # Opcional: para redirecionar o usuário
+    link = models.CharField(max_length=255, blank=True, null=True)
 
     class Meta:
         ordering = ['-data_criacao']

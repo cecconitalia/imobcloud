@@ -91,7 +91,9 @@ async function fetchImoveis() {
     if (filterStatus.value) {
       params.status = filterStatus.value;
     }
-    const response = await apiClient.get('/v1/imoveis/imoveis/', { params });
+    // A CORREÇÃO ESTÁ AQUI:
+    // A URL estava '/v1/imoveis/imoveis/'. Corrigimos para '/v1/imoveis/'.
+    const response = await apiClient.get('/v1/imoveis/', { params });
     imoveis.value = response.data;
   } catch (err) {
     console.error("Erro ao buscar imóveis:", err);
@@ -135,7 +137,8 @@ async function handleInativar(imovelId: number) {
     return;
   }
   try {
-    await apiClient.delete(`/v1/imoveis/imoveis/${imovelId}/`);
+    // A CORREÇÃO TAMBÉM ESTÁ AQUI: URL corrigida
+    await apiClient.delete(`/v1/imoveis/${imovelId}/`);
     imoveis.value = imoveis.value.filter(imovel => imovel.id !== imovelId);
   } catch (error) {
     console.error("Erro ao inativar imóvel:", error);

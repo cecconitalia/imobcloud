@@ -12,6 +12,9 @@ from django.shortcuts import get_object_or_404
 from django.contrib.auth import get_user_model
 from django.db.models import Sum
 
+# --- NOVAS IMPORTAÇÕES PARA LOGOUT ---
+from rest_framework_simplejwt.tokens import RefreshToken
+
 # Importações dos modelos de outros apps
 from app_imoveis.models import Imovel
 from app_clientes.models import Cliente
@@ -23,7 +26,8 @@ from .serializers import (
     MyTokenObtainPairSerializer, 
     CorretorRegistrationSerializer, 
     CorretorDisplaySerializer,
-    NotificacaoSerializer
+    NotificacaoSerializer,
+    ImobiliariaIntegracaoSerializer
 )
 # Importação do 'action'
 from rest_framework.decorators import action
@@ -37,6 +41,25 @@ class MyTokenObtainPairView(TokenObtainPairView):
     Permanece sem alterações.
     """
     serializer_class = MyTokenObtainPairSerializer
+
+# --- NOVA VIEW DE LOGOUT ADICIONADA ---
+class LogoutView(APIView):
+    """
+    Endpoint para fazer logout do utilizador.
+    Adiciona o refresh token a uma blacklist para invalidá-lo.
+    """
+    permission_classes = (IsAuthenticated,)
+
+    def post(self, request):
+        try:
+            refresh_token = request.data["refresh_token"]
+            token = RefreshToken(refresh_token)
+            token.blacklist()
+
+            return Response(status=status.HTTP_205_RESET_CONTENT)
+        except Exception as e:
+            return Response(status=status.HTTP_400_BAD_REQUEST)
+# --- FIM DA VIEW DE LOGOUT ---
 
 
 class DashboardStatsView(APIView):
@@ -172,3 +195,32 @@ class CorretorViewSet(viewsets.ModelViewSet):
         notificacoes = Notificacao.objects.filter(destinatario=request.user, lida=False)
         serializer = NotificacaoSerializer(notificacoes, many=True)
         return Response(serializer.data)
+    
+class IntegracaoRedesSociaisView(APIView):
+    """
+    View para a imobiliária (tenant) gerir as suas credenciais
+    de integração com Facebook e Instagram.
+    """
+    permission_classes = [IsAuthenticated]
+    serializer_class = ImobiliariaIntegracaoSerializer
+
+    def get(self, request, *args, **kwargs):
+        imobiliaria = request.tenant
+        # Apenas o admin da imobiliária ou o superusuário podem ver as credenciais
+        if not (request.user.is_superuser or (hasattr(request.user, 'perfil') and request.user.perfil.cargo == 'ADMIN')):
+            return Response({"error": "Acesso não autorizado."}, status=status.HTTP_403_FORBIDDEN)
+            
+        serializer = self.serializer_class(imobiliaria)
+        return Response(serializer.data)
+
+    def put(self, request, *args, **kwargs):
+        imobiliaria = request.tenant
+        # Apenas o admin da imobiliária ou o superusuário podem atualizar as credenciais
+        if not (request.user.is_superuser or (hasattr(request.user, 'perfil') and request.user.perfil.cargo == 'ADMIN')):
+            return Response({"error": "Acesso não autorizado."}, status=status.HTTP_403_FORBIDDEN)
+
+        serializer = self.serializer_class(imobiliaria, data=request.data, partial=True)
+        if serializer.is_valid():
+            serializer.save()
+            return Response({"success": "Credenciais salvas com sucesso!"}, status=status.HTTP_200_OK)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
