@@ -9,13 +9,14 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "@fullcalendar/core": "^6.1.18",
-    "@fullcalendar/daygrid": "^6.1.18",
-    "@fullcalendar/interaction": "^6.1.18",
+    "@fullcalendar/core": "^6.1.19",
+    "@fullcalendar/daygrid": "^6.1.19",
+    "@fullcalendar/interaction": "^6.1.19",
     "@fullcalendar/list": "^6.1.18",
     "@fullcalendar/timegrid": "^6.1.18",
-    "@fullcalendar/vue3": "^6.1.18",
+    "@fullcalendar/vue3": "^6.1.19",
     "axios": "^1.11.0",
+    "date-fns": "^4.1.0",
     "pinia": "^3.0.3",
     "vue": "^3.5.17",
     "vue-draggable-next": "^2.2.1",

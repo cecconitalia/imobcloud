@@ -8,6 +8,9 @@ from rest_framework.decorators import action
 from rest_framework.exceptions import PermissionDenied
 from rest_framework.views import APIView
 
+# --- NOVAS IMPORTAÇÕES ---
+from rest_framework.generics import ListAPIView, RetrieveAPIView
+
 from django.db import models, transaction
 from django.shortcuts import get_object_or_404
 from django.http import HttpResponse
@@ -23,9 +26,49 @@ from datetime import date, timedelta
 from decimal import Decimal
 
 from .models import Imovel, ImagemImovel, ContatoImovel
-from .serializers import ImovelSerializer, ImagemImovelSerializer, ContatoImovelSerializer
+# --- SERIALIZER PÚBLICO IMPORTADO ---
+from .serializers import ImovelSerializer, ImagemImovelSerializer, ContatoImovelSerializer, ImovelPublicSerializer
 from core.models import Imobiliaria, PerfilUsuario
 from app_clientes.models import Oportunidade
+
+# ===================================================================
+# VIEWS PÚBLICAS (Para o site de cada imobiliária, sem necessidade de login)
+# ===================================================================
+
+class ImovelPublicListView(ListAPIView):
+    """
+    View para listar os imóveis ativos de uma imobiliária (tenant) no site público.
+    Não requer autenticação.
+    """
+    serializer_class = ImovelPublicSerializer
+    permission_classes = [permissions.AllowAny] # Permite acesso público
+
+    def get_queryset(self):
+        # Filtra os imóveis pelo tenant (imobiliária) atual
+        # e garante que apenas imóveis ativos e com status 'Disponível' sejam mostrados
+        return Imovel.objects.filter(
+            imobiliaria=self.request.tenant,
+            publicado_no_site=True
+        ).exclude(status='DESATIVADO').order_by('-data_atualizacao')
+
+
+class ImovelPublicDetailView(RetrieveAPIView):
+    """
+    View para detalhar um imóvel específico no site público.
+    Não requer autenticação.
+    """
+    serializer_class = ImovelPublicSerializer
+    permission_classes = [permissions.AllowAny]
+    queryset = Imovel.objects.filter(publicado_no_site=True)
+    lookup_field = 'pk'
+
+    def get_queryset(self):
+        # Garante que só se pode aceder a imóveis do tenant (imobiliária) atual
+        return self.queryset.filter(imobiliaria=self.request.tenant)
+
+# ===================================================================
+# VIEWS INTERNAS (Para o painel administrativo, requerem login)
+# ===================================================================
 
 class ImovelViewSet(viewsets.ModelViewSet):
     queryset = Imovel.objects.all()
@@ -35,7 +78,6 @@ class ImovelViewSet(viewsets.ModelViewSet):
     search_fields = ['endereco', 'cidade', 'titulo_anuncio', 'codigo_referencia']
 
     def get_queryset(self):
-        # INÍCIO DA CORREÇÃO
         base_queryset = Imovel.objects.all()
 
         finalidade = self.request.query_params.get('finalidade', None)
@@ -47,14 +89,11 @@ class ImovelViewSet(viewsets.ModelViewSet):
         vagas_min = self.request.query_params.get('vagas_min', None)
         status_param = self.request.query_params.get('status', None)
 
-        # A exclusão de imóveis desativados deve ser o comportamento padrão apenas
-        # na listagem, a menos que um status específico seja filtrado.
         if self.action == 'list':
             if not status_param:
                 base_queryset = base_queryset.exclude(status='DESATIVADO')
             else:
                 base_queryset = base_queryset.filter(status=status_param)
-        # FIM DA CORREÇÃO
         
         if not self.request.user.is_authenticated or not self.request.tenant:
             base_queryset = base_queryset.filter(publicado_no_site=True)
@@ -66,7 +105,6 @@ class ImovelViewSet(viewsets.ModelViewSet):
         if cidade:
             base_queryset = base_queryset.filter(cidade__icontains=cidade)
         if valor_min:
-        # Filtra por 'valor_venda'
             base_queryset = base_queryset.filter(valor_venda__gte=valor_min)
         if valor_max:
             base_queryset = base_queryset.filter(valor_venda__lte=valor_max)

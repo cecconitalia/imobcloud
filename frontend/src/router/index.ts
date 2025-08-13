@@ -34,13 +34,19 @@ import ListaContasView from '@/views/ListaContasView.vue'
 import ContaFormView from '@/views/ContaFormView.vue'
 import ListaCategoriasView from '@/views/ListaCategoriasView.vue'
 import CategoriaFormView from '@/views/CategoriaFormView.vue'
-// --- IMPORTAÇÃO DA NOVA PÁGINA ADICIONADA ---
 import ContasPendentes from '@/views/financeiro/ContasPendentes.vue'
+
+// --- 1. IMPORTE AS NOVAS VIEWS ---
+import ConfiguracaoIAView from '@/views/ConfiguracaoIA.vue'
+import IntegracoesView from '@/views/IntegracoesView.vue'
+import PublicacoesView from '@/views/PublicacoesView.vue'
 
 
 // Importações das views do Site Público
 import PublicHomeView from '@/views/PublicHomeView.vue'
 import PublicImovelDetailView from '@/views/PublicImovelDetailView.vue'
+import CalendarioPublicacoesView from '@/views/CalendarioPublicacoesView.vue' // <-- IMPORTE A NOVA VIEW
+
 
 // Adicionar um tipo para a meta das rotas
 declare module 'vue-router' {
@@ -291,6 +297,27 @@ const router = createRouter({
                         requiresAuth: true
                     }
                 },
+                // --- 2. ADICIONE A ROTA DE PUBLICAÇÕES AQUI ---
+                {
+                    path: 'publicacoes',
+                    name: 'publicacoes',
+                    component: PublicacoesView,
+                    meta: {
+                        title: 'Central de Publicações',
+                        requiresAuth: true
+                    }
+                },
+
+                {
+                    path: 'calendario-publicacoes',
+                    name: 'calendario-publicacoes',
+                    component: CalendarioPublicacoesView,
+                    meta: {
+                        title: 'Calendário de Publicações',
+                        requiresAuth: true
+                    }
+                },
+
                 {
                     path: 'relatorios',
                     name: 'relatorios',
@@ -307,6 +334,26 @@ const router = createRouter({
                     component: AutorizacoesView,
                     meta: {
                         title: 'Gestão de Autorizações',
+                        requiresAuth: true,
+                        isAdmin: true
+                    }
+                },
+                {
+                    path: 'configuracoes-ia',
+                    name: 'configuracoes-ia',
+                    component: ConfiguracaoIAView,
+                    meta: {
+                        title: 'Configurações da IA',
+                        requiresAuth: true,
+                        isAdmin: true
+                    }
+                },
+                {
+                    path: 'integracoes',
+                    name: 'integracoes',
+                    component: IntegracoesView,
+                    meta: {
+                        title: 'Integrações',
                         requiresAuth: true,
                         isAdmin: true
                     }
@@ -426,7 +473,6 @@ const router = createRouter({
                         isAdmin: true
                     }
                 },
-                // --- ROTA CORRIGIDA E GARANTIDA ---
                 { 
                     path: 'financeiro/contas-pendentes',
                     name: 'contas-pendentes',

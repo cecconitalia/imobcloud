@@ -1,42 +1,76 @@
-# app_publicacoes/models.py
+# C:\wamp64\www\imobcloud\app_publicacoes\models.py
 
 from django.db import models
+from core.models import Imobiliaria, PerfilUsuario
 from app_imoveis.models import Imovel
-from core.models import PerfilUsuario
-
-# Definimos as opções para a plataforma de uma forma organizada
-class PlataformaChoices(models.TextChoices):
-    INSTAGRAM = 'instagram', 'Instagram'
-    FACEBOOK = 'facebook', 'Facebook'
 
 class PublicacaoSocial(models.Model):
-    # Ligação para o imóvel que está a ser publicado. Se o imóvel for apagado, a publicação também será.
-    imovel = models.ForeignKey(Imovel, on_delete=models.CASCADE, related_name='publicacoes')
-
-    # A rede social onde foi publicado (usando as opções que definimos acima).
-    plataforma = models.CharField(max_length=20, choices=PlataformaChoices.choices)
-
-    # O texto final que foi gerado pela IA e (possivelmente) editado pelo usuário.
-    texto_gerado = models.TextField(help_text="O conteúdo do post gerado pela IA.")
-
-    # Quem foi o usuário que clicou no botão para publicar.
+    imovel = models.ForeignKey(Imovel, on_delete=models.CASCADE, related_name='publicacoes_sociais')
+    texto_gerado = models.TextField()
+    plataforma = models.CharField(max_length=50) # ex: 'facebook', 'instagram'
+    sucesso = models.BooleanField(default=False)
+    resposta_api = models.JSONField(null=True, blank=True)
+    data_publicacao = models.DateTimeField(auto_now_add=True)
     publicado_por = models.ForeignKey(PerfilUsuario, on_delete=models.SET_NULL, null=True, blank=True)
 
-    # A data e hora em que a publicação foi feita, preenchida automaticamente.
-    data_publicacao = models.DateTimeField(auto_now_add=True)
+    def __str__(self):
+        status = "Sucesso" if self.sucesso else "Falha"
+        return f"Publicação em {self.plataforma} para {self.imovel.codigo_referencia} - {status}"
 
-    # Um campo para sabermos se a publicação na rede social realmente funcionou.
-    sucesso = models.BooleanField(default=False)
+# --- CERTIFIQUE-SE DE QUE ESTA CLASSE ESTÁ PRESENTE NO FICHEIRO ---
+class PostAgendado(models.Model):
+    """
+    Representa uma publicação de rede social que foi agendada para o futuro.
+    """
+    STATUS_CHOICES = [
+        ('AGENDADO', 'Agendado'),
+        ('PUBLICADO', 'Publicado com Sucesso'),
+        ('ERRO', 'Erro na Publicação'),
+    ]
 
-    # Se a publicação for bem-sucedida, guardamos o link para ela (ex: o URL do post no Instagram).
-    link_publicacao = models.URLField(max_length=500, blank=True, null=True)
+    imovel = models.ForeignKey(
+        Imovel,
+        on_delete=models.CASCADE,
+        related_name='posts_agendados'
+    )
+    imobiliaria = models.ForeignKey(
+        Imobiliaria,
+        on_delete=models.CASCADE,
+        related_name='posts_agendados_imobiliaria'
+    )
+    agendado_por = models.ForeignKey(
+        PerfilUsuario,
+        on_delete=models.SET_NULL,
+        null=True,
+        related_name='posts_criados'
+    )
+    texto = models.TextField()
+    plataformas = models.JSONField(
+        default=list,
+        help_text="Lista de plataformas para publicar, ex: ['facebook', 'instagram']"
+    )
+    data_agendamento = models.DateTimeField()
+    status = models.CharField(
+        max_length=10,
+        choices=STATUS_CHOICES,
+        default='AGENDADO'
+    )
+    data_criacao = models.DateTimeField(auto_now_add=True)
+    data_publicacao_real = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text="Data e hora em que a publicação foi efetivamente realizada."
+    )
+    resultado_publicacao = models.JSONField(
+        null=True,
+        blank=True,
+        help_text="Armazena o resultado (sucesso ou erro) de cada plataforma."
+    )
 
     class Meta:
-        # Organiza as publicações pela mais recente primeiro no painel de administração.
-        ordering = ['-data_publicacao']
-        # Garante que não criamos duas publicações idênticas para o mesmo imóvel na mesma plataforma.
-        unique_together = ['imovel', 'plataforma', 'texto_gerado']
+        ordering = ['data_agendamento']
+        verbose_name = "Post Agendado"
+        verbose_name_plural = "Posts Agendados"
 
     def __str__(self):
-        # Um texto amigável para identificar a publicação no painel de administração do Django.
-        return f"Publicação para '{self.imovel.titulo}' no {self.get_plataforma_display()}"
+        return f"Post para '{self.imovel.titulo_anuncio}' agendado para {self.data_agendamento}"

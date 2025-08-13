@@ -2,7 +2,9 @@
   <div class="form-container">
     <header class="view-header">
       <h1>{{ isEditing ? `Editar Imóvel #${imovel.codigo_referencia}` : 'Adicionar Novo Imóvel' }}</h1>
-      <router-link to="/imoveis" class="btn-secondary">Voltar à Lista</router-link>
+      <div class="header-actions">
+        <router-link to="/imoveis" class="btn-secondary">Voltar à Lista</router-link>
+      </div>
     </header>
 
     <div v-if="isLoadingData" class="loading-message">
@@ -87,7 +89,6 @@
             <input type="text" id="cep" v-model="imovel.cep" />
             </div>
         </div>
-
         <div v-show="activeTab === 'valores'" class="form-grid">
             <div class="form-group">
                 <label for="valor_venda">Valor de Venda (R$)</label>
@@ -130,7 +131,6 @@
                 <input type="number" id="vagas_garagem" v-model.number="imovel.vagas_garagem" />
             </div>
         </div>
-        
         <div v-show="activeTab === 'caracteristicas'" class="form-grid checkbox-grid">
             <div class="checkbox-group">
                 <input type="checkbox" id="lavabo" v-model="imovel.lavabo">
@@ -165,7 +165,6 @@
                 <label for="churrasqueira_privativa">Churrasqueira Privativa</label>
             </div>
         </div>
-
         <div v-show="activeTab === 'condominio'" class="form-grid checkbox-grid">
             <div class="checkbox-group">
                 <input type="checkbox" id="portaria_24h" v-model="imovel.portaria_24h">
@@ -200,12 +199,11 @@
                 <label for="espaco_pet">Espaço Pet</label>
             </div>
         </div>
-        
         <div v-show="activeTab === 'imagens'">
             <div v-if="isEditing && imovel.id" class="card">
               <div class="card-header">Gestor de Imagens</div>
               <div class="card-body">
-                <ImovelImagensView :imovel-id="imovel.id" />
+                <ImovelImagensView :imovel-id="Number(imovel.id)" />
               </div>
             </div>
             <div v-else class="info-message">
@@ -213,7 +211,6 @@
               <p>Preencha as informações nas outras abas e clique em "Salvar e Continuar".</p>
             </div>
         </div>
-
         <div v-show="activeTab === 'autorizacao'" class="form-grid">
             <div class="form-group">
                 <label for="proprietario">Proprietário (Cliente)</label>
@@ -273,44 +270,6 @@
         </div>
       </div>
       
-      <div v-if="isEditing" class="card mt-4 full-width">
-        <div class="card-header">
-          <h4>Gerar Publicação para Redes Sociais</h4>
-        </div>
-        <div class="card-body">
-          <p>
-            Use a Inteligência Artificial para gerar uma legenda e depois publique diretamente
-            nas suas redes sociais.
-          </p>
-          <button @click="gerarTextoParaRedeSocial" type="button" class="btn-info-outline" :disabled="loadingIA">
-            <span v-if="loadingIA" class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
-            {{ loadingIA ? 'A gerar...' : 'Gerar Texto com IA' }}
-          </button>
-
-          <div v-if="textoGerado" class="mt-3">
-            <label for="textoGerado" class="form-label"><strong>Texto Sugerido:</strong></label>
-            <textarea id="textoGerado" v-model="textoGerado" class="form-control" rows="8"></textarea>
-            <small class="form-text text-muted">Pode editar o texto acima antes de publicar.</small>
-
-            <div class="plataformas-container mt-3">
-                <label class="form-label"><strong>Publicar em:</strong></label>
-                <div class="checkbox-group">
-                    <input type="checkbox" id="publicarInstagram" value="instagram" v-model="plataformasSelecionadas">
-                    <label for="publicarInstagram">Instagram</label>
-                </div>
-                <div class="checkbox-group">
-                    <input type="checkbox" id="publicarFacebook" value="facebook" v-model="plataformasSelecionadas">
-                    <label for="publicarFacebook">Facebook</label>
-                </div>
-            </div>
-
-            <button @click="handlePublicar" type="button" class="btn-primary mt-3" :disabled="isPublishing || plataformasSelecionadas.length === 0">
-              <span v-if="isPublishing" class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
-              {{ isPublishing ? 'A publicar...' : 'Publicar Agora' }}
-            </button>
-          </div>
-        </div>
-      </div>
       <div class="form-actions full-width">
         <button type="button" @click="handleCancel" class="btn-secondary">Cancelar</button>
         <button type="button" @click="handleSaveAndContinue" class="btn-info-outline" :disabled="isSubmitting">
@@ -330,6 +289,9 @@ import { useRoute, useRouter } from 'vue-router';
 import apiClient from '@/services/api'; 
 import ImovelImagensView from './ImovelImagensView.vue';
 
+// A IMPORTAÇÃO E A LÓGICA DO MODAL FORAM REMOVIDAS DAQUI
+// PARA CENTRALIZAR NA PÁGINA DE PUBLICAÇÕES
+
 const route = useRoute();
 const router = useRouter();
 
@@ -337,76 +299,6 @@ const imovelId = computed(() => route.params.id as string | undefined);
 const isEditing = computed(() => !!imovelId.value);
 const activeTab = ref('geral');
 const clientes = ref<any[]>([]);
-
-const textoGerado = ref('');
-const loadingIA = ref(false);
-const isPublishing = ref(false);
-const plataformasSelecionadas = ref<string[]>([]);
-
-const gerarTextoParaRedeSocial = async () => {
-  if (!imovelId.value) return;
-
-  loadingIA.value = true;
-  textoGerado.value = '';
-
-  try {
-    const response = await apiClient.post('/publicacoes/gerar-texto/', {
-      imovel_id: imovelId.value,
-    });
-    textoGerado.value = response.data.texto_sugerido;
-  } catch (error) {
-    console.error('Erro ao gerar texto com IA:', error);
-    alert('Ocorreu um erro ao gerar o texto.');
-  } finally {
-    loadingIA.value = false;
-  }
-};
-
-const handlePublicar = async () => {
-    if (plataformasSelecionadas.value.length === 0) {
-        alert("Por favor, selecione pelo menos uma plataforma para publicar.");
-        return;
-    }
-    
-    isPublishing.value = true;
-
-    // Criamos o objeto de dados que será enviado
-    const payload = {
-        imovel_id: imovelId.value,
-        texto: textoGerado.value,
-        plataformas: plataformasSelecionadas.value
-    };
-
-    // --- PASSO DE DEPURAÇÃO CRUCIAL ---
-    // Esta linha irá imprimir o objeto 'payload' na consola do seu navegador
-    console.log("A ENVIAR PARA A API:", payload);
-    
-    try {
-        const response = await apiClient.post('/publicacoes/publicar/', payload);
-
-        const resultados = response.data;
-        let feedbackMessage = 'Resultados da publicação:\n';
-        if (resultados.facebook) {
-            feedbackMessage += `Facebook: ${resultados.facebook}\n`;
-        }
-        if (resultados.instagram) {
-            feedbackMessage += `Instagram: ${resultados.instagram}\n`;
-        }
-        alert(feedbackMessage.trim());
-
-        if (resultados.facebook?.includes('sucesso') || resultados.instagram?.includes('sucesso')) {
-            textoGerado.value = '';
-            plataformasSelecionadas.value = [];
-        }
-
-    } catch (error) {
-        const errorMsg = (error as any).response?.data?.error || "Ocorreu um erro geral ao tentar publicar.";
-        console.error(`Erro ao publicar:`, error);
-        alert(`Falha na Publicação:\n${errorMsg}`);
-    } finally {
-        isPublishing.value = false;
-    }
-};
 
 const createEmptyImovel = () => ({
   id: null,
@@ -465,22 +357,22 @@ const isSubmitting = ref(false);
 
 async function fetchClientes() {
     try {
-        const response = await apiClient.get('/v1/clientes/clientes/');
+        const response = await apiClient.get('/v1/clientes/');
         clientes.value = response.data;
     } catch (error) {
-        console.error("Erro ao buscar clientes:", error);
+        console.error("Erro ao carregar clientes:", error);
     }
 }
 
 async function fetchImovelData() {
-  if (imovelId.value) {
+  if (isEditing.value && imovelId.value) {
     isLoadingData.value = true;
     try {
-      const response = await apiClient.get(`/v1/imoveis/imoveis/${imovelId.value}/`);
-      imovel.value = response.data;
+      const { data } = await apiClient.get(`/v1/imoveis/${imovelId.value}/`);
+      imovel.value = { ...createEmptyImovel(), ...data };
     } catch (error) {
-      console.error("Erro ao buscar dados do imóvel:", error);
-      router.push({ name: 'imoveis' });
+      console.error('Erro ao carregar dados do imóvel:', error);
+      alert('Não foi possível carregar os dados do imóvel.');
     } finally {
       isLoadingData.value = false;
     }
@@ -496,7 +388,7 @@ async function gerarContratoPDF() {
         return;
     }
     try {
-        const response = await apiClient.get(`/v1/imoveis/imoveis/${imovel.value.id}/gerar-autorizacao-pdf/`, { responseType: 'blob' });
+        const response = await apiClient.get(`/v1/imoveis/${imovel.value.id}/gerar-autorizacao-pdf/`, { responseType: 'blob' });
         const url = window.URL.createObjectURL(new Blob([response.data]));
         const link = document.createElement('a');
         link.href = url;
@@ -539,9 +431,9 @@ async function saveImovel() {
 
   try {
     if (isEditing.value) {
-      return await apiClient.put(`/v1/imoveis/imoveis/${imovelId.value}/`, payload);
+      return await apiClient.put(`/v1/imoveis/${imovelId.value}/`, payload);
     } else {
-      return await apiClient.post('/v1/imoveis/imoveis/', payload);
+      return await apiClient.post('/v1/imoveis/', payload);
     }
   } catch (error: any) {
     console.error("Erro ao guardar o imóvel:", error.response?.data || error);
@@ -619,10 +511,14 @@ input, select, textarea { padding: 10px; border: 1px solid #ccc; border-radius: 
 @keyframes spinner-border { to { transform: rotate(360deg); } }
 .spinner-border-sm { width: 0.8rem; height: 0.8rem; border-width: .15em; }
 
-/* Novos estilos para a seção de publicação */
 .plataformas-container {
     display: flex;
     flex-direction: column;
     gap: 0.5rem;
+}
+
+.header-actions {
+  display: flex;
+  gap: 1rem;
 }
 </style>

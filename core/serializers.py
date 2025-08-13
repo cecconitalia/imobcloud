@@ -3,7 +3,7 @@
 from rest_framework import serializers
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 from django.contrib.auth import get_user_model
-from core.models import PerfilUsuario, Notificacao
+from core.models import PerfilUsuario, Notificacao, Imobiliaria
 
 User = get_user_model()
 
@@ -101,3 +101,16 @@ class CorretorDisplaySerializer(serializers.ModelSerializer):
     class Meta:
         model = User
         fields = ['id', 'username', 'first_name', 'email', 'perfil']
+
+class ImobiliariaIntegracaoSerializer(serializers.ModelSerializer):
+    """
+    Serializer focado apenas nas credenciais de integração de redes sociais
+    da imobiliária.
+    """
+    class Meta:
+        model = Imobiliaria
+        fields = [
+            'facebook_page_id',
+            'facebook_page_access_token',
+            'instagram_business_account_id',
+        ]

@@ -21,6 +21,17 @@
           <i class="icon-calendario"></i>
           <span>Calendário</span>
         </router-link>
+        
+        <router-link to="/publicacoes" class="nav-link">
+          <i class="icon-publicacoes"></i>
+          <span>Publicações</span>
+        </router-link>
+
+        <router-link to="/calendario-publicacoes" class="nav-link">
+          <i class="icon-calendario-publicacoes"></i>
+          <span>Calendário Editorial</span>
+        </router-link>
+        
         <router-link to="/imoveis" class="nav-link">
           <i class="icon-imoveis"></i>
           <span>Imóveis</span>
@@ -86,6 +97,14 @@
         <router-link v-if="userCargo === 'ADMIN'" to="/relatorios" class="nav-link">
           <i class="icon-relatorios"></i>
           <span>Relatórios</span>
+        </router-link>
+        <router-link v-if="userCargo === 'ADMIN'" to="/configuracoes-ia" class="nav-link">
+          <i class="icon-ia"></i>
+          <span>Configurações da IA</span>
+        </router-link>
+        <router-link v-if="userCargo === 'ADMIN'" to="/integracoes" class="nav-link">
+          <i class="icon-integracoes"></i>
+          <span>Integrações</span>
         </router-link>
       </nav>
       <div class="sidebar-footer">
@@ -157,14 +176,19 @@ onMounted(() => {
 .icon-users::before { content: "\f500"; }
 .icon-relatorios::before { content: "\f080"; }
 .icon-autorizacoes::before { content: "\f2b5"; }
-/* ÍCONES DO MÓDULO FINANCEIRO */
+/* Ícones do Módulo Financeiro */
 .icon-financeiro::before { content: "\f53c"; }
 .icon-transacoes::before { content: "\f0d6"; }
 .icon-dre::before { content: "\f200"; }
 .icon-contas::before { content: "\f53d"; }
 .icon-categorias::before { content: "\f02d"; }
-/* --- NOVO ÍCONE ADICIONADO --- */
-.icon-pendentes::before { content: "\f252"; } /* Ícone de ampulheta (hourglass-half) */
+.icon-pendentes::before { content: "\f252"; }
+
+/* Ícones de Administração e Novos */
+.icon-ia::before { content: "\f544"; } 
+.icon-integracoes::before { content: "\f368"; }
+.icon-publicacoes::before { content: "\f1d8"; }
+.icon-calendario-publicacoes::before { content: "\f133"; }/* Ícone de "paper-plane" ou "send" */
 
 .dashboard-layout {
   display: flex;
