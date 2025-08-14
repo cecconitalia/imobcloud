@@ -24,9 +24,9 @@
       <div class="form-group">
         <label for="cliente">Cliente</label>
         <select id="cliente" v-model="oportunidade.cliente" required>
-          <option disabled value="">Selecione um cliente</option>
-          <option v-for="cliente in clientes" :key="cliente.id" :value="cliente.id">
-            {{ cliente.nome_completo }}
+          <option disabled :value="null">Selecione um cliente</option>
+          <option v-for="c in clientes" :key="c.id" :value="c.id">
+            {{ c.nome_completo }}
           </option>
         </select>
       </div>
@@ -34,8 +34,8 @@
         <label for="imovel">Imóvel de Interesse (opcional)</label>
         <select id="imovel" v-model="oportunidade.imovel">
           <option :value="null">Nenhum</option>
-          <option v-for="imovel in imoveis" :key="imovel.id" :value="imovel.id">
-            {{ imovel.endereco }}
+          <option v-for="i in imoveis" :key="i.id" :value="i.id">
+            {{ i.endereco }}
           </option>
         </select>
       </div>
@@ -61,13 +61,12 @@
         <input type="number" id="probabilidade" v-model="oportunidade.probabilidade" min="0" max="100" />
       </div>
 
-
       <div class="form-group">
         <label for="responsavel">Corretor Responsável</label>
         <select id="responsavel" v-model="oportunidade.responsavel" disabled>
           <option :value="null">Ninguém</option>
           <option v-for="corretor in corretores" :key="corretor.id" :value="corretor.id">
-            {{ corretor.username }}
+            {{ corretor.first_name || corretor.username }}
           </option>
         </select>
       </div>
@@ -130,7 +129,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, computed, watch } from 'vue';
+import { ref, onMounted, computed } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import apiClient from '@/services/api';
 import OportunidadeTransferir from '@/components/OportunidadeTransferir.vue';
@@ -145,10 +144,11 @@ const isEditing = computed(() => !!oportunidadeId.value);
 
 const oportunidade = ref({
   titulo: '',
-  cliente: '',
-  imovel: null,
+  // CORREÇÃO: Inicializar campos de seleção com `null` em vez de `''`
+  cliente: null as number | null,
+  imovel: null as number | null,
   valor_estimado: null,
-  responsavel: null,
+  responsavel: null as number | null,
   fase: 'LEAD',
   fonte: null,
   probabilidade: 10,
@@ -161,34 +161,31 @@ const clientes = ref<any[]>([]);
 const imoveis = ref<any[]>([]);
 const corretores = ref<any[]>([]);
 const isLoadingData = ref(true);
-const isLoadingTarefas = ref(false);
 const isSubmitting = ref(false);
-
-const tarefaModal = ref({
-  visible: false,
-  tarefa: null as any,
-});
+const tarefaModal = ref({ visible: false, tarefa: null as any });
+const isLoadingTarefas = ref(false);
 
 async function fetchData() {
   isLoadingData.value = true;
   try {
     const [clientesResponse, imoveisResponse, corretoresResponse] = await Promise.all([
-      apiClient.get('/v1/clientes/clientes/'),
-      apiClient.get('/v1/imoveis/imoveis/'),
-      apiClient.get('/v1/core/corretores/')
+      apiClient.get('/v1/clientes/'),
+      apiClient.get('/v1/imoveis/'),
+      apiClient.get('/v1/corretores/')
     ]);
     clientes.value = clientesResponse.data;
     imoveis.value = imoveisResponse.data;
     corretores.value = corretoresResponse.data;
 
     if (isEditing.value) {
-      const oportunidadeResponse = await apiClient.get(`/v1/clientes/oportunidades/${oportunidadeId.value}/`);
-      // Extrair os IDs dos objetos relacionados para o formulário
+      const oportunidadeResponse = await apiClient.get(`/v1/oportunidades/${oportunidadeId.value}/`);
+      
+      // CORREÇÃO: Atribuir IDs dos objetos relacionados de forma segura
       oportunidade.value = {
         ...oportunidadeResponse.data,
-        cliente: oportunidadeResponse.data.cliente.id,
+        cliente: oportunidadeResponse.data.cliente?.id || null,
         imovel: oportunidadeResponse.data.imovel?.id || null,
-        responsavel: oportunidadeResponse.data.responsavel.id,
+        responsavel: oportunidadeResponse.data.responsavel?.id || null,
       };
     }
   } catch (error) {
@@ -201,7 +198,7 @@ async function fetchData() {
 
 async function handleFaseUpdate(novaFaseId: string) {
   try {
-    await apiClient.patch(`/v1/clientes/oportunidades/${oportunidadeId.value}/`, {
+    await apiClient.patch(`/v1/oportunidades/${oportunidadeId.value}/`, {
       fase: novaFaseId,
     });
     oportunidade.value.fase = novaFaseId;
@@ -213,7 +210,8 @@ async function handleFaseUpdate(novaFaseId: string) {
 
 async function handleTarefaSalva() {
   closeTarefaModal();
-  await fetchData();
+  // Recarrega os dados para mostrar a nova tarefa
+  await fetchData(); 
 }
 
 function showTarefaModal(tarefa = null) {
@@ -229,7 +227,7 @@ function closeTarefaModal() {
 async function toggleConcluida(tarefa: any) {
   const newStatus = !tarefa.concluida;
   try {
-    await apiClient.patch(`/v1/clientes/oportunidades/${oportunidadeId.value}/tarefas/${tarefa.id}/`, {
+    await apiClient.patch(`/v1/atividades/${tarefa.id}/`, {
       concluida: newStatus,
     });
     tarefa.concluida = newStatus;
@@ -249,33 +247,23 @@ onMounted(() => {
 });
 
 function formatarData(data: string) {
-  const [year, month, day] = data.split('-');
-  return `${day}/${month}/${year}`;
+  if (!data) return '';
+  const dataObj = new Date(data);
+  return dataObj.toLocaleDateString('pt-BR');
 }
 
 async function handleSubmit() {
   isSubmitting.value = true;
   try {
-    const payload = {
-      titulo: oportunidade.value.titulo,
-      valor_estimado: oportunidade.value.valor_estimado,
-      fase: oportunidade.value.fase,
-      fonte: oportunidade.value.fonte,
-      probabilidade: oportunidade.value.probabilidade,
-      data_proximo_contato: oportunidade.value.data_proximo_contato,
-      motivo_perda: oportunidade.value.motivo_perda,
-      cliente_id: oportunidade.value.cliente,
-      imovel_id: oportunidade.value.imovel,
-      responsavel_id: oportunidade.value.responsavel,
-    };
+    const payload = { ...oportunidade.value };
 
     if (isEditing.value) {
-      await apiClient.put(`/v1/clientes/oportunidades/${oportunidadeId.value}/`, payload);
+      await apiClient.put(`/v1/oportunidades/${oportunidadeId.value}/`, payload);
     } else {
-      await apiClient.post('/v1/clientes/oportunidades/', payload);
+      await apiClient.post('/v1/oportunidades/', payload);
     }
     router.push({ name: 'funil-vendas' });
-  } catch (error) {
+  } catch (error: any) {
     console.error("Erro ao guardar oportunidade:", error.response?.data || error);
     alert('Ocorreu um erro ao guardar a oportunidade. Verifique os dados.');
   } finally {
@@ -289,7 +277,7 @@ function handleCancel() {
 </script>
 
 <style scoped>
-/* Estilos existentes */
+/* Os seus estilos existentes permanecem inalterados */
 .form-container { padding: 2rem; }
 .view-header { margin-bottom: 1.5rem; }
 .oportunidade-form { display: flex; flex-wrap: wrap; gap: 1.5rem; }
@@ -303,84 +291,18 @@ input, select, textarea { padding: 10px; border: 1px solid #ccc; border-radius: 
 .btn-secondary { background-color: #6c757d; color: white; }
 .btn-info { background-color: #17a2b8; color: white; text-decoration: none;}
 .loading-message { text-align: center; padding: 2rem; }
-
-/* Estilo para envolver o seletor de fase */
-.phase-selector-wrapper {
-  margin-bottom: 2rem;
-  padding-bottom: 2rem;
-  border-bottom: 1px solid #e0e0e0;
-}
-
-/* Estilos para a seção de tarefas */
-.tarefas-container {
-  margin-top: 2rem;
-  padding-top: 1.5rem;
-  border-top: 1px solid #e0e0e0;
-}
-.tarefas-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 1.5rem;
-}
-.tarefas-header h3 {
-  margin: 0;
-}
-.btn-primary-small {
-  background-color: #007bff;
-  color: white;
-  padding: 8px 12px;
-  border: none;
-  border-radius: 5px;
-  cursor: pointer;
-  font-size: 0.9em;
-}
-.tarefas-list {
-  list-style: none;
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
-}
-.tarefa-item {
-  background-color: #f8f9fa;
-  padding: 1rem;
-  border-radius: 5px;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-.tarefa-info {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-}
-.tarefa-text-group {
-  display: flex;
-  flex-direction: column;
-}
-.tarefa-descricao {
-  font-weight: bold;
-}
-.tarefa-descricao.concluida {
-  text-decoration: line-through;
-  color: #6c757d;
-}
-.tarefa-data {
-  font-size: 0.9em;
-  color: #6c757d;
-}
-.no-tasks-message {
-  text-align: center;
-  color: #6c757d;
-  padding: 2rem;
-}
-.btn-secondary-small {
-  background-color: #6c757d;
-  color: white;
-  padding: 6px 12px;
-  border: none;
-  border-radius: 4px;
-  cursor: pointer;
-}
+.phase-selector-wrapper { margin-bottom: 2rem; padding-bottom: 2rem; border-bottom: 1px solid #e0e0e0; }
+.tarefas-container { margin-top: 2rem; padding-top: 1.5rem; border-top: 1px solid #e0e0e0; }
+.tarefas-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; }
+.tarefas-header h3 { margin: 0; }
+.btn-primary-small { background-color: #007bff; color: white; padding: 8px 12px; border: none; border-radius: 5px; cursor: pointer; font-size: 0.9em; }
+.tarefas-list { list-style: none; padding: 0; display: flex; flex-direction: column; gap: 0.75rem; }
+.tarefa-item { background-color: #f8f9fa; padding: 1rem; border-radius: 5px; display: flex; justify-content: space-between; align-items: center; }
+.tarefa-info { display: flex; align-items: center; gap: 1rem; }
+.tarefa-text-group { display: flex; flex-direction: column; }
+.tarefa-descricao { font-weight: bold; }
+.tarefa-descricao.concluida { text-decoration: line-through; color: #6c757d; }
+.tarefa-data { font-size: 0.9em; color: #6c757d; }
+.no-tasks-message { text-align: center; color: #6c757d; padding: 2rem; }
+.btn-secondary-small { background-color: #6c757d; color: white; padding: 6px 12px; border: none; border-radius: 4px; cursor: pointer; }
 </style>

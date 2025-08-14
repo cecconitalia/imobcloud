@@ -173,7 +173,6 @@ const fasesFinaisVisiveis = computed(() => {
   return fasesFinais.value.filter(f => f.id === 'GANHO');
 });
 
-// Nova paleta de cores fornecida pelo utilizador
 const fasesDeFunilCores: { [key: string]: string } = {
   'LEAD': '#4DA3FF',
   'CONTATO': '#00C8A0',
@@ -252,7 +251,9 @@ watch(oportunidadesFiltradas, (novaLista) => {
 async function fetchOportunidades() {
   isLoading.value = true;
   try {
-    const response = await apiClient.get('/v1/clientes/oportunidades/');
+    // A CORREÇÃO ESTÁ AQUI:
+    // Removemos a palavra 'clientes' do URL.
+    const response = await apiClient.get('/v1/oportunidades/');
     oportunidades.value = response.data;
     const responsaveisUnicos = Array.from(new Set(oportunidades.value.map(op => op.responsavel?.id)))
       .filter(id => id !== undefined)
@@ -269,17 +270,6 @@ async function fetchOportunidades() {
 function formatarValor(valor: number | null) {
   if (!valor) return 'R$ -';
   return parseFloat(valor.toString()).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-}
-
-function calcularValorTotal(oportunidadesDaFase: any[] | undefined) {
-  if (!oportunidadesDaFase) return '';
-  const total = oportunidadesDaFase.reduce((sum, op) => {
-    const valor = op.valor_estimado ? parseFloat(op.valor_estimado) : 0;
-    return sum + valor;
-  }, 0);
-  
-  if (total === 0) return '';
-  return formatarValor(total);
 }
 
 function limparFiltros() {

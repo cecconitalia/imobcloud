@@ -5,21 +5,31 @@ from .models import PostAgendado
 
 class PostAgendadoSerializer(serializers.ModelSerializer):
     """
-    Serializer para o modelo PostAgendado, formatado para ser
-    consumido por um calendário no frontend.
+    Serializer para o modelo PostAgendado.
+    Usado tanto para o calendário quanto para as operações de CRUD (Criar, Ler, Atualizar, Excluir).
     """
-    # Renomeamos os campos para os nomes que a maioria das bibliotecas de calendário espera
-    title = serializers.CharField(source='imovel.titulo_anuncio')
-    start = serializers.DateTimeField(source='data_agendamento')
+    # Campos para exibição no calendário (read-only)
+    title = serializers.CharField(source='imovel.titulo_anuncio', read_only=True)
+    start = serializers.DateTimeField(source='data_agendamento', read_only=True)
 
     class Meta:
         model = PostAgendado
+        # Lista completa de campos
         fields = [
             'id',
+            'imovel',
             'title',       # Título do evento (nome do imóvel)
             'start',       # Data de início do evento (data de agendamento)
-            'status',      # Status para podermos colorir o evento
-            'texto',       # O texto do post para visualização
-            'plataformas', # As plataformas
-            'resultado_publicacao' # O resultado para vermos os erros
+            'status',
+            'texto',
+            'plataformas',
+            'data_agendamento', # Campo editável
+            'resultado_publicacao'
+        ]
+        # Campos que não podem ser editados diretamente pelo cliente,
+        # mas são necessários para a lógica interna ou exibição.
+        read_only_fields = [
+            'status',
+            'imovel',
+            'resultado_publicacao'
         ]

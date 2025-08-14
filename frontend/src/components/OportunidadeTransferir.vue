@@ -8,7 +8,7 @@
         <select id="novoCorretor" v-model="novoCorretorId" class="corretor-select">
           <option :value="null">Nenhum</option>
           <option v-for="corretor in corretores" :key="corretor.id" :value="corretor.id">
-            {{ corretor.username }}
+            {{ corretor.first_name || corretor.username }}
           </option>
         </select>
       </div>
@@ -25,7 +25,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, defineProps, defineEmits, computed } from 'vue';
+import { ref, onMounted, computed, defineProps, defineEmits } from 'vue';
 import apiClient from '@/services/api';
 
 const props = defineProps({
@@ -48,11 +48,17 @@ const novoCorretorId = ref<number | null>(null);
 const transferMessage = ref('');
 const messageClass = ref('');
 
+// This computed property filters out the current owner from the transfer list
+const corretoresDisponiveis = computed(() => {
+  return corretores.value.filter(c => c.id !== props.corretorResponsavelId);
+});
+
 async function fetchCorretores() {
   isLoadingCorretores.value = true;
   try {
-    const response = await apiClient.get('/v1/core/corretores/');
-    corretores.value = response.data.filter(c => c.id !== props.corretorResponsavelId);
+    // **CORRECTION IS HERE: URL path is now correct.**
+    const response = await apiClient.get('/v1/corretores/');
+    corretores.value = response.data;
   } catch (error) {
     console.error("Erro ao carregar corretores:", error);
   } finally {
@@ -63,7 +69,6 @@ async function fetchCorretores() {
 async function transferir() {
   if (!novoCorretorId.value) return;
 
-  // Adiciona a confirmação do utilizador
   if (!window.confirm('Tem a certeza que deseja transferir esta oportunidade?')) {
     return;
   }
@@ -73,8 +78,10 @@ async function transferir() {
   messageClass.value = '';
 
   try {
-    await apiClient.post(`/v1/clientes/oportunidades/${props.oportunidadeId}/transferir/`, {
-      novo_corretor: novoCorretorId.value
+    // **CORRECTION IS HERE: Changed to PATCH and using the correct endpoint.**
+    // We are partially updating the opportunity with the new responsible person's ID.
+    await apiClient.patch(`/v1/oportunidades/${props.oportunidadeId}/`, {
+      responsavel: novoCorretorId.value
     });
     transferMessage.value = 'Oportunidade transferida com sucesso!';
     messageClass.value = 'success-message';

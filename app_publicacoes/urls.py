@@ -1,25 +1,31 @@
 # app_publicacoes/urls.py
 
-from django.urls import path
+from django.urls import path, include
+from rest_framework.routers import DefaultRouter
 from .views import (
     GerarTextoPublicacaoView,
     PublicacaoRedeSocialView,
     AgendarPublicacaoView,
-    CalendarioPublicacoesView
+    CalendarioPublicacoesView,
+    PostAgendadoViewSet # <--- 1. IMPORTE O NOVO VIEWSET
 )
 
-urlpatterns = [
-    # Esta linha regista a rota para a sua view de IA
-    path('gerar-texto/', GerarTextoPublicacaoView.as_view(), name='gerar-texto-publicacao'),
-    
-    # Esta linha regista a rota para a publicação efetiva nas redes sociais
-    path('publicar/', PublicacaoRedeSocialView.as_view(), name='publicar-rede-social'),
+# Cria um router e regista o nosso ViewSet
+router = DefaultRouter()
+router.register(r'posts-agendados', PostAgendadoViewSet, basename='postagendado')
 
-    # NOVA ROTA DE AGENDAMENTO ---
+urlpatterns = [
+    # Rotas existentes
+    path('gerar-texto/', GerarTextoPublicacaoView.as_view(), name='gerar-texto-publicacao'),
+    path('publicar/', PublicacaoRedeSocialView.as_view(), name='publicar-rede-social'),
     path('agendar/', AgendarPublicacaoView.as_view(), name='agendar-publicacao'),
-    
-    # ROTA DO CALENDÁRIO
     path('calendario/', CalendarioPublicacoesView.as_view(), name='calendario-publicacoes'),
 
-
+    # --- 2. ADICIONE AS ROTAS DO ROUTER ---
+    # Isto cria automaticamente as rotas:
+    # GET /posts-agendados/ (listar)
+    # GET /posts-agendados/{id}/ (detalhe)
+    # PUT/PATCH /posts-agendados/{id}/ (atualizar)
+    # DELETE /posts-agendados/{id}/ (excluir)
+    path('', include(router.urls)),
 ]

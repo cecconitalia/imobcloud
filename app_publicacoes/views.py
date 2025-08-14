@@ -12,7 +12,9 @@ from app_imoveis.models import Imovel, ImagemImovel
 from .models import PublicacaoSocial, PostAgendado
 from app_config_ia.models import ModeloDePrompt
 from core.models import Imobiliaria
+from rest_framework import viewsets
 from .serializers import PostAgendadoSerializer
+
 
 # --- IMPORTAÇÕES ADICIONADAS PARA TRATAR O FUSO HORÁRIO ---
 from django.utils import timezone
@@ -324,3 +326,14 @@ class CalendarioPublicacoesView(APIView):
         
         serializer = PostAgendadoSerializer(posts, many=True)
         return Response(serializer.data)
+    
+class PostAgendadoViewSet(viewsets.ModelViewSet):
+    """
+    ViewSet para gerir os posts agendados (CRUD - Criar, Ler, Atualizar, Excluir).
+    """
+    serializer_class = PostAgendadoSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        """ Garante que os utilizadores só podem ver/editar os seus próprios posts agendados. """
+        return PostAgendado.objects.filter(imobiliaria=self.request.tenant)

@@ -115,9 +115,10 @@ const isSubmitting = ref(false);
 
 async function fetchDropdownData() {
   try {
+    // A CORREÇÃO ESTÁ AQUI: URLs corrigidas
     const [imoveisResponse, clientesResponse] = await Promise.all([
-      apiClient.get('/v1/imoveis/imoveis/'),
-      apiClient.get('/v1/clientes/clientes/')
+      apiClient.get('/v1/imoveis/'),
+      apiClient.get('/v1/clientes/')
     ]);
     imoveis.value = imoveisResponse.data;
     clientes.value = clientesResponse.data;
@@ -131,7 +132,8 @@ async function fetchContratoData() {
   if (isEditing.value) {
     isLoadingData.value = true;
     try {
-      const response = await apiClient.get(`/v1/contratos/contratos/${contratoId.value}/`);
+      // A CORREÇÃO ESTÁ AQUI: URL corrigido
+      const response = await apiClient.get(`/v1/contratos/${contratoId.value}/`);
       contrato.value = response.data;
     } catch (error) {
       console.error("Erro ao buscar dados do contrato:", error);
@@ -150,11 +152,9 @@ onMounted(async () => {
   isLoadingData.value = false;
 });
 
-// ATUALIZADO: A função de submissão agora limpa os dados antes de enviar
 async function handleSubmit() {
   isSubmitting.value = true;
   
-  // Prepara um objeto "limpo" apenas com os campos que o backend espera
   const payload = {
     imovel: contrato.value.imovel,
     cliente: contrato.value.cliente,
@@ -169,12 +169,14 @@ async function handleSubmit() {
 
   try {
     if (isEditing.value) {
-      await apiClient.put(`/v1/contratos/contratos/${contratoId.value}/`, payload);
+      // A CORREÇÃO ESTÁ AQUI: URL corrigido
+      await apiClient.put(`/v1/contratos/${contratoId.value}/`, payload);
     } else {
-      await apiClient.post('/v1/contratos/contratos/', payload);
+      // A CORREÇÃO ESTÁ AQUI: URL corrigido
+      await apiClient.post('/v1/contratos/', payload);
     }
     router.push({ name: 'contratos' });
-  } catch (error) {
+  } catch (error: any) {
     console.error("Erro ao guardar o contrato:", error.response?.data || error);
     alert('Ocorreu um erro ao guardar o contrato. Verifique os dados.');
   } finally {
