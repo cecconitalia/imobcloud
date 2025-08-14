@@ -54,7 +54,6 @@ const stats = ref<any>(null);
 const isLoading = ref(true);
 const error = ref<string | null>(null);
 
-// NOVA FUNÇÃO para formatar valores monetários
 function formatCurrency(value: number) {
   if (typeof value !== 'number') {
     return 'R$ 0,00';
@@ -67,7 +66,9 @@ function formatCurrency(value: number) {
 
 onMounted(async () => {
   try {
-    const response = await apiClient.get('/v1/core/stats/');
+    // A CORREÇÃO ESTÁ AQUI:
+    // Removemos a palavra 'core' do URL.
+    const response = await apiClient.get('/v1/stats/');
     stats.value = response.data;
   } catch (err) {
     console.error("Erro ao buscar estatísticas:", err);
@@ -95,7 +96,6 @@ onMounted(async () => {
 }
 .stats-grid {
   display: grid;
-  /* ATUALIZADO: Ajustado para 4 colunas em telas grandes */
   grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
   gap: 1.5rem;
 }
@@ -105,11 +105,10 @@ onMounted(async () => {
   border-radius: 8px;
   box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
   text-align: center;
-  border-left: 5px solid #007bff; /* Borda azul padrão */
+  border-left: 5px solid #007bff;
 }
-/* NOVO: Estilo para cartões financeiros */
 .stat-card.financial {
-  border-left-color: #28a745; /* Borda verde para finanças */
+  border-left-color: #28a745;
 }
 .stat-title {
   font-size: 1rem;
