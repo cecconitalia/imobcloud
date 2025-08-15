@@ -30,7 +30,7 @@ urlpatterns = [
     # Ex: a rota 'imoveis' em app_imoveis.urls.py será acedida como /api/v1/imoveis/
     path('api/v1/', include('core.urls')),
     path('api/v1/', include('app_imoveis.urls')),
-    path('api/v1/', include('app_clientes.urls')),
+    path('api/v1/clientes/', include('app_clientes.urls')), 
     path('api/v1/', include('app_contratos.urls')),
     path('api/v1/', include('app_financeiro.urls')),
     

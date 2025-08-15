@@ -1,8 +1,10 @@
+# app_imoveis/urls.py
+
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
 from .views import (
-    ImovelViewSet, 
-    ImagemImovelViewSet, 
+    ImovelViewSet,
+    ImagemImovelViewSet,
     ContatoImovelViewSet,
     ImovelPublicListView,
     ImovelPublicDetailView,
@@ -10,26 +12,19 @@ from .views import (
     AutorizacaoStatusView
 )
 
-# O DefaultRouter cria automaticamente as URLs para todas as ações em um ViewSet
 router = DefaultRouter()
 
-# Registra os endpoints principais para o painel administrativo
+# Registros no router
 router.register(r'imoveis', ImovelViewSet, basename='imovel')
-
-# CORREÇÃO: Registra a ViewSet de imagens no roteador.
-# Isso cria a rota '/api/v1/imoveis/imagens/' e habilita o método POST,
-# resolvendo o erro "405 Method Not Allowed".
-router.register(r'imagens', ImagemImovelViewSet, basename='imagemimovel')
-
+# ESTA É A ROTA NOVA E CORRETA PARA AS IMAGENS
+router.register(r'imagens-imovel', ImagemImovelViewSet, basename='imagemimovel')
 router.register(r'contatos', ContatoImovelViewSet, basename='contatoimovel')
 
-# URLs da aplicação
 urlpatterns = [
-    # Inclui todas as URLs geradas pelo roteador para o painel administrativo
-    # Ex: /api/v1/imoveis/imoveis/, /api/v1/imoveis/imagens/, etc.
+    # Inclui as URLs do router
     path('', include(router.urls)),
 
-    # Mantém as URLs públicas e outras views customizadas que não usam ViewSet
+    # Mantém as URLs customizadas
     path('public/imoveis/', ImovelPublicListView.as_view(), name='imovel-public-list'),
     path('public/imoveis/<int:pk>/', ImovelPublicDetailView.as_view(), name='imovel-public-detail'),
     path('imoveis/<int:imovel_id>/gerar-autorizacao-pdf/', GerarAutorizacaoPDFView.as_view(), name='gerar-autorizacao-pdf'),
