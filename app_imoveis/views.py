@@ -1,5 +1,3 @@
-# C:\wamp64\www\ImobCloud\app_imoveis\views.py
-
 from rest_framework import viewsets, status, permissions
 from rest_framework.response import Response
 from rest_framework import filters
@@ -7,17 +5,13 @@ from django.core.mail import send_mail
 from rest_framework.decorators import action
 from rest_framework.exceptions import PermissionDenied
 from rest_framework.views import APIView
-
-# --- NOVAS IMPORTAÇÕES ---
 from rest_framework.generics import ListAPIView, RetrieveAPIView
-
 from django.db import models, transaction
 from django.shortcuts import get_object_or_404
 from django.http import HttpResponse
 from django.template.loader import render_to_string
 from django.utils import timezone
 from django.db.models import Count, Q, Case, When, Value, CharField, Max
-
 from io import BytesIO
 from xhtml2pdf import pisa
 import locale
@@ -26,7 +20,6 @@ from datetime import date, timedelta
 from decimal import Decimal
 
 from .models import Imovel, ImagemImovel, ContatoImovel
-# --- SERIALIZER PÚBLICO IMPORTADO ---
 from .serializers import ImovelSerializer, ImagemImovelSerializer, ContatoImovelSerializer, ImovelPublicSerializer
 from core.models import Imobiliaria, PerfilUsuario
 from app_clientes.models import Oportunidade
@@ -38,14 +31,11 @@ from app_clientes.models import Oportunidade
 class ImovelPublicListView(ListAPIView):
     """
     View para listar os imóveis ativos de uma imobiliária (tenant) no site público.
-    Não requer autenticação.
     """
     serializer_class = ImovelPublicSerializer
-    permission_classes = [permissions.AllowAny] # Permite acesso público
+    permission_classes = [permissions.AllowAny]
 
     def get_queryset(self):
-        # Filtra os imóveis pelo tenant (imobiliária) atual
-        # e garante que apenas imóveis ativos e com status 'Disponível' sejam mostrados
         return Imovel.objects.filter(
             imobiliaria=self.request.tenant,
             publicado_no_site=True
@@ -55,7 +45,6 @@ class ImovelPublicListView(ListAPIView):
 class ImovelPublicDetailView(RetrieveAPIView):
     """
     View para detalhar um imóvel específico no site público.
-    Não requer autenticação.
     """
     serializer_class = ImovelPublicSerializer
     permission_classes = [permissions.AllowAny]
@@ -63,7 +52,6 @@ class ImovelPublicDetailView(RetrieveAPIView):
     lookup_field = 'pk'
 
     def get_queryset(self):
-        # Garante que só se pode aceder a imóveis do tenant (imobiliária) atual
         return self.queryset.filter(imobiliaria=self.request.tenant)
 
 # ===================================================================
@@ -79,7 +67,7 @@ class ImovelViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         base_queryset = Imovel.objects.all()
-
+        # Sua lógica de filtragem complexa é mantida intacta
         finalidade = self.request.query_params.get('finalidade', None)
         tipo = self.request.query_params.get('tipo', None)
         cidade = self.request.query_params.get('cidade', None)
@@ -98,20 +86,13 @@ class ImovelViewSet(viewsets.ModelViewSet):
         if not self.request.user.is_authenticated or not self.request.tenant:
             base_queryset = base_queryset.filter(publicado_no_site=True)
 
-        if finalidade:
-            base_queryset = base_queryset.filter(finalidade=finalidade)
-        if tipo:
-            base_queryset = base_queryset.filter(tipo=tipo)
-        if cidade:
-            base_queryset = base_queryset.filter(cidade__icontains=cidade)
-        if valor_min:
-            base_queryset = base_queryset.filter(valor_venda__gte=valor_min)
-        if valor_max:
-            base_queryset = base_queryset.filter(valor_venda__lte=valor_max)
-        if quartos_min:
-            base_queryset = base_queryset.filter(quartos__gte=quartos_min)
-        if vagas_min:
-            base_queryset = base_queryset.filter(vagas_garagem__gte=vagas_min)
+        if finalidade: base_queryset = base_queryset.filter(finalidade=finalidade)
+        if tipo: base_queryset = base_queryset.filter(tipo=tipo)
+        if cidade: base_queryset = base_queryset.filter(cidade__icontains=cidade)
+        if valor_min: base_queryset = base_queryset.filter(valor_venda__gte=valor_min)
+        if valor_max: base_queryset = base_queryset.filter(valor_venda__lte=valor_max)
+        if quartos_min: base_queryset = base_queryset.filter(quartos__gte=quartos_min)
+        if vagas_min: base_queryset = base_queryset.filter(vagas_garagem__gte=vagas_min)
         
         if self.request.user.is_authenticated:
             if self.request.user.is_superuser:
@@ -140,9 +121,7 @@ class ImovelViewSet(viewsets.ModelViewSet):
             raise PermissionDenied("Não foi possível associar o imóvel a uma imobiliária.")
 
     def perform_update(self, serializer):
-        if self.request.user.is_superuser:
-            serializer.save()
-        elif hasattr(self.request.user, 'perfil') and serializer.instance.imobiliaria == self.request.tenant:
+        if self.request.user.is_superuser or (hasattr(self.request.user, 'perfil') and serializer.instance.imobiliaria == self.request.tenant):
             serializer.save()
         else:
             raise PermissionDenied("Você não tem permissão para atualizar este imóvel.")
@@ -157,6 +136,10 @@ class ImovelViewSet(viewsets.ModelViewSet):
 
 
 class ImagemImovelViewSet(viewsets.ModelViewSet):
+    """
+    ViewSet para gerenciar Imagens de Imóveis. O uso de ModelViewSet garante
+    que todos os métodos HTTP (GET, POST, PUT, DELETE) estejam habilitados por padrão.
+    """
     queryset = ImagemImovel.objects.all()
     serializer_class = ImagemImovelSerializer
     permission_classes = [permissions.IsAuthenticated]
@@ -168,9 +151,49 @@ class ImagemImovelViewSet(viewsets.ModelViewSet):
             return ImagemImovel.objects.filter(imovel__imobiliaria=self.request.tenant)
         return ImagemImovel.objects.none()
 
+    def perform_create(self, serializer):
+        """
+        Lógica para criar uma nova imagem, associando-a a um imóvel
+        e definindo sua ordem e se é a imagem principal.
+        """
+        imovel_id = self.request.data.get('imovel')
+        imovel = get_object_or_404(Imovel, pk=imovel_id)
+
+        if not (self.request.user.is_superuser or (hasattr(self.request.user, 'perfil') and imovel.imobiliaria == self.request.tenant)):
+            raise PermissionDenied("Você não tem permissão para adicionar imagens a este imóvel.")
+
+        e_primeira_imagem = not ImagemImovel.objects.filter(imovel=imovel).exists()
+        
+        max_ordem_result = ImagemImovel.objects.filter(imovel=imovel).aggregate(Max('ordem'))
+        max_ordem = max_ordem_result['ordem__max'] if max_ordem_result['ordem__max'] is not None else -1
+        nova_ordem = max_ordem + 1
+
+        serializer.save(imovel=imovel, ordem=nova_ordem, principal=e_primeira_imagem)
+
+    def perform_destroy(self, instance):
+        """
+        Lógica para deletar uma imagem, garantindo que se a imagem
+        principal for removida, a próxima da ordem se torne a principal.
+        """
+        if not (self.request.user.is_superuser or (hasattr(self.request.user, 'perfil') and instance.imovel.imobiliaria == self.request.tenant)):
+            raise PermissionDenied("Você não tem permissão para excluir esta imagem.")
+        
+        imovel_da_imagem = instance.imovel
+        era_principal = instance.principal
+        instance.delete()
+
+        if era_principal and ImagemImovel.objects.filter(imovel=imovel_da_imagem).exists():
+            proxima_imagem = ImagemImovel.objects.filter(imovel=imovel_da_imagem).order_by('ordem').first()
+            if proxima_imagem:
+                proxima_imagem.principal = True
+                proxima_imagem.save()
+    
     @action(detail=False, methods=['post'], url_path='reordenar')
     @transaction.atomic
     def reordenar_imagens(self, request, *args, **kwargs):
+        """
+        Ação customizada para reordenar uma lista de imagens de uma só vez.
+        """
         ordem_ids = request.data.get('ordem_ids', [])
         if not ordem_ids:
             return Response({'detail': 'A lista de IDs de imagem é necessária.'}, status=status.HTTP_400_BAD_REQUEST)
@@ -187,37 +210,9 @@ class ImagemImovelViewSet(viewsets.ModelViewSet):
             
         return Response({'status': 'Ordem das imagens atualizada com sucesso.'}, status=status.HTTP_200_OK)
 
-    def perform_create(self, serializer):
-        imovel_id = self.request.data.get('imovel')
-        imovel = get_object_or_404(Imovel, pk=imovel_id)
-
-        if not (self.request.user.is_superuser or (hasattr(self.request.user, 'perfil') and imovel.imobiliaria == self.request.tenant)):
-            raise PermissionDenied("Você não tem permissão para adicionar imagens a este imóvel.")
-
-        e_primeira_imagem = not ImagemImovel.objects.filter(imovel=imovel).exists()
-        
-        max_ordem_result = ImagemImovel.objects.filter(imovel=imovel).aggregate(Max('ordem'))
-        max_ordem = max_ordem_result['ordem__max'] if max_ordem_result['ordem__max'] is not None else -1
-        nova_ordem = max_ordem + 1
-
-        serializer.save(imovel=imovel, ordem=nova_ordem, principal=e_primeira_imagem)
-
-    def perform_destroy(self, instance):
-        if not (self.request.user.is_superuser or (hasattr(self.request.user, 'perfil') and instance.imovel.imobiliaria == self.request.tenant)):
-            raise PermissionDenied("Você não tem permissão para excluir esta imagem.")
-        
-        imovel_da_imagem = instance.imovel
-        era_principal = instance.principal
-        instance.delete()
-
-        if era_principal and ImagemImovel.objects.filter(imovel=imovel_da_imagem).exists():
-            proxima_imagem = ImagemImovel.objects.filter(imovel=imovel_da_imagem).order_by('ordem').first()
-            if proxima_imagem:
-                proxima_imagem.principal = True
-                proxima_imagem.save()
-
 
 class ContatoImovelViewSet(viewsets.ModelViewSet):
+    # Sua lógica para ContatoImovelViewSet mantida intacta
     queryset = ContatoImovel.objects.all()
     serializer_class = ContatoImovelSerializer
 
@@ -278,33 +273,28 @@ class ContatoImovelViewSet(viewsets.ModelViewSet):
 
 
 class GerarAutorizacaoPDFView(APIView):
+    # Sua lógica para gerar PDF mantida intacta
     permission_classes = [permissions.IsAuthenticated]
 
     def get(self, request, imovel_id, *args, **kwargs):
         imovel = get_object_or_404(Imovel, pk=imovel_id)
-
         if not request.user.is_superuser and imovel.imobiliaria != request.tenant:
             return HttpResponse("Acesso negado.", status=403)
-
         if not imovel.proprietario:
             return HttpResponse("Erro: O imóvel não possui um proprietário vinculado.", status=400)
-
         try:
             locale.setlocale(locale.LC_TIME, 'pt_BR.UTF-8')
         except locale.Error:
             locale.setlocale(locale.LC_TIME, 'Portuguese_Brazil.1252')
-
         hoje = date.today()
         finalidade_texto = "venda" if imovel.status == 'A_VENDA' else "locação"
         valor = imovel.valor_venda if imovel.status == 'A_VENDA' else imovel.valor_aluguel
         valor = valor or Decimal(0)
-
         reais = int(valor)
         centavos = int((valor - reais) * 100)
         valor_por_extenso = num2words(reais, lang='pt_BR') + " reais"
         if centavos > 0:
             valor_por_extenso += " e " + num2words(centavos, lang='pt_BR') + " centavos"
-
         context = {
             'imovel': imovel,
             'proprietario': imovel.proprietario,
@@ -316,46 +306,38 @@ class GerarAutorizacaoPDFView(APIView):
             'data_hoje': hoje,
             'mes_hoje': hoje.strftime("%B")
         }
-
         html_string = render_to_string('autorizacao_template.html', context)
-
         result = BytesIO()
         pdf = pisa.pisaDocument(BytesIO(html_string.encode("UTF-8")), result)
         if not pdf.err:
             response = HttpResponse(result.getvalue(), content_type='application/pdf')
             response['Content-Disposition'] = f'attachment; filename="autorizacao_imovel_{imovel.codigo_referencia}.pdf"'
             return response
-
         return HttpResponse(f"Erro ao gerar o PDF: {pdf.err}", status=500)
 
 
 class AutorizacaoStatusView(APIView):
+    # Sua lógica para o status de autorização mantida intacta
     permission_classes = [permissions.IsAuthenticated]
 
     def get(self, request, *args, **kwargs):
         if not (request.user.is_superuser or (hasattr(request.user, 'perfil') and request.user.perfil.cargo == PerfilUsuario.Cargo.ADMIN)):
             return Response({"detail": "Acesso não autorizado."}, status=status.HTTP_403_FORBIDDEN)
-
         tenant = request.tenant
         if not tenant and request.user.is_superuser:
             tenant = Imobiliaria.objects.first()
-
         if not tenant:
             return Response({"error": "Nenhuma imobiliária associada."}, status=status.HTTP_400_BAD_REQUEST)
-
         hoje = timezone.now().date()
         limite_30_dias = hoje + timedelta(days=30)
         limite_passado_30_dias = hoje - timedelta(days=30)
-
         base_queryset = Imovel.objects.filter(imobiliaria=tenant).exclude(status='DESATIVADO')
-
         sumario = base_queryset.aggregate(
             expirando_em_30_dias=Count('id', filter=Q(data_fim_autorizacao__gte=hoje, data_fim_autorizacao__lte=limite_30_dias)),
             expiradas_recentemente=Count('id', filter=Q(data_fim_autorizacao__lt=hoje, data_fim_autorizacao__gte=limite_passado_30_dias)),
             ativas=Count('id', filter=Q(data_fim_autorizacao__gte=hoje)),
             sem_data=Count('id', filter=Q(data_fim_autorizacao__isnull=True)),
         )
-
         imoveis_com_status = base_queryset.annotate(
             status_autorizacao=Case(
                 When(data_fim_autorizacao__isnull=True, then=Value('Incompleto')),
@@ -368,10 +350,8 @@ class AutorizacaoStatusView(APIView):
             'id', 'codigo_referencia', 'titulo_anuncio', 'proprietario__nome_completo',
             'data_captacao', 'data_fim_autorizacao', 'status_autorizacao'
         )
-
         data = {
             'sumario': sumario,
             'imoveis': list(imoveis_com_status)
         }
-
         return Response(data)

@@ -23,7 +23,7 @@
 
       <div class="form-group">
         <label for="cliente">Cliente</label>
-        <select id="cliente" v-model="oportunidade.cliente" required>
+        <select id="cliente" v-model="oportunidade.cliente_id" required>
           <option disabled :value="null">Selecione um cliente</option>
           <option v-for="c in clientes" :key="c.id" :value="c.id">
             {{ c.nome_completo }}
@@ -32,7 +32,7 @@
       </div>
       <div class="form-group">
         <label for="imovel">Imóvel de Interesse (opcional)</label>
-        <select id="imovel" v-model="oportunidade.imovel">
+        <select id="imovel" v-model="oportunidade.imovel_id">
           <option :value="null">Nenhum</option>
           <option v-for="i in imoveis" :key="i.id" :value="i.id">
             {{ i.endereco }}
@@ -63,7 +63,7 @@
 
       <div class="form-group">
         <label for="responsavel">Corretor Responsável</label>
-        <select id="responsavel" v-model="oportunidade.responsavel" disabled>
+        <select id="responsavel" v-model="oportunidade.responsavel_id" disabled>
           <option :value="null">Ninguém</option>
           <option v-for="corretor in corretores" :key="corretor.id" :value="corretor.id">
             {{ corretor.first_name || corretor.username }}
@@ -77,7 +77,7 @@
       </div>
       
       <div class="form-actions full-width">
-        <router-link v-if="isEditing && oportunidade.cliente" :to="{ name: 'cliente-editar', params: { id: oportunidade.cliente } }" class="btn-info">
+        <router-link v-if="isEditing && oportunidade.cliente_id" :to="{ name: 'cliente-editar', params: { id: oportunidade.cliente_id } }" class="btn-info">
           Ver Histórico do Cliente
         </router-link>
         
@@ -91,7 +91,7 @@
     <OportunidadeTransferir
       v-if="isEditing"
       :oportunidade-id="oportunidadeId"
-      :corretor-responsavel-id="oportunidade.responsavel"
+      :corretor-responsavel-id="oportunidade.responsavel_id"
       @transferido="handleTransferenciaConcluida"
     />
 
@@ -144,11 +144,10 @@ const isEditing = computed(() => !!oportunidadeId.value);
 
 const oportunidade = ref({
   titulo: '',
-  // CORREÇÃO: Inicializar campos de seleção com `null` em vez de `''`
-  cliente: null as number | null,
-  imovel: null as number | null,
+  cliente_id: null as number | null,
+  imovel_id: null as number | null,
+  responsavel_id: null as number | null,
   valor_estimado: null,
-  responsavel: null as number | null,
   fase: 'LEAD',
   fonte: null,
   probabilidade: 10,
@@ -180,12 +179,12 @@ async function fetchData() {
     if (isEditing.value) {
       const oportunidadeResponse = await apiClient.get(`/v1/oportunidades/${oportunidadeId.value}/`);
       
-      // CORREÇÃO: Atribuir IDs dos objetos relacionados de forma segura
+      const data = oportunidadeResponse.data;
       oportunidade.value = {
-        ...oportunidadeResponse.data,
-        cliente: oportunidadeResponse.data.cliente?.id || null,
-        imovel: oportunidadeResponse.data.imovel?.id || null,
-        responsavel: oportunidadeResponse.data.responsavel?.id || null,
+        ...data,
+        cliente_id: data.cliente?.id || null,
+        imovel_id: data.imovel?.id || null,
+        responsavel_id: data.responsavel?.id || null,
       };
     }
   } catch (error) {
@@ -210,7 +209,6 @@ async function handleFaseUpdate(novaFaseId: string) {
 
 async function handleTarefaSalva() {
   closeTarefaModal();
-  // Recarrega os dados para mostrar a nova tarefa
   await fetchData(); 
 }
 
@@ -239,7 +237,7 @@ async function toggleConcluida(tarefa: any) {
 
 function handleTransferenciaConcluida() {
   alert('Oportunidade transferida com sucesso!');
-  router.push({ name: 'funil-vendas' });
+  fetchData();
 }
 
 onMounted(() => {
@@ -255,7 +253,19 @@ function formatarData(data: string) {
 async function handleSubmit() {
   isSubmitting.value = true;
   try {
-    const payload = { ...oportunidade.value };
+    // CORREÇÃO DEFINITIVA: Construímos um payload limpo apenas com os dados
+    // que a API espera, garantindo que os campos de relacionamento enviem apenas o ID.
+    const payload = {
+        titulo: oportunidade.value.titulo,
+        fase: oportunidade.value.fase,
+        valor_estimado: oportunidade.value.valor_estimado,
+        fonte: oportunidade.value.fonte,
+        probabilidade: oportunidade.value.probabilidade,
+        motivo_perda: oportunidade.value.motivo_perda,
+        // O backend espera os campos 'cliente' e 'imovel' com os IDs.
+        cliente: oportunidade.value.cliente_id,
+        imovel: oportunidade.value.imovel_id,
+    };
 
     if (isEditing.value) {
       await apiClient.put(`/v1/oportunidades/${oportunidadeId.value}/`, payload);
@@ -265,7 +275,7 @@ async function handleSubmit() {
     router.push({ name: 'funil-vendas' });
   } catch (error: any) {
     console.error("Erro ao guardar oportunidade:", error.response?.data || error);
-    alert('Ocorreu um erro ao guardar a oportunidade. Verifique os dados.');
+    alert(`Ocorreu um erro ao guardar a oportunidade: ${JSON.stringify(error.response?.data)}`);
   } finally {
     isSubmitting.value = false;
   }

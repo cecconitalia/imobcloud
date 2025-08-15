@@ -77,6 +77,7 @@ async function uploadFiles() {
     const formData = new FormData();
     formData.append('imagem', file);
     formData.append('imovel', props.imovelId.toString());
+    // A URL para o upload está correta: /v1/imoveis/imagens/
     return apiClient.post('/v1/imoveis/imagens/', formData)
       .then(() => {
         console.log(`Sucesso no upload do arquivo: ${file.name}`);
@@ -102,7 +103,8 @@ async function fetchImages() {
   }
   isLoading.value = true;
   try {
-    const response = await apiClient.get(`/v1/imoveis/imoveis/${props.imovelId}/`);
+    // CORREÇÃO: A URL estava duplicada. O correto é chamar o endpoint do imóvel específico.
+    const response = await apiClient.get(`/v1/imoveis/${props.imovelId}/`);
     images.value = (response.data.imagens || []).filter((img: any) => img.imagem).sort((a: any, b: any) => a.ordem - b.ordem);
   } catch (error) {
     console.error("Erro ao carregar imagens:", error);
@@ -135,12 +137,10 @@ async function setAsPrincipal(imageToMove: any) {
   if (imageIndex > -1) {
     images.value.forEach(img => img.principal = false);
     
-    // Move a imagem para o início e define como principal na UI
     const [movedImage] = images.value.splice(imageIndex, 1);
     movedImage.principal = true;
     images.value.unshift(movedImage);
 
-    // Salva a nova ordem e a imagem principal no backend sem recarregar a página
     await saveOrder();
   }
 }
@@ -152,15 +152,12 @@ async function deleteImage(imageId: number) {
       if (index > -1) {
         const wasPrincipal = images.value[index].principal;
         
-        // Remove a imagem da UI instantaneamente
         images.value.splice(index, 1);
         
-        // Se a imagem excluída era a principal, a próxima se torna a principal na UI
         if (wasPrincipal && images.value.length > 0) {
           images.value[0].principal = true;
         }
 
-        // Salva a alteração no backend em segundo plano
         await apiClient.delete(`/v1/imoveis/imagens/${imageId}/`);
         console.log(`Imagem ${imageId} excluída com sucesso.`);
         
@@ -171,7 +168,7 @@ async function deleteImage(imageId: number) {
     } catch (error) {
       console.error("Erro ao excluir imagem:", error);
       alert('Não foi possível excluir a imagem.');
-      await fetchImages(); // Em caso de erro, recarrega para sincronizar
+      await fetchImages();
     }
   }
 }
@@ -184,7 +181,7 @@ async function saveOrder() {
   } catch (error) {
     console.error("Erro ao salvar a nova ordem:", error);
     alert('Não foi possível salvar a nova ordem das imagens.');
-    await fetchImages(); // Em caso de erro, recarrega para sincronizar
+    await fetchImages();
   }
 }
 

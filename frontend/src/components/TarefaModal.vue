@@ -6,15 +6,12 @@
         <button @click="emit('close')" class="close-btn">&times;</button>
       </div>
 
-      <div v-if="tarefaLocal.oportunidade_titulo" class="info-section">
-        <h4>Oportunidade: {{ tarefaLocal.oportunidade_titulo }}</h4>
-        <p v-if="tarefaLocal.cliente_nome">Cliente: {{ tarefaLocal.cliente_nome }}</p>
-        <p v-if="tarefaLocal.imovel_endereco">Imóvel: {{ tarefaLocal.imovel_endereco }}</p>
+      <div v-if="isEditing && tarefaLocal.oportunidade_titulo" class="info-section">
+        <p>Esta tarefa está atualmente ligada à oportunidade: <strong>{{ tarefaLocal.oportunidade_titulo }}</strong></p>
       </div>
 
       <form @submit.prevent="handleSubmit">
-
-        <div class="form-group" v-if="!isEditing">
+        <div class="form-group">
           <label for="cliente-select">Cliente (Opcional)</label>
           <v-select
             id="cliente-select"
@@ -32,7 +29,7 @@
           </v-select>
         </div>
 
-        <div class="form-group" v-if="!isEditing && clienteSelecionado">
+        <div class="form-group" v-if="clienteSelecionado">
           <label for="oportunidade-select">Oportunidade (Opcional)</label>
           <v-select
             id="oportunidade-select"
@@ -82,7 +79,8 @@ import 'vue-select/dist/vue-select.css';
 
 const props = defineProps({
   oportunidadeId: { type: [String, Number, null], default: null },
-  tarefa: { type: Object, default: null },
+  // A tarefa recebida como prop pode ter a estrutura que vem do backend
+  tarefa: { type: Object as () => any, default: null },
   dataInicial: { type: String, default: '' },
 });
 
@@ -92,8 +90,8 @@ const isEditing = ref(false);
 const isSubmitting = ref(false);
 const clientes = ref<any[]>([]);
 const oportunidades = ref<any[]>([]);
-const clienteSelecionado = ref(null);
-const oportunidadeSelecionada = ref(null);
+const clienteSelecionado = ref<any>(null);
+const oportunidadeSelecionada = ref<any>(null);
 
 const oportunidadesFiltradas = ref<any[]>([]);
 
@@ -132,40 +130,64 @@ watch(() => props.tarefa, (novaTarefa) => {
 watch(clienteSelecionado, (novoCliente) => {
     if (novoCliente) {
         oportunidadesFiltradas.value = oportunidades.value.filter(op => op.cliente?.id === novoCliente.id);
-        oportunidadeSelecionada.value = null;
+        if (oportunidadeSelecionada.value && oportunidadeSelecionada.value.cliente?.id !== novoCliente.id) {
+            oportunidadeSelecionada.value = null;
+        }
     } else {
         oportunidadesFiltradas.value = [];
+        oportunidadeSelecionada.value = null;
     }
 });
 
 watch(oportunidadeSelecionada, (novaOportunidade) => {
     if (novaOportunidade) {
         tarefaLocal.value.oportunidade = novaOportunidade.id;
-        tarefaLocal.value.oportunidade_titulo = novaOportunidade.titulo;
-        tarefaLocal.value.cliente_nome = novaOportunidade.cliente?.nome_completo || 'N/A';
-        tarefaLocal.value.imovel_endereco = novaOportunidade.imovel?.endereco || 'N/A';
     } else {
         tarefaLocal.value.oportunidade = null;
-        tarefaLocal.value.oportunidade_titulo = '';
-        tarefaLocal.value.cliente_nome = '';
-        tarefaLocal.value.imovel_endereco = '';
     }
 });
 
 onMounted(async () => {
-  if (!isEditing.value) {
-    try {
-      const [clientesResponse, oportunidadesResponse] = await Promise.all([
-        apiClient.get('/v1/clientes/clientes/'),
-        apiClient.get('/v1/clientes/oportunidades/')
-      ]);
-      clientes.value = clientesResponse.data;
-      oportunidades.value = oportunidadesResponse.data;
-    } catch (error) {
-      console.error("Erro ao carregar dados:", error);
+  try {
+    // Carrega as listas de clientes e oportunidades
+    const [clientesResponse, oportunidadesResponse] = await Promise.all([
+      apiClient.get('/v1/clientes/'), // URL corrigida
+      apiClient.get('/v1/oportunidades/')
+    ]);
+    clientes.value = clientesResponse.data;
+    oportunidades.value = oportunidadesResponse.data;
+
+    // CORREÇÃO: Lógica para pré-selecionar os campos no modo de edição
+    if (isEditing.value && props.tarefa) {
+      let clienteIdParaBuscar: number | null = null;
+
+      // Se a tarefa tem uma oportunidade, o cliente vem dela
+      if (props.tarefa.oportunidade) {
+        // Encontra a oportunidade completa na lista
+        const oportunidadeDaTarefa = oportunidades.value.find(o => o.id === props.tarefa.oportunidade);
+        if (oportunidadeDaTarefa) {
+          oportunidadeSelecionada.value = oportunidadeDaTarefa;
+          // Pega o ID do cliente a partir da oportunidade encontrada
+          if (oportunidadeDaTarefa.cliente) {
+            clienteIdParaBuscar = oportunidadeDaTarefa.cliente.id;
+          }
+        }
+      } 
+      // Se não tem oportunidade, mas tem um cliente direto
+      else if (props.tarefa.cliente) {
+        clienteIdParaBuscar = props.tarefa.cliente.id;
+      }
+
+      // Se encontramos um ID de cliente, busca o objeto completo e seleciona
+      if (clienteIdParaBuscar) {
+        clienteSelecionado.value = clientes.value.find(c => c.id === clienteIdParaBuscar) || null;
+      }
     }
+  } catch (error) {
+    console.error("Erro ao carregar dados do modal:", error);
   }
 });
+
 
 async function handleSubmit() {
   isSubmitting.value = true;
@@ -173,23 +195,14 @@ async function handleSubmit() {
     const payload = {
         descricao: tarefaLocal.value.descricao,
         data_conclusao: tarefaLocal.value.data_conclusao,
-        oportunidade: tarefaLocal.value.oportunidade,
+        oportunidade: oportunidadeSelecionada.value ? oportunidadeSelecionada.value.id : null,
         concluida: tarefaLocal.value.concluida,
+        cliente: clienteSelecionado.value ? clienteSelecionado.value.id : null,
     };
     if (isEditing.value) {
-        if (tarefaLocal.value.oportunidade) {
-            await apiClient.patch(`/v1/clientes/oportunidades/${tarefaLocal.value.oportunidade}/tarefas/${tarefaLocal.value.id}/`, payload);
-        } else {
-            // CORREÇÃO: O URL deve incluir 'clientes/'
-            await apiClient.patch(`/v1/clientes/tarefas/${tarefaLocal.value.id}/`, payload);
-        }
+        await apiClient.patch(`/v1/tarefas/${tarefaLocal.value.id}/`, payload);
     } else {
-        if (tarefaLocal.value.oportunidade) {
-            await apiClient.post(`/v1/clientes/oportunidades/${tarefaLocal.value.oportunidade}/tarefas/`, payload);
-        } else {
-            // CORREÇÃO: O URL deve incluir 'clientes/'
-            await apiClient.post(`/v1/clientes/tarefas/`, payload);
-        }
+        await apiClient.post(`/v1/tarefas/`, payload);
     }
     emit('saved');
   } catch (error) {
@@ -207,12 +220,7 @@ async function handleConcluir() {
   isSubmitting.value = true;
   try {
     const payload = { concluida: true };
-    if (tarefaLocal.value.oportunidade) {
-        await apiClient.patch(`/v1/clientes/oportunidades/${tarefaLocal.value.oportunidade}/tarefas/${tarefaLocal.value.id}/`, payload);
-    } else {
-        // CORREÇÃO: O URL deve incluir 'clientes/'
-        await apiClient.patch(`/v1/clientes/tarefas/${tarefaLocal.value.id}/`, payload);
-    }
+    await apiClient.patch(`/v1/tarefas/${tarefaLocal.value.id}/`, payload);
     emit('saved');
   } catch (error) {
     console.error("Erro ao concluir a tarefa:", error);
@@ -228,12 +236,7 @@ async function handleDelete() {
   }
   isSubmitting.value = true;
   try {
-    if (tarefaLocal.value.oportunidade) {
-        await apiClient.delete(`/v1/clientes/oportunidades/${tarefaLocal.value.oportunidade}/tarefas/${tarefaLocal.value.id}/`);
-    } else {
-        // CORREÇÃO: O URL deve incluir 'clientes/'
-        await apiClient.delete(`/v1/clientes/tarefas/${tarefaLocal.value.id}/`);
-    }
+    await apiClient.delete(`/v1/tarefas/${tarefaLocal.value.id}/`);
     emit('saved');
   } catch (error) {
     console.error("Erro ao eliminar a tarefa:", error);
@@ -245,6 +248,7 @@ async function handleDelete() {
 </script>
 
 <style scoped>
+/* Estilos permanecem os mesmos */
 .modal-overlay {
   position: fixed;
   top: 0;
@@ -282,13 +286,14 @@ async function handleDelete() {
   line-height: 1;
 }
 .info-section {
-    background-color: #f8f9fa;
+    background-color: #f0f4f8;
     padding: 1rem;
     border-radius: 4px;
     margin-bottom: 1.5rem;
+    border-left: 4px solid #007bff;
 }
-.info-section h4 {
-    margin: 0 0 0.5rem 0;
+.info-section p {
+    margin: 0;
 }
 .form-group {
     margin-bottom: 1.5rem;
@@ -300,8 +305,7 @@ async function handleDelete() {
     margin-bottom: 0.5rem;
 }
 .form-group textarea,
-.form-group input,
-.form-group select {
+.form-group input {
     width: 100%;
     padding: 10px;
     border: 1px solid #ccc;
@@ -326,4 +330,14 @@ async function handleDelete() {
 .btn-danger { background-color: #dc3545; color: white; }
 .btn-success { background-color: #28a745; color: white; }
 .no-results-message { padding: 1rem; text-align: center; }
+
+/* Estilos para o v-select */
+:deep(.vs__dropdown-toggle) {
+    padding: 8px;
+    border-radius: 4px;
+    border: 1px solid #ccc;
+}
+:deep(.vs__search::placeholder) {
+    color: #999;
+}
 </style>
