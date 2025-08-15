@@ -29,7 +29,9 @@ class ImovelSerializer(serializers.ModelSerializer):
             'quitado', 'documentacao_ok', 'aceita_pet', 'proprietario', 'numero_matricula',
             'data_captacao', 'data_fim_autorizacao', 'possui_exclusividade', 'comissao_percentual',
             'informacoes_adicionais_autorizacao',
-            'imagens'
+            'imagens',
+            # NOVO CAMPO ADICIONADO AQUI
+            'posicao_chave'
         ]
         read_only_fields = ('codigo_referencia',)
 

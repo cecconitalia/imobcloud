@@ -138,15 +138,20 @@ class TenantIdentificationMiddleware(MiddlewareMixin):
                 print(f"ERRO ao carregar imobiliária por subdomínio (Unauthenticated): {e}. Tenant remains None.")
 
         # 3. Fallback para desenvolvimento LOCALHOST (se nenhuma das anteriores funcionou)
-        # Isso é para http://localhost:5173/ (sem subdomínio e sem login), mostrando lista vazia por padrão
         if request.tenant is None and (host == 'localhost' or host == '127.0.0.1'):
-            try:
-                # Mantém como None para que o get_queryset retorne lista vazia por padrão no site público raiz
-                # request.tenant = Imobiliaria.objects.first() 
-                # if not request.tenant:
+             subdomain_param = request.GET.get('subdomain', None)
+             if subdomain_param:
+                 try:
+                     # AQUI ESTÁ A CORREÇÃO: "subdomino" foi alterado para "subdominio"
+                     tenant_by_param = Imobiliaria.objects.get(subdominio=subdomain_param)
+                     request.tenant = tenant_by_param
+                     print(f"DEBUG MW Fallback: Tenant identified by query param 'subdomain' for public views: {request.tenant.nome}")
+                 except Imobiliaria.DoesNotExist:
+                     print(f"AVISO: Imobiliária com subdomínio '{subdomain_param}' não encontrada via query param. Tenant remains None.")
+                 except Exception as e:
+                     print(f"ERRO ao carregar imobiliária por query param: {e}. Tenant remains None.")
+             else:
                 print("AVISO: Nenhuma imobiliária padrão definida para localhost (fallback final). Site público geral será vazio.")
-            except Exception as e:
-                print(f"ERRO ao carregar imobiliária padrão para localhost: {e}. Tenant remains None.")
 
         # DEBUG: Log final do middleware (se não saiu antes)
         print(f"DEBUG MW End: Final request.tenant: {request.tenant.nome if request.tenant else 'None'} (No early return).")

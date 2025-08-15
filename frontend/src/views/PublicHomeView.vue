@@ -129,7 +129,8 @@ async function fetchImoveis() {
       }
     }
 
-    const response = await publicApiClient.get('/v1/imoveis/imoveis/', { params });
+    // A CORREÇÃO ESTÁ AQUI: URL alterada para o caminho correto para a rota pública
+    const response = await publicApiClient.get('/v1/public/imoveis/', { params });
     imoveis.value = response.data;
 
   } catch (err) {

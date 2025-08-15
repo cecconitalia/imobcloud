@@ -180,7 +180,8 @@ async function fetchImovelDetail() {
     }
 
     const params = { subdomain };
-    const response = await publicApiClient.get(`/v1/imoveis/imoveis/${route.params.id}/`, { params });
+    const response = await publicApiClient.get(`/v1/public/imoveis/${route.params.id}/`, { params });
+
     imovel.value = response.data;
 
     if (imovel.value.imagens && imovel.value.imagens.length > 0) {

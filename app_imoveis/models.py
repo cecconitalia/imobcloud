@@ -66,7 +66,8 @@ class Imovel(models.Model):
     status = models.CharField(max_length=50, choices=Status.choices, default=Status.A_VENDA, verbose_name="Status")
     situacao = models.CharField(max_length=20, choices=Situacao.choices, blank=True, null=True, verbose_name="Situação do Imóvel")
     disponibilidade = models.CharField(max_length=20, choices=Disponibilidade.choices, blank=True, null=True, verbose_name="Disponibilidade")
-    
+    posicao_chave = models.CharField(max_length=50, blank=True, null=True, verbose_name="Posição da Chave")
+
     # --- 💻 Controle de Publicação ---
     publicado_no_site = models.BooleanField(default=True, verbose_name="Publicar no site?")
 

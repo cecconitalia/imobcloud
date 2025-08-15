@@ -35,7 +35,7 @@
         <select id="imovel" v-model="oportunidade.imovel_id">
           <option :value="null">Nenhum</option>
           <option v-for="i in imoveis" :key="i.id" :value="i.id">
-            {{ i.endereco }}
+            {{ i.titulo_anuncio }}
           </option>
         </select>
       </div>
@@ -197,7 +197,7 @@ async function fetchData() {
 
 async function handleFaseUpdate(novaFaseId: string) {
   try {
-    await apiClient.patch(`/v1/oportunidades/${oportunidadeId.value}/`, {
+    await apiClient.patch(`/v1/clientes/oportunidades/${oportunidadeId.value}/`, {
       fase: novaFaseId,
     });
     oportunidade.value.fase = novaFaseId;
