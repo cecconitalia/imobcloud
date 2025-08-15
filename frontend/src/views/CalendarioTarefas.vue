@@ -1,6 +1,6 @@
 <template>
   <div class="calendar-container">
-    <FullCalendar :options="calendarOptions" />
+    <FullCalendar :options="calendarOptions" ref="fullCalendar" />
     
     <TarefaModal
       v-if="modal.visible"
@@ -27,12 +27,14 @@ interface Tarefa {
   descricao: string;
   data_conclusao: string;
   concluida: boolean;
-  oportunidade: number | null; // CORREÇÃO: Adicionando o ID da oportunidade
+  oportunidade: number | null;
   oportunidade_titulo: string;
   cliente_nome: string;
   responsavel_nome: string;
   status_display: string;
 }
+
+const fullCalendar = ref<any>(null); // Referência para o componente FullCalendar
 
 const modal = ref({
   visible: false,
@@ -53,9 +55,10 @@ const calendarOptions = ref({
   editable: true,
   selectable: true,
   select: handleDateSelect,
+  // CORREÇÃO: A URL para buscar as tarefas foi atualizada.
   events: async function(fetchInfo: any, successCallback: any, failureCallback: any) {
     try {
-      const response = await apiClient.get('/v1/clientes/minhas-tarefas/', {
+      const response = await apiClient.get('/v1/minhas-tarefas/', { // URL CORRIGIDA
         params: {
           start: fetchInfo.startStr,
           end: fetchInfo.endStr
@@ -69,7 +72,8 @@ const calendarOptions = ref({
             status: tarefa.status_display,
             descricao: tarefa.descricao,
             responsavelNome: tarefa.responsavel_nome,
-            oportunidadeId: tarefa.oportunidade // CORREÇÃO: Passando o ID da oportunidade
+            oportunidadeId: tarefa.oportunidade,
+            clienteNome: tarefa.cliente_nome, // Passando o nome do cliente
         },
         backgroundColor: getTaskColor(tarefa.status_display),
         borderColor: getTaskColor(tarefa.status_display),
@@ -113,26 +117,22 @@ function fecharModal() {
 
 async function recarregarTarefas() {
   fecharModal();
-  if (calendarOptions.value.events instanceof Function) {
-      calendarOptions.value.events({}, (events) => {
-          calendarOptions.value.events = events;
-      }, () => {});
+  // CORREÇÃO: Maneira mais simples e eficiente de recarregar os eventos do calendário.
+  if (fullCalendar.value) {
+    const calendarApi = fullCalendar.value.getApi();
+    calendarApi.refetchEvents();
   }
 }
 
 async function handleEventChange(changeInfo: any) {
   const updatedTarefa = {
-    data_conclusao: changeInfo.event.startStr.split('T')[0],
+    data_conclusao: changeInfo.event.startStr, // Envia a data completa para o backend
   };
-  const oportunidadeId = changeInfo.event.extendedProps.oportunidadeId;
   const tarefaId = changeInfo.event.id;
 
   try {
-    if (oportunidadeId) {
-      await apiClient.patch(`/v1/clientes/oportunidades/${oportunidadeId}/tarefas/${tarefaId}/`, updatedTarefa);
-    } else {
-      await apiClient.patch(`/v1/clientes/tarefas/${tarefaId}/`, updatedTarefa);
-    }
+    // CORREÇÃO: A URL de atualização é sempre a mesma, independentemente da oportunidade.
+    await apiClient.patch(`/v1/tarefas/${tarefaId}/`, updatedTarefa);
   } catch (error) {
     console.error("Erro ao atualizar a tarefa:", error);
     changeInfo.revert();
@@ -163,5 +163,11 @@ onMounted(() => {
   background-color: white;
   border-radius: 8px;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+
+/* Estilos para customizar o FullCalendar se necessário */
+:deep(.fc-button-primary) {
+    background-color: #007bff;
+    border-color: #007bff;
 }
 </style>

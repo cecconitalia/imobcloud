@@ -42,7 +42,7 @@ from app_imoveis.models import Imovel
 User = get_user_model()
 
 # ====================================================================
-# VIEWS DO GOOGLE CALENDAR
+# VIEWS DO GOOGLE CALENDAR (Mantidas como estavam)
 # ====================================================================
 SCOPES = ['https://www.googleapis.com/auth/calendar.events']
 CREDENTIALS_DIR = os.path.join(settings.MEDIA_ROOT, 'google_credentials')
@@ -115,7 +115,7 @@ class GoogleCalendarAuthCallbackView(APIView):
             return HttpResponse(f"Erro ao processar o callback: {e}", status=400)
 
 # ====================================================================
-# VIEWS DO CRM
+# VIEWS DO CRM (Com correções)
 # ====================================================================
 
 class ClienteViewSet(viewsets.ModelViewSet):
@@ -182,21 +182,15 @@ class VisitaViewSet(viewsets.ModelViewSet):
         return Visita.objects.none()
 
     def perform_create(self, serializer):
+        imovel_id = self.request.data.get('imovel')
+        cliente_id = self.request.data.get('cliente')
+        imovel = get_object_or_404(Imovel, pk=imovel_id)
+        cliente = get_object_or_404(Cliente, pk=cliente_id)
+        
         if self.request.user.is_superuser:
-            imovel_id = self.request.data.get('imovel')
-            cliente_id = self.request.data.get('cliente')
-            imovel = get_object_or_404(Imovel, pk=imovel_id)
-            cliente = get_object_or_404(Cliente, pk=cliente_id)
-            if 'imobiliaria' in self.request.data:
-                imobiliaria_obj = get_object_or_404(self.request.tenant._meta.model, pk=self.request.data['imobiliaria'])
-                serializer.save(imobiliaria=imobiliaria_obj, cliente=cliente, imovel=imovel)
-            else:
-                raise PermissionDenied("Para superusuário, a imobiliária é obrigatória.")
-        elif hasattr(self.request.user, 'perfil') and self.request.user.perfil.cargo in [PerfilUsuario.Cargo.ADMIN, PerfilUsuario.Cargo.CORRETOR]:
-            imovel_id = self.request.data.get('imovel')
-            cliente_id = self.request.data.get('cliente')
-            imovel = get_object_or_404(Imovel, pk=imovel_id, imobiliaria=self.request.tenant)
-            cliente = get_object_or_404(Cliente, pk=cliente_id, imobiliaria=self.request.tenant)
+            imobiliaria_obj = imovel.imobiliaria
+            serializer.save(imobiliaria=imobiliaria_obj, cliente=cliente, imovel=imovel)
+        elif hasattr(self.request.user, 'perfil') and self.request.tenant:
             serializer.save(imobiliaria=self.request.tenant, cliente=cliente, imovel=imovel)
         else:
             raise PermissionDenied("Não foi possível associar a visita. Tenant não identificado ou inválido.")
@@ -204,7 +198,7 @@ class VisitaViewSet(viewsets.ModelViewSet):
     def perform_update(self, serializer):
         if self.request.user.is_superuser:
             serializer.save()
-        elif hasattr(self.request.user, 'perfil') and self.request.user.perfil.cargo in [PerfilUsuario.Cargo.ADMIN, PerfilUsuario.Cargo.CORRETOR] and serializer.instance.imobiliaria == self.request.tenant:
+        elif hasattr(self.request.user, 'perfil') and serializer.instance.imobiliaria == self.request.tenant:
             serializer.save()
         else:
             raise PermissionDenied("Você não tem permissão para atualizar esta visita.")
@@ -212,7 +206,7 @@ class VisitaViewSet(viewsets.ModelViewSet):
     def perform_destroy(self, instance):
         if self.request.user.is_superuser:
             instance.delete()
-        elif hasattr(self.request.user, 'perfil') and self.request.user.perfil.cargo in [PerfilUsuario.Cargo.ADMIN, PerfilUsuario.Cargo.CORRETOR] and instance.imobiliaria == self.request.tenant:
+        elif hasattr(self.request.user, 'perfil') and instance.imobiliaria == self.request.tenant:
             instance.delete()
         else:
             raise PermissionDenied("Você não tem permissão para excluir esta visita.")
@@ -236,117 +230,92 @@ class AtividadeViewSet(viewsets.ModelViewSet):
         cliente = get_object_or_404(Cliente, pk=cliente_id)
 
         if not (self.request.user.is_superuser or cliente.imobiliaria == self.request.tenant):
-            raise PermissionError("Você não tem permissão para adicionar atividades a este cliente.")
+            raise PermissionDenied("Você não tem permissão para adicionar atividades a este cliente.")
 
         serializer.save(cliente=cliente, registrado_por=self.request.user)
 
 
 class OportunidadeViewSet(viewsets.ModelViewSet):
-    queryset = Oportunidade.objects.all().select_related('cliente', 'imovel', 'responsavel__perfil')
+    queryset = Oportunidade.objects.all().select_related('cliente', 'imovel', 'responsavel__user')
     serializer_class = OportunidadeSerializer
     permission_classes = [permissions.IsAuthenticated]
 
     def get_queryset(self):
         user = self.request.user
-        if user.is_superuser:
-            queryset = Oportunidade.objects.all()
-        elif self.request.tenant:
-            if hasattr(user, 'perfil'):
-                if user.perfil.cargo == PerfilUsuario.Cargo.ADMIN:
-                    queryset = Oportunidade.objects.filter(imobiliaria=self.request.tenant)
-                elif user.perfil.cargo == PerfilUsuario.Cargo.CORRETOR:
-                    queryset = Oportunidade.objects.filter(imobiliaria=self.request.tenant, responsavel=user)
-            else:
-                return Oportunidade.objects.none()
+        base_queryset = Oportunidade.objects.all()
 
-            cliente_id = self.request.query_params.get('cliente_id', None)
-            if cliente_id:
-                queryset = queryset.filter(cliente__id=cliente_id)
-            
-            return queryset.all()
+        if user.is_superuser:
+            return base_queryset
+        
+        if self.request.tenant:
+            queryset = base_queryset.filter(imobiliaria=self.request.tenant)
+            if hasattr(user, 'perfil') and user.perfil.cargo == PerfilUsuario.Cargo.CORRETOR:
+                queryset = queryset.filter(responsavel=user.perfil)
+            return queryset
 
         return Oportunidade.objects.none()
 
     def perform_create(self, serializer):
         if not self.request.tenant:
-            raise PermissionError("Apenas utilizadores associados a uma imobiliária podem criar oportunidades.")
-        serializer.save(imobiliaria=self.request.tenant, responsavel=self.request.user)
+            raise PermissionDenied("Apenas utilizadores associados a uma imobiliária podem criar oportunidades.")
+        
+        if not hasattr(self.request.user, 'perfil'):
+            raise PermissionDenied("O seu utilizador não tem um perfil de corretor associado.")
+            
+        serializer.save(imobiliaria=self.request.tenant, responsavel=self.request.user.perfil)
+    
+    def perform_update(self, serializer):
+        oportunidade = self.get_object()
+        responsavel_anterior = oportunidade.responsavel
+        
+        instance = serializer.save()
+
+        responsavel_novo = instance.responsavel
+        if responsavel_novo and responsavel_novo != responsavel_anterior:
+            responsavel_anterior_nome = responsavel_anterior.user.first_name if responsavel_anterior and hasattr(responsavel_anterior, 'user') else 'Ninguém'
+            
+            descricao = f"Oportunidade transferida de '{responsavel_anterior_nome}' para '{responsavel_novo.user.first_name}'."
+            # CORREÇÃO APLICADA AQUI
+            Atividade.objects.create(
+                cliente=instance.cliente,
+                # Removido: 'oportunidade=instance',
+                tipo='NOTA',
+                descricao=descricao,
+                registrado_por=self.request.user
+            )
+
+            Notificacao.objects.create(
+                destinatario=responsavel_novo.user,
+                mensagem=f"A oportunidade '{instance.titulo}' foi transferida para si.",
+                link=f"/oportunidades/editar/{instance.id}"
+            )
     
     def partial_update(self, request, *args, **kwargs):
         oportunidade = self.get_object()
         fase_anterior = oportunidade.get_fase_display()
-        fase_nova_key = request.data.get('fase')
-
+        
         response = super().partial_update(request, *args, **kwargs)
 
+        fase_nova_key = request.data.get('fase')
         if fase_nova_key and fase_nova_key != oportunidade.fase:
             oportunidade.refresh_from_db()
             fase_nova = oportunidade.get_fase_display()
             
             descricao = f"Oportunidade '{oportunidade.titulo}' movida da fase '{fase_anterior}' para '{fase_nova}'."
+            # CORREÇÃO APLICADA AQUI
             Atividade.objects.create(
                 cliente=oportunidade.cliente,
-                tipo='NOTA',
+                # Removido: 'oportunidade=oportunidade',
+                tipo='MUDANCA_FASE',
                 descricao=descricao,
                 registrado_por=request.user
             )
         
         return response
 
-    @action(detail=True, methods=['post'], url_path='transferir')
-    def transferir_responsavel(self, request, pk=None):
-        oportunidade = self.get_object()
-        user = request.user
-        
-        if not (user.is_superuser or (hasattr(user, 'perfil') and user.perfil.cargo == PerfilUsuario.Cargo.ADMIN) or (oportunidade.responsavel == user)):
-            return Response(
-                {"detail": "Você não tem permissão para transferir esta oportunidade."},
-                status=status.HTTP_403_FORBIDDEN
-            )
-
-        novo_corretor_id = request.data.get('novo_corretor')
-        if not novo_corretor_id:
-            return Response(
-                {"detail": "ID do novo corretor é obrigatório."},
-                status=status.HTTP_400_BAD_REQUEST
-            )
-        
-        try:
-            novo_corretor = User.objects.get(pk=novo_corretor_id)
-        except User.DoesNotExist:
-            return Response(
-                {"detail": "Novo corretor não encontrado."},
-                status=status.HTTP_404_NOT_FOUND
-            )
-
-        corretor_anterior_nome = oportunidade.responsavel.first_name if oportunidade.responsavel else 'N/A'
-        corretor_anterior_username = oportunidade.responsavel.username if oportunidade.responsavel else 'N/A'
-        
-        oportunidade.responsavel = novo_corretor
-        oportunidade.save(update_fields=['responsavel'])
-        
-        descricao = f"Oportunidade '{oportunidade.titulo}' transferida de '{corretor_anterior_nome}' ({corretor_anterior_username}) para '{novo_corretor.first_name}' ({novo_corretor.username})."
-        Atividade.objects.create(
-            cliente=oportunidade.cliente,
-            tipo='NOTA',
-            descricao=descricao,
-            registrado_por=user
-        )
-
-        Notificacao.objects.create(
-            destinatario=novo_corretor,
-            mensagem=f"A oportunidade '{oportunidade.titulo}' foi transferida para você.",
-            link=f"/oportunidades/editar/{oportunidade.id}"
-        )
-
-        return Response(
-            {"detail": "Oportunidade transferida com sucesso."},
-            status=status.HTTP_200_OK
-        )
-
-
 class TarefaViewSet(viewsets.ModelViewSet):
     serializer_class = TarefaSerializer
+    permission_classes = [permissions.IsAuthenticated]
 
     def get_queryset(self):
         user = self.request.user
@@ -355,45 +324,36 @@ class TarefaViewSet(viewsets.ModelViewSet):
         if user.is_superuser:
             return Tarefa.objects.all()
 
-        # CORREÇÃO: Filtrar as tarefas através do perfil do responsável.
-        # O modelo Tarefa não tem um campo 'tenant' direto.
         queryset = Tarefa.objects.filter(responsavel__perfil__imobiliaria=tenant)
-
-        oportunidade_id = self.kwargs.get('oportunidade_oportunidade_pk')
-        if oportunidade_id:
-            queryset = queryset.filter(oportunidade__id=oportunidade_id)
-        
         return queryset
 
     def perform_create(self, serializer):
-        if 'oportunidade_pk' in self.kwargs:
-            oportunidade = get_object_or_404(Oportunidade, pk=self.kwargs['oportunidade_pk'])
-            if not (self.request.user.is_superuser or (hasattr(self.request.user, 'perfil') and oportunidade.imobiliaria == self.request.tenant)):
+        oportunidade_id = self.request.data.get('oportunidade')
+        oportunidade = None
+        if oportunidade_id:
+            oportunidade = get_object_or_404(Oportunidade, pk=oportunidade_id)
+            if not (self.request.user.is_superuser or oportunidade.imobiliaria == self.request.tenant):
                 raise PermissionDenied("Você não tem permissão para adicionar tarefas a esta oportunidade.")
-            tarefa = serializer.save(oportunidade=oportunidade, responsavel=self.request.user)
-        else:
-            if not self.request.tenant:
-                raise PermissionDenied("Não foi possível associar a tarefa a uma imobiliária.")
-            tarefa = serializer.save(responsavel=self.request.user)
+        
+        tarefa = serializer.save(oportunidade=oportunidade, responsavel=self.request.user)
 
-
-        if tarefa.responsavel and hasattr(tarefa.responsavel.perfil, 'google_calendar_token'):
+        if tarefa.responsavel and hasattr(tarefa.responsavel, 'perfil') and tarefa.responsavel.perfil.google_calendar_token:
             try:
                 agendar_tarefa_no_calendario(tarefa)
             except Exception as e:
                 print(f"Erro ao agendar tarefa no Google Calendar: {e}")
-        
+    
     def perform_update(self, serializer):
-        if self.request.user.is_superuser or (serializer.instance.oportunidade.imobiliaria == self.request.tenant):
-            tarefa = serializer.save()
-            if tarefa.responsavel and hasattr(tarefa.responsavel.perfil, 'google_calendar_token'):
-                try:
-                    agendar_tarefa_no_calendario(tarefa, editar=True)
-                except Exception as e:
-                    print(f"Erro ao atualizar tarefa no Google Calendar: {e}")
-        else:
+        instance = self.get_object()
+        if not (self.request.user.is_superuser or (hasattr(instance.responsavel.perfil, 'imobiliaria') and instance.responsavel.perfil.imobiliaria == self.request.tenant)):
             raise PermissionDenied("Você não tem permissão para atualizar esta tarefa.")
-
+            
+        tarefa = serializer.save()
+        if tarefa.responsavel and hasattr(tarefa.responsavel, 'perfil') and tarefa.responsavel.perfil.google_calendar_token:
+            try:
+                agendar_tarefa_no_calendario(tarefa, editar=True)
+            except Exception as e:
+                print(f"Erro ao atualizar tarefa no Google Calendar: {e}")
 
 class MinhasTarefasView(viewsets.ReadOnlyModelViewSet):
     serializer_class = TarefaSerializer
@@ -416,7 +376,7 @@ class RelatoriosView(viewsets.ViewSet):
     permission_classes = [permissions.IsAdminUser]
 
     def list(self, request):
-        if not request.user.perfil.cargo == PerfilUsuario.Cargo.ADMIN:
+        if not hasattr(request.user, 'perfil') or not request.user.perfil.cargo == PerfilUsuario.Cargo.ADMIN:
             raise PermissionDenied("Acesso não autorizado.")
 
         tenant = request.tenant
@@ -442,25 +402,24 @@ class RelatoriosView(viewsets.ViewSet):
         return Response(data)
 
     def _get_oportunidades_funil(self, tenant):
-        funil = Oportunidade.objects.filter(imobiliaria=tenant).values('status').annotate(total=Count('status'))
-        return FunilVendasSerializer(funil, many=True).data
+        funil = Oportunidade.objects.filter(imobiliaria=tenant).values('fase').annotate(total=Count('fase'))
+        return list(funil)
 
     def _get_origem_leads(self, tenant):
-        origens = Cliente.objects.filter(imobiliaria=tenant).values('origem').annotate(total=Count('origem'))
-        serializer = RelatorioOrigemSerializer(origens, many=True)
-        return serializer.data
+        origens = Cliente.objects.filter(imobiliaria=tenant).values('fonte').annotate(total=Count('fonte'))
+        return list(origens)
 
     def _get_desempenho_corretores(self, tenant):
         corretores_desempenho = PerfilUsuario.objects.filter(imobiliaria=tenant, cargo=PerfilUsuario.Cargo.CORRETOR).annotate(
-            oportunidades_abertas=Count('oportunidades_responsavel', filter=Q(oportunidades_responsavel__status=Oportunidade.Status.ABERTO)),
-            oportunidades_ganhas=Count('oportunidades_responsavel', filter=Q(oportunidades_responsavel__status=Oportunidade.Status.GANHO)),
-            oportunidades_perdidas=Count('oportunidades_responsavel', filter=Q(oportunidades_responsavel__status=Oportunidade.Status.PERDIDO))
+            oportunidades_abertas=Count('oportunidades_responsavel', filter=Q(oportunidades_responsavel__fase__in=['LEAD', 'CONTATO', 'VISITA', 'PROPOSTA', 'NEGOCIACAO'])),
+            oportunidades_ganhas=Count('oportunidades_responsavel', filter=Q(oportunidades_responsavel__fase='GANHO')),
+            oportunidades_perdidas=Count('oportunidades_responsavel', filter=Q(oportunidades_responsavel__fase='PERDIDO'))
         )
         serializer = RelatorioCorretorSerializer(corretores_desempenho, many=True)
         return serializer.data
 
     def _get_relatorio_imobiliaria(self, tenant):
-        hoje = localdate()
+        hoje = timezone.localdate()
         primeiro_dia_mes = hoje.replace(day=1)
         
         oportunidades_mes = Oportunidade.objects.filter(
@@ -470,17 +429,17 @@ class RelatoriosView(viewsets.ViewSet):
         
         sumario = oportunidades_mes.aggregate(
             novas_oportunidades=Count('id'),
-            oportunidades_ganhas=Count('id', filter=Q(status=Oportunidade.Status.GANHO)),
-            oportunidades_perdidas=Count('id', filter=Q(status=Oportunidade.Status.PERDIDO))
+            oportunidades_ganhas=Count('id', filter=Q(fase='GANHO')),
+            oportunidades_perdidas=Count('id', filter=Q(fase='PERDIDO'))
         )
         
         oportunidades_por_mes = Oportunidade.objects.filter(imobiliaria=tenant, data_criacao__year=hoje.year)\
             .annotate(mes=TruncMonth('data_criacao'))\
             .values('mes')\
             .annotate(
-                ganhas=Count('id', filter=Q(status=Oportunidade.Status.GANHO)),
-                perdidas=Count('id', filter=Q(status=Oportunidade.Status.PERDIDO)),
-                abertas=Count('id', filter=Q(status=Oportunidade.Status.ABERTO))
+                ganhas=Count('id', filter=Q(fase='GANHO')),
+                perdidas=Count('id', filter=Q(fase='PERDIDO')),
+                abertas=Count('id', filter=Q(fase__in=['LEAD', 'CONTATO', 'VISITA', 'PROPOSTA', 'NEGOCIACAO']))
             )\
             .order_by('mes')
 
@@ -489,5 +448,4 @@ class RelatoriosView(viewsets.ViewSet):
             'oportunidades_por_mes': list(oportunidades_por_mes)
         }
         
-        serializer = RelatorioImobiliariaSerializer(dados)
         return dados

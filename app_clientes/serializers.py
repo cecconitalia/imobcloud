@@ -1,57 +1,24 @@
-# C:\wamp64\www\ImobCloud\app_clientes\serializers.py
-
 from rest_framework import serializers
 from .models import Cliente, Visita, Atividade, Oportunidade, Tarefa
-from core.models import PerfilUsuario, Imobiliaria
+from core.models import PerfilUsuario
 from app_imoveis.models import Imovel
 from django.contrib.auth import get_user_model
 
 User = get_user_model()
 
-# Serializadores simples para representar os dados relacionados de forma segura
-class ClienteSimplificadoSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = Cliente
-        fields = ['id', 'nome_completo']
-
-class ImovelSimplificadoSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = Imovel
-        fields = ['id', 'titulo_anuncio', 'endereco']
+# ===================================================================
+# Serializers Auxiliares (para representação em outras partes do sistema)
+# ===================================================================
 
 class ResponsavelSimplificadoSerializer(serializers.ModelSerializer):
+    """ Exibe apenas o essencial do responsável para listagens. """
     class Meta:
         model = User
         fields = ['id', 'first_name', 'username']
 
-class OportunidadeSerializer(serializers.ModelSerializer):
-    # CORREÇÃO: Usando os serializadores simplificados para representar as relações.
-    # O `read_only=True` aqui é essencial para que o serializer não espere estes objetos na entrada de dados.
-    cliente = ClienteSimplificadoSerializer(read_only=True)
-    imovel = ImovelSimplificadoSerializer(read_only=True)
-    responsavel = ResponsavelSimplificadoSerializer(read_only=True)
-    
-    # IDs para escrita (para não precisar de enviar objetos complexos)
-    cliente_id = serializers.PrimaryKeyRelatedField(
-        queryset=Cliente.objects.all(), source='cliente', write_only=True
-    )
-    imovel_id = serializers.PrimaryKeyRelatedField(
-        queryset=Imovel.objects.all(), source='imovel', write_only=True, required=False, allow_null=True
-    )
-
-    class Meta:
-        model = Oportunidade
-        fields = [
-            'id', 'titulo', 'valor_estimado', 'fase', 'fonte', 'probabilidade',
-            'motivo_perda', 'data_criacao', 'cliente', 'imovel', 'responsavel',
-            'cliente_id', 'imovel_id'
-        ]
-        # CORREÇÃO: Adicionado 'responsavel' e 'imobiliaria' à lista de campos apenas de leitura.
-        read_only_fields = ('data_criacao', 'responsavel', 'imobiliaria',)
-
-    def create(self, validated_data):
-        # A imobiliária e o responsável são injetados pelo perform_create na view
-        return super().create(validated_data)
+# ===================================================================
+# Serializers Principais das Entidades
+# ===================================================================
 
 class VisitaSerializer(serializers.ModelSerializer):
     class Meta:
@@ -64,34 +31,73 @@ class AtividadeSerializer(serializers.ModelSerializer):
         fields = '__all__'
 
 class TarefaSerializer(serializers.ModelSerializer):
-    # CORREÇÃO: Campos de modelos relacionados
-    oportunidade_titulo = serializers.ReadOnlyField(source='oportunidade.titulo')
-    cliente_nome = serializers.ReadOnlyField(source='oportunidade.cliente.nome_completo')
-    responsavel_nome = serializers.ReadOnlyField(source='responsavel.first_name')
-    status_display = serializers.SerializerMethodField()
-
     class Meta:
         model = Tarefa
-        # CORREÇÃO: Lista completa de campos explícitos para evitar o erro
+        fields = '__all__'
+
+class OportunidadeSerializer(serializers.ModelSerializer):
+    """
+    Serializer definitivo para Oportunidade.
+    - Usa PrimaryKeyRelatedField para aceitar IDs para escrita (POST/PUT/PATCH).
+    - Sobrescreve 'to_representation' para mostrar dados completos para leitura (GET).
+    """
+    # CORREÇÃO: Estes campos agora aceitam IDs para escrita.
+    # O queryset garante que o ID fornecido seja válido.
+    cliente = serializers.PrimaryKeyRelatedField(queryset=Cliente.objects.all())
+    imovel = serializers.PrimaryKeyRelatedField(queryset=Imovel.objects.all(), required=False, allow_null=True)
+    
+    # O responsável é um usuário, não um PerfilUsuario. Corrigindo o queryset.
+    # O campo é desabilitado no frontend, então marcamos como read_only aqui
+    # para evitar que seja alterado diretamente.
+    responsavel = ResponsavelSimplificadoSerializer(read_only=True)
+    
+    # Este campo continua como apenas leitura, pois as tarefas são gerenciadas separadamente.
+    tarefas = TarefaSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = Oportunidade
         fields = [
-            'id', 'descricao', 'data_criacao', 'data_conclusao', 'concluida', 
-            'oportunidade', 'oportunidade_id', 'responsavel', 'responsavel_id',
-            'oportunidade_titulo', 'cliente_nome', 'responsavel_nome', 'status_display'
+            'id', 'titulo', 'valor_estimado', 'fase', 'fonte', 'probabilidade',
+            'motivo_perda', 'data_criacao',
+            # Campos de relacionamento
+            'cliente', 'imovel', 'responsavel', 'tarefas',
         ]
-        # CORREÇÃO: Adicionada a meta para tornar o campo 'oportunidade' não obrigatório no serializer
-        extra_kwargs = {
-            'oportunidade': {'required': False, 'allow_null': True}
+        read_only_fields = ('data_criacao',)
+
+    def to_representation(self, instance):
+        """
+        Customiza a saída (JSON) para requisições GET.
+        Aqui, transformamos os IDs de volta em objetos completos para o frontend.
+        """
+        # Pega a representação padrão (que terá os IDs para cliente e imovel)
+        representation = super().to_representation(instance)
+
+        # Substitui o ID do cliente pelo objeto completo do cliente
+        cliente_instance = instance.cliente
+        representation['cliente'] = {
+            'id': cliente_instance.id,
+            'nome_completo': cliente_instance.nome_completo,
+            # Adicione outros campos do cliente se necessário no frontend
         }
 
-    def get_status_display(self, obj):
-        if obj.concluida:
-            return 'Concluída'
-        return 'Pendente'
+        # Se houver um imóvel, substitui o ID pelo objeto do imóvel
+        if instance.imovel:
+            imovel_instance = instance.imovel
+            representation['imovel'] = {
+                'id': imovel_instance.id,
+                'endereco': imovel_instance.endereco,
+                # Adicione outros campos do imóvel se necessário
+            }
+        
+        return representation
+
 
 class ClienteSerializer(serializers.ModelSerializer):
+    """ Serializer principal para o modelo Cliente. """
+    # Usa o OportunidadeSerializer revisado para aninhar as oportunidades
+    oportunidades = OportunidadeSerializer(many=True, read_only=True)
     visitas = VisitaSerializer(many=True, read_only=True)
     atividades = AtividadeSerializer(many=True, read_only=True)
-    oportunidades = OportunidadeSerializer(many=True, read_only=True)
     tarefas = TarefaSerializer(many=True, read_only=True)
     imobiliaria = serializers.PrimaryKeyRelatedField(read_only=True)
 
@@ -100,10 +106,12 @@ class ClienteSerializer(serializers.ModelSerializer):
         fields = '__all__'
     
     def create(self, validated_data):
-        # A imobiliária é injetada pelo perform_create na view
         return super().create(validated_data)
 
-# Serializers para Relatórios
+# ===================================================================
+# Serializers para Relatórios (mantidos como estavam)
+# ===================================================================
+
 class FunilVendasSerializer(serializers.Serializer):
     status = serializers.CharField(source='get_status_display')
     total = serializers.IntegerField()
