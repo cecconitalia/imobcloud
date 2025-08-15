@@ -5,18 +5,33 @@ from django.conf import settings
 from django.utils import timezone
 
 class Cliente(models.Model):
+    # Campos que você já tem
     imobiliaria = models.ForeignKey(Imobiliaria, on_delete=models.CASCADE, verbose_name="Imobiliária")
     nome_completo = models.CharField(max_length=200, verbose_name="Nome Completo")
     cpf_cnpj = models.CharField(max_length=18, unique=False, verbose_name="CPF/CNPJ")
     email = models.EmailField(verbose_name="E-mail")
     telefone = models.CharField(max_length=20, verbose_name="Telefone")
     preferencias_imovel = models.TextField(blank=True, null=True, verbose_name="Preferências de Imóvel")
-    
     ativo = models.BooleanField(default=True, verbose_name="Ativo")
-
     data_cadastro = models.DateTimeField(auto_now_add=True, verbose_name="Data de Cadastro")
     data_atualizacao = models.DateTimeField(auto_now=True, verbose_name="Última Atualização")
 
+    # NOVOS CAMPOS ADICIONADOS AQUI
+    data_nascimento = models.DateField(null=True, blank=True, verbose_name="Data de Nascimento")
+    estado_civil = models.CharField(max_length=50, blank=True, null=True, verbose_name="Estado Civil")
+    profissao = models.CharField(max_length=100, blank=True, null=True, verbose_name="Profissão")
+    rg = models.CharField(max_length=20, blank=True, null=True, verbose_name="RG")
+
+    endereco = models.CharField(max_length=255, blank=True, null=True, verbose_name="Endereço (Rua, Av.)")
+    numero = models.CharField(max_length=10, blank=True, null=True, verbose_name="Número")
+    bairro = models.CharField(max_length=100, blank=True, null=True, verbose_name="Bairro")
+    cidade = models.CharField(max_length=100, blank=True, null=True, verbose_name="Cidade")
+    estado = models.CharField(max_length=2, blank=True, null=True, verbose_name="Estado")
+    cep = models.CharField(max_length=9, blank=True, null=True, verbose_name="CEP")
+
+    observacoes = models.TextField(blank=True, null=True, verbose_name="Observações")
+    # FIM DOS NOVOS CAMPOS
+    
     class Meta:
         verbose_name = "Cliente"
         verbose_name_plural = "Clientes"

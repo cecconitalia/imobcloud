@@ -88,6 +88,10 @@
             <label for="cep">CEP</label>
             <input type="text" id="cep" v-model="imovel.cep" />
             </div>
+            <div class="form-group">
+                <label for="posicao_chave">Posição da Chave</label>
+                <input type="text" id="posicao_chave" v-model="imovel.posicao_chave" />
+            </div>
         </div>
         <div v-show="activeTab === 'valores'" class="form-grid">
             <div class="form-group">
@@ -349,6 +353,8 @@ const createEmptyImovel = () => ({
   possui_exclusividade: false,
   comissao_percentual: null,
   informacoes_adicionais_autorizacao: '',
+  // NOVO CAMPO ADICIONADO AQUI
+  posicao_chave: '',
 });
 
 const imovel = ref(createEmptyImovel());

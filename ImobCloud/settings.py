@@ -167,6 +167,23 @@ REST_FRAMEWORK = {
 }
 
 # =============================================================
+# CONFIGURAÇÃO DO JWT
+# =============================================================
+SIMPLE_JWT = {
+    # Tempo de vida do token de acesso
+    'ACCESS_TOKEN_LIFETIME': timedelta(hours=1),
+    # Tempo de vida do token de refresh (para renovar o token de acesso)
+    'REFRESH_TOKEN_LIFETIME': timedelta(days=7),
+    # Rotaciona o token de refresh a cada uso, aumentando a segurança.
+    'ROTATE_REFRESH_TOKENS': True,
+    # Habilita o refresh do token no cookie, opcional mas útil para algumas setups.
+    'AUTH_HEADER_TYPES': ('Bearer',),
+    'AUTH_TOKEN_CLASSES': ('rest_framework_simplejwt.tokens.AccessToken',),
+}
+# =============================================================
+
+
+# =============================================================
 # CORS Headers Settings (para requisições entre origens diferentes)
 # =============================================================
 CORS_ALLOW_ALL_ORIGINS = True
