@@ -60,8 +60,7 @@ const contratos = ref<any[]>([]);
 const isLoading = ref(true);
 const error = ref<string | null>(null);
 const searchTerm = ref('');
-const userCargo = ref(''); // NOVO: Estado para guardar o cargo do utilizador
-
+const userCargo = ref('');
 
 async function fetchContratos() {
   isLoading.value = true;
@@ -69,7 +68,8 @@ async function fetchContratos() {
     const params = {
       search: searchTerm.value,
     };
-    const response = await apiClient.get('/v1/contratos/contratos/', { params });
+    // CORREÇÃO APLICADA: URL corrigida para /v1/contratos/
+    const response = await apiClient.get('/v1/contratos/', { params });
     contratos.value = response.data;
   } catch (err) {
     console.error("Erro ao buscar contratos:", err);
@@ -81,7 +81,6 @@ async function fetchContratos() {
 
 onMounted(() => {
   fetchContratos();
-  // NOVO: Lê o cargo do localStorage quando a página é carregada
   userCargo.value = localStorage.getItem('userCargo') || '';
 });
 
@@ -90,7 +89,8 @@ async function handleInativar(contratoId: number) {
     return;
   }
   try {
-    await apiClient.delete(`/v1/contratos/contratos/${contratoId}/`);
+    // CORREÇÃO APLICADA: URL corrigida para /v1/contratos/{id}/
+    await apiClient.delete(`/v1/contratos/${contratoId}/`);
     contratos.value = contratos.value.filter(contrato => contrato.id !== contratoId);
   } catch (error) {
     console.error("Erro ao inativar contrato:", error);

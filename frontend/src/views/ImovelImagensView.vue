@@ -77,8 +77,9 @@ async function uploadFiles() {
     const formData = new FormData();
     formData.append('imagem', file);
     formData.append('imovel', props.imovelId.toString());
-    // A URL para o upload está correta: /v1/imoveis/imagens/
-    return apiClient.post('/v1/imoveis/imagens/', formData)
+    
+    // CORREÇÃO APLICADA: Apontando para o novo endpoint de imagens.
+    return apiClient.post('/v1/imagens-imovel/', formData)
       .then(() => {
         console.log(`Sucesso no upload do arquivo: ${file.name}`);
       })
@@ -103,7 +104,6 @@ async function fetchImages() {
   }
   isLoading.value = true;
   try {
-    // CORREÇÃO: A URL estava duplicada. O correto é chamar o endpoint do imóvel específico.
     const response = await apiClient.get(`/v1/imoveis/${props.imovelId}/`);
     images.value = (response.data.imagens || []).filter((img: any) => img.imagem).sort((a: any, b: any) => a.ordem - b.ordem);
   } catch (error) {
@@ -158,7 +158,8 @@ async function deleteImage(imageId: number) {
           images.value[0].principal = true;
         }
 
-        await apiClient.delete(`/v1/imoveis/imagens/${imageId}/`);
+        // CORREÇÃO APLICADA: Apontando para o novo endpoint de imagens.
+        await apiClient.delete(`/v1/imagens-imovel/${imageId}/`);
         console.log(`Imagem ${imageId} excluída com sucesso.`);
         
         if (wasPrincipal && images.value.length > 0) {
@@ -176,8 +177,11 @@ async function deleteImage(imageId: number) {
 async function saveOrder() {
   const orderedIds = images.value.map(img => img.id);
   try {
-    await apiClient.post(`/v1/imoveis/imagens/reordenar/`, { ordem_ids: orderedIds });
+    // CORREÇÃO APLICADA: Apontando para o novo endpoint de imagens.
+    await apiClient.post(`/v1/imagens-imovel/reordenar/`, { ordem_ids: orderedIds });
     console.log("Ordem das imagens salva com sucesso.");
+    // Recarrega as imagens para garantir consistência visual (opcional, mas recomendado)
+    await fetchImages();
   } catch (error) {
     console.error("Erro ao salvar a nova ordem:", error);
     alert('Não foi possível salvar a nova ordem das imagens.');
