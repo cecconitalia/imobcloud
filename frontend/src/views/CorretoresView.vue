@@ -92,7 +92,8 @@ const filteredUsers = computed(() => {
 async function fetchUsers() {
   isLoading.value = true;
   try {
-    const response = await apiClient.get('/v1/core/corretores/');
+    // CORREÇÃO: URL corrigida, o prefixo 'core/' foi removido
+    const response = await apiClient.get('/v1/corretores/');
     users.value = response.data;
   } catch (err) {
     console.error("Erro ao buscar utilizadores:", err);

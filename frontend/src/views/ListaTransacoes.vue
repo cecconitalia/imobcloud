@@ -42,14 +42,14 @@
       </thead>
       <tbody>
         <tr v-for="transacao in filteredTransacoes" :key="transacao.id">
-          <td>{{ formatarData(transacao.data) }}</td>
+          <td>{{ formatarData(transacao.data_vencimento) }}</td>
           <td>
             <span :class="['status-badge', getTipoClass(transacao.tipo)]">
               {{ transacao.tipo }}
             </span>
           </td>
           <td>{{ transacao.descricao }}</td>
-          <td>{{ transacao.categoria_obj?.nome || 'N/A' }}</td>
+          <td>{{ transacao.categoria_nome || 'N/A' }}</td>
           <td>{{ formatarValor(transacao.valor) }}</td>
           <td class="actions-cell">
             <router-link :to="`/financeiro/transacoes/editar/${transacao.id}`" class="btn-secondary">
@@ -103,8 +103,10 @@ async function fetchData() {
   isLoading.value = true;
   try {
     const [transacoesResponse, categoriasResponse] = await Promise.all([
-      apiClient.get('/v1/financeiro/transacoes/'),
-      apiClient.get('/v1/financeiro/categorias/')
+      // CORREÇÃO: URL corrigida, o prefixo 'financeiro/' foi removido
+      apiClient.get('/v1/transacoes/'),
+      // CORREÇÃO: URL corrigida, o prefixo 'financeiro/' foi removido
+      apiClient.get('/v1/categorias/')
     ]);
     transacoes.value = transacoesResponse.data;
     categorias.value = categoriasResponse.data;
@@ -122,7 +124,8 @@ async function handleDelete(transacaoId: number) {
     return;
   }
   try {
-    await apiClient.delete(`/v1/financeiro/transacoes/${transacaoId}/`);
+    // CORREÇÃO: URL corrigida, o prefixo 'financeiro/' foi removido
+    await apiClient.delete(`/v1/transacoes/${transacaoId}/`);
     await fetchData();
   } catch (error) {
     console.error("Erro ao excluir transação:", error);

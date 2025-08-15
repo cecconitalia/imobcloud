@@ -84,7 +84,8 @@ const fetchConta = async (id: number) => {
   isLoading.value = true;
   error.value = null;
   try {
-    const response = await api.get(`/v1/financeiro/contas/${id}/`);
+    // CORREÇÃO AQUI: URL alterada para o caminho correto
+    const response = await api.get(`/v1/contas/${id}/?status=inativo`);
     conta.value = response.data;
   } catch (err) {
     console.error('Erro ao buscar conta:', err);
@@ -97,9 +98,11 @@ const fetchConta = async (id: number) => {
 const submitForm = async () => {
   try {
     if (isEditing.value) {
-      await api.put(`/v1/financeiro/contas/${conta.value.id}/`, conta.value);
+      // CORREÇÃO AQUI: URL alterada para o caminho correto
+      await api.put(`/v1/contas/${conta.value.id}/`, conta.value);
     } else {
-      await api.post('/v1/financeiro/contas/', conta.value);
+      // CORREÇÃO AQUI: URL alterada para o caminho correto
+      await api.post('/v1/contas/', conta.value);
     }
     router.push({ name: 'lista-contas' });
   } catch (err: any) {

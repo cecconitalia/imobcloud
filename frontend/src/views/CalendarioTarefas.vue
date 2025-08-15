@@ -58,7 +58,7 @@ const calendarOptions = ref({
   // CORREÇÃO: A URL para buscar as tarefas foi atualizada.
   events: async function(fetchInfo: any, successCallback: any, failureCallback: any) {
     try {
-      const response = await apiClient.get('/v1/minhas-tarefas/', { // URL CORRIGIDA
+      const response = await apiClient.get('/v1/clientes/minhas-tarefas/', {
         params: {
           start: fetchInfo.startStr,
           end: fetchInfo.endStr

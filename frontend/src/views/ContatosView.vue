@@ -51,7 +51,8 @@ const error = ref<string | null>(null);
 async function fetchContatos() {
   isLoading.value = true;
   try {
-    const response = await apiClient.get('/v1/imoveis/contatos/');
+    // CORREÇÃO: URL alterada para o caminho correto
+    const response = await apiClient.get('/v1/contatos/');
     contatos.value = response.data;
   } catch (err) {
     console.error("Erro ao buscar contatos:", err);
@@ -83,8 +84,8 @@ function handleArquivar(contato: any) {
     return;
   }
   try {
-    // Futuramente, você pode implementar a lógica para marcar o contacto como "arquivado" no backend.
-    apiClient.post(`/v1/imoveis/contatos/${contato.id}/arquivar/`).then(() => {
+    // CORREÇÃO: URL alterada para o caminho correto
+    apiClient.post(`/v1/contatos/${contato.id}/arquivar/`).then(() => {
         contatos.value = contatos.value.filter(c => c.id !== contato.id);
     });
   } catch(err) {

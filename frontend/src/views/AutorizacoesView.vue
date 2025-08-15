@@ -112,7 +112,8 @@ function setFilter(filter: string) {
 async function fetchData() {
   isLoading.value = true;
   try {
-    const response = await apiClient.get('/v1/imoveis/relatorio-autorizacoes/');
+    // CORREÇÃO: A URL foi alterada para o caminho correto, removendo o prefixo 'imoveis/'
+    const response = await apiClient.get('/v1/autorizacao-status/');
     data.value = response.data;
   } catch (err: any) {
     console.error("Erro ao buscar dados de autorizações:", err);

@@ -24,6 +24,7 @@ from django.core.files.storage import default_storage
 from django.db.models import Sum
 
 from core.models import PerfilUsuario, Notificacao, Imobiliaria
+from core.permissions import IsAdminOrSuperUser
 from .models import Oportunidade, Tarefa, Cliente, Visita, Atividade
 from .serializers import (
     OportunidadeSerializer,
@@ -373,12 +374,9 @@ class MinhasTarefasView(viewsets.ReadOnlyModelViewSet):
         return queryset.order_by('data_conclusao')
 
 class RelatoriosView(viewsets.ViewSet):
-    permission_classes = [permissions.IsAdminUser]
+    permission_classes = [IsAdminOrSuperUser]
 
     def list(self, request):
-        if not hasattr(request.user, 'perfil') or not request.user.perfil.cargo == PerfilUsuario.Cargo.ADMIN:
-            raise PermissionDenied("Acesso não autorizado.")
-
         tenant = request.tenant
         if not tenant and request.user.is_superuser:
             tenant = Imobiliaria.objects.first()

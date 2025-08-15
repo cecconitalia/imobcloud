@@ -52,16 +52,24 @@ class ContaBancariaViewSet(viewsets.ModelViewSet):
     permission_classes = [permissions.IsAuthenticated]
 
     def get_queryset(self):
-        queryset = super().get_queryset()
-        status_filter = self.request.query_params.get('status')
+        # A lógica de filtragem da imobiliária é sempre aplicada, exceto para superusuários
+        if self.request.user.is_superuser:
+            return ContaBancaria.objects.all()
         
-        if not self.request.user.is_superuser and hasattr(self.request.user, 'perfil') and self.request.user.perfil:
-            queryset = queryset.filter(imobiliaria=self.request.user.perfil.imobiliaria)
-
-        if status_filter == 'inativo':
-            return queryset.filter(ativo=False)
+        queryset = ContaBancaria.objects.filter(imobiliaria=self.request.user.perfil.imobiliaria)
         
-        return queryset.filter(ativo=True)
+        # A lógica para o filtro de status é aplicada APENAS na listagem
+        if self.action == 'list':
+            status_filter = self.request.query_params.get('status')
+            if status_filter == 'inativo':
+                return queryset.filter(ativo=False)
+            
+            # Por padrão, na listagem, mostra apenas contas ativas
+            return queryset.filter(ativo=True)
+            
+        # Para as ações de detalhe (retrieve, update, etc.), retorna o queryset completo
+        # da imobiliária, sem o filtro de status, para que a conta possa ser encontrada
+        return queryset
 
     def perform_create(self, serializer):
         if self.request.user.is_superuser:
@@ -98,36 +106,22 @@ class TransacaoViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         if self.request.user.is_superuser:
             return Transacao.objects.all()
-        # --- ATUALIZADO: Garante que o perfil e a imobiliária existem ---
         if hasattr(self.request.user, 'perfil') and self.request.user.perfil.imobiliaria:
             base_queryset = Transacao.objects.filter(imobiliaria=self.request.user.perfil.imobiliaria)
-            
-            # Lógica de filtro para Contas a Pagar/Receber vs. Transações Pagas
-            # (Pode ser adicionado aqui no futuro se necessário)
-
             return base_queryset
         return Transacao.objects.none()
 
     def perform_create(self, serializer):
-        """
-        Cria uma nova transação (ou conta a pagar/receber), garantindo que a imobiliária (tenant)
-        seja associada corretamente para evitar erros 500.
-        """
         imobiliaria_tenant = None
         if self.request.user.is_superuser:
             if 'imobiliaria' in serializer.validated_data:
                 imobiliaria_tenant = serializer.validated_data['imobiliaria']
             else:
-                # Superusuários devem especificar a imobiliária
                 raise ValidationError("Para superusuários, a imobiliária é obrigatória.")
         else:
-            # Para usuários normais, o tenant é obtido da requisição
             imobiliaria_tenant = getattr(self.request, 'tenant', None)
             if not imobiliaria_tenant:
                 raise PermissionDenied("Não foi possível associar a transação a uma imobiliária (tenant não encontrado).")
-
-        # --- CORREÇÃO PRINCIPAL ---
-        # A lógica agora lida com os novos campos (data_vencimento, status) e associa o tenant.
         serializer.save(imobiliaria=imobiliaria_tenant)
 
     def perform_update(self, serializer):
@@ -138,11 +132,8 @@ class TransacaoViewSet(viewsets.ModelViewSet):
         else:
             raise PermissionDenied("Você não tem permissão para atualizar esta transação.")
 
-    # --- INÍCIO DAS NOVAS AÇÕES PARA CONTAS A PAGAR/RECEBER ---
-
     @action(detail=False, methods=['get'], url_path='a-pagar')
     def a_pagar(self, request):
-        """ Retorna uma lista de contas a pagar (despesas com status Pendente ou Atrasado). """
         contas = self.get_queryset().filter(
             tipo='DESPESA',
             status__in=['PENDENTE', 'ATRASADO']
@@ -152,7 +143,6 @@ class TransacaoViewSet(viewsets.ModelViewSet):
 
     @action(detail=False, methods=['get'], url_path='a-receber')
     def a_receber(self, request):
-        """ Retorna uma lista de contas a receber (receitas com status Pendente ou Atrasado). """
         contas = self.get_queryset().filter(
             tipo='RECEITA',
             status__in=['PENDENTE', 'ATRASADO']
@@ -162,7 +152,6 @@ class TransacaoViewSet(viewsets.ModelViewSet):
         
     @action(detail=True, methods=['post'], url_path='marcar-pago')
     def marcar_pago(self, request, pk=None):
-        """ Marca uma conta como paga, definindo a data de pagamento para hoje. """
         try:
             conta = self.get_object()
             if conta.status == 'PAGO':
@@ -175,11 +164,6 @@ class TransacaoViewSet(viewsets.ModelViewSet):
         except Transacao.DoesNotExist:
             return Response({'error': 'Transação não encontrada.'}, status=status.HTTP_404_NOT_FOUND)
 
-    # --- FIM DAS NOVAS AÇÕES ---
-
-    # Suas ações existentes 'stats' e 'dre' foram mantidas, mas atualizadas
-    # para usar 'data_vencimento' em vez de 'data'.
-
     @action(detail=False, methods=['get'])
     def stats(self, request):
         if not hasattr(request.user, 'perfil') or not request.user.perfil:
@@ -188,7 +172,6 @@ class TransacaoViewSet(viewsets.ModelViewSet):
         hoje = timezone.now().date()
         inicio_do_mes = hoje.replace(day=1)
 
-        # ATUALIZADO: Filtra por 'data_vencimento' e status 'PAGO' para estatísticas
         transacoes_mes = self.get_queryset().filter(
             status='PAGO',
             data_pagamento__gte=inicio_do_mes,
@@ -213,7 +196,6 @@ class TransacaoViewSet(viewsets.ModelViewSet):
         start_date = request.query_params.get('start_date')
         end_date = request.query_params.get('end_date')
 
-        # ATUALIZADO: Filtra por 'data_pagamento' e status 'PAGO' para o DRE
         transacoes = self.get_queryset().filter(status='PAGO')
         if start_date:
             transacoes = transacoes.filter(data_pagamento__gte=start_date)
@@ -223,7 +205,6 @@ class TransacaoViewSet(viewsets.ModelViewSet):
         receitas_brutas = transacoes.filter(tipo='RECEITA').aggregate(total=Coalesce(Sum('valor'), 0, output_field=DecimalField()))['total']
         despesas_operacionais = transacoes.filter(tipo='DESPESA').aggregate(total=Coalesce(Sum('valor'), 0, output_field=DecimalField()))['total']
 
-        # A lógica do seu DRE foi mantida
         dre_data = {
             "receita_bruta_servicos": {"titulo": "Receita Bruta", "valor": receitas_brutas, "subcategorias": []},
             "deducoes_receita": {"titulo": "Deduções da Receita Bruta", "valor": 0, "subcategorias": []},

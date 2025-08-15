@@ -91,7 +91,8 @@ const fetchContas = async () => {
   isLoading.value = true;
   error.value = null;
   try {
-    const url = showInactive.value ? '/v1/financeiro/contas/?status=inativo' : '/v1/financeiro/contas/';
+    // CORREÇÃO: Removido o prefixo 'financeiro/' da URL
+    const url = showInactive.value ? '/v1/contas/?status=inativo' : '/v1/contas/';
     const response = await api.get(url);
     contas.value = response.data;
   } catch (err) {
@@ -118,7 +119,7 @@ const editarConta = (id: number) => {
 const inativarConta = async (id: number) => {
   if (confirm('Tem certeza que deseja inativar esta conta?')) {
     try {
-      await api.patch(`/v1/financeiro/contas/${id}/`, { ativo: false });
+      await api.patch(`/v1/contas/${id}/`, { ativo: false });
       fetchContas();
     } catch (err) {
       console.error('Erro ao inativar conta:', err);

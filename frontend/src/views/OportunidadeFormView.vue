@@ -168,7 +168,7 @@ async function fetchData() {
   isLoadingData.value = true;
   try {
     const [clientesResponse, imoveisResponse, corretoresResponse] = await Promise.all([
-      apiClient.get('/v1/clientes/'),
+      apiClient.get('/v1/clientes/clientes/'),
       apiClient.get('/v1/imoveis/'),
       apiClient.get('/v1/corretores/')
     ]);
@@ -177,7 +177,7 @@ async function fetchData() {
     corretores.value = corretoresResponse.data;
 
     if (isEditing.value) {
-      const oportunidadeResponse = await apiClient.get(`/v1/oportunidades/${oportunidadeId.value}/`);
+      const oportunidadeResponse = await apiClient.get(`/v1/clientes/oportunidades/${oportunidadeId.value}/`);
       
       const data = oportunidadeResponse.data;
       oportunidade.value = {
@@ -253,8 +253,6 @@ function formatarData(data: string) {
 async function handleSubmit() {
   isSubmitting.value = true;
   try {
-    // CORREÇÃO DEFINITIVA: Construímos um payload limpo apenas com os dados
-    // que a API espera, garantindo que os campos de relacionamento enviem apenas o ID.
     const payload = {
         titulo: oportunidade.value.titulo,
         fase: oportunidade.value.fase,
@@ -262,15 +260,14 @@ async function handleSubmit() {
         fonte: oportunidade.value.fonte,
         probabilidade: oportunidade.value.probabilidade,
         motivo_perda: oportunidade.value.motivo_perda,
-        // O backend espera os campos 'cliente' e 'imovel' com os IDs.
         cliente: oportunidade.value.cliente_id,
         imovel: oportunidade.value.imovel_id,
     };
 
     if (isEditing.value) {
-      await apiClient.put(`/v1/oportunidades/${oportunidadeId.value}/`, payload);
+      await apiClient.put(`/v1/clientes/oportunidades/${oportunidadeId.value}/`, payload);
     } else {
-      await apiClient.post('/v1/oportunidades/', payload);
+      await apiClient.post('/v1/clientes/oportunidades/', payload);
     }
     router.push({ name: 'funil-vendas' });
   } catch (error: any) {
@@ -287,7 +284,6 @@ function handleCancel() {
 </script>
 
 <style scoped>
-/* Os seus estilos existentes permanecem inalterados */
 .form-container { padding: 2rem; }
 .view-header { margin-bottom: 1.5rem; }
 .oportunidade-form { display: flex; flex-wrap: wrap; gap: 1.5rem; }
