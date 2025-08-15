@@ -183,9 +183,12 @@ const fetchData = async () => {
   error.value = null;
   try {
     const [contasResponse, categoriasResponse, imoveisResponse] = await Promise.all([
-      api.get('/v1/financeiro/contas/'),
-      api.get('/v1/financeiro/categorias/'),
-      api.get('/v1/imoveis/imoveis/'),
+      // CORREÇÃO: Removido o prefixo 'financeiro/'
+      api.get('/v1/contas/'),
+      // CORREÇÃO: Removido o prefixo 'financeiro/'
+      api.get('/v1/categorias/'),
+      // CORREÇÃO: Removida a duplicação 'imoveis/'
+      api.get('/v1/imoveis/'),
     ]);
     contasBancarias.value = contasResponse.data;
     categorias.value = categoriasResponse.data;
@@ -193,7 +196,8 @@ const fetchData = async () => {
 
     if (isEditing.value) {
       const id = Number(route.params.id);
-      const transacaoResponse = await api.get(`/v1/financeiro/transacoes/${id}/`);
+      // CORREÇÃO: Removido o prefixo 'financeiro/'
+      const transacaoResponse = await api.get(`/v1/transacoes/${id}/`);
       transacao.value = transacaoResponse.data;
 
       if (transacao.value.imovel) {
@@ -233,9 +237,11 @@ const submitForm = async () => {
     }
     
     if (isEditing.value) {
-      await api.put(`/v1/financeiro/transacoes/${transacao.value.id}/`, payload);
+      // CORREÇÃO: Removido o prefixo 'financeiro/'
+      await api.put(`/v1/transacoes/${transacao.value.id}/`, payload);
     } else {
-      await api.post('/v1/financeiro/transacoes/', payload);
+      // CORREÇÃO: Removido o prefixo 'financeiro/'
+      await api.post('/v1/transacoes/', payload);
     }
     router.back(); // Volta para a página anterior (ContasPendentes ou ListaTransacoes)
   } catch (err: any) {

@@ -2,6 +2,8 @@
 
 from rest_framework import permissions
 from core.models import PerfilUsuario # Importe o modelo para acessar as escolhas de cargo
+from rest_framework import permissions
+
 
 class IsCorretorOrReadOnly(permissions.BasePermission):
     """
@@ -20,3 +22,18 @@ class IsCorretorOrReadOnly(permissions.BasePermission):
             hasattr(request.user, 'perfil') and
             (request.user.perfil.cargo == PerfilUsuario.Cargo.CORRETOR or request.user.perfil.cargo == PerfilUsuario.Cargo.ADMIN)
         )
+    
+class IsAdminOrSuperUser(permissions.BasePermission):
+    """
+    Permite acesso apenas a superusuários ou utilizadores com o cargo de 'ADMIN'.
+    """
+    def has_permission(self, request, view):
+        # Acesso para superusuários
+        if request.user and request.user.is_superuser:
+            return True
+        
+        # Acesso para utilizadores com o cargo de ADMIN
+        if hasattr(request.user, 'perfil') and request.user.perfil.cargo == 'ADMIN':
+            return True
+        
+        return False

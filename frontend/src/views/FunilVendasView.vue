@@ -253,7 +253,7 @@ async function fetchOportunidades() {
   try {
     // A CORREÇÃO ESTÁ AQUI:
     // Removemos a palavra 'clientes' do URL.
-    const response = await apiClient.get('/v1/oportunidades/');
+    const response = await apiClient.get('/v1/clientes/oportunidades/');
     oportunidades.value = response.data;
     const responsaveisUnicos = Array.from(new Set(oportunidades.value.map(op => op.responsavel?.id)))
       .filter(id => id !== undefined)

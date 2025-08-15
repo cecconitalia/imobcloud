@@ -71,7 +71,7 @@ const fetchCategorias = async () => {
   isLoading.value = true;
   error.value = null;
   try {
-    const response = await apiClient.get('/v1/financeiro/categorias/');
+    const response = await apiClient.get('/v1/categorias/');
     categorias.value = response.data;
   } catch (err) {
     console.error('Erro ao buscar categorias:', err);
@@ -86,13 +86,14 @@ const adicionarCategoria = () => {
 };
 
 const editarCategoria = (id: number) => {
+  // CORREÇÃO: O nome da rota deve ser 'editar-categoria'
   router.push({ name: 'editar-categoria', params: { id } });
 };
 
 const excluirCategoria = async (id: number) => {
   if (confirm('Tem certeza que deseja excluir esta categoria?')) {
     try {
-      await apiClient.delete(`/v1/financeiro/categorias/${id}/`);
+      await apiClient.delete(`/v1/categorias/${id}/`);
       fetchCategorias();
     } catch (err) {
       console.error('Erro ao excluir categoria:', err);

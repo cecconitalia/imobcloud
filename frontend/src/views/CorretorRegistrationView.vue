@@ -152,7 +152,7 @@ const user = ref({
     endereco_cep: '',
     observacoes: '',
     google_json_file: null as File | null,
-    google_calendar_token: null as string | null, // NOVO: Adicionado campo do token
+    google_calendar_token: null as string | null,
   },
 });
 
@@ -165,7 +165,8 @@ async function fetchUserData() {
   if (isEditing.value) {
     isLoadingData.value = true;
     try {
-      const response = await apiClient.get(`/v1/core/corretores/${userId.value}/`);
+      // CORREÇÃO: URL corrigida, o prefixo 'core/' foi removido
+      const response = await apiClient.get(`/v1/corretores/${userId.value}/`);
       user.value.username = response.data.username;
       user.value.first_name = response.data.first_name;
       user.value.last_name = response.data.last_name;
@@ -188,7 +189,6 @@ function handleFileUpload(event: Event) {
     }
 }
 
-// NOVO: Função para iniciar o fluxo de autenticação do Google
 function handleGoogleAuth() {
   window.location.href = `${apiClient.defaults.baseURL}/v1/clientes/google-calendar-auth/`;
 }
@@ -207,7 +207,6 @@ async function handleSubmit() {
     formData.append('password', user.value.password);
   }
 
-  // ATUALIZADO: Usamos 'perfil.propriedade' para que o backend consiga processar o FormData
   if (user.value.perfil.cargo) { formData.append('perfil.cargo', user.value.perfil.cargo); }
   if (user.value.perfil.creci) { formData.append('perfil.creci', user.value.perfil.creci); }
   if (user.value.perfil.telefone) { formData.append('perfil.telefone', user.value.perfil.telefone); }
@@ -221,19 +220,18 @@ async function handleSubmit() {
   if (user.value.perfil.google_json_file) {
     formData.append('perfil.google_json_file', user.value.perfil.google_json_file);
   }
-  // NOVO: Adiciona o token do calendário se ele existir
   if (user.value.perfil.google_calendar_token) {
     formData.append('perfil.google_calendar_token', user.value.perfil.google_calendar_token);
   }
 
   try {
     if (isEditing.value) {
-      await apiClient.put(`/v1/core/corretores/${userId.value}/`, formData, {
+      await apiClient.put(`/v1/corretores/${userId.value}/`, formData, {
         headers: { 'Content-Type': 'multipart/form-data' },
       });
       successMessage.value = 'Utilizador atualizado com sucesso!';
     } else {
-      await apiClient.post('/v1/core/corretores/', formData, {
+      await apiClient.post('/v1/corretores/', formData, {
         headers: { 'Content-Type': 'multipart/form-data' },
       });
       successMessage.value = 'Utilizador registado com sucesso!';

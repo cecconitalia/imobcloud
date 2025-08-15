@@ -151,8 +151,8 @@ onMounted(async () => {
   try {
     // Carrega as listas de clientes e oportunidades
     const [clientesResponse, oportunidadesResponse] = await Promise.all([
-      apiClient.get('/v1/clientes/'), // URL corrigida
-      apiClient.get('/v1/oportunidades/')
+      apiClient.get('/v1/clientes/clientes/'), // URL corrigida
+      apiClient.get('/v1/clientes/oportunidades/') // URL corrigida
     ]);
     clientes.value = clientesResponse.data;
     oportunidades.value = oportunidadesResponse.data;
@@ -200,9 +200,9 @@ async function handleSubmit() {
         cliente: clienteSelecionado.value ? clienteSelecionado.value.id : null,
     };
     if (isEditing.value) {
-        await apiClient.patch(`/v1/tarefas/${tarefaLocal.value.id}/`, payload);
+        await apiClient.patch(`/v1/clientes/tarefas/${tarefaLocal.value.id}/`, payload);
     } else {
-        await apiClient.post(`/v1/tarefas/`, payload);
+        await apiClient.post(`/v1/clientes/tarefas/`, payload);
     }
     emit('saved');
   } catch (error) {
@@ -220,7 +220,7 @@ async function handleConcluir() {
   isSubmitting.value = true;
   try {
     const payload = { concluida: true };
-    await apiClient.patch(`/v1/tarefas/${tarefaLocal.value.id}/`, payload);
+    await apiClient.patch(`/v1/clientes/tarefas/${tarefaLocal.value.id}/`, payload);
     emit('saved');
   } catch (error) {
     console.error("Erro ao concluir a tarefa:", error);
@@ -236,7 +236,7 @@ async function handleDelete() {
   }
   isSubmitting.value = true;
   try {
-    await apiClient.delete(`/v1/tarefas/${tarefaLocal.value.id}/`);
+    await apiClient.delete(`/v1/clientes/tarefas/${tarefaLocal.value.id}/`);
     emit('saved');
   } catch (error) {
     console.error("Erro ao eliminar a tarefa:", error);

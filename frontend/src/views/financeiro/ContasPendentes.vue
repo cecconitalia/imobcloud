@@ -63,7 +63,7 @@
 
 <script setup lang="ts">
 import { ref, onMounted, watch } from 'vue';
-import { useRouter } from 'vue-router'; // --- IMPORTADO O ROUTER ---
+import { useRouter } from 'vue-router'; 
 import api from '@/services/api';
 
 interface Conta {
@@ -75,7 +75,7 @@ interface Conta {
   status: 'PENDENTE' | 'PAGO' | 'ATRASADO';
 }
 
-const router = useRouter(); // --- INSTANCIADO O ROUTER ---
+const router = useRouter(); 
 const isLoading = ref(true);
 const activeTab = ref<'a-pagar' | 'a-receber'>('a-pagar');
 const contas = ref<Conta[]>([]);
@@ -84,8 +84,10 @@ const fetchData = async () => {
   isLoading.value = true;
   try {
     const endpoint = activeTab.value === 'a-pagar'
-      ? '/v1/financeiro/transacoes/a-pagar/'
-      : '/v1/financeiro/transacoes/a-receber/';
+      // CORREÇÃO: URL corrigida, o prefixo 'financeiro/' foi removido
+      ? '/v1/transacoes/a-pagar/'
+      // CORREÇÃO: URL corrigida, o prefixo 'financeiro/' foi removido
+      : '/v1/transacoes/a-receber/';
     const response = await api.get(endpoint);
     contas.value = response.data;
   } catch (error) {
@@ -95,9 +97,7 @@ const fetchData = async () => {
   }
 };
 
-// --- FUNÇÃO ANTIGA REMOVIDA E NOVA ADICIONADA ---
 const abrirFormularioPagamento = (id: number) => {
-  // Navega para a página de edição, passando o ID da transação
   router.push({ name: 'transacao-editar', params: { id } });
 };
 
@@ -105,7 +105,6 @@ const changeTab = (tabName: 'a-pagar' | 'a-receber') => {
     activeTab.value = tabName;
 };
 
-// Funções de formatação e status (continuam iguais)
 const formatDate = (dateString: string) => {
   const options: Intl.DateTimeFormatOptions = { day: '2-digit', month: '2-digit', year: 'numeric' };
   return new Date(dateString + 'T00:00:00').toLocaleDateString('pt-PT', options);
