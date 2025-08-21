@@ -24,6 +24,7 @@ import CorretoresView from '@/views/CorretoresView.vue'
 import CalendarioTarefas from '@/views/CalendarioTarefas.vue' 
 import RelatoriosView from '@/views/RelatoriosView.vue'
 import AutorizacoesView from '@/views/AutorizacoesView.vue'
+import AlugueisDashboardView from '@/views/AlugueisDashboardView.vue' 
 
 // Importações das views do módulo financeiro
 import FinanceiroDashboardView from '@/views/FinanceiroDashboard.vue' 
@@ -106,6 +107,14 @@ const router = createRouter({
                         title: 'Dashboard'
                     }
                 },
+
+                {
+                    path: 'alugueis/dashboard', // NOVO: Rota para o dashboard de aluguéis
+                    name: 'alugueis-dashboard',
+                    component: AlugueisDashboardView,
+                    meta: { title: 'Dashboard de Aluguéis' }
+                },
+
                 {
                     path: 'funil-vendas',
                     name: 'funil-vendas',
@@ -214,12 +223,12 @@ const router = createRouter({
                     }
                 },
                 {
-                    path: 'contratos/editar/:id',
-                    name: 'contrato-editar',
-                    component: ContratoFormView,
-                    meta: {
-                        title: 'Editar Contrato',
-                        requiresAuth: true
+                    path: 'contratos/editar/:id',
+                    name: 'contrato-editar',
+                    component: ContratoFormView,
+                    meta: {
+                        title: 'Editar Contrato',
+                        requiresAuth: true
                     }
                 },
                 {

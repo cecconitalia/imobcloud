@@ -1,25 +1,50 @@
-# app_contratos/admin.py
-from django.contrib import admin
-from .models import Contrato, Pagamento # ATUALIZADO: Importar Pagamento também
+# C:\wamp64\www\ImobCloud\app_contratos\admin.py
 
-# Inline para exibir pagamentos dentro do detalhe do contrato
+from django.contrib import admin
+from .models import Contrato, Pagamento
+
 class PagamentoInline(admin.TabularInline):
     model = Pagamento
-    extra = 0 # Não mostrar formulários de pagamento extras por padrão
-    readonly_fields = ('valor', 'data_vencimento', 'data_pagamento', 'status') # Apenas visualização
-    can_delete = False
+    extra = 1
 
 @admin.register(Contrato)
 class ContratoAdmin(admin.ModelAdmin):
-    list_display = ('tipo_contrato', 'imovel', 'cliente', 'valor_total', 'status_contrato', 'data_assinatura', 'imobiliaria')
-    list_filter = ('tipo_contrato', 'status_contrato', 'imobiliaria', 'data_assinatura')
-    search_fields = ('imovel__endereco', 'cliente__nome_completo', 'condicoes_pagamento')
-    raw_id_fields = ('imovel', 'cliente', 'imobiliaria')
-    inlines = [PagamentoInline] # NOVO: Adiciona a visualização de pagamentos
+    list_display = [
+        'id', 'tipo_contrato', 'imovel', 'inquilino', 'proprietario', 
+        'valor_total', 'status_contrato', 'data_inicio', 'data_fim'
+    ]
+    list_filter = ['tipo_contrato', 'status_contrato']
+    search_fields = [
+        'imovel__endereco', 'inquilino__nome_completo', 'proprietario__nome_completo'
+    ]
+    raw_id_fields = ['imovel', 'inquilino', 'proprietario']
+    
+    fieldsets = (
+        ('Informações do Contrato', {
+            'fields': (
+                'imobiliaria', 'tipo_contrato', 'status_contrato',
+                'imovel', 'inquilino', 'proprietario',
+                'valor_total', 'condicoes_pagamento'
+            )
+        }),
+        ('Datas e Duração', {
+            'fields': (
+                'data_assinatura', 'data_inicio', 'data_fim', 'duracao_meses'
+            )
+        }),
+    )
+
+    inlines = [PagamentoInline]
+
+    def get_queryset(self, request):
+        queryset = super().get_queryset(request)
+        if request.tenant:
+            queryset = queryset.filter(imobiliaria=request.tenant)
+        return queryset
 
 @admin.register(Pagamento)
 class PagamentoAdmin(admin.ModelAdmin):
-    list_display = ('contrato', 'valor', 'data_vencimento', 'status', 'data_pagamento')
-    list_filter = ('status', 'data_vencimento')
-    search_fields = ('contrato__imovel__endereco', 'contrato__cliente__nome_completo')
-    raw_id_fields = ('contrato',)
+    list_display = ['contrato', 'valor', 'data_vencimento', 'status', 'data_pagamento']
+    list_filter = ['status', 'data_vencimento']
+    search_fields = ['contrato__imovel__endereco', 'contrato__inquilino__nome_completo']
+    raw_id_fields = ['contrato']

@@ -129,7 +129,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, computed } from 'vue';
+import { ref, onMounted, computed, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import apiClient from '@/services/api';
 import OportunidadeTransferir from '@/components/OportunidadeTransferir.vue';
@@ -168,7 +168,7 @@ async function fetchData() {
   isLoadingData.value = true;
   try {
     const [clientesResponse, imoveisResponse, corretoresResponse] = await Promise.all([
-      apiClient.get('/v1/clientes/clientes/'),
+      apiClient.get('/v1/clientes/'),
       apiClient.get('/v1/imoveis/'),
       apiClient.get('/v1/corretores/')
     ]);
@@ -177,7 +177,7 @@ async function fetchData() {
     corretores.value = corretoresResponse.data;
 
     if (isEditing.value) {
-      const oportunidadeResponse = await apiClient.get(`/v1/clientes/oportunidades/${oportunidadeId.value}/`);
+      const oportunidadeResponse = await apiClient.get(`/v1/oportunidades/${oportunidadeId.value}/`);
       
       const data = oportunidadeResponse.data;
       oportunidade.value = {
@@ -197,7 +197,7 @@ async function fetchData() {
 
 async function handleFaseUpdate(novaFaseId: string) {
   try {
-    await apiClient.patch(`/v1/clientes/oportunidades/${oportunidadeId.value}/`, {
+    await apiClient.patch(`/v1/oportunidades/${oportunidadeId.value}/`, {
       fase: novaFaseId,
     });
     oportunidade.value.fase = novaFaseId;
@@ -225,7 +225,7 @@ function closeTarefaModal() {
 async function toggleConcluida(tarefa: any) {
   const newStatus = !tarefa.concluida;
   try {
-    await apiClient.patch(`/v1/atividades/${tarefa.id}/`, {
+    await apiClient.patch(`/v1/tarefas/${tarefa.id}/`, {
       concluida: newStatus,
     });
     tarefa.concluida = newStatus;
@@ -265,9 +265,9 @@ async function handleSubmit() {
     };
 
     if (isEditing.value) {
-      await apiClient.put(`/v1/clientes/oportunidades/${oportunidadeId.value}/`, payload);
+      await apiClient.put(`/v1/oportunidades/${oportunidadeId.value}/`, payload);
     } else {
-      await apiClient.post('/v1/clientes/oportunidades/', payload);
+      await apiClient.post('/v1/oportunidades/', payload);
     }
     router.push({ name: 'funil-vendas' });
   } catch (error: any) {

@@ -1,173 +1,222 @@
 <template>
   <div class="calendar-container">
-    <FullCalendar :options="calendarOptions" ref="fullCalendar" />
-    
-    <TarefaModal
-      v-if="modal.visible"
-      :tarefa="modal.tarefa"
-      :oportunidade-id="modal.oportunidadeId"
-      :data-inicial="modal.dataInicial"
-      @close="fecharModal"
-      @saved="recarregarTarefas"
-    />
+    <header class="view-header">
+      <h1>Meu Calendário de Tarefas</h1>
+    </header>
+
+    <div v-if="isLoading" class="loading-message">
+      A carregar tarefas...
+    </div>
+    <div v-if="error" class="error-message">
+      {{ error }}
+    </div>
+
+    <div v-else class="calendar-wrapper">
+      <FullCalendar ref="fullCalendar" :options="calendarOptions" />
+    </div>
+
+    <div class="task-list-section">
+      <div class="task-list-header">
+        <h3>Próximas Tarefas</h3>
+      </div>
+      <div v-if="proximasTarefas.length > 0" class="task-list-wrapper">
+        <ul class="task-list">
+          <li v-for="tarefa in proximasTarefas" :key="tarefa.id" class="task-item">
+            <span class="task-date">{{ formatarData(tarefa.data_conclusao) }}</span>
+            <div class="task-info">
+              <span class="task-description">{{ tarefa.descricao }}</span>
+              <span class="task-oportunidade" v-if="tarefa.oportunidade_id">
+                Oportunidade: #{{ tarefa.oportunidade_id }}
+              </span>
+            </div>
+            <span class="task-status" :class="{ 'overdue': isOverdue(tarefa.data_conclusao) }">
+              {{ isOverdue(tarefa.data_conclusao) ? 'Vencida' : 'Pendente' }}
+            </span>
+          </li>
+        </ul>
+      </div>
+      <div v-else class="no-tasks-message">
+        Nenhuma tarefa agendada para os próximos 30 dias.
+      </div>
+    </div>
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue';
-import apiClient from '@/services/api';
 import FullCalendar from '@fullcalendar/vue3';
 import dayGridPlugin from '@fullcalendar/daygrid';
-import timeGridPlugin from '@fullcalendar/timegrid';
 import interactionPlugin from '@fullcalendar/interaction';
-import TarefaModal from '@/components/TarefaModal.vue';
+import apiClient from '@/services/api';
+import { useRouter } from 'vue-router';
 
-interface Tarefa {
-  id: number;
-  descricao: string;
-  data_conclusao: string;
-  concluida: boolean;
-  oportunidade: number | null;
-  oportunidade_titulo: string;
-  cliente_nome: string;
-  responsavel_nome: string;
-  status_display: string;
-}
+const router = useRouter();
 
-const fullCalendar = ref<any>(null); // Referência para o componente FullCalendar
-
-const modal = ref({
-  visible: false,
-  tarefa: null as any,
-  dataInicial: '',
-  oportunidadeId: null as any,
-});
+const isLoading = ref(true);
+const error = ref<string | null>(null);
+const tarefas = ref<any[]>([]);
 
 const calendarOptions = ref({
-  plugins: [dayGridPlugin, timeGridPlugin, interactionPlugin],
+  plugins: [dayGridPlugin, interactionPlugin],
   initialView: 'dayGridMonth',
-  headerToolbar: {
-    left: 'prev,next today',
-    center: 'title',
-    right: 'dayGridMonth,timeGridWeek,timeGridDay'
-  },
+  events: [] as any[],
   locale: 'pt-br',
-  editable: true,
-  selectable: true,
-  select: handleDateSelect,
-  // CORREÇÃO: A URL para buscar as tarefas foi atualizada.
-  events: async function(fetchInfo: any, successCallback: any, failureCallback: any) {
-    try {
-      const response = await apiClient.get('/v1/clientes/minhas-tarefas/', {
-        params: {
-          start: fetchInfo.startStr,
-          end: fetchInfo.endStr
-        }
-      });
-      successCallback(response.data.map((tarefa: Tarefa) => ({
-        id: tarefa.id,
-        title: tarefa.oportunidade_titulo || tarefa.descricao,
-        start: tarefa.data_conclusao,
-        extendedProps: {
-            status: tarefa.status_display,
-            descricao: tarefa.descricao,
-            responsavelNome: tarefa.responsavel_nome,
-            oportunidadeId: tarefa.oportunidade,
-            clienteNome: tarefa.cliente_nome, // Passando o nome do cliente
-        },
-        backgroundColor: getTaskColor(tarefa.status_display),
-        borderColor: getTaskColor(tarefa.status_display),
-        editable: !tarefa.concluida
-      })));
-    } catch (error) {
-      console.error("Erro ao carregar tarefas:", error);
-      failureCallback(error);
-    }
-  },
+  // CORREÇÃO: Ação no evento de clique
   eventClick: handleEventClick,
-  eventChange: handleEventChange,
 });
 
-function handleDateSelect(selectInfo: any) {
-  modal.value.dataInicial = selectInfo.startStr.split('T')[0];
-  modal.value.oportunidadeId = null;
-  modal.value.tarefa = null;
-  modal.value.visible = true;
+const proximasTarefas = ref<any[]>([]);
+
+function formatarData(dataString: string) {
+  const data = new Date(dataString);
+  return data.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' });
 }
 
-function handleEventClick(clickInfo: any) {
-  modal.value.tarefa = {
-    id: clickInfo.event.id,
-    descricao: clickInfo.event.extendedProps.descricao,
-    data_conclusao: clickInfo.event.startStr.split('T')[0],
-    oportunidade: clickInfo.event.extendedProps.oportunidadeId,
-    oportunidade_titulo: clickInfo.event.title,
-    cliente_nome: clickInfo.event.extendedProps.clienteNome,
-  };
-  modal.value.oportunidadeId = clickInfo.event.extendedProps.oportunidadeId;
-  modal.value.visible = true;
+function isOverdue(dataString: string) {
+  const data = new Date(dataString);
+  const hoje = new Date();
+  hoje.setHours(0, 0, 0, 0);
+  return data < hoje;
 }
 
-function fecharModal() {
-  modal.value.visible = false;
-  modal.value.tarefa = null;
-  modal.value.dataInicial = '';
-  modal.value.oportunidadeId = null;
-}
-
-async function recarregarTarefas() {
-  fecharModal();
-  // CORREÇÃO: Maneira mais simples e eficiente de recarregar os eventos do calendário.
-  if (fullCalendar.value) {
-    const calendarApi = fullCalendar.value.getApi();
-    calendarApi.refetchEvents();
+// CORREÇÃO: Nova lógica para redirecionar para a edição da tarefa
+function handleEventClick(info: any) {
+  const oportunidadeId = info.event.extendedProps.oportunidade_id;
+  const tarefaId = info.event.extendedProps.id;
+  if (oportunidadeId && tarefaId) {
+    router.push({ 
+      name: 'oportunidade-editar', 
+      params: { id: oportunidadeId },
+      query: { tarefaId: tarefaId }
+    });
+  } else {
+    // Ação padrão se não houver oportunidade ou tarefa associada
+    alert(`Tarefa: ${info.event.title}`);
   }
 }
 
-async function handleEventChange(changeInfo: any) {
-  const updatedTarefa = {
-    data_conclusao: changeInfo.event.startStr, // Envia a data completa para o backend
-  };
-  const tarefaId = changeInfo.event.id;
-
+async function fetchTarefas() {
+  isLoading.value = true;
   try {
-    // CORREÇÃO: A URL de atualização é sempre a mesma, independentemente da oportunidade.
-    await apiClient.patch(`/v1/tarefas/${tarefaId}/`, updatedTarefa);
-  } catch (error) {
-    console.error("Erro ao atualizar a tarefa:", error);
-    changeInfo.revert();
-  }
-}
+    const response = await apiClient.get('/v1/tarefas/');
+    tarefas.value = response.data;
+    
+    calendarOptions.value.events = tarefas.value.map(tarefa => ({
+      id: tarefa.id,
+      title: tarefa.descricao,
+      start: tarefa.data_conclusao,
+      backgroundColor: tarefa.concluida ? '#28a745' : '#dc3545',
+      extendedProps: {
+        oportunidade_id: tarefa.oportunidade,
+        id: tarefa.id,
+        concluida: tarefa.concluida
+      }
+    }));
 
-function getTaskColor(status: string) {
-    switch (status) {
-        case 'Concluída':
-            return '#28a745';
-        case 'Pendente':
-            return '#ffc107';
-        case 'Atrasada':
-            return '#dc3545';
-        default:
-            return '#007bff';
-    }
+    const hoje = new Date();
+    hoje.setHours(0, 0, 0, 0);
+    const trintaDias = new Date(hoje);
+    trintaDias.setDate(hoje.getDate() + 30);
+    
+    proximasTarefas.value = tarefas.value
+      .filter(t => new Date(t.data_conclusao) >= hoje && new Date(t.data_conclusao) <= trintaDias && !t.concluida)
+      .sort((a, b) => new Date(a.data_conclusao).getTime() - new Date(b.data_conclusao).getTime());
+      
+  } catch (err) {
+    console.error("Erro ao buscar tarefas:", err);
+    error.value = 'Não foi possível carregar as tarefas.';
+  } finally {
+    isLoading.value = false;
+  }
 }
 
 onMounted(() => {
-  // O FullCalendar se encarrega de chamar a função 'events' no carregamento
+  fetchTarefas();
 });
 </script>
 
 <style scoped>
 .calendar-container {
   padding: 2rem;
-  background-color: white;
-  border-radius: 8px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
 }
-
-/* Estilos para customizar o FullCalendar se necessário */
-:deep(.fc-button-primary) {
-    background-color: #007bff;
-    border-color: #007bff;
+.view-header {
+  margin-bottom: 1.5rem;
+}
+.calendar-wrapper {
+  background-color: white;
+  padding: 1rem;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+}
+.loading-message, .error-message {
+  text-align: center;
+  padding: 2rem;
+  color: #6c757d;
+}
+.error-message {
+  color: red;
+}
+.task-list-section {
+  margin-top: 2rem;
+  background-color: white;
+  padding: 1.5rem;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+}
+.task-list-header h3 {
+  margin-top: 0;
+  border-bottom: 2px solid #007bff;
+  padding-bottom: 0.5rem;
+}
+.task-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+.task-item {
+  display: flex;
+  align-items: center;
+  padding: 1rem 0;
+  border-bottom: 1px solid #e9ecef;
+}
+.task-item:last-child {
+  border-bottom: none;
+}
+.task-date {
+  font-weight: bold;
+  color: #007bff;
+  flex-shrink: 0;
+  margin-right: 1.5rem;
+  width: 90px;
+}
+.task-info {
+  flex-grow: 1;
+  display: flex;
+  flex-direction: column;
+}
+.task-description {
+  font-weight: 500;
+  color: #343a40;
+}
+.task-oportunidade {
+  font-size: 0.85em;
+  color: #6c757d;
+}
+.task-status {
+  padding: 4px 8px;
+  border-radius: 12px;
+  font-size: 0.75rem;
+  font-weight: bold;
+  color: white;
+  background-color: #ffc107;
+  white-space: nowrap;
+}
+.task-status.overdue {
+  background-color: #dc3545;
+}
+.no-tasks-message {
+  text-align: center;
+  color: #6c757d;
+  padding: 1rem;
 }
 </style>

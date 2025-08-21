@@ -352,7 +352,6 @@ const totalValorFunil = computed(() => {
     return sum + valor;
   }, 0);
 });
-// AQUI ESTÁ A ALTERAÇÃO: A lógica da taxa de conversão foi alterada para taxa de fechamento.
 const taxaFechamento = computed(() => {
   const negociosGanhos = funilData.value['GANHO']?.length || 0;
   const negociosPerdidos = funilData.value['PERDIDO']?.length || 0;
@@ -361,7 +360,6 @@ const taxaFechamento = computed(() => {
   return ((negociosGanhos / totalFechados) * 100).toFixed(2);
 });
 
-// NOVO: Cálculo da probabilidade média
 const probabilidadeMedia = computed(() => {
   if (oportunidades.value.length === 0) return '0.00';
   const totalProbabilidade = oportunidades.value.reduce((sum, op) => sum + (op.probabilidade || 0), 0);
@@ -382,7 +380,7 @@ watch(oportunidadesFiltradas, (novaLista) => {
 async function fetchOportunidades() {
   isLoading.value = true;
   try {
-    const response = await apiClient.get('/v1/clientes/oportunidades/');
+    const response = await apiClient.get('/v1/oportunidades/');
     oportunidades.value = response.data;
     const responsaveisUnicos = Array.from(new Set(oportunidades.value.map(op => op.responsavel?.id)))
       .filter(id => id !== undefined)
@@ -593,7 +591,6 @@ onMounted(() => {
   color: #28a745;
   font-size: 0.75rem;
 }
-/* NOVO: Estilo para a probabilidade no card */
 .card-probabilidade {
     font-size: 0.75rem;
     font-weight: bold;

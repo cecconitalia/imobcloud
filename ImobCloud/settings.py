@@ -51,6 +51,8 @@ INSTALLED_APPS = [
     'app_financeiro.apps.AppFinanceiroConfig', 
     'app_publicacoes',
     'app_config_ia',
+    'app_alugueis',
+    'app_boletos',
 ]
 
 
@@ -267,6 +269,16 @@ JAZZMIN_UI_TWEAKS = {
 # =============================================================
 MEDIA_URL = '/media/'
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
+
+
+# =============================================================
+# CONFIGURAÇÕES DO BRADESCO (para certificado mTLS)
+# ATENÇÃO: Substitua pelos caminhos corretos dos seus arquivos!
+# =============================================================
+# Caminho para o certificado público (.crt ou .pem)
+BRADESCO_CERT_PATH = os.path.join(BASE_DIR, 'caminho', 'para', 'seu_certificado.crt')
+# Caminho para a chave privada (.key)
+BRADESCO_KEY_PATH = os.path.join(BASE_DIR, 'caminho', 'para', 'sua_chave_privada.key')
 
 # =============================================================
 # Configurações CSRF

@@ -61,6 +61,11 @@
           <i class="icon-pendentes"></i>
           <span>Contas a Pagar/Receber</span>
         </router-link>
+        
+        <router-link to="/alugueis/dashboard" class="nav-link">
+          <i class="icon-alugueis"></i>
+          <span>Aluguéis</span>
+        </router-link>
 
         <router-link to="/financeiro/transacoes" class="nav-link">
           <i class="icon-transacoes"></i>
@@ -188,7 +193,8 @@ onMounted(() => {
 .icon-ia::before { content: "\f544"; } 
 .icon-integracoes::before { content: "\f368"; }
 .icon-publicacoes::before { content: "\f1d8"; }
-.icon-calendario-publicacoes::before { content: "\f133"; }/* Ícone de "paper-plane" ou "send" */
+.icon-calendario-publicacoes::before { content: "\f133"; }
+.icon-alugueis::before { content: "\f0a9"; }
 
 .dashboard-layout {
   display: flex;

@@ -1,44 +1,44 @@
 <template>
   <div class="visitas-container">
     <header class="view-header">
-      <h1>Agenda de Visitas</h1>
+      <h1>Gerir Visitas</h1>
       <router-link to="/visitas/nova" class="btn-primary">
-        + Agendar Nova Visita
+        + Agendar Visita
       </router-link>
     </header>
 
-    <div v-if="isLoading">A carregar visitas...</div>
+    <div v-if="isLoading" class="loading-message">A carregar visitas...</div>
     <div v-if="error" class="error-message">{{ error }}</div>
 
-    <table v-if="visitas.length > 0">
-      <thead>
-        <tr>
-          <th>Imóvel</th>
-          <th>Cliente</th>
-          <th>Data e Hora</th>
-          <th>Status</th>
-          <th>Ações</th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr v-for="visita in visitas" :key="visita.id">
-          <td>{{ visita.imovel_obj?.endereco || 'N/A' }}</td>
-          <td>{{ visita.cliente_obj?.nome_completo || 'N/A' }}</td>
-          <td>{{ formatarData(visita.data_hora) }}</td>
-          <td>{{ visita.status }}</td>
-          <td class="actions-cell">
-            <router-link :to="`/visitas/editar/${visita.id}`" class="btn-secondary">
-              Editar
-            </router-link>
-            <button v-if="userCargo === 'ADMIN'" @click="handleCancelar(visita.id)" class="btn-danger">
-              Cancelar
-            </button>
-          </td>
-        </tr>
-      </tbody>
-    </table>
-     <div v-if="!isLoading && visitas.length === 0 && !error">
-      <p>Nenhuma visita encontrada.</p>
+    <div v-if="visitas.length > 0" class="visitas-list">
+      <div v-for="visita in visitas" :key="visita.id" class="visita-card">
+        <div class="visita-info">
+          <p class="visita-data">
+            <i class="fas fa-calendar-alt"></i>
+            {{ formatarDataHora(visita.data_hora_visita) }}
+          </p>
+          <p class="visita-cliente">
+            <i class="fas fa-user"></i>
+            {{ visita.cliente_obj?.nome_completo || 'Cliente não informado' }}
+          </p>
+          <p class="visita-imovel">
+            <i class="fas fa-home"></i>
+            {{ visita.imovel_obj?.endereco || 'Imóvel não informado' }}
+          </p>
+        </div>
+        <div class="visita-actions">
+          <router-link :to="`/visitas/editar/${visita.id}`" class="btn-action edit-btn">
+            <i class="fas fa-edit"></i>
+          </router-link>
+          <button @click="handleDeletar(visita.id)" class="btn-action delete-btn">
+            <i class="fas fa-trash"></i>
+          </button>
+        </div>
+      </div>
+    </div>
+    
+    <div v-if="!isLoading && visitas.length === 0 && !error" class="no-data-message">
+      <p>Nenhuma visita agendada.</p>
     </div>
   </div>
 </template>
@@ -46,55 +46,52 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue';
 import apiClient from '@/services/api';
+import '@fortawesome/fontawesome-free/css/all.css';
 
 const visitas = ref<any[]>([]);
 const isLoading = ref(true);
 const error = ref<string | null>(null);
-const userCargo = ref(''); // NOVO: Estado para guardar o cargo do utilizador
+
+function formatarDataHora(dataHora: string) {
+  const data = new Date(dataHora);
+  return data.toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' });
+}
 
 async function fetchVisitas() {
   isLoading.value = true;
   try {
-    const response = await apiClient.get('/v1/clientes/visitas/');
+    // AQUI ESTÁ A CORREÇÃO: URL alterada para o endpoint correto
+    const response = await apiClient.get('/v1/visitas/');
     visitas.value = response.data;
   } catch (err) {
     console.error("Erro ao buscar visitas:", err);
-    error.value = 'Não foi possível carregar a agenda de visitas.';
+    error.value = 'Não foi possível carregar as visitas.';
   } finally {
     isLoading.value = false;
   }
 }
 
-onMounted(() => {
-  fetchVisitas();
-  // NOVO: Lê o cargo do localStorage quando a página é carregada
-  userCargo.value = localStorage.getItem('userCargo') || '';
-});
-
-async function handleCancelar(visitaId: number) {
-  if (!window.confirm('Tem a certeza de que deseja cancelar esta visita?')) {
+async function handleDeletar(visitaId: number) {
+  if (!window.confirm('Tem a certeza de que deseja deletar este agendamento?')) {
     return;
   }
   try {
-    await apiClient.patch(`/v1/clientes/visitas/${visitaId}/`, { status: 'Cancelada' });
-    await fetchVisitas();
+    // AQUI ESTÁ A CORREÇÃO: URL alterada para o endpoint correto
+    await apiClient.delete(`/v1/visitas/${visitaId}/`);
+    visitas.value = visitas.value.filter(v => v.id !== visitaId);
+    alert('Agendamento deletado com sucesso!');
   } catch (error) {
-    console.error("Erro ao cancelar visita:", error);
-    alert("Ocorreu um erro ao tentar cancelar a visita.");
+    console.error("Erro ao deletar agendamento:", error);
+    alert("Ocorreu um erro ao tentar deletar o agendamento.");
   }
 }
 
-function formatarData(data: string) {
-  const options: Intl.DateTimeFormatOptions = {
-    year: 'numeric', month: '2-digit', day: '2-digit',
-    hour: '2-digit', minute: '2-digit'
-  };
-  return new Date(data).toLocaleString('pt-BR', options);
-}
+onMounted(() => {
+  fetchVisitas();
+});
 </script>
 
 <style scoped>
-/* Estilos podem ser reutilizados de outras views */
 .visitas-container {
   padding: 2rem;
 }
@@ -111,37 +108,72 @@ function formatarData(data: string) {
   border-radius: 5px;
   text-decoration: none;
   font-weight: bold;
+  border: none;
+  cursor: pointer;
 }
-table {
-  width: 100%;
-  border-collapse: collapse;
-  margin-top: 1rem;
-}
-th, td {
-  border: 1px solid #ddd;
-  padding: 8px;
-  text-align: left;
-  vertical-align: middle;
-}
-th {
-  background-color: #f2f2f2;
+.loading-message, .error-message, .no-data-message {
+  text-align: center;
+  padding: 2rem;
+  color: #6c757d;
 }
 .error-message {
   color: red;
 }
-.actions-cell {
+.visitas-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+.visita-card {
+  background-color: white;
+  padding: 1.5rem;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.visita-info p {
+  margin: 0.5rem 0;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+.visita-info i {
+  color: #007bff;
+  width: 20px;
+  text-align: center;
+}
+.visita-data {
+  font-weight: bold;
+}
+.visita-actions {
   display: flex;
   gap: 0.5rem;
 }
-.btn-secondary, .btn-danger {
-  color: white;
-  padding: 5px 10px;
-  border-radius: 4px;
-  text-decoration: none;
-  font-size: 0.9em;
-  border: none;
+.btn-action {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background-color: #f8f9fa;
+  border: 1px solid #e9ecef;
+  color: #6c757d;
   cursor: pointer;
+  transition: background-color 0.2s;
+  text-decoration: none;
 }
-.btn-secondary { background-color: #6c757d; }
-.btn-danger { background-color: #dc3545; }
+.btn-action i {
+  font-size: 1rem;
+}
+.edit-btn:hover {
+  background-color: #ffc107;
+  color: #333;
+}
+.delete-btn:hover {
+  background-color: #dc3545;
+  color: white;
+}
 </style>

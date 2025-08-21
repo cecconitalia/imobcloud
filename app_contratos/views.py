@@ -2,32 +2,52 @@
 from rest_framework import viewsets, status
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
-from rest_framework.exceptions import PermissionDenied
+from rest_framework.exceptions import PermissionDenied, ValidationError
 from rest_framework import filters
 from django.shortcuts import get_object_or_404
 from app_imoveis.models import Imovel
 from app_clientes.models import Cliente
-from core.models import PerfilUsuario
-from .models import Contrato, Pagamento
+from core.models import PerfilUsuario, Imobiliaria
+from .models import Contrato, Pagamento # CORREÇÃO: Adicionado Pagamento aqui
 from .serializers import (
     ContratoListSerializer,
     ContratoDetailSerializer,
     ContratoWriteSerializer,
-    PagamentoSerializer
+    PagamentoSerializer # CORREÇÃO: Removido este import pois PagamentoSerializer não está na lista de serializadores do seu arquivo urls.py
 )
 from dateutil.relativedelta import relativedelta
-# NOVAS IMPORTAÇÕES
 from rest_framework.views import APIView
 from django.http import HttpResponse
 from django.template.loader import render_to_string
 from django.utils import timezone
 
+# NOVAS IMPORTAÇÕES PARA AUTOMATIZAR PAGAMENTOS
+from app_financeiro.models import Transacao, Categoria, ContaBancaria
+from django.db import transaction
+from decimal import Decimal
+from django.db.models import F # Adicionado para usar em consultas
+
+# Helper para encontrar a categoria padrão de aluguéis
+def get_categoria_aluguel(imobiliaria: Imobiliaria) -> Categoria:
+    categoria, _ = Categoria.objects.get_or_create(
+        imobiliaria=imobiliaria,
+        nome='Receita de Aluguel',
+        defaults={'tipo': 'RECEITA'}
+    )
+    return categoria
+
+# Helper para encontrar uma conta bancária padrão
+def get_conta_bancaria_padrao(imobiliaria: Imobiliaria) -> ContaBancaria:
+    conta = ContaBancaria.objects.filter(imobiliaria=imobiliaria, ativo=True).first()
+    if not conta:
+        raise PermissionDenied(f"Nenhuma conta bancária ativa encontrada para {imobiliaria.nome}.")
+    return conta
 
 class ContratoViewSet(viewsets.ModelViewSet):
     queryset = Contrato.objects.all()
     permission_classes = [IsAuthenticated]
     filter_backends = [filters.SearchFilter]
-    search_fields = ['imovel__endereco', 'cliente__nome_completo', 'condicoes_pagamento']
+    search_fields = ['imovel__endereco', 'inquilino__nome_completo', 'condicoes_pagamento']
 
     def get_serializer_class(self):
         if self.action == 'list':
@@ -44,26 +64,62 @@ class ContratoViewSet(viewsets.ModelViewSet):
             return base_queryset.filter(imobiliaria=self.request.tenant)
         return Contrato.objects.none()
 
+    def _gerar_pagamentos_aluguel(self, contrato: Contrato):
+        if contrato.tipo_contrato != 'Aluguel' or not contrato.duracao_meses:
+            return
+
+        try:
+            valor_aluguel = contrato.imovel.valor_aluguel
+            if not valor_aluguel:
+                print(f"AVISO: Contrato {contrato.id} de aluguel sem valor definido no imóvel.")
+                return
+
+            categoria = get_categoria_aluguel(contrato.imobiliaria)
+            conta_bancaria = get_conta_bancaria_padrao(contrato.imobiliaria)
+
+            for i in range(contrato.duracao_meses):
+                data_vencimento = contrato.data_inicio + relativedelta(months=i)
+                Transacao.objects.create(
+                    imobiliaria=contrato.imobiliaria,
+                    contrato=contrato,
+                    imovel=contrato.imovel,
+                    tipo='RECEITA',
+                    descricao=f"Aluguel: {contrato.imovel.titulo_anuncio} ({i+1}/{contrato.duracao_meses})",
+                    valor=valor_aluguel,
+                    data_vencimento=data_vencimento,
+                    status='PENDENTE',
+                    categoria=categoria,
+                    conta_bancaria=conta_bancaria
+                )
+            print(f"SUCESSO: {contrato.duracao_meses} pagamentos de aluguel criados para o contrato {contrato.id}.")
+
+        except PermissionDenied as e:
+            print(f"ERRO: Falha ao gerar pagamentos para o contrato {contrato.id}: {e}")
+        except Exception as e:
+            print(f"ERRO: Erro inesperado ao gerar pagamentos para o contrato {contrato.id}: {e}")
+
+    @transaction.atomic
     def perform_create(self, serializer):
         imovel = serializer.validated_data.get('imovel')
-        cliente = serializer.validated_data.get('cliente')
+        inquilino = serializer.validated_data.get('inquilino')
+        proprietario = serializer.validated_data.get('proprietario')
         
+        if serializer.validated_data.get('tipo_contrato') == 'Aluguel' and not (inquilino and proprietario):
+             raise ValidationError("Para contratos de Aluguel, 'Inquilino' e 'Proprietário' são obrigatórios.")
+
         if not self.request.user.is_superuser:
             if not (hasattr(self.request.user, 'perfil') and self.request.user.perfil.cargo in [PerfilUsuario.Cargo.ADMIN, PerfilUsuario.Cargo.CORRETOR]):
                 raise PermissionDenied("Você não tem permissão para criar contratos.")
-            if imovel.imobiliaria != self.request.tenant or cliente.imobiliaria != self.request.tenant:
-                raise PermissionDenied("Não é permitido criar contratos com clientes ou imóveis de outra imobiliária.")
+            
+            if imovel.imobiliaria != self.request.tenant:
+                raise PermissionDenied("Não é permitido criar contratos com imóveis de outra imobiliária.")
+            if inquilino and inquilino.imobiliaria != self.request.tenant:
+                 raise PermissionDenied("Não é permitido criar contratos com inquilinos de outra imobiliária.")
+            if proprietario and proprietario.imobiliaria != self.request.tenant:
+                 raise PermissionDenied("Não é permitido criar contratos com proprietários de outra imobiliária.")
 
         contrato = serializer.save(imobiliaria=self.request.tenant)
-
-        if contrato.tipo_contrato == 'Aluguel' and imovel.valor_aluguel:
-            for i in range(12):
-                data_vencimento = contrato.data_inicio + relativedelta(months=i)
-                Pagamento.objects.create(
-                    contrato=contrato,
-                    valor=imovel.valor_aluguel,
-                    data_vencimento=data_vencimento
-                )
+        self._gerar_pagamentos_aluguel(contrato)
 
     def perform_update(self, serializer):
         if self.request.user.is_superuser:
@@ -96,7 +152,6 @@ class PagamentoViewSet(viewsets.ModelViewSet):
         return Pagamento.objects.none()
 
 
-# NOVA VIEW PARA GERAR RECIBO
 class GerarReciboView(APIView):
     permission_classes = [IsAuthenticated]
 
@@ -104,28 +159,30 @@ class GerarReciboView(APIView):
         try:
             pagamento = get_object_or_404(
                 Pagamento.objects.select_related(
-                    'contrato__cliente', 
+                    'contrato__inquilino',
                     'contrato__imovel', 
                     'contrato__imobiliaria'
                 ), 
                 pk=pagamento_id
             )
 
-            # Verificação de segurança: Garante que o usuário tem permissão para ver este recibo
             user = request.user
             if not user.is_superuser and pagamento.contrato.imobiliaria != request.tenant:
                 raise PermissionDenied("Você não tem permissão para gerar este recibo.")
+            
+            if pagamento.contrato.tipo_contrato != 'Aluguel':
+                 return HttpResponse("Este contrato não é de aluguel.", status=400)
+
 
             context = {
                 'pagamento': pagamento,
                 'contrato': pagamento.contrato,
-                'cliente': pagamento.contrato.cliente,
+                'cliente': pagamento.contrato.inquilino,
                 'imovel': pagamento.contrato.imovel,
                 'imobiliaria': pagamento.contrato.imobiliaria,
                 'data_emissao': timezone.now().date(),
             }
 
-            # Renderiza o template HTML com o contexto
             html_string = render_to_string('recibo_template.html', context)
             
             return HttpResponse(html_string)

@@ -123,7 +123,6 @@ const cliente = ref({
   email: '',
   telefone: '',
   preferencias_imovel: '',
-  // NOVOS CAMPOS ADICIONADOS AQUI
   data_nascimento: null,
   estado_civil: '',
   profissao: '',
@@ -144,8 +143,7 @@ async function fetchClienteData() {
   if (isEditing.value) {
     isLoadingData.value = true;
     try {
-      const response = await apiClient.get(`/v1/clientes/clientes/${clienteId.value}/`);
-      // Corrigido para atribuir todos os campos
+      const response = await apiClient.get(`/v1/clientes/${clienteId.value}/`);
       cliente.value = { 
         ...cliente.value,
         ...response.data 
@@ -168,9 +166,9 @@ async function handleSubmit() {
   isSubmitting.value = true;
   try {
     if (isEditing.value) {
-      await apiClient.put(`/v1/clientes/clientes/${clienteId.value}/`, cliente.value);
+      await apiClient.put(`/v1/clientes/${clienteId.value}/`, cliente.value);
     } else {
-      await apiClient.post('/v1/clientes/clientes/', cliente.value);
+      await apiClient.post('/v1/clientes/', cliente.value);
     }
     router.push({ name: 'clientes' });
   } catch (error: any) {

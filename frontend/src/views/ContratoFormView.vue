@@ -14,13 +14,24 @@
         <select id="imovel" v-model="contrato.imovel" required>
           <option disabled value="">Selecione um imóvel</option>
           <option v-for="imovel in imoveis" :key="imovel.id" :value="imovel.id">
-            {{ imovel.endereco }}
+            {{ imovel.titulo_anuncio }}
           </option>
         </select>
       </div>
+
       <div class="form-group">
-        <label for="cliente">Cliente</label>
-        <select id="cliente" v-model="contrato.cliente" required>
+        <label for="inquilino">Inquilino</label>
+        <select id="inquilino" v-model="contrato.inquilino" required>
+          <option disabled value="">Selecione um cliente</option>
+          <option v-for="cliente in clientes" :key="cliente.id" :value="cliente.id">
+            {{ cliente.nome_completo }}
+          </option>
+        </select>
+      </div>
+      
+      <div class="form-group">
+        <label for="proprietario">Proprietário</label>
+        <select id="proprietario" v-model="contrato.proprietario" required>
           <option disabled value="">Selecione um cliente</option>
           <option v-for="cliente in clientes" :key="cliente.id" :value="cliente.id">
             {{ cliente.nome_completo }}
@@ -35,7 +46,8 @@
           <option value="Aluguel">Aluguel</option>
         </select>
       </div>
-       <div class="form-group">
+
+      <div class="form-group">
         <label for="status_contrato">Status do Contrato</label>
         <select id="status_contrato" v-model="contrato.status_contrato" required>
           <option value="Ativo">Ativo</option>
@@ -49,6 +61,12 @@
         <label for="data_inicio">Data de Início</label>
         <input type="date" id="data_inicio" v-model="contrato.data_inicio" required />
       </div>
+
+      <div v-if="contrato.tipo_contrato === 'Aluguel'" class="form-group">
+        <label for="duracao_meses">Duração (meses)</label>
+        <input type="number" id="duracao_meses" v-model="contrato.duracao_meses" min="1" required />
+      </div>
+
       <div class="form-group">
         <label for="data_fim">Data de Fim</label>
         <input type="date" id="data_fim" v-model="contrato.data_fim" />
@@ -84,7 +102,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, computed } from 'vue';
+import { ref, onMounted, computed, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import apiClient from '@/services/api';
 import ContratoFinanceiro from '@/components/ContratoFinanceiro.vue';
@@ -97,10 +115,12 @@ const isEditing = computed(() => !!contratoId.value);
 
 const contrato = ref({
   imovel: '',
-  cliente: '',
+  inquilino: '',
+  proprietario: '',
   tipo_contrato: 'Venda',
   data_inicio: '',
   data_fim: '',
+  duracao_meses: 12,
   data_assinatura: '',
   condicoes_pagamento: '',
   valor_total: null,
@@ -115,10 +135,10 @@ const isSubmitting = ref(false);
 
 async function fetchDropdownData() {
   try {
-    // A CORREÇÃO ESTÁ AQUI: URLs corrigidas
     const [imoveisResponse, clientesResponse] = await Promise.all([
       apiClient.get('/v1/imoveis/'),
-      apiClient.get('/v1/clientes/')
+      // CORREÇÃO: URL corrigida para o endpoint correto de clientes
+      apiClient.get('/v1/clientes/'),
     ]);
     imoveis.value = imoveisResponse.data;
     clientes.value = clientesResponse.data;
@@ -132,9 +152,13 @@ async function fetchContratoData() {
   if (isEditing.value) {
     isLoadingData.value = true;
     try {
-      // A CORREÇÃO ESTÁ AQUI: URL corrigido
       const response = await apiClient.get(`/v1/contratos/${contratoId.value}/`);
-      contrato.value = response.data;
+      contrato.value = {
+        ...response.data,
+        imovel: response.data.imovel?.id || null,
+        inquilino: response.data.inquilino?.id || null,
+        proprietario: response.data.proprietario?.id || null,
+      };
     } catch (error) {
       console.error("Erro ao buscar dados do contrato:", error);
       alert("Não foi possível carregar os dados do contrato para edição.");
@@ -152,15 +176,34 @@ onMounted(async () => {
   isLoadingData.value = false;
 });
 
+watch(() => contrato.value.data_inicio, (novaData) => {
+  if (novaData && contrato.value.tipo_contrato === 'Aluguel' && contrato.value.duracao_meses) {
+    const dataInicio = new Date(novaData);
+    dataInicio.setMonth(dataInicio.getMonth() + contrato.value.duracao_meses);
+    contrato.value.data_fim = dataInicio.toISOString().split('T')[0];
+  }
+});
+
+watch(() => contrato.value.duracao_meses, (novaDuracao) => {
+  if (contrato.value.data_inicio && contrato.value.tipo_contrato === 'Aluguel' && novaDuracao) {
+    const dataInicio = new Date(contrato.value.data_inicio);
+    dataInicio.setMonth(dataInicio.getMonth() + novaDuracao);
+    contrato.value.data_fim = dataInicio.toISOString().split('T')[0];
+  }
+});
+
+
 async function handleSubmit() {
   isSubmitting.value = true;
   
   const payload = {
     imovel: contrato.value.imovel,
-    cliente: contrato.value.cliente,
+    inquilino: contrato.value.inquilino,
+    proprietario: contrato.value.proprietario,
     tipo_contrato: contrato.value.tipo_contrato,
     data_inicio: contrato.value.data_inicio,
     data_fim: contrato.value.data_fim,
+    duracao_meses: contrato.value.duracao_meses,
     data_assinatura: contrato.value.data_assinatura,
     valor_total: contrato.value.valor_total,
     condicoes_pagamento: contrato.value.condicoes_pagamento,
@@ -169,10 +212,8 @@ async function handleSubmit() {
 
   try {
     if (isEditing.value) {
-      // A CORREÇÃO ESTÁ AQUI: URL corrigido
       await apiClient.put(`/v1/contratos/${contratoId.value}/`, payload);
     } else {
-      // A CORREÇÃO ESTÁ AQUI: URL corrigido
       await apiClient.post('/v1/contratos/', payload);
     }
     router.push({ name: 'contratos' });
