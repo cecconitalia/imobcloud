@@ -8,6 +8,7 @@ from core.models import Imobiliaria
 from django.core.cache import cache
 from django.utils.dateparse import parse_datetime
 from datetime import datetime, timedelta
+from django.utils import timezone # CORREÇÃO: Importar timezone para usar o now()
 
 class BradescoAPI:
     """

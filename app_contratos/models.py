@@ -93,11 +93,27 @@ class Pagamento(models.Model):
         ('CANCELADO', 'Cancelado'),
     ]
 
+    # NOVO: Campo para registrar a forma de pagamento
+    FORMA_PAGAMENTO_CHOICES = [
+        ('BOLETO', 'Boleto'),
+        ('PIX', 'PIX'),
+        ('TRANSFERENCIA', 'Transferência Bancária'),
+        ('DINHEIRO', 'Dinheiro'),
+        ('CARTAO', 'Cartão de Crédito/Débito'),
+        ('OUTRO', 'Outro'),
+    ]
+
     contrato = models.ForeignKey(Contrato, on_delete=models.CASCADE, related_name="pagamentos", verbose_name="Contrato")
     valor = models.DecimalField(max_digits=15, decimal_places=2, verbose_name="Valor do Pagamento")
     data_vencimento = models.DateField(verbose_name="Data de Vencimento")
     data_pagamento = models.DateField(null=True, blank=True, verbose_name="Data de Pagamento")
     status = models.CharField(max_length=20, choices=STATUS_PAGAMENTO_CHOICES, default='PENDENTE', verbose_name="Status")
+    forma_pagamento_recebida = models.CharField(
+        max_length=20,
+        choices=FORMA_PAGAMENTO_CHOICES,
+        null=True, blank=True,
+        verbose_name="Forma de Pagamento"
+    )
 
     class Meta:
         verbose_name = "Pagamento"

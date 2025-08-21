@@ -32,7 +32,7 @@ urlpatterns = [
     path('api/v1/', include('app_imoveis.urls')),
     path('api/v1/', include('app_clientes.urls')),
     path('api/v1/', include('app_contratos.urls')),
-    path('api/v1/', include('app_financeiro.urls')),
+    path('api/v1/financeiro/', include('app_financeiro.urls')),
     path('api/v1/alugueis/', include('app_alugueis.urls')),
     path('api/v1/boletos/', include('app_boletos.urls')),
 

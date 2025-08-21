@@ -4,6 +4,15 @@ from rest_framework import serializers
 from .models import Boleto, ConfiguracaoBanco
 from app_financeiro.models import Transacao
 
+class ConfiguracaoBancoSerializer(serializers.ModelSerializer):
+    """
+    Serializador para o modelo ConfiguracaoBanco.
+    """
+    class Meta:
+        model = ConfiguracaoBanco
+        fields = ['id', 'nome_banco']
+
+
 class BoletoSerializer(serializers.ModelSerializer):
     """
     Serializador para o modelo Boleto.

@@ -21,33 +21,35 @@ import CorretorRegistrationView from '@/views/CorretorRegistrationView.vue'
 import FunilVendasView from '@/views/FunilVendasView.vue'
 import OportunidadeFormView from '@/views/OportunidadeFormView.vue'
 import CorretoresView from '@/views/CorretoresView.vue'
-import CalendarioTarefas from '@/views/CalendarioTarefas.vue' 
+import CalendarioTarefas from '@/views/CalendarioTarefas.vue'
 import RelatoriosView from '@/views/RelatoriosView.vue'
 import AutorizacoesView from '@/views/AutorizacoesView.vue'
-import AlugueisDashboardView from '@/views/AlugueisDashboardView.vue' 
+import AlugueisDashboardView from '@/views/AlugueisDashboardView.vue'
 
 // Importações das views do módulo financeiro
-import FinanceiroDashboardView from '@/views/FinanceiroDashboard.vue' 
-import ListaTransacoesView from '@/views/ListaTransacoes.vue' 
-import TransacaoFormView from '@/views/TransacaoForm.vue' 
+import FinanceiroDashboardView from '@/views/FinanceiroDashboard.vue'
+import ListaTransacoesView from '@/views/ListaTransacoes.vue'
+import TransacaoFormView from '@/views/TransacaoForm.vue'
 import DREView from '@/views/DREView.vue'
 import ListaContasView from '@/views/ListaContasView.vue'
 import ContaFormView from '@/views/ContaFormView.vue'
 import ListaCategoriasView from '@/views/ListaCategoriasView.vue'
 import CategoriaFormView from '@/views/CategoriaFormView.vue'
 import ContasPendentes from '@/views/financeiro/ContasPendentes.vue'
+// NOVO: Importe as novas views
+import ListaFormasPagamentoView from '@/views/ListaFormasPagamentoView.vue'
+import FormaPagamentoFormView from '@/views/FormaPagamentoFormView.vue'
 
-// --- 1. IMPORTE AS NOVAS VIEWS ---
+// Importações das novas views de publicações
 import ConfiguracaoIAView from '@/views/ConfiguracaoIA.vue'
 import IntegracoesView from '@/views/IntegracoesView.vue'
 import PublicacoesView from '@/views/PublicacoesView.vue'
+import CalendarioPublicacoesView from '@/views/CalendarioPublicacoesView.vue'
 
 
 // Importações das views do Site Público
 import PublicHomeView from '@/views/PublicHomeView.vue'
 import PublicImovelDetailView from '@/views/PublicImovelDetailView.vue'
-import CalendarioPublicacoesView from '@/views/CalendarioPublicacoesView.vue' // <-- IMPORTE A NOVA VIEW
-
 
 // Adicionar um tipo para a meta das rotas
 declare module 'vue-router' {
@@ -107,14 +109,12 @@ const router = createRouter({
                         title: 'Dashboard'
                     }
                 },
-
                 {
-                    path: 'alugueis/dashboard', // NOVO: Rota para o dashboard de aluguéis
+                    path: 'alugueis/dashboard',
                     name: 'alugueis-dashboard',
                     component: AlugueisDashboardView,
                     meta: { title: 'Dashboard de Aluguéis' }
                 },
-
                 {
                     path: 'funil-vendas',
                     name: 'funil-vendas',
@@ -223,12 +223,12 @@ const router = createRouter({
                     }
                 },
                 {
-                    path: 'contratos/editar/:id',
-                    name: 'contrato-editar',
-                    component: ContratoFormView,
-                    meta: {
-                        title: 'Editar Contrato',
-                        requiresAuth: true
+                    path: 'contratos/editar/:id',
+                    name: 'contrato-editar',
+                    component: ContratoFormView,
+                    meta: {
+                        title: 'Editar Contrato',
+                        requiresAuth: true
                     }
                 },
                 {
@@ -300,13 +300,12 @@ const router = createRouter({
                 {
                     path: 'calendario',
                     name: 'calendario',
-                    component: CalendarioTarefas, 
+                    component: CalendarioTarefas,
                     meta: {
                         title: 'Meu Calendário',
                         requiresAuth: true
                     }
                 },
-                // --- 2. ADICIONE A ROTA DE PUBLICAÇÕES AQUI ---
                 {
                     path: 'publicacoes',
                     name: 'publicacoes',
@@ -316,7 +315,6 @@ const router = createRouter({
                         requiresAuth: true
                     }
                 },
-
                 {
                     path: 'calendario-publicacoes',
                     name: 'calendario-publicacoes',
@@ -326,7 +324,6 @@ const router = createRouter({
                         requiresAuth: true
                     }
                 },
-
                 {
                     path: 'relatorios',
                     name: 'relatorios',
@@ -482,19 +479,49 @@ const router = createRouter({
                         isAdmin: true
                     }
                 },
-                { 
+                {
+                    path: 'financeiro/formas-pagamento', // NOVO: Rota para a lista de formas de pagamento
+                    name: 'lista-formas-pagamento',
+                    component: ListaFormasPagamentoView,
+                    meta: {
+                        title: 'Gerir Formas de Pagamento',
+                        requiresAuth: true,
+                        isAdmin: true
+                    }
+                },
+                {
+                    path: 'financeiro/formas-pagamento/nova', // NOVO: Rota para adicionar
+                    name: 'nova-forma-pagamento',
+                    component: FormaPagamentoFormView,
+                    meta: {
+                        title: 'Adicionar Forma de Pagamento',
+                        requiresAuth: true,
+                        isAdmin: true
+                    }
+                },
+                {
+                    path: 'financeiro/formas-pagamento/editar/:id', // NOVO: Rota para editar
+                    name: 'editar-forma-pagamento',
+                    component: FormaPagamentoFormView,
+                    meta: {
+                        title: 'Editar Forma de Pagamento',
+                        requiresAuth: true,
+                        isAdmin: true
+                    }
+                },
+                {
                     path: 'financeiro/contas-pendentes',
                     name: 'contas-pendentes',
                     component: ContasPendentes,
-                    meta: { 
-                        title: 'Contas a Pagar e Receber', 
-                        requiresAuth: true, 
-                        isAdmin: true 
+                    meta: {
+                        title: 'Contas a Pagar e Receber',
+                        requiresAuth: true,
+                        isAdmin: true
                     }
                 },
             ]
         },
-        
+
         // Rota de fallback
         {
             path: '/:pathMatch(.*)*',
