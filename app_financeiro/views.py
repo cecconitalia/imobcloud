@@ -8,8 +8,8 @@ from django.db.models import Sum, Q, F, DecimalField
 from django.db.models.functions import Coalesce
 from django.utils import timezone
 from datetime import timedelta, datetime
-from .models import Categoria, ContaBancaria, Transacao
-from .serializers import CategoriaSerializer, ContaBancariaSerializer, TransacaoSerializer
+from .models import Categoria, ContaBancaria, Transacao, FormaPagamento
+from .serializers import CategoriaSerializer, ContaBancariaSerializer, TransacaoSerializer, FormaPagamentoSerializer
 from core.permissions import IsCorretorOrReadOnly
 from core.models import PerfilUsuario, Imobiliaria
 
@@ -98,6 +98,24 @@ class ContaBancariaViewSet(viewsets.ModelViewSet):
         instance.save()
         return Response(status=status.HTTP_204_NO_CONTENT)
 
+class FormaPagamentoViewSet(viewsets.ModelViewSet):
+    """
+    ViewSet para gerir as formas de pagamento disponíveis na imobiliária.
+    """
+    queryset = FormaPagamento.objects.all()
+    serializer_class = FormaPagamentoSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        if self.request.user.is_superuser:
+            return FormaPagamento.objects.all()
+        return FormaPagamento.objects.filter(imobiliaria=self.request.tenant, ativo=True)
+
+    def perform_create(self, serializer):
+        if not self.request.tenant:
+            raise PermissionDenied("Forma de pagamento não pode ser associada a uma imobiliária.")
+        serializer.save(imobiliaria=self.request.tenant)
+        
 class TransacaoViewSet(viewsets.ModelViewSet):
     queryset = Transacao.objects.all()
     serializer_class = TransacaoSerializer

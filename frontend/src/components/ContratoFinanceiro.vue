@@ -1,205 +1,252 @@
 <template>
-  <div class="financeiro-container">
-    <h3 class="financeiro-title">Gestão Financeira do Contrato</h3>
+  <div class="form-container">
+    <header class="view-header">
+      <h1>{{ isEditing ? 'Editar Contrato' : 'Adicionar Novo Contrato' }}</h1>
+    </header>
 
-    <div v-if="isLoading" class="loading-message">A carregar pagamentos...</div>
-    <div v-else-if="pagamentos.length === 0" class="no-data-message">
-      Nenhum pagamento registado para este contrato.
+    <div v-if="isLoadingData" class="loading-message">
+      A carregar dados do contrato...
     </div>
-    <table v-else class="pagamentos-table">
-      <thead>
-        <tr>
-          <th>Vencimento</th>
-          <th>Valor</th>
-          <th>Status</th>
-          <th>Data de Pagamento</th>
-          <th>Ações</th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr v-for="pagamento in pagamentos" :key="pagamento.id" :class="getStatusClass(pagamento)">
-          <td>{{ formatarData(pagamento.data_vencimento) }}</td>
-          <td>{{ formatarValor(pagamento.valor) }}</td>
-          <td>
-            <span class="status-badge" :class="`status-${pagamento.status.toLowerCase()}`">
-              {{ pagamento.status }}
-            </span>
-          </td>
-          <td>{{ pagamento.data_pagamento ? formatarData(pagamento.data_pagamento) : '-' }}</td>
-          <td class="actions-cell">
-            <button
-              v-if="pagamento.status === 'PENDENTE' || pagamento.status === 'ATRASADO'"
-              @click="marcarComoPago(pagamento)"
-              class="btn-pagar"
-              :disabled="isSubmitting"
-            >
-              Marcar como Pago
-            </button>
-            <button
-              v-if="pagamento.status === 'PAGO'"
-              @click="gerarRecibo(pagamento.id)"
-              class="btn-recibo"
-            >
-              Gerar Recibo
-            </button>
-          </td>
-        </tr>
-      </tbody>
-    </table>
+
+    <form v-else @submit.prevent="handleSubmit" class="contrato-form">
+      <div class="form-group">
+        <label for="imovel">Imóvel</label>
+        <select id="imovel" v-model="contrato.imovel" required>
+          <option disabled value="">Selecione um imóvel</option>
+          <option v-for="imovel in imoveis" :key="imovel.id" :value="imovel.id">
+            {{ imovel.titulo_anuncio }}
+          </option>
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label for="inquilino">Inquilino</label>
+        <select id="inquilino" v-model="contrato.inquilino" :required="contrato.tipo_contrato === 'Aluguel'">
+          <option disabled value="">Selecione um cliente</option>
+          <option v-for="cliente in clientes" :key="cliente.id" :value="cliente.id">
+            {{ cliente.nome_completo }}
+          </option>
+        </select>
+      </div>
+      
+      <div class="form-group">
+        <label for="proprietario">Proprietário</label>
+        <select id="proprietario" v-model="contrato.proprietario" :required="contrato.tipo_contrato === 'Aluguel'">
+          <option disabled value="">Selecione um cliente</option>
+          <option v-for="cliente in clientes" :key="cliente.id" :value="cliente.id">
+            {{ cliente.nome_completo }}
+          </option>
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label for="tipo_contrato">Tipo de Contrato</label>
+        <select id="tipo_contrato" v-model="contrato.tipo_contrato" required>
+          <option value="Venda">Venda</option>
+          <option value="Aluguel">Aluguel</option>
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label for="status_contrato">Status do Contrato</label>
+        <select id="status_contrato" v-model="contrato.status_contrato" required>
+          <option value="Ativo">Ativo</option>
+          <option value="Concluído">Concluído</option>
+          <option value="Rescindido">Rescindido</option>
+          <option value="Pendente">Pendente</option>
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label for="data_inicio">Data de Início</label>
+        <input type="date" id="data_inicio" v-model="contrato.data_inicio" required />
+      </div>
+
+      <div v-if="contrato.tipo_contrato === 'Aluguel'" class="form-group">
+        <label for="duracao_meses">Duração (meses)</label>
+        <input type="number" id="duracao_meses" v-model="contrato.duracao_meses" min="1" required />
+      </div>
+
+      <div class="form-group">
+        <label for="data_fim">Data de Fim</label>
+        <input type="date" id="data_fim" v-model="contrato.data_fim" />
+      </div>
+
+       <div class="form-group">
+        <label for="data_assinatura">Data de Assinatura</label>
+        <input type="date" id="data_assinatura" v-model="contrato.data_assinatura" required />
+      </div>
+      <div class="form-group">
+        <label for="valor_total">Valor Total (R$)</label>
+        <input type="number" step="0.01" id="valor_total" v-model="contrato.valor_total" required />
+      </div>
+      
+      <div class="form-group full-width">
+        <label for="condicoes_pagamento">Condições de Pagamento</label>
+        <textarea id="condicoes_pagamento" v-model="contrato.condicoes_pagamento" rows="4" required></textarea>
+      </div>
+
+      <div class="form-actions full-width">
+        <button type="button" @click="handleCancel" class="btn-secondary">Cancelar</button>
+        <button type="submit" class="btn-primary" :disabled="isSubmitting">
+          {{ isSubmitting ? 'Guardando...' : 'Guardar Contrato' }}
+        </button>
+      </div>
+    </form>
+
+    <ContratoFinanceiro
+      v-if="isEditing && contrato.tipo_contrato === 'Aluguel' && contrato.id"
+      :contrato-id="contrato.id"
+    />
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, defineProps, computed } from 'vue';
+import { ref, onMounted, computed, watch } from 'vue';
+import { useRoute, useRouter } from 'vue-router';
 import apiClient from '@/services/api';
+import ContratoFinanceiro from '@/components/ContratoFinanceiro.vue';
 
-const props = defineProps({
-  contrato: {
-    type: Object,
-    required: true
+const route = useRoute();
+const router = useRouter();
+
+const contratoId = computed(() => route.params.id as string | undefined);
+const isEditing = computed(() => !!contratoId.value);
+
+const contrato = ref({
+  id: null as number | null,
+  imovel: null,
+  inquilino: null,
+  proprietario: null,
+  tipo_contrato: 'Venda',
+  data_inicio: '',
+  data_fim: '',
+  duracao_meses: 12,
+  data_assinatura: '',
+  condicoes_pagamento: '',
+  valor_total: null,
+  status_contrato: 'Ativo',
+  pagamentos: []
+});
+
+const imoveis = ref<any[]>([]);
+const clientes = ref<any[]>([]);
+const isLoadingData = ref(false);
+const isSubmitting = ref(false);
+
+async function fetchDropdownData() {
+  try {
+    const [imoveisResponse, clientesResponse] = await Promise.all([
+      apiClient.get('/v1/imoveis/'),
+      apiClient.get('/v1/clientes/'),
+    ]);
+    imoveis.value = imoveisResponse.data;
+    clientes.value = clientesResponse.data;
+  } catch (error) {
+    console.error("Erro ao carregar dados para o formulário:", error);
+    alert('Não foi possível carregar os imóveis e clientes.');
+  }
+}
+
+async function fetchContratoData() {
+  if (isEditing.value) {
+    isLoadingData.value = true;
+    try {
+      const response = await apiClient.get(`/v1/contratos/${contratoId.value}/`);
+      contrato.value = {
+        ...response.data,
+        id: response.data.id,
+        imovel: response.data.imovel?.id || null,
+        inquilino: response.data.inquilino?.id || null,
+        proprietario: response.data.proprietario?.id || null,
+      };
+    } catch (error) {
+      console.error("Erro ao buscar dados do contrato:", error);
+      alert("Não foi possível carregar os dados do contrato para edição.");
+      router.push({ name: 'contratos' });
+    } finally {
+      isLoadingData.value = false;
+    }
+  }
+}
+
+onMounted(async () => {
+  isLoadingData.value = true;
+  await fetchDropdownData();
+  await fetchContratoData();
+  isLoadingData.value = false;
+});
+
+watch(() => contrato.value.data_inicio, (novaData) => {
+  if (novaData && contrato.value.tipo_contrato === 'Aluguel' && contrato.value.duracao_meses) {
+    const dataInicio = new Date(novaData);
+    dataInicio.setMonth(dataInicio.getMonth() + contrato.value.duracao_meses);
+    contrato.value.data_fim = dataInicio.toISOString().split('T')[0];
   }
 });
 
-const pagamentos = ref<any[]>([]);
-const isLoading = ref(true);
-const isSubmitting = ref(false);
+watch(() => contrato.value.duracao_meses, (novaDuracao) => {
+  if (contrato.value.data_inicio && contrato.value.tipo_contrato === 'Aluguel' && novaDuracao) {
+    const dataInicio = new Date(contrato.value.data_inicio);
+    dataInicio.setMonth(dataInicio.getMonth() + novaDuracao);
+    contrato.value.data_fim = dataInicio.toISOString().split('T')[0];
+  }
+});
 
-const listaDePagamentos = computed(() => props.contrato.pagamentos || []);
 
-async function carregarPagamentos() {
-    isLoading.value = true;
-    pagamentos.value = props.contrato.pagamentos || [];
-    verificarStatusPagamentos();
-    isLoading.value = false;
-}
-
-// NOVA FUNÇÃO para gerar o recibo
-function gerarRecibo(pagamentoId: number) {
-  // O token de autenticação será adicionado automaticamente pelo interceptor do `apiClient`
-  const reciboUrl = `${apiClient.defaults.baseURL}/v1/contratos/recibo/pagamento/${pagamentoId}/`;
-  // Abre a URL em uma nova aba, onde o navegador irá renderizar o HTML retornado pela API
-  window.open(reciboUrl, '_blank');
-}
-
-async function marcarComoPago(pagamento: any) {
-  if (!window.confirm(`Confirma o recebimento de ${formatarValor(pagamento.valor)}?`)) return;
-  
+async function handleSubmit() {
   isSubmitting.value = true;
+  
+  const payload = {
+    imovel: contrato.value.imovel,
+    inquilino: contrato.value.inquilino,
+    proprietario: contrato.value.proprietario,
+    tipo_contrato: contrato.value.tipo_contrato,
+    data_inicio: contrato.value.data_inicio,
+    data_fim: contrato.value.data_fim,
+    duracao_meses: contrato.value.duracao_meses,
+    data_assinatura: contrato.value.data_assinatura,
+    valor_total: contrato.value.valor_total,
+    condicoes_pagamento: contrato.value.condicoes_pagamento,
+    status_contrato: contrato.value.status_contrato,
+  };
+
   try {
-    const hoje = new Date().toISOString().split('T')[0];
-    await apiClient.patch(`/v1/contratos/pagamentos/${pagamento.id}/`, {
-      status: 'PAGO',
-      data_pagamento: hoje
-    });
-    pagamento.status = 'PAGO';
-    pagamento.data_pagamento = hoje;
-  } catch (error) {
-    console.error("Erro ao marcar como pago:", error);
-    alert('Ocorreu um erro ao atualizar o pagamento.');
+    let response;
+    if (isEditing.value) {
+      response = await apiClient.put(`/v1/contratos/${contratoId.value}/`, payload);
+    } else {
+      response = await apiClient.post('/v1/contratos/', payload);
+    }
+    if (!isEditing.value && response && response.data?.id) {
+        router.push({ name: 'contrato-editar', params: { id: response.data.id } });
+    } else {
+        router.push({ name: 'contratos' });
+    }
+  } catch (error: any) {
+    console.error("Erro ao guardar o contrato:", error.response?.data || error);
+    alert('Ocorreu um erro ao guardar o contrato. Verifique os dados.');
   } finally {
     isSubmitting.value = false;
   }
 }
 
-function verificarStatusPagamentos() {
-    const hoje = new Date();
-    hoje.setHours(0, 0, 0, 0);
-
-    pagamentos.value.forEach(p => {
-        const dataVencimento = new Date(p.data_vencimento);
-        if (p.status === 'PENDENTE' && dataVencimento < hoje) {
-            p.status = 'ATRASADO';
-        }
-    });
-}
-
-onMounted(() => {
-  carregarPagamentos();
-});
-
-function formatarData(data: string) {
-  if (!data) return '-';
-  const dataObj = new Date(data);
-  dataObj.setDate(dataObj.getDate() + 1);
-  return dataObj.toLocaleDateString('pt-BR');
-}
-function formatarValor(valor: number) {
-  return parseFloat(valor.toString()).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-}
-function getStatusClass(pagamento: any) {
-  if (pagamento.status === 'ATRASADO') return 'atrasado-row';
-  if (pagamento.status === 'PAGO') return 'pago-row';
-  return '';
+function handleCancel() {
+  router.push({ name: 'contratos' });
 }
 </script>
 
 <style scoped>
-.financeiro-container {
-  margin-top: 2.5rem;
-  padding-top: 1.5rem;
-  border-top: 1px solid #e0e0e0;
-}
-.financeiro-title {
-  margin-bottom: 1.5rem;
-}
-.pagamentos-table {
-  width: 100%;
-  border-collapse: collapse;
-}
-.pagamentos-table th, .pagamentos-table td {
-  border: 1px solid #ddd;
-  padding: 10px;
-  text-align: left;
-}
-.pagamentos-table th {
-  background-color: #f2f2f2;
-}
-.status-badge {
-  padding: 4px 8px;
-  border-radius: 12px;
-  font-size: 0.8em;
-  font-weight: bold;
-  color: white;
-}
-.status-pendente { background-color: #ffc107; color: #333; }
-.status-pago { background-color: #28a745; }
-.status-atrasado { background-color: #dc3545; }
-
-.atrasado-row {
-    background-color: #f8d7da;
-}
-.pago-row {
-    background-color: #d4edda;
-}
-
-.actions-cell {
-  text-align: center;
-  /* ATUALIZADO: para alinhar múltiplos botões */
-  display: flex;
-  gap: 0.5rem;
-  justify-content: center;
-}
-.btn-pagar {
-  background-color: #007bff;
-  color: white;
-  border: none;
-  padding: 6px 12px;
-  border-radius: 4px;
-  cursor: pointer;
-}
-.btn-pagar:disabled {
-  background-color: #a0cfff;
-}
-/* NOVO ESTILO */
-.btn-recibo {
-  background-color: #6c757d;
-  color: white;
-  border: none;
-  padding: 6px 12px;
-  border-radius: 4px;
-  cursor: pointer;
-}
-.btn-recibo:hover {
-  background-color: #5a6268;
-}
+.form-container { padding: 2rem; }
+.view-header { margin-bottom: 1.5rem; }
+.contrato-form { display: flex; flex-wrap: wrap; gap: 1.5rem; }
+.form-group { display: flex; flex-direction: column; flex: 1 1 calc(50% - 1.5rem); }
+.form-group.full-width { flex-basis: 100%; }
+label { margin-bottom: 0.5rem; font-weight: bold; }
+input, select, textarea { padding: 10px; border: 1px solid #ccc; border-radius: 4px; font-size: 1rem; }
+.form-actions { display: flex; justify-content: flex-end; gap: 1rem; width: 100%; margin-top: 1rem; }
+.btn-primary, .btn-secondary { padding: 10px 20px; border: none; border-radius: 5px; cursor: pointer; }
+.btn-primary { background-color: #007bff; color: white; }
+.btn-secondary { background-color: #6c757d; color: white; }
+.loading-message { text-align: center; padding: 2rem; }
 </style>

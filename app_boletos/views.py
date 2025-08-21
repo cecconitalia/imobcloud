@@ -8,10 +8,22 @@ from rest_framework.exceptions import ValidationError, PermissionDenied
 from django.shortcuts import get_object_or_404
 from django.db import transaction
 from django.conf import settings
-from .serializers import GerarBoletoRequestSerializer, BoletoSerializer
+from .serializers import GerarBoletoRequestSerializer, BoletoSerializer, ConfiguracaoBancoSerializer
 from .models import Boleto, ConfiguracaoBanco
 from .bradesco_api import BradescoAPI
 from app_financeiro.models import Transacao
+
+class ConfiguracaoBancoListView(APIView):
+    """
+    Endpoint para listar as configurações de banco de uma imobiliária.
+    """
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, *args, **kwargs):
+        configuracoes = ConfiguracaoBanco.objects.filter(imobiliaria=request.tenant)
+        serializer = ConfiguracaoBancoSerializer(configuracoes, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
 
 class GerarBoletoView(APIView):
     permission_classes = [IsAuthenticated]
@@ -24,6 +36,14 @@ class GerarBoletoView(APIView):
 
         transacao_id = serializer.validated_data['transacao_id']
         banco_id = serializer.validated_data['banco_id']
+
+        # VERIFICAÇÃO ADICIONAL: O pagamento deve ter status Pendente ou Atrasado
+        pagamento = get_object_or_404(
+            Pagamento.objects.select_related('contrato__imobiliaria'),
+            pk=transacao_id # Assumindo que id do pagamento é o id da transação de aluguel
+        )
+        if pagamento.status not in ['PENDENTE', 'ATRASADO']:
+            raise ValidationError("Não é possível gerar boleto para um pagamento que não está pendente.")
 
         try:
             # 2. Busca a Transação e a Configuração do Banco
@@ -40,7 +60,7 @@ class GerarBoletoView(APIView):
             # Verifica se a transação já tem um boleto
             if Boleto.objects.filter(transacao=transacao).exists():
                 raise ValidationError("Um boleto já foi gerado para esta transação.")
-
+            
             # 3. Lógica específica para o Bradesco (exemplo)
             if config_banco.nome_banco == 'Bradesco':
                 bradesco_api = BradescoAPI(imobiliaria=request.tenant)

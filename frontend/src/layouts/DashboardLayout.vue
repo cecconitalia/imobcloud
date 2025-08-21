@@ -83,6 +83,11 @@
           <i class="icon-categorias"></i>
           <span>Gerir Categorias</span>
         </router-link>
+        <router-link to="/financeiro/formas-pagamento" class="nav-link">
+          <i class="fas fa-wallet"></i>
+          <span>Gerir Formas de Pagamento</span>
+        </router-link>
+
 
         <div v-if="userCargo === 'ADMIN'" class="nav-section-header">
           <span>Administração</span>

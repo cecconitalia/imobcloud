@@ -1,13 +1,15 @@
 # C:\wamp64\www\ImobCloud\app_contratos\serializers.py
 from rest_framework import serializers
 from .models import Contrato, Pagamento
-# ATUALIZADO: Corrigido o nome do serializer importado
-from app_imoveis.serializers import ImovelSerializer 
-from app_clientes.serializers import ClienteSerializer as ClienteDetailSerializer # Renomeado para evitar conflito
+from app_imoveis.serializers import ImovelSerializer
+from app_clientes.serializers import ClienteSerializer as ClienteDetailSerializer
 from app_clientes.models import Cliente
 from app_imoveis.models import Imovel
 
 class PagamentoSerializer(serializers.ModelSerializer):
+    # CORREÇÃO: O `get_forma_pagamento_recebida_display` é uma nova propriedade,
+    # então usamos `source='get_forma_pagamento_recebida_display'`
+    forma_pagamento_display = serializers.CharField(source='get_forma_pagamento_recebida_display', read_only=True)
     class Meta:
         model = Pagamento
         fields = '__all__'

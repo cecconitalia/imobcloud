@@ -21,7 +21,7 @@
 
       <div class="form-group">
         <label for="inquilino">Inquilino</label>
-        <select id="inquilino" v-model="contrato.inquilino" required>
+        <select id="inquilino" v-model="contrato.inquilino" :required="contrato.tipo_contrato === 'Aluguel'">
           <option disabled value="">Selecione um cliente</option>
           <option v-for="cliente in clientes" :key="cliente.id" :value="cliente.id">
             {{ cliente.nome_completo }}
@@ -31,7 +31,7 @@
       
       <div class="form-group">
         <label for="proprietario">Proprietário</label>
-        <select id="proprietario" v-model="contrato.proprietario" required>
+        <select id="proprietario" v-model="contrato.proprietario" :required="contrato.tipo_contrato === 'Aluguel'">
           <option disabled value="">Selecione um cliente</option>
           <option v-for="cliente in clientes" :key="cliente.id" :value="cliente.id">
             {{ cliente.nome_completo }}
@@ -95,8 +95,8 @@
     </form>
 
     <ContratoFinanceiro
-      v-if="isEditing && contrato.tipo_contrato === 'Aluguel'"
-      :contrato="contrato"
+      v-if="isEditing && contrato.tipo_contrato === 'Aluguel' && contrato.id"
+      :contrato-id="contrato.id"
     />
   </div>
 </template>
@@ -114,9 +114,10 @@ const contratoId = computed(() => route.params.id as string | undefined);
 const isEditing = computed(() => !!contratoId.value);
 
 const contrato = ref({
-  imovel: '',
-  inquilino: '',
-  proprietario: '',
+  id: null as number | null,
+  imovel: null,
+  inquilino: null,
+  proprietario: null,
   tipo_contrato: 'Venda',
   data_inicio: '',
   data_fim: '',
@@ -137,7 +138,6 @@ async function fetchDropdownData() {
   try {
     const [imoveisResponse, clientesResponse] = await Promise.all([
       apiClient.get('/v1/imoveis/'),
-      // CORREÇÃO: URL corrigida para o endpoint correto de clientes
       apiClient.get('/v1/clientes/'),
     ]);
     imoveis.value = imoveisResponse.data;
@@ -155,6 +155,7 @@ async function fetchContratoData() {
       const response = await apiClient.get(`/v1/contratos/${contratoId.value}/`);
       contrato.value = {
         ...response.data,
+        id: response.data.id,
         imovel: response.data.imovel?.id || null,
         inquilino: response.data.inquilino?.id || null,
         proprietario: response.data.proprietario?.id || null,
@@ -168,6 +169,14 @@ async function fetchContratoData() {
     }
   }
 }
+
+// CORREÇÃO: Adicionamos um watcher para chamar a função de busca
+// de dados do contrato sempre que o ID da rota mudar.
+watch(() => route.params.id, (newId) => {
+    if (newId) {
+      fetchContratoData();
+    }
+}, { immediate: true });
 
 onMounted(async () => {
   isLoadingData.value = true;
@@ -211,12 +220,17 @@ async function handleSubmit() {
   };
 
   try {
+    let response;
     if (isEditing.value) {
-      await apiClient.put(`/v1/contratos/${contratoId.value}/`, payload);
+      response = await apiClient.put(`/v1/contratos/${contratoId.value}/`, payload);
     } else {
-      await apiClient.post('/v1/contratos/', payload);
+      response = await apiClient.post('/v1/contratos/', payload);
     }
-    router.push({ name: 'contratos' });
+    if (!isEditing.value && response && response.data?.id) {
+        router.push({ name: 'contrato-editar', params: { id: response.data.id } });
+    } else {
+        router.push({ name: 'contratos' });
+    }
   } catch (error: any) {
     console.error("Erro ao guardar o contrato:", error.response?.data || error);
     alert('Ocorreu um erro ao guardar o contrato. Verifique os dados.');
@@ -231,7 +245,6 @@ function handleCancel() {
 </script>
 
 <style scoped>
-/* Os seus estilos continuam os mesmos */
 .form-container { padding: 2rem; }
 .view-header { margin-bottom: 1.5rem; }
 .contrato-form { display: flex; flex-wrap: wrap; gap: 1.5rem; }

@@ -8,24 +8,26 @@ from django.shortcuts import get_object_or_404
 from app_imoveis.models import Imovel
 from app_clientes.models import Cliente
 from core.models import PerfilUsuario, Imobiliaria
-from .models import Contrato, Pagamento # CORREÇÃO: Adicionado Pagamento aqui
+from .models import Contrato, Pagamento
 from .serializers import (
     ContratoListSerializer,
     ContratoDetailSerializer,
     ContratoWriteSerializer,
-    PagamentoSerializer # CORREÇÃO: Removido este import pois PagamentoSerializer não está na lista de serializadores do seu arquivo urls.py
+    PagamentoSerializer
 )
 from dateutil.relativedelta import relativedelta
 from rest_framework.views import APIView
 from django.http import HttpResponse
 from django.template.loader import render_to_string
 from django.utils import timezone
+from rest_framework.decorators import action
 
 # NOVAS IMPORTAÇÕES PARA AUTOMATIZAR PAGAMENTOS
 from app_financeiro.models import Transacao, Categoria, ContaBancaria
 from django.db import transaction
 from decimal import Decimal
-from django.db.models import F # Adicionado para usar em consultas
+from django.db.models import F
+
 
 # Helper para encontrar a categoria padrão de aluguéis
 def get_categoria_aluguel(imobiliaria: Imobiliaria) -> Categoria:
@@ -42,6 +44,7 @@ def get_conta_bancaria_padrao(imobiliaria: Imobiliaria) -> ContaBancaria:
     if not conta:
         raise PermissionDenied(f"Nenhuma conta bancária ativa encontrada para {imobiliaria.nome}.")
     return conta
+
 
 class ContratoViewSet(viewsets.ModelViewSet):
     queryset = Contrato.objects.all()
@@ -63,29 +66,40 @@ class ContratoViewSet(viewsets.ModelViewSet):
         elif self.request.tenant:
             return base_queryset.filter(imobiliaria=self.request.tenant)
         return Contrato.objects.none()
-
+    
     def _gerar_pagamentos_aluguel(self, contrato: Contrato):
         if contrato.tipo_contrato != 'Aluguel' or not contrato.duracao_meses:
             return
 
-        try:
-            valor_aluguel = contrato.imovel.valor_aluguel
-            if not valor_aluguel:
-                print(f"AVISO: Contrato {contrato.id} de aluguel sem valor definido no imóvel.")
-                return
+        if Pagamento.objects.filter(contrato=contrato).exists():
+            print(f"AVISO: Pagamentos para o contrato {contrato.id} já existem. Pulando a criação.")
+            return
+        
+        # CORREÇÃO CRUCIAL: Usar o valor do contrato para a parcela
+        valor_parcela = contrato.valor_total
+        if not valor_parcela or valor_parcela <= 0:
+            print(f"AVISO: Contrato {contrato.id} de aluguel sem valor total definido ou com valor zero. Pagamentos não criados.")
+            return
 
+        try:
             categoria = get_categoria_aluguel(contrato.imobiliaria)
             conta_bancaria = get_conta_bancaria_padrao(contrato.imobiliaria)
 
             for i in range(contrato.duracao_meses):
                 data_vencimento = contrato.data_inicio + relativedelta(months=i)
+                Pagamento.objects.create(
+                    contrato=contrato,
+                    valor=valor_parcela,
+                    data_vencimento=data_vencimento,
+                    status='PENDENTE',
+                )
                 Transacao.objects.create(
                     imobiliaria=contrato.imobiliaria,
                     contrato=contrato,
                     imovel=contrato.imovel,
                     tipo='RECEITA',
                     descricao=f"Aluguel: {contrato.imovel.titulo_anuncio} ({i+1}/{contrato.duracao_meses})",
-                    valor=valor_aluguel,
+                    valor=valor_parcela,
                     data_vencimento=data_vencimento,
                     status='PENDENTE',
                     categoria=categoria,
@@ -123,11 +137,15 @@ class ContratoViewSet(viewsets.ModelViewSet):
 
     def perform_update(self, serializer):
         if self.request.user.is_superuser:
-            serializer.save()
+            contrato = serializer.save()
         elif hasattr(self.request.user, 'perfil') and self.request.user.perfil.cargo in [PerfilUsuario.Cargo.ADMIN, PerfilUsuario.Cargo.CORRETOR] and serializer.instance.imobiliaria == self.request.tenant:
-            serializer.save()
+            contrato = serializer.save()
         else:
             raise PermissionDenied("Você não tem permissão para atualizar este contrato.")
+
+        # NOVO: Se o contrato for de aluguel e tiver o status ativo, garanta a criação dos pagamentos.
+        if contrato.tipo_contrato == 'Aluguel' and contrato.status_contrato == 'Ativo':
+             self._gerar_pagamentos_aluguel(contrato)
 
     def perform_destroy(self, instance):
         if self.request.user.is_superuser or (hasattr(self.request.user, 'perfil') and instance.imobiliaria == self.request.tenant and self.request.user.perfil.cargo == PerfilUsuario.Cargo.ADMIN):
@@ -136,6 +154,13 @@ class ContratoViewSet(viewsets.ModelViewSet):
             return Response(status=status.HTTP_204_NO_CONTENT)
         else:
             raise PermissionDenied("Você não tem permissão para inativar este contrato.")
+    
+    @action(detail=True, methods=['get'])
+    def pagamentos(self, request, pk=None):
+        contrato = self.get_object()
+        pagamentos = contrato.pagamentos.all()
+        serializer = PagamentoSerializer(pagamentos, many=True)
+        return Response(serializer.data)
 
 
 class PagamentoViewSet(viewsets.ModelViewSet):
