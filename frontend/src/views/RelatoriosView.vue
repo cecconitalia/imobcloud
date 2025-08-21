@@ -1,25 +1,74 @@
 <template>
   <div class="relatorios-container">
     <header class="view-header">
-      <h1>Relatórios de Desempenho</h1>
+      <h1>Relatórios da Imobiliária</h1>
     </header>
 
     <div v-if="isLoading" class="loading-message">
-      <p>A carregar relatórios...</p>
+      A carregar dados dos relatórios...
     </div>
-    
     <div v-if="error" class="error-message">
-      <p>{{ error }}</p>
+      {{ error }}
     </div>
 
-    <div v-if="relatorios.fases && relatorios.fases.length > 0" class="report-section">
-      <div class="chart-container">
-        <canvas id="oportunidadesFunilChart"></canvas>
+    <div v-else class="relatorios-wrapper">
+      <div class="relatorio-card">
+        <h3 class="card-title">Resumo do Mês Atual</h3>
+        <div class="summary-grid">
+          <div class="summary-item">
+            <span>Novas Oportunidades:</span>
+            <strong>{{ relatorios.sumario_mes_atual?.novas_oportunidades || 0 }}</strong>
+          </div>
+          <div class="summary-item">
+            <span>Oportunidades Ganhas:</span>
+            <strong>{{ relatorios.sumario_mes_atual?.oportunidades_ganhas || 0 }}</strong>
+          </div>
+          <div class="summary-item">
+            <span>Oportunidades Perdidas:</span>
+            <strong>{{ relatorios.sumario_mes_atual?.oportunidades_perdidas || 0 }}</strong>
+          </div>
+        </div>
       </div>
-    </div>
-    
-    <div v-if="!isLoading && (!relatorios.fases || relatorios.fases.length === 0) && !error" class="no-data-message">
-      <p>Nenhum dado de relatório encontrado.</p>
+
+      <div class="relatorio-card">
+        <h3 class="card-title">Oportunidades por Mês (Ano Atual)</h3>
+        <p class="chart-description">Negócios abertos, ganhos e perdidos mês a mês.</p>
+        <div class="chart-container">
+          <canvas ref="oportunidadesChartCanvas"></canvas>
+        </div>
+      </div>
+
+      <div class="relatorio-card">
+        <h3 class="card-title">Funil de Vendas por Origem</h3>
+        <p class="chart-description">Distribuição das oportunidades por fonte de lead.</p>
+        <div class="chart-container">
+          <canvas ref="origemChartCanvas"></canvas>
+        </div>
+      </div>
+
+      <div class="relatorio-card">
+        <h3 class="card-title">Desempenho dos Corretores</h3>
+        <div class="tabela-wrapper">
+          <table class="tabela-desempenho">
+            <thead>
+              <tr>
+                <th>Corretor</th>
+                <th>Oportunidades Abertas</th>
+                <th>Oportunidades Ganhas</th>
+                <th>Oportunidades Perdidas</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="corretor in relatorios.corretores_desempenho" :key="corretor.id">
+                <td>{{ corretor.nome_corretor }}</td>
+                <td>{{ corretor.oportunidades_abertas }}</td>
+                <td>{{ corretor.oportunidades_ganhas }}</td>
+                <td>{{ corretor.oportunidades_perdidas }}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
     </div>
   </div>
 </template>
@@ -27,110 +76,94 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue';
 import apiClient from '@/services/api';
-import { Chart, registerables } from 'chart.js';
+import Chart from 'chart.js/auto';
 
-Chart.register(...registerables);
+const relatorios = ref<any>({
+  sumario_mes_atual: {},
+  oportunidades_por_mes: [],
+  origem_oportunidades: [],
+  corretores_desempenho: [],
+});
 
-const relatorios = ref<any>({});
 const isLoading = ref(true);
 const error = ref<string | null>(null);
 
-async function fetchRelatorios() {
-  isLoading.value = true;
-  error.value = null;
-  try {
-    const response = await apiClient.get('/v1/clientes/relatorios/');
-    relatorios.value = response.data;
-    if (relatorios.value.fases && relatorios.value.fases.length > 0) {
-      renderFunnelChart(relatorios.value.fases);
+const oportunidadesChartCanvas = ref<HTMLCanvasElement | null>(null);
+const origemChartCanvas = ref<HTMLCanvasElement | null>(null);
+
+let oportunidadesChart: Chart | null = null;
+let origemChart: Chart | null = null;
+
+function renderCharts() {
+  if (oportunidadesChartCanvas.value) {
+    const ctx = oportunidadesChartCanvas.value.getContext('2d');
+    if (ctx) {
+      if (oportunidadesChart) oportunidadesChart.destroy();
+      oportunidadesChart = new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels: relatorios.value.oportunidades_por_mes.map((r: any) => r.mes),
+          datasets: [
+            {
+              label: 'Abertas',
+              data: relatorios.value.oportunidades_por_mes.map((r: any) => r.abertas),
+              backgroundColor: '#4DA3FF',
+            },
+            {
+              label: 'Ganhos',
+              data: relatorios.value.oportunidades_por_mes.map((r: any) => r.ganhas),
+              backgroundColor: '#28a745',
+            },
+            {
+              label: 'Perdidas',
+              data: relatorios.value.oportunidades_por_mes.map((r: any) => r.perdidas),
+              backgroundColor: '#dc3545',
+            },
+          ],
+        },
+        options: {
+          responsive: true,
+        },
+      });
     }
-  } catch (err: any) {
-    console.error('Erro ao buscar relatórios:', err);
-    if (err.response && err.response.status === 403) {
-      error.value = 'Você não tem permissão para executar essa ação.';
-    } else {
-      error.value = 'Ocorreu um erro ao carregar os dados dos relatórios.';
+  }
+
+  if (origemChartCanvas.value) {
+    const ctx = origemChartCanvas.value.getContext('2d');
+    if (ctx) {
+      if (origemChart) origemChart.destroy();
+      origemChart = new Chart(ctx, {
+        type: 'pie',
+        data: {
+          labels: relatorios.value.origem_oportunidades.map((r: any) => r.origem),
+          datasets: [
+            {
+              data: relatorios.value.origem_oportunidades.map((r: any) => r.total),
+              backgroundColor: ['#4DA3FF', '#28a745', '#ffc107', '#dc3545', '#6c757d'],
+            },
+          ],
+        },
+        options: {
+          responsive: true,
+        },
+      });
     }
-  } finally {
-    isLoading.value = false;
   }
 }
 
-function renderFunnelChart(data: any[]) {
-  const ctx = document.getElementById('oportunidadesFunilChart') as HTMLCanvasElement;
-  if (!ctx) return;
-
-  const labels = data.map(item => {
-    switch (item.fase) {
-      case 'LEAD': return 'Lead';
-      case 'CONTATO': return 'Contato';
-      case 'VISITA': return 'Visita';
-      case 'PROPOSTA': return 'Proposta';
-      case 'NEGOCIACAO': return 'Negociação';
-      case 'GANHO': return 'Ganho';
-      case 'PERDIDO': return 'Perdido';
-      default: return item.fase;
-    }
-  });
-
-  const chartData = data.map(item => item.total);
-
-  new Chart(ctx, {
-    type: 'bar',
-    data: {
-      labels: labels,
-      datasets: [{
-        label: 'Número de Oportunidades',
-        data: chartData,
-        backgroundColor: [
-          'rgba(255, 99, 132, 0.6)',
-          'rgba(54, 162, 235, 0.6)',
-          'rgba(255, 206, 86, 0.6)',
-          'rgba(75, 192, 192, 0.6)',
-          'rgba(153, 102, 255, 0.6)',
-          'rgba(40, 167, 69, 0.6)', // Ganho
-          'rgba(220, 53, 69, 0.6)' // Perdido
-        ],
-        borderColor: [
-          'rgba(255, 99, 132, 1)',
-          'rgba(54, 162, 235, 1)',
-          'rgba(255, 206, 86, 1)',
-          'rgba(75, 192, 192, 1)',
-          'rgba(153, 102, 255, 1)',
-          'rgba(40, 167, 69, 1)',
-          'rgba(220, 53, 69, 1)'
-        ],
-        borderWidth: 1
-      }]
-    },
-    options: {
-      responsive: true,
-      scales: {
-        y: {
-          beginAtZero: true,
-          title: {
-            display: true,
-            text: 'Número de Oportunidades'
-          }
-        },
-        x: {
-          title: {
-            display: true,
-            text: 'Fase'
-          }
-        }
-      },
-      plugins: {
-        legend: {
-          display: false
-        },
-        title: {
-          display: true,
-          text: 'Funil de Vendas'
-        }
-      }
-    }
-  });
+async function fetchRelatorios() {
+  isLoading.value = true;
+  try {
+    // AQUI ESTÁ A CORREÇÃO: URL alterada para o endpoint correto
+    const response = await apiClient.get('/v1/relatorios/');
+    relatorios.value = response.data;
+    renderCharts();
+  } catch (err) {
+    console.error("Erro ao carregar relatórios:", err);
+    error.value = 'Não foi possível carregar os relatórios.';
+  } finally {
+    isLoading.value = false;
+  }
 }
 
 onMounted(() => {
@@ -144,25 +177,63 @@ onMounted(() => {
 }
 .view-header {
   margin-bottom: 2rem;
-  text-align: center;
 }
-.report-section {
+.loading-message, .error-message {
+  text-align: center;
+  padding: 2rem;
+  color: #6c757d;
+}
+.error-message {
+  color: red;
+}
+.relatorios-wrapper {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+  gap: 2rem;
+}
+.relatorio-card {
   background-color: white;
   padding: 2rem;
   border-radius: 8px;
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+}
+.card-title {
+  font-size: 1.5rem;
+  margin-top: 0;
+  margin-bottom: 1rem;
+  border-bottom: 2px solid #007bff;
+  padding-bottom: 0.5rem;
+}
+.summary-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1rem;
+}
+.summary-item {
+  display: flex;
+  justify-content: space-between;
+  font-size: 1.1rem;
+}
+.chart-description {
+  color: #6c757d;
 }
 .chart-container {
+  height: 300px;
+}
+.tabela-wrapper {
+  overflow-x: auto;
+}
+.tabela-desempenho {
   width: 100%;
-  max-width: 800px;
-  margin: 0 auto;
+  border-collapse: collapse;
 }
-.loading-message, .error-message, .no-data-message {
-  text-align: center;
-  padding: 2rem;
+.tabela-desempenho th, .tabela-desempenho td {
+  padding: 1rem;
+  text-align: left;
+  border-bottom: 1px solid #e9ecef;
 }
-.error-message {
-  color: #dc3545;
+.tabela-desempenho th {
+  background-color: #f8f9fa;
   font-weight: bold;
 }
 </style>

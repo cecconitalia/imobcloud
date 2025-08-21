@@ -7,67 +7,72 @@
       </router-link>
     </header>
 
-    <div class="search-bar">
+    <div class="filters-bar">
       <input
         type="text"
         v-model="searchTerm"
-        placeholder="Pesquisar por nome, CPF/CNPJ, email..."
-        @input="fetchClientes"
+        placeholder="Pesquisar por nome, email, cpf..."
       />
     </div>
 
-    <div v-if="isLoading">A carregar...</div>
+    <div v-if="isLoading" class="loading-message">A carregar...</div>
     <div v-if="error" class="error-message">{{ error }}</div>
 
-    <table v-if="clientes.length > 0">
-      <thead>
-        <tr>
-          <th>Nome</th>
-          <th>Email</th>
-          <th>Telefone</th>
-          <th>Ações</th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr v-for="cliente in clientes" :key="cliente.id">
-          <td>{{ cliente.nome_completo }}</td>
-          <td>{{ cliente.email }}</td>
-          <td>{{ cliente.telefone }}</td>
-          <td class="actions-cell">
-            <router-link :to="`/clientes/editar/${cliente.id}`" class="btn-secondary">
-              Editar
-            </router-link>
-            <button v-if="userCargo === 'ADMIN'" @click="handleInativar(cliente.id)" class="btn-danger">
-              Inativar
-            </button>
-          </td>
-        </tr>
-      </tbody>
-    </table>
+    <div v-if="clientes.length > 0" class="clientes-grid">
+      <div v-for="cliente in filteredClientes" :key="cliente.id" class="cliente-card">
+        <div class="cliente-info">
+          <h3 class="cliente-nome">{{ cliente.nome_completo }}</h3>
+          <p class="cliente-contato">{{ cliente.email }}</p>
+          <p class="cliente-contato">{{ cliente.telefone }}</p>
+        </div>
+        <div class="cliente-actions">
+          <router-link :to="`/clientes/editar/${cliente.id}`" class="btn-action edit-btn">
+            <i class="fas fa-edit"></i>
+            <span>Editar</span>
+          </router-link>
+        </div>
+      </div>
+    </div>
 
-     <div v-if="!isLoading && clientes.length === 0 && !error">
+    <div v-if="!isLoading && clientes.length === 0 && !error" class="no-data-message">
       <p>Nenhum cliente encontrado.</p>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue';
+import { ref, onMounted, computed, watch } from 'vue';
 import apiClient from '@/services/api';
+import '@fortawesome/fontawesome-free/css/all.css';
 
 const clientes = ref<any[]>([]);
 const isLoading = ref(true);
 const error = ref<string | null>(null);
 const searchTerm = ref('');
-const userCargo = ref(''); // NOVO: Estado para guardar o cargo do utilizador
+
+let debounceTimeout: number | undefined = undefined;
+
+const filteredClientes = computed(() => {
+  if (!searchTerm.value) {
+    return clientes.value;
+  }
+  const term = searchTerm.value.toLowerCase();
+  return clientes.value.filter(cliente => 
+    cliente.nome_completo.toLowerCase().includes(term) ||
+    cliente.email.toLowerCase().includes(term) ||
+    cliente.cpf_cnpj?.toLowerCase().includes(term)
+  );
+});
 
 async function fetchClientes() {
   isLoading.value = true;
   try {
-    const params = {
-      search: searchTerm.value,
-    };
-    const response = await apiClient.get('/v1/clientes/clientes/', { params });
+    const params: { [key: string]: string } = {};
+    if (searchTerm.value) {
+      params.search = searchTerm.value;
+    }
+    // A CORREÇÃO ESTÁ AQUI: URL alterada para o endpoint correto
+    const response = await apiClient.get('/v1/clientes/', { params });
     clientes.value = response.data;
   } catch (err) {
     console.error("Erro ao buscar clientes:", err);
@@ -79,26 +84,19 @@ async function fetchClientes() {
 
 onMounted(() => {
   fetchClientes();
-  // NOVO: Lê o cargo do localStorage quando a página é carregada
-  userCargo.value = localStorage.getItem('userCargo') || '';
 });
 
-async function handleInativar(clienteId: number) {
-  if (!window.confirm('Tem a certeza de que deseja inativar este cliente?')) {
-    return;
+watch(searchTerm, () => {
+  if (debounceTimeout) {
+    clearTimeout(debounceTimeout);
   }
-  try {
-    await apiClient.delete(`/v1/clientes/clientes/${clienteId}/`);
-    clientes.value = clientes.value.filter(cliente => cliente.id !== clienteId);
-  } catch (error) {
-    console.error("Erro ao inativar cliente:", error);
-    alert("Ocorreu um erro ao tentar inativar o cliente.");
-  }
-}
+  debounceTimeout = setTimeout(() => {
+    fetchClientes();
+  }, 500);
+});
 </script>
 
 <style scoped>
-/* Estilos podem ser reutilizados */
 .clientes-container {
   padding: 2rem;
 }
@@ -118,47 +116,84 @@ async function handleInativar(clienteId: number) {
   border: none;
   cursor: pointer;
 }
-.search-bar {
+.filters-bar {
+  display: flex;
+  gap: 1rem;
   margin-bottom: 1.5rem;
 }
-.search-bar input {
-  width: 100%;
+.filters-bar input {
+  flex: 1;
   padding: 10px;
   font-size: 1rem;
   border: 1px solid #ccc;
   border-radius: 4px;
   box-sizing: border-box;
 }
-table {
-  width: 100%;
-  border-collapse: collapse;
-  margin-top: 1rem;
+.clientes-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 1.5rem;
 }
-th, td {
-  border: 1px solid #ddd;
-  padding: 8px;
-  text-align: left;
-  vertical-align: middle;
+.cliente-card {
+  background-color: white;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+  overflow: hidden;
+  transition: transform 0.2s, box-shadow 0.2s;
+  padding: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
 }
-th {
-  background-color: #f2f2f2;
+.cliente-card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 6px 16px rgba(0,0,0,0.12);
+}
+.cliente-info {
+  margin-bottom: 1rem;
+}
+.cliente-nome {
+  font-size: 1.25rem;
+  font-weight: bold;
+  margin: 0 0 0.5rem 0;
+}
+.cliente-contato {
+  margin: 0;
+  color: #6c757d;
+}
+.cliente-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  border-top: 1px solid #e9ecef;
+  padding-top: 1rem;
+}
+.btn-action {
+  background-color: #f8f9fa;
+  border: 1px solid #e9ecef;
+  padding: 8px 12px;
+  border-radius: 4px;
+  text-decoration: none;
+  color: #6c757d;
+  font-size: 0.9rem;
+  transition: background-color 0.2s;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+.btn-action:hover {
+  background-color: #e9ecef;
+}
+.edit-btn:hover {
+  background-color: #ffc107;
+  color: #333;
+}
+.loading-message, .no-data-message, .error-message {
+  text-align: center;
+  padding: 2rem;
+  color: #6c757d;
 }
 .error-message {
   color: red;
 }
-.actions-cell {
-  display: flex;
-  gap: 0.5rem;
-}
-.btn-secondary, .btn-danger {
-  color: white;
-  padding: 5px 10px;
-  border-radius: 4px;
-  text-decoration: none;
-  font-size: 0.9em;
-  border: none;
-  cursor: pointer;
-}
-.btn-secondary { background-color: #6c757d; }
-.btn-danger { background-color: #dc3545; }
 </style>
