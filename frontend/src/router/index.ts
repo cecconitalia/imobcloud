@@ -35,20 +35,17 @@ import ListaContasView from '@/views/ListaContasView.vue'
 import ContaFormView from '@/views/ContaFormView.vue'
 import ListaCategoriasView from '@/views/ListaCategoriasView.vue'
 import CategoriaFormView from '@/views/CategoriaFormView.vue'
-// ==========================================================================================
-// <<< PÁGINA ANTIGA REMOVIDA, NOVAS PÁGINAS IMPORTADAS >>>
 import ContasPagarView from '@/views/financeiro/ContasPagarView.vue';
 import ContasReceberView from '@/views/financeiro/ContasReceberView.vue';
-// ==========================================================================================
 import ListaFormasPagamentoView from '@/views/ListaFormasPagamentoView.vue'
 import FormaPagamentoFormView from '@/views/FormaPagamentoFormView.vue'
 
-// Importações das novas views de publicações
+// Importações das novas views de publicações e integrações
 import ConfiguracaoIAView from '@/views/ConfiguracaoIA.vue'
 import IntegracoesView from '@/views/IntegracoesView.vue'
 import PublicacoesView from '@/views/PublicacoesView.vue'
 import CalendarioPublicacoesView from '@/views/CalendarioPublicacoesView.vue'
-
+import ConfiguracaoBancoView from '@/views/ConfiguracaoBancoView.vue' // NOVO: Importação da nova view
 
 // Importações das views do Site Público
 import PublicHomeView from '@/views/PublicHomeView.vue'
@@ -367,6 +364,27 @@ const router = createRouter({
                         isAdmin: true
                     }
                 },
+                // NOVAS ROTAS ADICIONADAS AQUI PARA CONFIGURAÇÃO DE BANCO
+                {
+                    path: 'integracoes/bancos/nova',
+                    name: 'configuracao-banco-nova',
+                    component: ConfiguracaoBancoView,
+                    meta: {
+                        title: 'Nova Configuração de Banco',
+                        requiresAuth: true,
+                        isAdmin: true
+                    }
+                },
+                {
+                    path: 'integracoes/bancos/editar/:id',
+                    name: 'configuracao-banco-editar',
+                    component: ConfiguracaoBancoView,
+                    meta: {
+                        title: 'Editar Configuração de Banco',
+                        requiresAuth: true,
+                        isAdmin: true
+                    }
+                },
                 {
                     path: 'financeiro',
                     name: 'financeiro',
@@ -512,8 +530,6 @@ const router = createRouter({
                         isAdmin: true
                     }
                 },
-                // ==========================================================================================
-                // <<< ROTA ANTIGA REMOVIDA E NOVAS ROTAS ADICIONADAS >>>
                 {
                     path: 'financeiro/contas-a-pagar',
                     name: 'contas-a-pagar',
@@ -534,7 +550,6 @@ const router = createRouter({
                         isAdmin: true
                     }
                 },
-                // ==========================================================================================
             ]
         },
 

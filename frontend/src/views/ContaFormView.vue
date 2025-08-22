@@ -58,7 +58,7 @@ interface Conta {
   id?: number;
   nome: string;
   banco: string;
-  agencia: string; // Adicionado o novo campo 'agencia'
+  agencia: string;
   numero_conta: string;
   saldo_inicial: number;
 }
@@ -69,7 +69,7 @@ const router = useRouter();
 const conta = ref<Conta>({
   nome: '',
   banco: '',
-  agencia: '', // Inicializado o novo campo
+  agencia: '',
   numero_conta: '',
   saldo_inicial: 0,
 });
@@ -84,8 +84,7 @@ const fetchConta = async (id: number) => {
   isLoading.value = true;
   error.value = null;
   try {
-    // CORREÇÃO AQUI: URL alterada para o caminho correto
-    const response = await api.get(`/v1/contas/${id}/?status=inativo`);
+    const response = await api.get(`/v1/financeiro/contas/${id}/`);
     conta.value = response.data;
   } catch (err) {
     console.error('Erro ao buscar conta:', err);
@@ -98,11 +97,9 @@ const fetchConta = async (id: number) => {
 const submitForm = async () => {
   try {
     if (isEditing.value) {
-      // CORREÇÃO AQUI: URL alterada para o caminho correto
-      await api.put(`/v1/contas/${conta.value.id}/`, conta.value);
+      await api.put(`/v1/financeiro/contas/${conta.value.id}/`, conta.value);
     } else {
-      // CORREÇÃO AQUI: URL alterada para o caminho correto
-      await api.post('/v1/contas/', conta.value);
+      await api.post('/v1/financeiro/contas/', conta.value);
     }
     router.push({ name: 'lista-contas' });
   } catch (err: any) {

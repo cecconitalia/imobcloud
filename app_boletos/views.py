@@ -2,7 +2,7 @@
 
 from rest_framework.views import APIView
 from rest_framework.response import Response
-from rest_framework import status
+from rest_framework import status, viewsets
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.exceptions import ValidationError, PermissionDenied
 from django.shortcuts import get_object_or_404
@@ -12,6 +12,7 @@ from .serializers import GerarBoletoRequestSerializer, BoletoSerializer, Configu
 from .models import Boleto, ConfiguracaoBanco
 from .bradesco_api import BradescoAPI
 from app_financeiro.models import Transacao
+from app_contratos.models import Pagamento
 
 class ConfiguracaoBancoListView(APIView):
     """
@@ -98,3 +99,27 @@ class GerarBoletoView(APIView):
 
         except Exception as e:
             return Response({"mensagem": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+class ConfiguracaoBancoViewSet(viewsets.ModelViewSet):
+    """
+    ViewSet para gerir as configurações de banco.
+    """
+    queryset = ConfiguracaoBanco.objects.all()
+    serializer_class = ConfiguracaoBancoSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        if self.request.user.is_superuser:
+            return ConfiguracaoBanco.objects.all()
+        return ConfiguracaoBanco.objects.filter(imobiliaria=self.request.tenant)
+
+    def perform_create(self, serializer):
+        if not self.request.tenant:
+            raise PermissionDenied("Não foi possível associar a configuração a uma imobiliária.")
+        serializer.save(imobiliaria=self.request.tenant)
+
+    def perform_update(self, serializer):
+        if self.request.user.is_superuser or serializer.instance.imobiliaria == self.request.tenant:
+            serializer.save()
+        else:
+            raise PermissionDenied("Você não tem permissão para atualizar esta configuração de banco.")

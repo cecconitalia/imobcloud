@@ -34,8 +34,8 @@ urlpatterns = [
     path('api/v1/', include('app_contratos.urls')),
     path('api/v1/financeiro/', include('app_financeiro.urls')),
     path('api/v1/alugueis/', include('app_alugueis.urls')),
+    # CORREÇÃO: a URL da app de boletos deve ser incluída sem um prefixo adicional
     path('api/v1/boletos/', include('app_boletos.urls')),
-
     
     # Rota corrigida para a app de publicações
     path('api/v1/publicacoes/', include('app_publicacoes.urls')),
