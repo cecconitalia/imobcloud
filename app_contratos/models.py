@@ -1,12 +1,11 @@
-# app_contratos/models.py
+# Em app_contratos/models.py
 
 from django.db import models
 from core.models import Imobiliaria
 from app_imoveis.models import Imovel
 from app_clientes.models import Cliente
 from django.utils import timezone
-# Removida a importação direta para evitar importação circular
-# from app_financeiro.models import FormaPagamento
+from app_financeiro.models import FormaPagamento
 
 class Contrato(models.Model):
     TIPO_CONTRATO_CHOICES = [
@@ -48,12 +47,9 @@ class Contrato(models.Model):
         decimal_places=2, 
         verbose_name="Valor Total do Contrato"
     )
-    # ==========================================================================================
-    # <<< CAMPO CORRIGIDO AQUI >>>
     informacoes_adicionais = models.TextField(
         blank=True, null=True, verbose_name="Informações Adicionais"
     )
-    # ==========================================================================================
     duracao_meses = models.PositiveIntegerField(
         default=12,
         verbose_name="Duração do Contrato (em meses)",
@@ -71,11 +67,11 @@ class Contrato(models.Model):
     data_assinatura = models.DateField(verbose_name="Data de Assinatura")
     data_cadastro = models.DateTimeField(auto_now_add=True, verbose_name="Data de Registro")
 
-    formas_pagamento = models.ManyToManyField(
-        'app_financeiro.FormaPagamento',
-        blank=True,
-        verbose_name="Formas de Pagamento Aceitas"
-    )
+    #formas_pagamento = models.ManyToManyField(
+    #    'app_financeiro.FormaPagamento',
+    #    blank=True,
+    #   verbose_name="Formas de Pagamento Aceitas"
+    #)
 
     class Meta:
         verbose_name = "Contrato"
@@ -94,25 +90,18 @@ class Pagamento(models.Model):
         ('CANCELADO', 'Cancelado'),
     ]
 
-    FORMA_PAGAMENTO_CHOICES = [
-        ('BOLETO', 'Boleto'),
-        ('PIX', 'PIX'),
-        ('TRANSFERENCIA', 'Transferência Bancária'),
-        ('DINHEIRO', 'Dinheiro'),
-        ('CARTAO', 'Cartão de Crédito/Débito'),
-        ('OUTRO', 'Outro'),
-    ]
-
     contrato = models.ForeignKey(Contrato, on_delete=models.CASCADE, related_name="pagamentos", verbose_name="Contrato")
     valor = models.DecimalField(max_digits=15, decimal_places=2, verbose_name="Valor do Pagamento")
     data_vencimento = models.DateField(verbose_name="Data de Vencimento")
     data_pagamento = models.DateField(null=True, blank=True, verbose_name="Data de Pagamento")
     status = models.CharField(max_length=20, choices=STATUS_PAGAMENTO_CHOICES, default='PENDENTE', verbose_name="Status")
-    forma_pagamento_recebida = models.CharField(
-        max_length=20,
-        choices=FORMA_PAGAMENTO_CHOICES,
-        null=True, blank=True,
-        verbose_name="Forma de Pagamento"
+    
+    forma_pagamento_recebida = models.ForeignKey(
+        'app_financeiro.FormaPagamento',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        verbose_name="Forma de Pagamento Recebida"
     )
 
     class Meta:

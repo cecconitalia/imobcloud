@@ -5,7 +5,6 @@ from core.models import Imobiliaria
 from django.utils import timezone
 from django.core.validators import MinValueValidator
 from app_imoveis.models import Imovel
-# from app_contratos.models import Contrato, Pagamento # <<< REMOVA ESTA LINHA
 
 class Categoria(models.Model):
     TIPO_CHOICES = [
@@ -50,17 +49,15 @@ class ContaBancaria(models.Model):
         super().save(*args, **kwargs)
 
 class FormaPagamento(models.Model):
-    """
-    Novo modelo para cadastrar as formas de pagamento disponíveis.
-    """
-    nome = models.CharField(max_length=50, unique=True)
-    slug = models.SlugField(unique=True)
+    nome = models.CharField(max_length=50)
+    slug = models.SlugField()
     imobiliaria = models.ForeignKey(Imobiliaria, on_delete=models.CASCADE)
     ativo = models.BooleanField(default=True)
 
     class Meta:
         verbose_name = "Forma de Pagamento"
         verbose_name_plural = "Formas de Pagamento"
+        unique_together = (('imobiliaria', 'nome'), ('imobiliaria', 'slug'),)
 
     def __str__(self):
         return self.nome
@@ -89,17 +86,12 @@ class Transacao(models.Model):
     categoria = models.ForeignKey(Categoria, on_delete=models.SET_NULL, null=True, blank=True)
     conta_bancaria = models.ForeignKey(ContaBancaria, on_delete=models.PROTECT)
     imovel = models.ForeignKey(Imovel, on_delete=models.SET_NULL, null=True, blank=True)
-    
-    # ==========================================================================================
-    # <<< CORREÇÃO APLICADA AQUI >>>
     contrato = models.ForeignKey(
-        'app_contratos.Contrato', # Alterado para string
+        'app_contratos.Contrato',
         on_delete=models.SET_NULL,
         null=True, blank=True,
         related_name="transacoes"
     )
-    # ==========================================================================================
-
     forma_pagamento = models.ForeignKey(
         'FormaPagamento',
         on_delete=models.SET_NULL,
