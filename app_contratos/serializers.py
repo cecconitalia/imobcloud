@@ -8,7 +8,7 @@ from app_imoveis.models import Imovel
 from app_financeiro.models import FormaPagamento
 
 class PagamentoSerializer(serializers.ModelSerializer):
-    forma_pagamento_display = serializers.CharField(source='get_forma_pagamento_recebida_display', read_only=True)
+    forma_pagamento_display = serializers.StringRelatedField(source='forma_pagamento_recebida', read_only=True)
     class Meta:
         model = Pagamento
         fields = '__all__'
@@ -57,13 +57,13 @@ class ContratoWriteSerializer(serializers.ModelSerializer):
     
     class Meta:
         model = Contrato
-        # ==========================================================================================
-        # <<< LISTA DE CAMPOS CORRIGIDA >>>
         fields = [
             'id', 'imovel', 'inquilino', 'proprietario', 'tipo_contrato',
             'data_inicio', 'data_fim', 'data_assinatura', 'duracao_meses',
             'valor_total', 'status_contrato', 'informacoes_adicionais',
             'formas_pagamento'
         ]
-        # ==========================================================================================
         read_only_fields = ['imobiliaria']
+    
+    # OS MÉTODOS create() E update() FORAM REMOVIDOS DESTE ARQUIVO.
+    # A LÓGICA AGORA VIVERÁ EXCLUSIVAMENTE NA VIEW.

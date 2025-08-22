@@ -22,14 +22,11 @@ from django.template.loader import render_to_string
 from django.utils import timezone
 from rest_framework.decorators import action
 
-# NOVAS IMPORTAÇÕES PARA AUTOMATIZAR PAGAMENTOS
 from app_financeiro.models import Transacao, Categoria, ContaBancaria
 from django.db import transaction
 from decimal import Decimal
 from django.db.models import F
 
-
-# Helper para encontrar a categoria padrão de aluguéis
 def get_categoria_aluguel(imobiliaria: Imobiliaria) -> Categoria:
     categoria, _ = Categoria.objects.get_or_create(
         imobiliaria=imobiliaria,
@@ -38,19 +35,17 @@ def get_categoria_aluguel(imobiliaria: Imobiliaria) -> Categoria:
     )
     return categoria
 
-# Helper para encontrar uma conta bancária padrão
 def get_conta_bancaria_padrao(imobiliaria: Imobiliaria) -> ContaBancaria:
     conta = ContaBancaria.objects.filter(imobiliaria=imobiliaria, ativo=True).first()
     if not conta:
-        raise PermissionDenied(f"Nenhuma conta bancária ativa encontrada para {imobiliaria.nome}.")
+        raise ValidationError(f"Nenhuma conta bancária ativa encontrada para a imobiliária {imobiliaria.nome}. Por favor, cadastre e ative uma conta em Financeiro > Gerir Contas antes de criar um contrato de aluguel.")
     return conta
-
 
 class ContratoViewSet(viewsets.ModelViewSet):
     queryset = Contrato.objects.all()
     permission_classes = [IsAuthenticated]
     filter_backends = [filters.SearchFilter]
-    search_fields = ['imovel__endereco', 'inquilino__nome_completo', 'condicoes_pagamento']
+    search_fields = ['imovel__endereco', 'inquilino__nome_completo', 'informacoes_adicionais']
 
     def get_serializer_class(self):
         if self.action == 'list':
@@ -72,13 +67,10 @@ class ContratoViewSet(viewsets.ModelViewSet):
             return
 
         if Pagamento.objects.filter(contrato=contrato).exists():
-            print(f"AVISO: Pagamentos para o contrato {contrato.id} já existem. Pulando a criação.")
             return
         
-        # CORREÇÃO CRUCIAL: Usar o valor do contrato para a parcela
         valor_parcela = contrato.valor_total
         if not valor_parcela or valor_parcela <= 0:
-            print(f"AVISO: Contrato {contrato.id} de aluguel sem valor total definido ou com valor zero. Pagamentos não criados.")
             return
 
         try:
@@ -105,47 +97,50 @@ class ContratoViewSet(viewsets.ModelViewSet):
                     categoria=categoria,
                     conta_bancaria=conta_bancaria
                 )
-            print(f"SUCESSO: {contrato.duracao_meses} pagamentos de aluguel criados para o contrato {contrato.id}.")
-
-        except PermissionDenied as e:
-            print(f"ERRO: Falha ao gerar pagamentos para o contrato {contrato.id}: {e}")
+        except ValidationError as e:
+            raise e
         except Exception as e:
-            print(f"ERRO: Erro inesperado ao gerar pagamentos para o contrato {contrato.id}: {e}")
+            raise ValidationError("Ocorreu um erro inesperado ao gerar as parcelas financeiras.")
+
+    # ==========================================================================================
+    # <<< LÓGICA DE CRIAÇÃO E ATUALIZAÇÃO DEFINITIVAMENTE CORRIGIDA >>>
+    @transaction.atomic
+    def create(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        
+        # Separa os dados ManyToMany
+        formas_pagamento_data = serializer.validated_data.pop('formas_pagamento', [])
+        
+        # Adiciona a imobiliária aos dados restantes
+        validated_data = serializer.validated_data
+        validated_data['imobiliaria'] = self.request.tenant
+
+        # Cria o objeto Contrato manualmente
+        contrato = Contrato.objects.create(**validated_data)
+        
+        # Associa os dados ManyToMany
+        if formas_pagamento_data:
+            contrato.formas_pagamento.set(formas_pagamento_data)
+        
+        # Gera as parcelas
+        self._gerar_pagamentos_aluguel(contrato)
+        
+        headers = self.get_success_headers(serializer.data)
+        return Response(ContratoDetailSerializer(contrato).data, status=status.HTTP_201_CREATED, headers=headers)
 
     @transaction.atomic
-    def perform_create(self, serializer):
-        imovel = serializer.validated_data.get('imovel')
-        inquilino = serializer.validated_data.get('inquilino')
-        proprietario = serializer.validated_data.get('proprietario')
-        
-        if serializer.validated_data.get('tipo_contrato') == 'Aluguel' and not (inquilino and proprietario):
-             raise ValidationError("Para contratos de Aluguel, 'Inquilino' e 'Proprietário' são obrigatórios.")
-
-        if not self.request.user.is_superuser:
-            if not (hasattr(self.request.user, 'perfil') and self.request.user.perfil.cargo in [PerfilUsuario.Cargo.ADMIN, PerfilUsuario.Cargo.CORRETOR]):
-                raise PermissionDenied("Você não tem permissão para criar contratos.")
-            
-            if imovel.imobiliaria != self.request.tenant:
-                raise PermissionDenied("Não é permitido criar contratos com imóveis de outra imobiliária.")
-            if inquilino and inquilino.imobiliaria != self.request.tenant:
-                 raise PermissionDenied("Não é permitido criar contratos com inquilinos de outra imobiliária.")
-            if proprietario and proprietario.imobiliaria != self.request.tenant:
-                 raise PermissionDenied("Não é permitido criar contratos com proprietários de outra imobiliária.")
-
-        contrato = serializer.save(imobiliaria=self.request.tenant)
-        self._gerar_pagamentos_aluguel(contrato)
-
     def perform_update(self, serializer):
-        if self.request.user.is_superuser:
-            contrato = serializer.save()
-        elif hasattr(self.request.user, 'perfil') and self.request.user.perfil.cargo in [PerfilUsuario.Cargo.ADMIN, PerfilUsuario.Cargo.CORRETOR] and serializer.instance.imobiliaria == self.request.tenant:
-            contrato = serializer.save()
-        else:
-            raise PermissionDenied("Você não tem permissão para atualizar este contrato.")
+        formas_pagamento_data = serializer.validated_data.pop('formas_pagamento', None)
 
-        # NOVO: Se o contrato for de aluguel e tiver o status ativo, garanta a criação dos pagamentos.
+        contrato = serializer.save()
+
+        if formas_pagamento_data is not None:
+            contrato.formas_pagamento.set(formas_pagamento_data)
+
         if contrato.tipo_contrato == 'Aluguel' and contrato.status_contrato == 'Ativo':
              self._gerar_pagamentos_aluguel(contrato)
+    # ==========================================================================================
 
     def perform_destroy(self, instance):
         if self.request.user.is_superuser or (hasattr(self.request.user, 'perfil') and instance.imobiliaria == self.request.tenant and self.request.user.perfil.cargo == PerfilUsuario.Cargo.ADMIN):
@@ -162,7 +157,6 @@ class ContratoViewSet(viewsets.ModelViewSet):
         serializer = PagamentoSerializer(pagamentos, many=True)
         return Response(serializer.data)
 
-
 class PagamentoViewSet(viewsets.ModelViewSet):
     queryset = Pagamento.objects.all()
     serializer_class = PagamentoSerializer
@@ -176,43 +170,23 @@ class PagamentoViewSet(viewsets.ModelViewSet):
             return Pagamento.objects.filter(contrato__imobiliaria=self.request.tenant)
         return Pagamento.objects.none()
 
-
 class GerarReciboView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request, pagamento_id, *args, **kwargs):
-        try:
-            pagamento = get_object_or_404(
-                Pagamento.objects.select_related(
-                    'contrato__inquilino',
-                    'contrato__imovel', 
-                    'contrato__imobiliaria'
-                ), 
-                pk=pagamento_id
-            )
-
-            user = request.user
-            if not user.is_superuser and pagamento.contrato.imobiliaria != request.tenant:
-                raise PermissionDenied("Você não tem permissão para gerar este recibo.")
-            
-            if pagamento.contrato.tipo_contrato != 'Aluguel':
-                 return HttpResponse("Este contrato não é de aluguel.", status=400)
-
-
-            context = {
-                'pagamento': pagamento,
-                'contrato': pagamento.contrato,
-                'cliente': pagamento.contrato.inquilino,
-                'imovel': pagamento.contrato.imovel,
-                'imobiliaria': pagamento.contrato.imobiliaria,
-                'data_emissao': timezone.now().date(),
-            }
-
-            html_string = render_to_string('recibo_template.html', context)
-            
-            return HttpResponse(html_string)
-
-        except Pagamento.DoesNotExist:
-            return HttpResponse("Pagamento não encontrado.", status=404)
-        except Exception as e:
-            return HttpResponse(f"Ocorreu um erro: {e}", status=500)
+        pagamento = get_object_or_404(Pagamento, pk=pagamento_id)
+        user = request.user
+        if not user.is_superuser and pagamento.contrato.imobiliaria != self.request.tenant:
+            raise PermissionDenied("Você não tem permissão para gerar este recibo.")
+        if pagamento.contrato.tipo_contrato != 'Aluguel':
+             return HttpResponse("Este contrato não é de aluguel.", status=400)
+        context = {
+            'pagamento': pagamento,
+            'contrato': pagamento.contrato,
+            'cliente': pagamento.contrato.inquilino,
+            'imovel': pagamento.contrato.imovel,
+            'imobiliaria': pagamento.contrato.imobiliaria,
+            'data_emissao': timezone.now().date(),
+        }
+        html_string = render_to_string('recibo_template.html', context)
+        return HttpResponse(html_string)

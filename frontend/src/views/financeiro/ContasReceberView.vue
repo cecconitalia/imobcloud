@@ -92,17 +92,27 @@
               <td class="text-center">
                 <span class="status-badge" :class="getStatusClass(conta)">{{ getStatusLabel(conta) }}</span>
               </td>
-              <td class="text-center">
+              <td class="text-center actions-cell">
                 <button v-if="conta.status !== 'PAGO'" @click="abrirFormularioPagamento(conta.id)" class="action-button pay-button">
                   ✓ Receber
                 </button>
-              </td>
+                <button v-if="conta.status !== 'PAGO'" @click="abrirModalBoleto(conta)" class="action-button boleto-button">
+                  <i class="fas fa-barcode"></i> Boleto
+                </button>
+                </td>
             </tr>
           </tbody>
         </table>
       </div>
     </div>
-  </div>
+
+    <GerarBoletoModal
+      v-if="isBoletoModalVisible"
+      :pagamento="selectedConta"
+      @close="fecharModalBoleto"
+      @boletoGerado="handleBoletoGerado"
+    />
+    </div>
 </template>
 
 <script setup lang="ts">
@@ -110,6 +120,12 @@ import { ref, onMounted, watch } from 'vue';
 import { useRouter } from 'vue-router'; 
 import api from '@/services/api';
 import { debounce } from 'lodash';
+import '@fortawesome/fontawesome-free/css/all.css';
+// ==========================================================================================
+// <<< IMPORTAÇÃO DO NOVO COMPONENTE >>>
+import GerarBoletoModal from '@/components/GerarBoletoModal.vue';
+// ==========================================================================================
+
 
 // Interfaces
 interface Conta { id: number; data_vencimento: string; descricao: string; categoria_nome?: string; valor: number; status: 'PENDENTE' | 'PAGO' | 'ATRASADO'; contrato: number | null; cliente_nome: string; }
@@ -127,6 +143,12 @@ const router = useRouter();
 const isLoading = ref(true);
 const contas = ref<Conta[]>([]);
 
+// ==========================================================================================
+// <<< NOVAS VARIÁVEIS DE ESTADO PARA O MODAL >>>
+const isBoletoModalVisible = ref(false);
+const selectedConta = ref<Conta | null>(null);
+// ==========================================================================================
+
 // Methods
 const fetchStats = async () => {
   try {
@@ -136,7 +158,7 @@ const fetchStats = async () => {
 };
 const fetchCategorias = async () => {
   try {
-    const response = await api.get('/v1/financeiro/categorias/?tipo=RECEITA'); // Apenas categorias de receita
+    const response = await api.get('/v1/financeiro/categorias/?tipo=RECEITA');
     categorias.value = response.data;
   } catch (error) { console.error('Erro ao buscar categorias:', error); }
 };
@@ -179,6 +201,24 @@ const isAtrasado = (date: string) => new Date(date + 'T00:00:00') < new Date(new
 const getStatusClass = (c: Conta) => c.status === 'PAGO' ? 'status-pago' : isAtrasado(c.data_vencimento) ? 'status-atrasado' : 'status-pendente';
 const getStatusLabel = (c: Conta) => c.status === 'PAGO' ? 'Pago' : isAtrasado(c.data_vencimento) ? 'Atrasado' : 'Pendente';
 
+// ==========================================================================================
+// <<< NOVAS FUNÇÕES PARA CONTROLAR O MODAL >>>
+const abrirModalBoleto = (conta: Conta) => {
+  selectedConta.value = conta;
+  isBoletoModalVisible.value = true;
+};
+const fecharModalBoleto = () => {
+  isBoletoModalVisible.value = false;
+  selectedConta.value = null;
+};
+const handleBoletoGerado = () => {
+  fecharModalBoleto();
+  alert('Boleto gerado e registrado com sucesso!');
+  fetchData(); // Atualiza a lista para refletir possíveis mudanças
+};
+// ==========================================================================================
+
+
 // Lifecycle
 watch(filters, debouncedFetchData, { deep: true });
 onMounted(() => {
@@ -189,7 +229,6 @@ onMounted(() => {
 </script>
 
 <style scoped>
-/* Estilos são os mesmos da página de Contas a Pagar */
 .page-container { max-width: 1200px; margin: 2rem auto; padding: 0 1rem; }
 .header-section { margin-bottom: 2rem; }
 .page-title { font-size: 2.2rem; font-weight: bold; }
@@ -225,10 +264,13 @@ onMounted(() => {
 .descricao-cell small { font-size: 0.8rem; color: #6c757d; }
 .text-right { text-align: right; }
 .text-center { text-align: center; }
+.actions-cell { display: flex; gap: 0.5rem; justify-content: center; }
 .status-badge { padding: 5px 12px; border-radius: 15px; font-size: 0.8rem; font-weight: bold; color: white; text-transform: uppercase; }
 .status-pendente { background-color: #ffc107; color: #212529; }
 .status-atrasado { background-color: #dc3545; }
 .status-pago { background-color: #28a745; }
-.action-button { padding: 6px 12px; border-radius: 5px; border: none; cursor: pointer; font-weight: 500; color: white; background-color: #28a745; }
+.action-button { padding: 6px 12px; border-radius: 5px; border: none; cursor: pointer; font-weight: 500; color: white; display: flex; align-items: center; gap: 0.5rem; }
+.pay-button { background-color: #28a745; }
+.boleto-button { background-color: #17a2b8; }
 .loading-state { text-align: center; padding: 2rem; }
 </style>
