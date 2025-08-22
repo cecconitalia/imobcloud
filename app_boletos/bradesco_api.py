@@ -30,7 +30,7 @@ class BradescoAPI:
             if not self.config.certificado_file or not self.config.chave_privada_file:
                  raise ValueError("Arquivos de certificado e chave privada não configurados para o Bradesco.")
             
-            # Obtém os caminhos completos dos arquivos no sistema de arquivos
+            # APENAS OBTEMOS OS CAMINHOS DOS ARQUIVOS, SEM LER O CONTEÚDO
             self.cert_path = default_storage.path(self.config.certificado_file.name)
             self.key_path = default_storage.path(self.config.chave_privada_file.name)
 
@@ -46,7 +46,6 @@ class BradescoAPI:
     def _get_access_token(self):
         """
         Obtém o token de acesso da API, usando cache para evitar requisições repetidas.
-        O token do Bradesco dura 1 hora.
         """
         cache_key = f'bradesco_token_{self.imobiliaria.id}'
         token_data = cache.get(cache_key)
@@ -70,7 +69,8 @@ class BradescoAPI:
         url = self._get_api_base_url() + self.TOKEN_URL
 
         try:
-            # CORREÇÃO: Passa os caminhos dos arquivos para 'requests', que irá gerenciá-los
+            # CORREÇÃO: Passamos a tupla com os CAMINHOS dos arquivos para o parâmetro 'cert'.
+            # A biblioteca 'requests' se encarrega de abrir e ler os arquivos da forma correta.
             response = requests.post(
                 url, 
                 data=data, 
@@ -109,10 +109,10 @@ class BradescoAPI:
             'Authorization': f'Bearer {access_token}',
         }
         
-        url = self._get_api_base_url() + '/path/para/gerar/boleto'
+        url = self._get_api_base_url() + '/path/para/gerar/boleto' # Lembre-se de substituir pelo endpoint real
         
         try:
-            # CORREÇÃO: Passa os caminhos dos arquivos para 'requests', que irá gerenciá-los
+            # A mesma correção é aplicada aqui
             response = requests.post(
                 url,
                 data=json.dumps(dados_boleto),

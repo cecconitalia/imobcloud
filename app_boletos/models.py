@@ -23,10 +23,15 @@ class ConfiguracaoBanco(models.Model):
         choices=BANCO_CHOICES,
         verbose_name="Banco"
     )
-    client_id = models.CharField(max_length=255, verbose_name="Client ID")
-    client_secret = models.CharField(max_length=255, verbose_name="Client Secret")
+    # CORREÇÃO: Tornando os campos da API opcionais
+    client_id = models.CharField(max_length=255, verbose_name="Client ID", blank=True, null=True)
+    client_secret = models.CharField(max_length=255, verbose_name="Client Secret", blank=True, null=True)
     
-    # NOVOS CAMPOS ADICIONADOS
+    # NOVOS CAMPOS PARA CNAB
+    agencia = models.CharField(max_length=10, help_text="Agência sem o dígito verificador.", default="0000")
+    conta = models.CharField(max_length=20, help_text="Número da conta sem o dígito verificador.", default="00000")
+    convenio = models.CharField(max_length=20, help_text="Número do convênio ou cedente.", default="0000000")
+
     certificado_file = models.FileField(
         upload_to='bradesco_certs/',
         blank=True,
@@ -40,6 +45,7 @@ class ConfiguracaoBanco(models.Model):
         verbose_name="Arquivo da Chave Privada (KEY)"
     )
 
+
     class Meta:
         verbose_name = "Configuração do Banco"
         verbose_name_plural = "Configurações dos Bancos"
@@ -48,49 +54,50 @@ class ConfiguracaoBanco(models.Model):
     def __str__(self):
         return f"Configuração {self.nome_banco} para {self.imobiliaria.nome}"
 
-class Boleto(models.Model):
-    """
-    Representa um boleto gerado para uma transação de receita.
-    """
-    STATUS_BOLETO_CHOICES = [
-        ('EMITIDO', 'Emitido'),
-        ('REGISTRADO', 'Registrado'),
-        ('PAGO', 'Pago'),
-        ('VENCIDO', 'Vencido'),
-        ('CANCELADO', 'Cancelado')
-    ]
-    
-    imobiliaria = models.ForeignKey(Imobiliaria, on_delete=models.CASCADE, verbose_name="Imobiliária")
-    transacao = models.OneToOneField(
-        Transacao, 
-        on_delete=models.CASCADE, 
-        related_name="boleto",
-        verbose_name="Transação Relacionada"
-    )
-    configuracao = models.ForeignKey(
-        ConfiguracaoBanco, 
-        on_delete=models.PROTECT,
-        verbose_name="Configuração de Banco"
-    )
-
-    codigo_barras = models.CharField(max_length=255, verbose_name="Código de Barras")
-    linha_digitavel = models.CharField(max_length=255, verbose_name="Linha Digitável")
-    url_boleto = models.URLField(max_length=2000, verbose_name="URL do Boleto (PDF)", null=True, blank=True)
-    
-    status = models.CharField(
-        max_length=50, 
-        choices=STATUS_BOLETO_CHOICES, 
-        default='EMITIDO',
-        verbose_name="Status do Boleto"
-    )
-    
-    data_emissao = models.DateTimeField(auto_now_add=True, verbose_name="Data de Emissão")
-    data_vencimento = models.DateField(verbose_name="Data de Vencimento")
-    data_pagamento = models.DateField(null=True, blank=True, verbose_name="Data de Pagamento")
+class ArquivoRemessa(models.Model):
+    """ Armazena o registro de um arquivo de remessa gerado. """
+    imobiliaria = models.ForeignKey(Imobiliaria, on_delete=models.CASCADE)
+    configuracao_banco = models.ForeignKey(ConfiguracaoBanco, on_delete=models.PROTECT)
+    data_geracao = models.DateTimeField(auto_now_add=True)
+    arquivo = models.FileField(upload_to='remessas/')
     
     class Meta:
-        verbose_name = "Boleto"
-        verbose_name_plural = "Boletos"
+        verbose_name = "Arquivo de Remessa"
+        verbose_name_plural = "Arquivos de Remessa"
+        ordering = ['-data_geracao']
+
+class ArquivoRetorno(models.Model):
+    """ Armazena o registro e o conteúdo de um arquivo de retorno processado. """
+    imobiliaria = models.ForeignKey(Imobiliaria, on_delete=models.CASCADE)
+    configuracao_banco = models.ForeignKey(ConfiguracaoBanco, on_delete=models.PROTECT)
+    data_processamento = models.DateTimeField(auto_now_add=True)
+    arquivo = models.FileField(upload_to='retornos/')
+    log_processamento = models.TextField(blank=True, null=True)
+
+    class Meta:
+        verbose_name = "Arquivo de Retorno"
+        verbose_name_plural = "Arquivos de Retorno"
+        ordering = ['-data_processamento']
+
+class Boleto(models.Model):
+    """
+    Representa um boleto individualmente, agora vinculado a uma remessa.
+    """
+    STATUS_BOLETO_CHOICES = [
+        ('PENDENTE', 'Pendente de Remessa'),
+        ('ENVIADO', 'Enviado ao Banco'),
+        ('PAGO', 'Pago'),
+        ('BAIXADO', 'Baixado/Cancelado')
+    ]
     
+    transacao = models.OneToOneField(Transacao, on_delete=models.CASCADE, related_name="boleto")
+    remessa = models.ForeignKey(ArquivoRemessa, on_delete=models.SET_NULL, null=True, blank=True, related_name="boletos")
+    retorno = models.ForeignKey(ArquivoRetorno, on_delete=models.SET_NULL, null=True, blank=True, related_name="boletos")
+    
+    nosso_numero = models.CharField(max_length=20, verbose_name="Nosso Número")
+    status = models.CharField(max_length=20, choices=STATUS_BOLETO_CHOICES, default='PENDENTE')
+    data_pagamento = models.DateField(null=True, blank=True)
+    valor_pago = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+
     def __str__(self):
-        return f"Boleto #{self.id} - {self.transacao.descricao}"
+        return f"Boleto para transação #{self.transacao.id} - {self.status}"

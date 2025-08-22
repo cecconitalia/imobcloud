@@ -20,18 +20,39 @@
           </select>
         </div>
 
+        <hr>
+        <h4>Dados para Remessa (CNAB)</h4>
+        
+        <div class="form-group">
+          <label for="agencia" class="form-label">Agência (sem dígito):</label>
+          <input type="text" id="agencia" v-model="config.agencia" class="form-input" required>
+        </div>
+        
+        <div class="form-group">
+          <label for="conta" class="form-label">Conta Corrente (sem dígito):</label>
+          <input type="text" id="conta" v-model="config.conta" class="form-input" required>
+        </div>
+        
+        <div class="form-group">
+          <label for="convenio" class="form-label">Convênio / Código do Cedente:</label>
+          <input type="text" id="convenio" v-model="config.convenio" class="form-input" required>
+        </div>
+
+        <hr>
+        <h4>Credenciais da API (Opcional, para consulta direta)</h4>
+
         <div class="form-group">
           <label for="client_id" class="form-label">Client ID:</label>
-          <input type="text" id="client_id" v-model="config.client_id" class="form-input" required>
+          <input type="text" id="client_id" v-model="config.client_id" class="form-input">
         </div>
         
         <div class="form-group">
           <label for="client_secret" class="form-label">Client Secret:</label>
-          <input type="text" id="client_secret" v-model="config.client_secret" class="form-input" required>
+          <input type="text" id="client_secret" v-model="config.client_secret" class="form-input">
         </div>
         
         <hr>
-        <h4>Certificados (apenas para Bradesco)</h4>
+        <h4>Certificados (Opcional, para API Bradesco)</h4>
         
         <div class="form-group">
             <label for="certificado_file" class="form-label">Certificado (CRT/PEM):</label>
@@ -72,6 +93,10 @@ interface Config {
   client_secret: string;
   certificado_file: File | string | null;
   chave_privada_file: File | string | null;
+  // NOVOS CAMPOS
+  agencia: string;
+  conta: string;
+  convenio: string;
 }
 
 const route = useRoute();
@@ -83,6 +108,9 @@ const config = ref<Config>({
   client_secret: '',
   certificado_file: null,
   chave_privada_file: null,
+  agencia: '',
+  conta: '',
+  convenio: '',
 });
 
 const isLoading = ref(false);
@@ -114,7 +142,8 @@ const handleFileChange = (field: keyof Config, event: Event) => {
   }
 };
 
-const getFileName = (file: File | string) => {
+const getFileName = (file: File | string | null) => {
+    if (!file) return '';
     return file instanceof File ? file.name : (file ? file.split('/').pop() : '');
 };
 
@@ -124,8 +153,12 @@ const submitForm = async () => {
   error.value = null;
   const formData = new FormData();
   formData.append('nome_banco', config.value.nome_banco);
+  formData.append('agencia', config.value.agencia);
+  formData.append('conta', config.value.conta);
+  formData.append('convenio', config.value.convenio);
   formData.append('client_id', config.value.client_id);
   formData.append('client_secret', config.value.client_secret);
+  
   if (config.value.certificado_file instanceof File) {
     formData.append('certificado_file', config.value.certificado_file);
   }
@@ -168,91 +201,23 @@ onMounted(() => {
 </script>
 
 <style scoped>
-.page-container {
-  max-width: 800px;
-  margin: 2rem auto;
-  padding: 0 1rem;
-}
-.header-section {
-  margin-bottom: 2rem;
-  text-align: center;
-}
-.page-title {
-  font-size: 2rem;
-  font-weight: bold;
-  color: #333;
-}
-.form-card {
-  background-color: white;
-  padding: 2rem;
-  border-radius: 8px;
-  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
-}
-.loading-state {
-  text-align: center;
-  font-size: 1.2rem;
-  color: #666;
-}
-.form-group {
-  margin-bottom: 1.5rem;
-}
-.form-label {
-  display: block;
-  font-weight: bold;
-  margin-bottom: 0.5rem;
-  color: #555;
-}
-.form-input {
-  width: 100%;
-  padding: 10px 12px;
-  border: 1px solid #ccc;
-  border-radius: 6px;
-  box-sizing: border-box;
-  font-size: 1rem;
-  transition: border-color 0.3s;
-}
-.form-input:focus {
-  outline: none;
-  border-color: #007bff;
-}
-.actions {
-  display: flex;
-  gap: 1rem;
-  justify-content: flex-end;
-  margin-top: 2rem;
-}
-.submit-button, .cancel-link {
-  padding: 12px 24px;
-  border-radius: 6px;
-  text-decoration: none;
-  font-size: 1rem;
-  font-weight: bold;
-  cursor: pointer;
-  transition: background-color 0.3s, color 0.3s;
-}
-.submit-button {
-  background-color: #007bff;
-  color: white;
-  border: none;
-}
-.submit-button:hover {
-  background-color: #0056b3;
-}
-.cancel-link {
-  background-color: #6c757d;
-  color: white;
-  border: none;
-}
-.cancel-link:hover {
-  background-color: #5a6268;
-}
-.error-message {
-  color: #d9534f;
-  background-color: #f2dede;
-  border: 1px solid #ebccd1;
-  padding: 10px;
-  border-radius: 4px;
-  text-align: center;
-  margin-bottom: 1rem;
-}
+/* Estilos permanecem os mesmos */
+.page-container { max-width: 800px; margin: 2rem auto; padding: 0 1rem; }
+.header-section { margin-bottom: 2rem; text-align: center; }
+.page-title { font-size: 2rem; font-weight: bold; color: #333; }
+.form-card { background-color: white; padding: 2rem; border-radius: 8px; box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1); }
+.loading-state { text-align: center; font-size: 1.2rem; color: #666; }
+.form-group { margin-bottom: 1.5rem; }
+.form-label { display: block; font-weight: bold; margin-bottom: 0.5rem; color: #555; }
+.form-input { width: 100%; padding: 10px 12px; border: 1px solid #ccc; border-radius: 6px; box-sizing: border-box; font-size: 1rem; transition: border-color 0.3s; }
+.form-input:focus { outline: none; border-color: #007bff; }
+.actions { display: flex; gap: 1rem; justify-content: flex-end; margin-top: 2rem; }
+.submit-button, .cancel-link { padding: 12px 24px; border-radius: 6px; text-decoration: none; font-size: 1rem; font-weight: bold; cursor: pointer; transition: background-color 0.3s, color 0.3s; }
+.submit-button { background-color: #007bff; color: white; border: none; }
+.submit-button:hover { background-color: #0056b3; }
+.cancel-link { background-color: #6c757d; color: white; border: none; }
+.cancel-link:hover { background-color: #5a6268; }
+.error-message { color: #d9534f; background-color: #f2dede; border: 1px solid #ebccd1; padding: 10px; border-radius: 4px; text-align: center; margin-bottom: 1rem; }
+hr { margin: 2rem 0; border: 0; border-top: 1px solid #eee; }
+h4 { margin-top: 0; }
 </style>

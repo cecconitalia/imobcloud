@@ -39,6 +39,7 @@ import ContasPagarView from '@/views/financeiro/ContasPagarView.vue';
 import ContasReceberView from '@/views/financeiro/ContasReceberView.vue';
 import ListaFormasPagamentoView from '@/views/ListaFormasPagamentoView.vue'
 import FormaPagamentoFormView from '@/views/FormaPagamentoFormView.vue'
+import RemessaRetornoView from '@/views/financeiro/RemessaRetornoView.vue'; // <-- ADICIONADO AQUI
 
 // Importações das novas views de publicações e integrações
 import ConfiguracaoIAView from '@/views/ConfiguracaoIA.vue'
@@ -546,6 +547,17 @@ const router = createRouter({
                     component: ContasReceberView,
                     meta: {
                         title: 'Contas a Receber',
+                        requiresAuth: true,
+                        isAdmin: true
+                    }
+                },
+                // ROTA NOVA PARA REMESSA E RETORNO
+                {
+                    path: 'financeiro/remessa-retorno',
+                    name: 'remessa-retorno',
+                    component: RemessaRetornoView,
+                    meta: {
+                        title: 'Remessa e Retorno',
                         requiresAuth: true,
                         isAdmin: true
                     }

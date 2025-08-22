@@ -10,7 +10,12 @@ class ConfiguracaoBancoSerializer(serializers.ModelSerializer):
     """
     class Meta:
         model = ConfiguracaoBanco
-        fields = ['id', 'nome_banco', 'client_id', 'client_secret', 'certificado_file', 'chave_privada_file']
+        # CORREÇÃO: Adicionados os novos campos para o CNAB
+        fields = [
+            'id', 'nome_banco', 'client_id', 'client_secret', 
+            'certificado_file', 'chave_privada_file',
+            'agencia', 'conta', 'convenio'  # <-- CAMPOS NOVOS AQUI
+        ]
 
 
 class BoletoSerializer(serializers.ModelSerializer):
@@ -20,7 +25,7 @@ class BoletoSerializer(serializers.ModelSerializer):
     class Meta:
         model = Boleto
         fields = '__all__'
-        read_only_fields = ['imobiliaria', 'configuracao', 'status', 'data_emissao']
+        read_only_fields = ['imobiliaria', 'remessa', 'retorno', 'status']
 
 class GerarBoletoRequestSerializer(serializers.Serializer):
     """
