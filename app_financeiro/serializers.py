@@ -1,77 +1,56 @@
-# app_financeiro/serializers.py
+# C:\wamp64\www\ImobCloud\app_financeiro\serializers.py
 
 from rest_framework import serializers
-from .models import Categoria, ContaBancaria, Transacao, FormaPagamento
-from core.models import Imobiliaria
+from .models import Categoria, Conta, Transacao, FormaPagamento
+from app_clientes.models import Cliente
+from app_imoveis.models import Imovel
 
 class CategoriaSerializer(serializers.ModelSerializer):
     class Meta:
         model = Categoria
-        exclude = ['imobiliaria']
+        fields = '__all__'
+        read_only_fields = ('imobiliaria',)
 
-class ContaBancariaSerializer(serializers.ModelSerializer):
+class ContaSerializer(serializers.ModelSerializer): 
     class Meta:
-        model = ContaBancaria
-        exclude = ['imobiliaria']
+        model = Conta
+        fields = '__all__'
+        read_only_fields = ('imobiliaria',)
 
 class FormaPagamentoSerializer(serializers.ModelSerializer):
-    imobiliaria = serializers.HiddenField(default=serializers.CurrentUserDefault())
-    
     class Meta:
         model = FormaPagamento
-        fields = ['id', 'nome', 'slug', 'imobiliaria', 'ativo']
-        
-    def create(self, validated_data):
-        user = self.context['request'].user
-        imobiliaria = user.perfil.imobiliaria
-        validated_data['imobiliaria'] = imobiliaria
-        return super().create(validated_data)
+        fields = '__all__'
+        read_only_fields = ('imobiliaria',)
 
 class TransacaoSerializer(serializers.ModelSerializer):
-    categoria_nome = serializers.StringRelatedField(source='categoria.nome', read_only=True)
-    conta_bancaria_nome = serializers.StringRelatedField(source='conta_bancaria.nome', read_only=True)
-    forma_pagamento_nome = serializers.StringRelatedField(source='forma_pagamento.nome', read_only=True)
-    
-    # ==========================================================================================
-    # <<< NOVO CAMPO ADICIONADO PARA OBTER O NOME DO CLIENTE >>>
-    cliente_nome = serializers.SerializerMethodField()
-    # ==========================================================================================
+    class Meta:
+        model = Transacao
+        fields = '__all__'
+        read_only_fields = ('imobiliaria',)
 
+class ClienteSimplificadoSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Cliente
+        fields = ['id', 'nome_completo']
+
+class ImovelSimplificadoSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Imovel
+        # CORREÇÃO: Trocado 'titulo' por 'titulo_anuncio'
+        fields = ['id', 'titulo_anuncio']
+
+class TransacaoListSerializer(serializers.ModelSerializer):
+    categoria = serializers.StringRelatedField()
+    conta = serializers.StringRelatedField()
+    forma_pagamento = serializers.StringRelatedField()
+    cliente = ClienteSimplificadoSerializer()
+    imovel = ImovelSimplificadoSerializer()
+    
     class Meta:
         model = Transacao
         fields = [
-            'id', 
-            'descricao', 
-            'valor', 
-            'tipo',
-            'data_vencimento', 
-            'data_pagamento', 
-            'status', 
-            'categoria', 
-            'conta_bancaria', 
-            'imovel',
-            'contrato',
-            'forma_pagamento',
-            'categoria_nome',
-            'conta_bancaria_nome',
-            'forma_pagamento_nome',
-            'cliente_nome' # <<< NOME DO CAMPO ADICIONADO À LISTA
+            'id', 'descricao', 'valor', 'data_transacao', 'data_vencimento',
+            'tipo', 'status', 'categoria', 'conta', 'forma_pagamento',
+            'cliente', 'imovel'
         ]
-        extra_kwargs = {
-            'categoria': {'required': False, 'allow_null': True},
-            'imovel': {'required': False, 'allow_null': True},
-            'contrato': {'required': False, 'allow_null': True},
-            'data_pagamento': {'required': False, 'allow_null': True},
-            'forma_pagamento': {'required': False, 'allow_null': True},
-        }
-
-    # ==========================================================================================
-    # <<< NOVA FUNÇÃO PARA PROCESSAR O CAMPO cliente_nome >>>
-    def get_cliente_nome(self, obj):
-        """
-        Retorna o nome do inquilino se a transação estiver ligada a um contrato.
-        """
-        if obj.contrato and obj.contrato.inquilino:
-            return obj.contrato.inquilino.nome_completo
-        return "Avulso" # Retorna "Avulso" se não houver contrato/cliente vinculado
-    # ==========================================================================================

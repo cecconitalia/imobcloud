@@ -24,16 +24,24 @@
 
     <div v-if="stats" class="stats-grid">
       <div class="stat-card revenue">
-        <h3 class="stat-title">Total de Receitas (Mês)</h3>
-        <p class="stat-value">{{ formatarValor(stats.receitas_mes) }}</p>
+        <h3 class="stat-title">Receitas Pagas (Mês)</h3>
+        <p class="stat-value">{{ formatarValor(stats.a_receber.pago_mes_atual) }}</p>
+      </div>
+       <div class="stat-card pending-revenue">
+        <h3 class="stat-title">A Receber (Pendente)</h3>
+        <p class="stat-value">{{ formatarValor(stats.a_receber.pendente) }}</p>
       </div>
       <div class="stat-card expenses">
-        <h3 class="stat-title">Total de Despesas (Mês)</h3>
-        <p class="stat-value">{{ formatarValor(stats.despesas_mes) }}</p>
+        <h3 class="stat-title">Despesas Pagas (Mês)</h3>
+        <p class="stat-value">{{ formatarValor(stats.a_pagar.pago_mes_atual) }}</p>
+      </div>
+      <div class="stat-card pending-expenses">
+        <h3 class="stat-title">A Pagar (Pendente)</h3>
+        <p class="stat-value">{{ formatarValor(stats.a_pagar.pendente) }}</p>
       </div>
       <div class="stat-card balance">
-        <h3 class="stat-title">Saldo (Mês)</h3>
-        <p class="stat-value">{{ formatarValor(stats.saldo_mes) }}</p>
+        <h3 class="stat-title">Saldo Previsto</h3>
+        <p class="stat-value">{{ formatarValor(stats.saldo_previsto) }}</p>
       </div>
     </div>
   </div>
@@ -48,7 +56,7 @@ const isLoading = ref(true);
 const error = ref<string | null>(null);
 
 function formatarValor(valor: number | null) {
-  if (valor === null) return 'R$ 0,00';
+  if (valor === null || valor === undefined) return 'R$ 0,00';
   return parseFloat(valor.toString()).toLocaleString('pt-BR', {
     style: 'currency',
     currency: 'BRL',
@@ -58,8 +66,8 @@ function formatarValor(valor: number | null) {
 async function fetchStats() {
   isLoading.value = true;
   try {
-    // CORREÇÃO: A URL foi alterada para o caminho correto
-    const response = await apiClient.get('/v1/transacoes/stats/');
+    // CORREÇÃO: Removido o '/api' duplicado. A chamada começa com '/v1'.
+    const response = await apiClient.get('/v1/financeiro/transacoes/stats/');
     stats.value = response.data;
   } catch (err) {
     console.error("Erro ao buscar estatísticas financeiras:", err);
@@ -120,8 +128,14 @@ onMounted(() => {
 .stat-card.revenue {
   border-left: 5px solid #28a745;
 }
+.stat-card.pending-revenue {
+  border-left: 5px solid #ffc107;
+}
 .stat-card.expenses {
   border-left: 5px solid #dc3545;
+}
+.stat-card.pending-expenses {
+    border-left: 5px solid #fd7e14;
 }
 .stat-card.balance {
   border-left: 5px solid #007bff;

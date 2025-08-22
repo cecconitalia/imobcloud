@@ -90,6 +90,10 @@
           <i class="fas fa-wallet"></i>
           <span>Gerir Formas de Pagamento</span>
         </router-link>
+        <router-link to="/financeiro/remessa-retorno" class="nav-link">
+          <i class="fas fa-exchange-alt"></i>
+          <span>Remessa/Retorno</span>
+        </router-link>
 
 
         <div v-if="userCargo === 'ADMIN'" class="nav-section-header">

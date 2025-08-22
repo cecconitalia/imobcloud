@@ -1,8 +1,7 @@
 # C:\wamp64\www\ImobCloud\app_contratos\serializers.py
+
 from rest_framework import serializers
 from .models import Contrato, Pagamento
-from app_imoveis.serializers import ImovelSerializer
-from app_clientes.serializers import ClienteSerializer as ClienteDetailSerializer
 from app_clientes.models import Cliente
 from app_imoveis.models import Imovel
 from app_financeiro.models import FormaPagamento
@@ -21,6 +20,7 @@ class ClienteSimplificadoSerializer(serializers.ModelSerializer):
 class ImovelSimplificadoSerializer(serializers.ModelSerializer):
     class Meta:
         model = Imovel
+        # CORREÇÃO: Trocado 'id_imovel_personalizado' por 'codigo_referencia'
         fields = ['id', 'titulo_anuncio', 'endereco', 'codigo_referencia']
 
 class ContratoListSerializer(serializers.ModelSerializer):
@@ -45,10 +45,10 @@ class ContratoDetailSerializer(serializers.ModelSerializer):
         fields = '__all__'
 
 
-class ContratoWriteSerializer(serializers.ModelSerializer):
+class ContratoSerializer(serializers.ModelSerializer):
     imovel = serializers.PrimaryKeyRelatedField(queryset=Imovel.objects.all())
-    inquilino = serializers.PrimaryKeyRelatedField(queryset=Cliente.objects.all(), required=False)
-    proprietario = serializers.PrimaryKeyRelatedField(queryset=Cliente.objects.all(), required=False)
+    inquilino = serializers.PrimaryKeyRelatedField(queryset=Cliente.objects.all(), required=False, allow_null=True)
+    proprietario = serializers.PrimaryKeyRelatedField(queryset=Cliente.objects.all(), required=False, allow_null=True)
     formas_pagamento = serializers.PrimaryKeyRelatedField(
         queryset=FormaPagamento.objects.all(),
         many=True,
@@ -64,6 +64,3 @@ class ContratoWriteSerializer(serializers.ModelSerializer):
             'formas_pagamento'
         ]
         read_only_fields = ['imobiliaria']
-    
-    # OS MÉTODOS create() E update() FORAM REMOVIDOS DESTE ARQUIVO.
-    # A LÓGICA AGORA VIVERÁ EXCLUSIVAMENTE NA VIEW.

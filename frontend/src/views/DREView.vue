@@ -1,181 +1,119 @@
 <template>
-  <div class="dre-container">
+  <div class="page-container">
     <header class="view-header">
-      <h1>Demonstração do Resultado do Exercício (DRE)</h1>
+      <h1>Relatório DRE (Demonstrativo de Resultados)</h1>
     </header>
 
-    <div class="filter-bar">
-      <div class="filter-group">
+    <div class="filters-card">
+      <div class="form-group">
         <label for="start-date">Data de Início:</label>
-        <input type="date" id="start-date" v-model="filters.startDate" class="form-control" />
+        <input type="date" id="start-date" v-model="startDate">
       </div>
-      <div class="filter-group">
+      <div class="form-group">
         <label for="end-date">Data de Fim:</label>
-        <input type="date" id="end-date" v-model="filters.endDate" class="form-control" />
+        <input type="date" id="end-date" v-model="endDate">
       </div>
-      <button @click="fetchDRE" class="btn-primary">Atualizar Relatório</button>
+      <button @click="fetchDRE" class="btn-primary" :disabled="isLoading">
+        {{ isLoading ? 'A carregar...' : 'Gerar Relatório' }}
+      </button>
     </div>
 
-    <div v-if="isLoading" class="loading-message">
-      A gerar relatório DRE...
-    </div>
-    <div v-if="error" class="error-message">
-      {{ error }}
-    </div>
+    <div v-if="error" class="error-message">{{ error }}</div>
 
-    <div v-if="dreData" class="dre-report">
-      <div class="dre-section">
-        <h2 class="dre-title">Receita Bruta</h2>
-        <div class="dre-item">
-          <span class="item-label">Receita Operacional Bruta</span>
-          <span class="item-value">{{ formatarValor(dreData.receita_bruta_servicos.valor) }}</span>
+    <div v-if="dreData" class="results-container">
+      <div class="summary-grid">
+        <div class="summary-card revenue">
+          <h4>Total de Receitas</h4>
+          <p>{{ formatarValor(dreData.total_receitas) }}</p>
+        </div>
+        <div class="summary-card expenses">
+          <h4>Total de Despesas</h4>
+          <p>{{ formatarValor(dreData.total_despesas) }}</p>
+        </div>
+        <div class="summary-card balance">
+          <h4>Lucro Líquido</h4>
+          <p>{{ formatarValor(dreData.lucro_liquido) }}</p>
         </div>
       </div>
 
-      <div class="dre-section">
-        <h2 class="dre-title">Despesas Operacionais</h2>
-        <div class="dre-item">
-          <span class="item-label">Total de Despesas Operacionais</span>
-          <span class="item-value">{{ formatarValor(dreData.despesas_operacionais.valor) }}</span>
+      <div class="details-grid">
+        <div class="details-card">
+          <h3>Receitas por Categoria</h3>
+          <ul>
+            <li v-for="(item, index) in dreData.receitas_por_categoria" :key="`receita-${index}`">
+              <span>{{ item.categoria__nome || 'Sem Categoria' }}</span>
+              <strong>{{ formatarValor(item.total) }}</strong>
+            </li>
+          </ul>
+        </div>
+        <div class="details-card">
+          <h3>Despesas por Categoria</h3>
+          <ul>
+            <li v-for="(item, index) in dreData.despesas_por_categoria" :key="`despesa-${index}`">
+              <span>{{ item.categoria__nome || 'Sem Categoria' }}</span>
+              <strong>{{ formatarValor(item.total) }}</strong>
+            </li>
+          </ul>
         </div>
       </div>
-      
-      <div class="dre-section final-result">
-        <h2 class="dre-title">Lucro Líquido Antes dos Impostos</h2>
-        <div class="dre-item">
-          <span class="item-label">Lucro / Prejuízo Líquido</span>
-          <span class="item-value">{{ formatarValor(dreData.lucro_liquido_antes_impostos.valor) }}</span>
-        </div>
-      </div>
-
-    </div>
-    
-    <div v-if="!isLoading && !dreData" class="no-data-message">
-      <p>Nenhum dado financeiro encontrado para o período.</p>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, watch } from 'vue';
+import { ref } from 'vue';
 import apiClient from '@/services/api';
 
+const today = new Date();
+const firstDayOfMonth = new Date(today.getFullYear(), today.getMonth(), 1).toISOString().split('T')[0];
+const todayStr = today.toISOString().split('T')[0];
+
+const startDate = ref(firstDayOfMonth);
+const endDate = ref(todayStr);
 const dreData = ref<any>(null);
-const isLoading = ref(true);
+const isLoading = ref(false);
 const error = ref<string | null>(null);
 
-const filters = ref({
-  startDate: new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().substr(0, 10),
-  endDate: new Date().toISOString().substr(0, 10),
-});
-
-function formatarValor(valor: number | null) {
+const formatarValor = (valor: number) => {
   if (valor === null || valor === undefined) return 'R$ 0,00';
-  return parseFloat(valor.toString()).toLocaleString('pt-BR', {
-    style: 'currency',
-    currency: 'BRL',
-  });
-}
+  return valor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+};
 
-async function fetchDRE() {
+const fetchDRE = async () => {
   isLoading.value = true;
   error.value = null;
+  dreData.value = null;
+
   try {
-    const response = await apiClient.get('/v1/transacoes/dre/', {
+    // CORREÇÃO: URL ajustada para o novo endpoint /financeiro/dre/
+    const response = await apiClient.get('/v1/financeiro/dre/', {
       params: {
-        start_date: filters.value.startDate,
-        end_date: filters.value.endDate,
-      },
+        start_date: startDate.value,
+        end_date: endDate.value
+      }
     });
     dreData.value = response.data;
   } catch (err) {
-    console.error("Erro ao buscar relatório DRE:", err);
-    error.value = 'Não foi possível carregar o relatório DRE.';
+    console.error("Erro ao gerar DRE:", err);
+    error.value = "Não foi possível gerar o relatório. Verifique as datas e tente novamente.";
   } finally {
     isLoading.value = false;
   }
-}
-
-onMounted(() => {
-  fetchDRE();
-});
+};
 </script>
 
 <style scoped>
-.dre-container {
-  padding: 2rem;
-}
-.view-header {
-  margin-bottom: 1.5rem;
-}
-.filter-bar {
-  display: flex;
-  gap: 1rem;
-  align-items: flex-end;
-  margin-bottom: 2rem;
-}
-.filter-group {
-  display: flex;
-  flex-direction: column;
-}
-.filter-group label {
-  font-weight: bold;
-  margin-bottom: 0.5rem;
-}
-.form-control {
-  padding: 10px;
-  border: 1px solid #ccc;
-  border-radius: 4px;
-}
-.btn-primary {
-  padding: 10px 15px;
-  background-color: #007bff;
-  color: white;
-  border: none;
-  border-radius: 5px;
-  cursor: pointer;
-  font-weight: bold;
-}
-.loading-message, .error-message, .no-data-message {
-  text-align: center;
-  padding: 2rem;
-  color: #6c757d;
-}
-.error-message {
-  color: red;
-}
-.dre-report {
-  background-color: white;
-  padding: 2rem;
-  border-radius: 8px;
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-}
-.dre-section {
-  margin-bottom: 1.5rem;
-}
-.dre-title {
-  font-size: 1.2rem;
-  font-weight: bold;
-  border-bottom: 2px solid #ddd;
-  padding-bottom: 0.5rem;
-  margin-bottom: 1rem;
-}
-.dre-item {
-  display: flex;
-  justify-content: space-between;
-  padding: 8px 0;
-  font-size: 1rem;
-  color: #495057;
-}
-.final-result {
-  border-top: 2px solid #000;
-  padding-top: 1rem;
-  margin-top: 2rem;
-}
-.item-label {
-  font-weight: 600;
-}
-.item-value {
-  font-weight: bold;
-}
+.page-container { padding: 2rem; }
+.filters-card { display: flex; gap: 1rem; align-items: flex-end; background: white; padding: 1.5rem; border-radius: 8px; margin-bottom: 2rem; }
+.summary-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.5rem; margin-bottom: 2rem; }
+.summary-card { padding: 1.5rem; border-radius: 8px; text-align: center; color: white; }
+.summary-card h4 { margin: 0 0 0.5rem 0; font-size: 1rem; }
+.summary-card p { margin: 0; font-size: 2rem; font-weight: bold; }
+.revenue { background-color: #28a745; }
+.expenses { background-color: #dc3545; }
+.balance { background-color: #007bff; }
+.details-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; }
+.details-card { background: white; padding: 1.5rem; border-radius: 8px; }
+.details-card ul { list-style: none; padding: 0; margin: 0; }
+.details-card li { display: flex; justify-content: space-between; padding: 0.75rem 0; border-bottom: 1px solid #eee; }
 </style>
