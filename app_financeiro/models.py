@@ -5,7 +5,7 @@ from core.models import Imobiliaria
 from django.utils import timezone
 from django.core.validators import MinValueValidator
 from app_imoveis.models import Imovel
-from app_contratos.models import Contrato, Pagamento
+# from app_contratos.models import Contrato, Pagamento # <<< REMOVA ESTA LINHA
 
 class Categoria(models.Model):
     TIPO_CHOICES = [
@@ -89,7 +89,17 @@ class Transacao(models.Model):
     categoria = models.ForeignKey(Categoria, on_delete=models.SET_NULL, null=True, blank=True)
     conta_bancaria = models.ForeignKey(ContaBancaria, on_delete=models.PROTECT)
     imovel = models.ForeignKey(Imovel, on_delete=models.SET_NULL, null=True, blank=True)
-    contrato = models.ForeignKey(Contrato, on_delete=models.SET_NULL, null=True, blank=True, related_name="transacoes")
+    
+    # ==========================================================================================
+    # <<< CORREÇÃO APLICADA AQUI >>>
+    contrato = models.ForeignKey(
+        'app_contratos.Contrato', # Alterado para string
+        on_delete=models.SET_NULL,
+        null=True, blank=True,
+        related_name="transacoes"
+    )
+    # ==========================================================================================
+
     forma_pagamento = models.ForeignKey(
         'FormaPagamento',
         on_delete=models.SET_NULL,

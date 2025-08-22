@@ -9,81 +9,115 @@
     </div>
 
     <form v-else @submit.prevent="handleSubmit" class="contrato-form">
-      <div class="form-group">
-        <label for="imovel">Imóvel</label>
-        <select id="imovel" v-model="contrato.imovel" required>
-          <option disabled value="">Selecione um imóvel</option>
-          <option v-for="imovel in imoveis" :key="imovel.id" :value="imovel.id">
-            {{ imovel.titulo_anuncio }}
-          </option>
-        </select>
+      <div class="tabs">
+        <button type="button" @click="activeTab = 'dados'" :class="{ active: activeTab === 'dados' }">Dados Principais</button>
+        <button type="button" @click="activeTab = 'valores'" :class="{ active: activeTab === 'valores' }">Valores e Informações</button>
       </div>
 
-      <div class="form-group">
-        <label for="inquilino">Inquilino</label>
-        <select id="inquilino" v-model="contrato.inquilino" :required="contrato.tipo_contrato === 'Aluguel'">
-          <option disabled value="">Selecione um cliente</option>
-          <option v-for="cliente in clientes" :key="cliente.id" :value="cliente.id">
-            {{ cliente.nome_completo }}
-          </option>
-        </select>
-      </div>
-      
-      <div class="form-group">
-        <label for="proprietario">Proprietário</label>
-        <select id="proprietario" v-model="contrato.proprietario" :required="contrato.tipo_contrato === 'Aluguel'">
-          <option disabled value="">Selecione um cliente</option>
-          <option v-for="cliente in clientes" :key="cliente.id" :value="cliente.id">
-            {{ cliente.nome_completo }}
-          </option>
-        </select>
-      </div>
+      <div class="tab-content">
+        <div v-show="activeTab === 'dados'" class="form-grid">
+          <div class="form-group">
+            <label for="imovel">Imóvel</label>
+            <v-select
+              id="imovel"
+              label="titulo_anuncio"
+              :options="imoveis"
+              v-model="contrato.imovel"
+              placeholder="Pesquise por um imóvel..."
+              :reduce="option => option.id"
+              required
+            ></v-select>
+          </div>
 
-      <div class="form-group">
-        <label for="tipo_contrato">Tipo de Contrato</label>
-        <select id="tipo_contrato" v-model="contrato.tipo_contrato" required>
-          <option value="Venda">Venda</option>
-          <option value="Aluguel">Aluguel</option>
-        </select>
-      </div>
+          <div class="form-group">
+            <label for="inquilino">Inquilino / Comprador</label>
+            <v-select
+              id="inquilino"
+              label="nome_completo"
+              :options="clientes"
+              v-model="contrato.inquilino"
+              placeholder="Pesquise por um cliente..."
+              :reduce="option => option.id"
+              :required="contrato.tipo_contrato === 'Aluguel'"
+            ></v-select>
+          </div>
+          
+          <div class="form-group">
+            <label for="proprietario">Proprietário / Vendedor</label>
+            <v-select
+              id="proprietario"
+              label="nome_completo"
+              :options="clientes"
+              v-model="contrato.proprietario"
+              placeholder="Pesquise por um cliente..."
+              :reduce="option => option.id"
+              :required="contrato.tipo_contrato === 'Aluguel'"
+            ></v-select>
+          </div>
 
-      <div class="form-group">
-        <label for="status_contrato">Status do Contrato</label>
-        <select id="status_contrato" v-model="contrato.status_contrato" required>
-          <option value="Ativo">Ativo</option>
-          <option value="Concluído">Concluído</option>
-          <option value="Rescindido">Rescindido</option>
-          <option value="Pendente">Pendente</option>
-        </select>
-      </div>
+          <div class="form-group">
+            <label for="tipo_contrato">Tipo de Contrato</label>
+            <select id="tipo_contrato" v-model="contrato.tipo_contrato" required>
+              <option value="Venda">Venda</option>
+              <option value="Aluguel">Aluguel</option>
+            </select>
+          </div>
 
-      <div class="form-group">
-        <label for="data_inicio">Data de Início</label>
-        <input type="date" id="data_inicio" v-model="contrato.data_inicio" required />
-      </div>
+          <div class="form-group">
+            <label for="status_contrato">Status do Contrato</label>
+            <select id="status_contrato" v-model="contrato.status_contrato" required>
+              <option value="Ativo">Ativo</option>
+              <option value="Concluído">Concluído</option>
+              <option value="Rescindido">Rescindido</option>
+              <option value="Pendente">Pendente</option>
+            </select>
+          </div>
+          
+          <div class="form-group">
+            <label for="data_assinatura">Data de Assinatura</label>
+            <input type="date" id="data_assinatura" v-model="contrato.data_assinatura" required />
+          </div>
 
-      <div v-if="contrato.tipo_contrato === 'Aluguel'" class="form-group">
-        <label for="duracao_meses">Duração (meses)</label>
-        <input type="number" id="duracao_meses" v-model="contrato.duracao_meses" min="1" required />
-      </div>
+          <div class="form-group">
+            <label for="data_inicio">Data de Início da Vigência</label>
+            <input type="date" id="data_inicio" v-model="contrato.data_inicio" required />
+          </div>
 
-      <div class="form-group">
-        <label for="data_fim">Data de Fim</label>
-        <input type="date" id="data_fim" v-model="contrato.data_fim" />
-      </div>
+          <div v-if="contrato.tipo_contrato === 'Aluguel'" class="form-group">
+            <label for="duracao_meses">Duração (meses)</label>
+            <input type="number" id="duracao_meses" v-model="contrato.duracao_meses" min="1" required />
+          </div>
 
-       <div class="form-group">
-        <label for="data_assinatura">Data de Assinatura</label>
-        <input type="date" id="data_assinatura" v-model="contrato.data_assinatura" required />
-      </div>
-      <div class="form-group">
-        <label for="valor_total">Valor Total (R$)</label>
-        <input type="number" step="0.01" id="valor_total" v-model="contrato.valor_total" required />
-      </div>
-      
-      <div class="form-group full-width">
-        <label for="condicoes_pagamento">Condições de Pagamento</label>
-        <textarea id="condicoes_pagamento" v-model="contrato.condicoes_pagamento" rows="4" required></textarea>
+          <div class="form-group">
+            <label for="data_fim">Data de Fim da Vigência</label>
+            <input type="date" id="data_fim" v-model="contrato.data_fim" />
+          </div>
+        </div>
+
+        <div v-show="activeTab === 'valores'" class="form-grid">
+          <div class="form-group">
+            <label for="valor_total">Valor Total (Venda) ou Mensal (Aluguel) (R$)</label>
+            <input type="number" step="0.01" id="valor_total" v-model="contrato.valor_total" required />
+          </div>
+          
+          <div class="form-group full-width">
+            <label for="formas_pagamento">Formas de Pagamento Aceitas</label>
+            <v-select
+                id="formas_pagamento"
+                multiple
+                :options="formasPagamento"
+                label="nome"
+                v-model="contrato.formas_pagamento"
+                placeholder="Selecione uma ou mais opções"
+                :reduce="option => option.id"
+            ></v-select>
+          </div>
+          
+          <div class="form-group full-width">
+            <label for="informacoes_adicionais">Informações Adicionais (Opcional)</label>
+            <textarea id="informacoes_adicionais" v-model="contrato.informacoes_adicionais" rows="4"></textarea>
+          </div>
+        </div>
       </div>
 
       <div class="form-actions full-width">
@@ -93,11 +127,6 @@
         </button>
       </div>
     </form>
-
-    <ContratoFinanceiro
-      v-if="isEditing && contrato.tipo_contrato === 'Aluguel' && contrato.id"
-      :contrato-id="contrato.id"
-    />
   </div>
 </template>
 
@@ -105,46 +134,57 @@
 import { ref, onMounted, computed, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import apiClient from '@/services/api';
-import ContratoFinanceiro from '@/components/ContratoFinanceiro.vue';
+import vSelect from 'vue-select';
+import 'vue-select/dist/vue-select.css';
 
 const route = useRoute();
 const router = useRouter();
 
 const contratoId = computed(() => route.params.id as string | undefined);
 const isEditing = computed(() => !!contratoId.value);
+const activeTab = ref('dados');
 
-const contrato = ref({
+// ==========================================================================================
+// <<< CORREÇÃO APLICADA NO OBJETO DO CONTRATO >>>
+const criarContratoVazio = () => ({
   id: null as number | null,
-  imovel: null,
-  inquilino: null,
-  proprietario: null,
+  imovel: null as number | null,
+  inquilino: null as number | null,
+  proprietario: null as number | null,
   tipo_contrato: 'Venda',
   data_inicio: '',
+  data_assinatura: new Date().toISOString().split('T')[0],
   data_fim: '',
   duracao_meses: 12,
-  data_assinatura: '',
-  condicoes_pagamento: '',
   valor_total: null,
   status_contrato: 'Ativo',
-  pagamentos: []
+  pagamentos: [],
+  formas_pagamento: [] as number[],
+  informacoes_adicionais: '', // 'condicoes_pagamento' foi removido e este adicionado
 });
+// ==========================================================================================
+
+const contrato = ref(criarContratoVazio());
 
 const imoveis = ref<any[]>([]);
 const clientes = ref<any[]>([]);
+const formasPagamento = ref<any[]>([]);
 const isLoadingData = ref(false);
 const isSubmitting = ref(false);
 
 async function fetchDropdownData() {
   try {
-    const [imoveisResponse, clientesResponse] = await Promise.all([
+    const [imoveisResponse, clientesResponse, formasPagamentoResponse] = await Promise.all([
       apiClient.get('/v1/imoveis/'),
       apiClient.get('/v1/clientes/'),
+      apiClient.get('/v1/financeiro/formas-pagamento/')
     ]);
     imoveis.value = imoveisResponse.data;
     clientes.value = clientesResponse.data;
+    formasPagamento.value = formasPagamentoResponse.data;
   } catch (error) {
     console.error("Erro ao carregar dados para o formulário:", error);
-    alert('Não foi possível carregar os imóveis e clientes.');
+    alert('Não foi possível carregar os imóveis, clientes e formas de pagamento.');
   }
 }
 
@@ -153,12 +193,16 @@ async function fetchContratoData() {
     isLoadingData.value = true;
     try {
       const response = await apiClient.get(`/v1/contratos/${contratoId.value}/`);
+      const formasPagamentoIds = response.data.formas_pagamento.map((fp: any) => fp.id);
+      
       contrato.value = {
+        ...criarContratoVazio(),
         ...response.data,
         id: response.data.id,
         imovel: response.data.imovel?.id || null,
         inquilino: response.data.inquilino?.id || null,
         proprietario: response.data.proprietario?.id || null,
+        formas_pagamento: formasPagamentoIds,
       };
     } catch (error) {
       console.error("Erro ao buscar dados do contrato:", error);
@@ -167,15 +211,13 @@ async function fetchContratoData() {
     } finally {
       isLoadingData.value = false;
     }
+  } else {
+    contrato.value = criarContratoVazio();
   }
 }
 
-// CORREÇÃO: Adicionamos um watcher para chamar a função de busca
-// de dados do contrato sempre que o ID da rota mudar.
-watch(() => route.params.id, (newId) => {
-    if (newId) {
-      fetchContratoData();
-    }
+watch(() => route.params.id, () => {
+    fetchContratoData();
 }, { immediate: true });
 
 onMounted(async () => {
@@ -201,10 +243,11 @@ watch(() => contrato.value.duracao_meses, (novaDuracao) => {
   }
 });
 
-
 async function handleSubmit() {
   isSubmitting.value = true;
   
+  // ==========================================================================================
+  // <<< CORREÇÃO APLICADA NO PAYLOAD DE ENVIO >>>
   const payload = {
     imovel: contrato.value.imovel,
     inquilino: contrato.value.inquilino,
@@ -215,9 +258,11 @@ async function handleSubmit() {
     duracao_meses: contrato.value.duracao_meses,
     data_assinatura: contrato.value.data_assinatura,
     valor_total: contrato.value.valor_total,
-    condicoes_pagamento: contrato.value.condicoes_pagamento,
     status_contrato: contrato.value.status_contrato,
+    formas_pagamento: contrato.value.formas_pagamento,
+    informacoes_adicionais: contrato.value.informacoes_adicionais,
   };
+  // ==========================================================================================
 
   try {
     let response;
@@ -247,9 +292,14 @@ function handleCancel() {
 <style scoped>
 .form-container { padding: 2rem; }
 .view-header { margin-bottom: 1.5rem; }
+.tabs { display: flex; border-bottom: 2px solid #ccc; margin-bottom: 1.5rem; width: 100%; }
+.tabs button { padding: 10px 20px; border: none; background: none; cursor: pointer; font-size: 1rem; font-weight: 500; color: #6c757d; border-bottom: 2px solid transparent; margin-bottom: -2px; }
+.tabs button.active { color: #007bff; border-bottom-color: #007bff; font-weight: bold; }
+.tab-content { width: 100%; }
 .contrato-form { display: flex; flex-wrap: wrap; gap: 1.5rem; }
-.form-group { display: flex; flex-direction: column; flex: 1 1 calc(50% - 1.5rem); }
-.form-group.full-width { flex-basis: 100%; }
+.form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1.5rem; width: 100%;}
+.form-group { display: flex; flex-direction: column; }
+.form-group.full-width { grid-column: 1 / -1; }
 label { margin-bottom: 0.5rem; font-weight: bold; }
 input, select, textarea { padding: 10px; border: 1px solid #ccc; border-radius: 4px; font-size: 1rem; }
 .form-actions { display: flex; justify-content: flex-end; gap: 1rem; width: 100%; margin-top: 1rem; }
@@ -257,4 +307,7 @@ input, select, textarea { padding: 10px; border: 1px solid #ccc; border-radius: 
 .btn-primary { background-color: #007bff; color: white; }
 .btn-secondary { background-color: #6c757d; color: white; }
 .loading-message { text-align: center; padding: 2rem; }
+:deep(.vs__dropdown-toggle) {
+    padding: 6px;
+}
 </style>

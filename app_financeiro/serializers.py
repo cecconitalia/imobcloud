@@ -2,7 +2,7 @@
 
 from rest_framework import serializers
 from .models import Categoria, ContaBancaria, Transacao, FormaPagamento
-from core.models import Imobiliaria # Importamos o modelo Imobiliaria para usar no CurrentUserDefault
+from core.models import Imobiliaria
 
 class CategoriaSerializer(serializers.ModelSerializer):
     class Meta:
@@ -15,7 +15,7 @@ class ContaBancariaSerializer(serializers.ModelSerializer):
         exclude = ['imobiliaria']
 
 class FormaPagamentoSerializer(serializers.ModelSerializer):
-    imobiliaria = serializers.HiddenField(default=serializers.CurrentUserDefault()) # Adicionado para associar o usuário à imobiliária
+    imobiliaria = serializers.HiddenField(default=serializers.CurrentUserDefault())
     
     class Meta:
         model = FormaPagamento
@@ -31,6 +31,11 @@ class TransacaoSerializer(serializers.ModelSerializer):
     categoria_nome = serializers.StringRelatedField(source='categoria.nome', read_only=True)
     conta_bancaria_nome = serializers.StringRelatedField(source='conta_bancaria.nome', read_only=True)
     forma_pagamento_nome = serializers.StringRelatedField(source='forma_pagamento.nome', read_only=True)
+    
+    # ==========================================================================================
+    # <<< NOVO CAMPO ADICIONADO PARA OBTER O NOME DO CLIENTE >>>
+    cliente_nome = serializers.SerializerMethodField()
+    # ==========================================================================================
 
     class Meta:
         model = Transacao
@@ -49,7 +54,8 @@ class TransacaoSerializer(serializers.ModelSerializer):
             'forma_pagamento',
             'categoria_nome',
             'conta_bancaria_nome',
-            'forma_pagamento_nome'
+            'forma_pagamento_nome',
+            'cliente_nome' # <<< NOME DO CAMPO ADICIONADO À LISTA
         ]
         extra_kwargs = {
             'categoria': {'required': False, 'allow_null': True},
@@ -58,3 +64,14 @@ class TransacaoSerializer(serializers.ModelSerializer):
             'data_pagamento': {'required': False, 'allow_null': True},
             'forma_pagamento': {'required': False, 'allow_null': True},
         }
+
+    # ==========================================================================================
+    # <<< NOVA FUNÇÃO PARA PROCESSAR O CAMPO cliente_nome >>>
+    def get_cliente_nome(self, obj):
+        """
+        Retorna o nome do inquilino se a transação estiver ligada a um contrato.
+        """
+        if obj.contrato and obj.contrato.inquilino:
+            return obj.contrato.inquilino.nome_completo
+        return "Avulso" # Retorna "Avulso" se não houver contrato/cliente vinculado
+    # ==========================================================================================

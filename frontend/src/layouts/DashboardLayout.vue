@@ -57,11 +57,14 @@
           <span>Dashboard</span>
         </router-link>
         
-        <router-link to="/financeiro/contas-pendentes" class="nav-link">
-          <i class="icon-pendentes"></i>
-          <span>Contas a Pagar/Receber</span>
+        <router-link to="/financeiro/contas-a-receber" class="nav-link">
+          <i class="fas fa-hand-holding-usd"></i>
+          <span>Contas a Receber</span>
         </router-link>
-        
+        <router-link to="/financeiro/contas-a-pagar" class="nav-link">
+          <i class="fas fa-file-invoice-dollar"></i>
+          <span>Contas a Pagar</span>
+        </router-link>
         <router-link to="/alugueis/dashboard" class="nav-link">
           <i class="icon-alugueis"></i>
           <span>Aluguéis</span>
