@@ -8,7 +8,8 @@ from core.models import Imobiliaria
 from django.core.cache import cache
 from django.utils.dateparse import parse_datetime
 from datetime import datetime, timedelta
-from django.utils import timezone # CORREÇÃO: Importar timezone para usar o now()
+from django.utils import timezone
+from django.core.files.storage import default_storage
 
 class BradescoAPI:
     """
@@ -25,10 +26,14 @@ class BradescoAPI:
                 imobiliaria=imobiliaria,
                 nome_banco='Bradesco'
             )
-            # Para o Bradesco, você precisará dos caminhos para o certificado e a chave
-            # Por enquanto, usaremos placeholders
-            self.cert_path = settings.BRADESCO_CERT_PATH
-            self.key_path = settings.BRADESCO_KEY_PATH
+            
+            if not self.config.certificado_file or not self.config.chave_privada_file:
+                 raise ValueError("Arquivos de certificado e chave privada não configurados para o Bradesco.")
+            
+            # Obtém os caminhos completos dos arquivos no sistema de arquivos
+            self.cert_path = default_storage.path(self.config.certificado_file.name)
+            self.key_path = default_storage.path(self.config.chave_privada_file.name)
+
         except ConfiguracaoBanco.DoesNotExist:
             raise ValueError("Configuração do Bradesco não encontrada para esta imobiliária.")
 
@@ -48,7 +53,6 @@ class BradescoAPI:
 
         if token_data:
             token_expiry = token_data.get('expires_at')
-            # Verifica se o token ainda é válido por pelo menos 5 minutos
             if token_expiry and parse_datetime(token_expiry) > timezone.now() + timedelta(minutes=5):
                 return token_data.get('access_token')
             else:
@@ -66,11 +70,12 @@ class BradescoAPI:
         url = self._get_api_base_url() + self.TOKEN_URL
 
         try:
+            # CORREÇÃO: Passa os caminhos dos arquivos para 'requests', que irá gerenciá-los
             response = requests.post(
                 url, 
                 data=data, 
                 headers=headers,
-                cert=(self.cert_path, self.key_path), # Autenticação mTLS
+                cert=(self.cert_path, self.key_path),
                 verify=True
             )
             response.raise_for_status()
@@ -80,7 +85,6 @@ class BradescoAPI:
             expires_in = response_data.get('expires_in')
 
             if access_token and expires_in:
-                # Armazena o token e a data de expiração no cache
                 expires_at = timezone.now() + timedelta(seconds=expires_in)
                 cache.set(cache_key, {'access_token': access_token, 'expires_at': expires_at}, timeout=expires_in)
                 return access_token
@@ -105,9 +109,10 @@ class BradescoAPI:
             'Authorization': f'Bearer {access_token}',
         }
         
-        url = self._get_api_base_url() + '/path/para/gerar/boleto' # URL precisa ser substituída pela correta
+        url = self._get_api_base_url() + '/path/para/gerar/boleto'
         
         try:
+            # CORREÇÃO: Passa os caminhos dos arquivos para 'requests', que irá gerenciá-los
             response = requests.post(
                 url,
                 data=json.dumps(dados_boleto),

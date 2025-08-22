@@ -10,7 +10,7 @@ class ConfiguracaoBancoSerializer(serializers.ModelSerializer):
     """
     class Meta:
         model = ConfiguracaoBanco
-        fields = ['id', 'nome_banco']
+        fields = ['id', 'nome_banco', 'client_id', 'client_secret', 'certificado_file', 'chave_privada_file']
 
 
 class BoletoSerializer(serializers.ModelSerializer):

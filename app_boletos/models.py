@@ -25,9 +25,21 @@ class ConfiguracaoBanco(models.Model):
     )
     client_id = models.CharField(max_length=255, verbose_name="Client ID")
     client_secret = models.CharField(max_length=255, verbose_name="Client Secret")
-    # Para o Bradesco, você pode precisar de mais campos (ex: chave privada, certificado)
-    # Por agora, vamos manter o básico.
     
+    # NOVOS CAMPOS ADICIONADOS
+    certificado_file = models.FileField(
+        upload_to='bradesco_certs/',
+        blank=True,
+        null=True,
+        verbose_name="Arquivo do Certificado (CRT/PEM)"
+    )
+    chave_privada_file = models.FileField(
+        upload_to='bradesco_certs/',
+        blank=True,
+        null=True,
+        verbose_name="Arquivo da Chave Privada (KEY)"
+    )
+
     class Meta:
         verbose_name = "Configuração do Banco"
         verbose_name_plural = "Configurações dos Bancos"

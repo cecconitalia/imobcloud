@@ -67,11 +67,11 @@ class Contrato(models.Model):
     data_assinatura = models.DateField(verbose_name="Data de Assinatura")
     data_cadastro = models.DateTimeField(auto_now_add=True, verbose_name="Data de Registro")
 
-    #formas_pagamento = models.ManyToManyField(
-    #    'app_financeiro.FormaPagamento',
-    #    blank=True,
-    #   verbose_name="Formas de Pagamento Aceitas"
-    #)
+    formas_pagamento = models.ManyToManyField(
+        'app_financeiro.FormaPagamento',
+        blank=True,
+        verbose_name="Formas de Pagamento Aceitas"
+    )
 
     class Meta:
         verbose_name = "Contrato"
