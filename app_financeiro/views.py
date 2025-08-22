@@ -1,10 +1,10 @@
 # app_financeiro/views.py
 
-from rest_framework import viewsets, permissions, status
+from rest_framework import viewsets, permissions, status, filters # <<< IMPORTAR FILTERS
 from rest_framework.response import Response
 from rest_framework.decorators import action
 from rest_framework.exceptions import PermissionDenied, ValidationError
-from django.db.models import Sum, Q, F, DecimalField
+from django.db.models import Sum, Q, F, DecimalField, Count
 from django.db.models.functions import Coalesce
 from django.utils import timezone
 from datetime import timedelta, datetime
@@ -22,17 +22,16 @@ class CategoriaViewSet(viewsets.ModelViewSet):
         if self.request.user.is_superuser:
             return Categoria.objects.all()
         if hasattr(self.request.user, 'perfil') and self.request.user.perfil:
-            return Categoria.objects.filter(imobiliaria=self.request.user.perfil.imobiliaria)
+            return Categoria.objects.filter(Q(imobiliaria=self.request.user.perfil.imobiliaria) | Q(imobiliaria__isnull=True))
         return Categoria.objects.none()
 
     def perform_create(self, serializer):
         if self.request.user.is_superuser:
-            if 'imobiliaria' in self.request.data:
-                imobiliaria_id = self.request.data['imobiliaria']
+            imobiliaria_id = self.request.data.get('imobiliaria')
+            imobiliaria_obj = None
+            if imobiliaria_id:
                 imobiliaria_obj = Imobiliaria.objects.get(pk=imobiliaria_id)
-                serializer.save(imobiliaria=imobiliaria_obj)
-            else:
-                raise PermissionDenied("Para superusuários, a imobiliária é obrigatória.")
+            serializer.save(imobiliaria=imobiliaria_obj)
         else:
             if not self.request.tenant:
                 raise PermissionDenied("Não foi possível associar a categoria a uma imobiliária.")
@@ -52,23 +51,18 @@ class ContaBancariaViewSet(viewsets.ModelViewSet):
     permission_classes = [permissions.IsAuthenticated]
 
     def get_queryset(self):
-        # A lógica de filtragem da imobiliária é sempre aplicada, exceto para superusuários
         if self.request.user.is_superuser:
             return ContaBancaria.objects.all()
         
         queryset = ContaBancaria.objects.filter(imobiliaria=self.request.user.perfil.imobiliaria)
         
-        # A lógica para o filtro de status é aplicada APENAS na listagem
         if self.action == 'list':
             status_filter = self.request.query_params.get('status')
             if status_filter == 'inativo':
                 return queryset.filter(ativo=False)
             
-            # Por padrão, na listagem, mostra apenas contas ativas
             return queryset.filter(ativo=True)
             
-        # Para as ações de detalhe (retrieve, update, etc.), retorna o queryset completo
-        # da imobiliária, sem o filtro de status, para que a conta possa ser encontrada
         return queryset
 
     def perform_create(self, serializer):
@@ -99,9 +93,6 @@ class ContaBancariaViewSet(viewsets.ModelViewSet):
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 class FormaPagamentoViewSet(viewsets.ModelViewSet):
-    """
-    ViewSet para gerir as formas de pagamento disponíveis na imobiliária.
-    """
     queryset = FormaPagamento.objects.all()
     serializer_class = FormaPagamentoSerializer
     permission_classes = [permissions.IsAuthenticated]
@@ -120,14 +111,40 @@ class TransacaoViewSet(viewsets.ModelViewSet):
     queryset = Transacao.objects.all()
     serializer_class = TransacaoSerializer
     permission_classes = [permissions.IsAuthenticated, IsCorretorOrReadOnly]
+    # ==========================================================================================
+    # <<< HABILITANDO O BACKEND DE BUSCA >>>
+    filter_backends = [filters.SearchFilter]
+    search_fields = ['descricao', 'contrato__inquilino__nome_completo', 'contrato__id']
+    # ==========================================================================================
+
 
     def get_queryset(self):
         if self.request.user.is_superuser:
-            return Transacao.objects.all()
-        if hasattr(self.request.user, 'perfil') and self.request.user.perfil.imobiliaria:
+            base_queryset = Transacao.objects.all()
+        elif hasattr(self.request.user, 'perfil') and self.request.user.perfil.imobiliaria:
             base_queryset = Transacao.objects.filter(imobiliaria=self.request.user.perfil.imobiliaria)
-            return base_queryset
-        return Transacao.objects.none()
+        else:
+            return Transacao.objects.none()
+
+        params = self.request.query_params
+
+        categoria_id = params.get('categoria')
+        if categoria_id:
+            base_queryset = base_queryset.filter(categoria_id=categoria_id)
+
+        start_date = params.get('start_date')
+        end_date = params.get('end_date')
+        if start_date:
+            base_queryset = base_queryset.filter(data_vencimento__gte=start_date)
+        if end_date:
+            base_queryset = base_queryset.filter(data_vencimento__lte=end_date)
+        
+        ordering = params.get('ordering')
+        if ordering in ['valor', '-valor', 'data_vencimento', '-data_vencimento']:
+            base_queryset = base_queryset.order_by(ordering)
+        
+        return base_queryset.select_related('categoria', 'contrato__inquilino', 'imovel')
+
 
     def perform_create(self, serializer):
         imobiliaria_tenant = None
@@ -149,22 +166,30 @@ class TransacaoViewSet(viewsets.ModelViewSet):
             serializer.save()
         else:
             raise PermissionDenied("Você não tem permissão para atualizar esta transação.")
+            
+    def list(self, request, *args, **kwargs):
+        # Sobrescreve o método `list` para aplicar a busca antes da filtragem de `a_pagar`/`a_receber`
+        queryset = self.filter_queryset(self.get_queryset())
+        serializer = self.get_serializer(queryset, many=True)
+        return Response(serializer.data)
 
     @action(detail=False, methods=['get'], url_path='a-pagar')
     def a_pagar(self, request):
-        contas = self.get_queryset().filter(
+        queryset = self.filter_queryset(self.get_queryset()) # Aplica a busca (search)
+        contas = queryset.filter(
             tipo='DESPESA',
             status__in=['PENDENTE', 'ATRASADO']
-        ).order_by('data_vencimento')
+        )
         serializer = self.get_serializer(contas, many=True)
         return Response(serializer.data)
 
     @action(detail=False, methods=['get'], url_path='a-receber')
     def a_receber(self, request):
-        contas = self.get_queryset().filter(
+        queryset = self.filter_queryset(self.get_queryset()) # Aplica a busca (search)
+        contas = queryset.filter(
             tipo='RECEITA',
             status__in=['PENDENTE', 'ATRASADO']
-        ).order_by('data_vencimento')
+        )
         serializer = self.get_serializer(contas, many=True)
         return Response(serializer.data)
         
@@ -204,6 +229,25 @@ class TransacaoViewSet(viewsets.ModelViewSet):
             "receitas_mes": total_receitas,
             "despesas_mes": total_despesas,
             "saldo_mes": saldo_mes
+        })
+    
+    @action(detail=False, methods=['get'], url_path='contas-pendentes-stats')
+    def contas_pendentes_stats(self, request):
+        queryset = self.get_queryset().filter(status__in=['PENDENTE', 'ATRASADO'])
+        hoje = timezone.now().date()
+
+        total_a_receber = queryset.filter(tipo='RECEITA').aggregate(total=Coalesce(Sum('valor'), 0, output_field=DecimalField()))['total']
+        total_a_pagar = queryset.filter(tipo='DESPESA').aggregate(total=Coalesce(Sum('valor'), 0, output_field=DecimalField()))['total']
+        
+        contas_vencidas = queryset.filter(data_vencimento__lt=hoje)
+        total_vencido = contas_vencidas.aggregate(total=Coalesce(Sum('valor'), 0, output_field=DecimalField()))['total']
+        quantidade_vencidas = contas_vencidas.count()
+
+        return Response({
+            "total_a_receber": total_a_receber,
+            "total_a_pagar": total_a_pagar,
+            "total_vencido": total_vencido,
+            "quantidade_vencidas": quantidade_vencidas
         })
     
     @action(detail=False, methods=['get'])

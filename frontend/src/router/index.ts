@@ -35,8 +35,11 @@ import ListaContasView from '@/views/ListaContasView.vue'
 import ContaFormView from '@/views/ContaFormView.vue'
 import ListaCategoriasView from '@/views/ListaCategoriasView.vue'
 import CategoriaFormView from '@/views/CategoriaFormView.vue'
-import ContasPendentes from '@/views/financeiro/ContasPendentes.vue'
-// NOVO: Importe as novas views
+// ==========================================================================================
+// <<< PÁGINA ANTIGA REMOVIDA, NOVAS PÁGINAS IMPORTADAS >>>
+import ContasPagarView from '@/views/financeiro/ContasPagarView.vue';
+import ContasReceberView from '@/views/financeiro/ContasReceberView.vue';
+// ==========================================================================================
 import ListaFormasPagamentoView from '@/views/ListaFormasPagamentoView.vue'
 import FormaPagamentoFormView from '@/views/FormaPagamentoFormView.vue'
 
@@ -480,7 +483,7 @@ const router = createRouter({
                     }
                 },
                 {
-                    path: 'financeiro/formas-pagamento', // NOVO: Rota para a lista de formas de pagamento
+                    path: 'financeiro/formas-pagamento',
                     name: 'lista-formas-pagamento',
                     component: ListaFormasPagamentoView,
                     meta: {
@@ -490,7 +493,7 @@ const router = createRouter({
                     }
                 },
                 {
-                    path: 'financeiro/formas-pagamento/nova', // NOVO: Rota para adicionar
+                    path: 'financeiro/formas-pagamento/nova',
                     name: 'nova-forma-pagamento',
                     component: FormaPagamentoFormView,
                     meta: {
@@ -500,7 +503,7 @@ const router = createRouter({
                     }
                 },
                 {
-                    path: 'financeiro/formas-pagamento/editar/:id', // NOVO: Rota para editar
+                    path: 'financeiro/formas-pagamento/editar/:id',
                     name: 'editar-forma-pagamento',
                     component: FormaPagamentoFormView,
                     meta: {
@@ -509,16 +512,29 @@ const router = createRouter({
                         isAdmin: true
                     }
                 },
+                // ==========================================================================================
+                // <<< ROTA ANTIGA REMOVIDA E NOVAS ROTAS ADICIONADAS >>>
                 {
-                    path: 'financeiro/contas-pendentes',
-                    name: 'contas-pendentes',
-                    component: ContasPendentes,
+                    path: 'financeiro/contas-a-pagar',
+                    name: 'contas-a-pagar',
+                    component: ContasPagarView,
                     meta: {
-                        title: 'Contas a Pagar e Receber',
+                        title: 'Contas a Pagar',
                         requiresAuth: true,
                         isAdmin: true
                     }
                 },
+                {
+                    path: 'financeiro/contas-a-receber',
+                    name: 'contas-a-receber',
+                    component: ContasReceberView,
+                    meta: {
+                        title: 'Contas a Receber',
+                        requiresAuth: true,
+                        isAdmin: true
+                    }
+                },
+                // ==========================================================================================
             ]
         },
 
