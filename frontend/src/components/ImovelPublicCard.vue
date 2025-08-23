@@ -1,11 +1,24 @@
 <template>
   <div class="imovel-card">
-    <div class="image-container">
-      <img :src="getPrincipalImage(imovel.imagens)" alt="Imagem do imóvel" class="imovel-image" />
-    </div>
+    <router-link :to="`/site/imovel/${imovel.id}`" class="image-link">
+      <div class="image-carousel-container">
+        <img :src="currentImage" alt="Imagem do imóvel" class="imovel-image" />
+        
+        <div v-if="imovel.imagens && imovel.imagens.length > 1">
+          <button class="nav-btn prev" @click.stop.prevent="prevImage">&lt;</button>
+          <button class="nav-btn next" @click.stop.prevent="nextImage">&gt;</button>
+        </div>
+      </div>
+    </router-link>
+    
     <div class="card-content">
-      <h3 class="card-title">{{ imovel.titulo_anuncio }}</h3>
-      
+      <div class="card-header-flex">
+        <h3 class="card-title">{{ imovel.titulo_anuncio }}</h3>
+        <p class="card-price" v-if="imovel.valor_venda || imovel.valor_aluguel">
+          {{ formatarPreco(imovel) }}
+        </p>
+      </div>
+
       <div class="imovel-details-icons">
         <div class="detail-item" v-if="imovel.quartos">
           <i class="fas fa-bed"></i> {{ imovel.quartos }} Qts
@@ -27,23 +40,12 @@
           {{ imovel.bairro || 'N/A' }}, {{ imovel.cidade }}, {{ imovel.estado }}
         </p>
       </div>
-
-      <p class="card-price" v-if="imovel.valor_venda">
-        {{ formatarPreco(imovel.valor_venda) }}
-      </p>
-      <p class="card-price" v-else-if="imovel.valor_aluguel">
-        {{ formatarPreco(imovel.valor_aluguel) }}/mês
-      </p>
-
-      <div class="card-actions">
-        <router-link :to="`/site/imovel/${imovel.id}`" class="btn-detalhes">Ver Detalhes</router-link>
-      </div>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { defineProps } from 'vue';
+import { ref, defineProps, onMounted, watch } from 'vue';
 import publicApiClient from '@/services/publicApiClient';
 
 const props = defineProps({
@@ -53,36 +55,68 @@ const props = defineProps({
   }
 });
 
-function formatCurrency(value: number) {
-  return value.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-}
+const currentImageIndex = ref(0);
+const currentImage = ref('');
 
-function formatarPreco(value: number) {
-  return value.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-}
-
-function getPrincipalImage(imagens: any[]) {
-  if (!imagens || imagens.length === 0) {
-    return 'https://via.placeholder.com/400x300.png?text=Sem+imagem';
+function formatarPreco(imovel: any) {
+  if (imovel.valor_venda) {
+    return parseFloat(imovel.valor_venda).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
   }
-  const principal = imagens.find(img => img.principal);
-  const imagemPath = principal ? principal.imagem : imagens[0].imagem;
-  
-  // CORREÇÃO FINAL: Garante que a URL da imagem seja sempre absoluta.
-  // Se o caminho já for absoluto (http/https), usa-o. Caso contrário,
-  // constrói a URL completa.
+  if (imovel.valor_aluguel) {
+    return `${parseFloat(imovel.valor_aluguel).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}/mês`;
+  }
+  return 'A consultar';
+}
+
+function getImageUrl(imagemPath: string) {
   if (imagemPath.startsWith('http')) {
     return imagemPath;
   }
-  
-  // Remove o '/api' da base URL para ter o domínio base.
   const baseUrl = publicApiClient.defaults.baseURL.replace('/api', '');
-  
-  // Adiciona uma barra inicial se o caminho não a tiver, para evitar caminhos quebrados.
   const path = imagemPath.startsWith('/') ? imagemPath : `/${imagemPath}`;
-  
   return `${baseUrl}${path}`;
 }
+
+function updateCurrentImage() {
+  const imagens = props.imovel.imagens;
+  if (!imagens || imagens.length === 0) {
+    currentImage.value = 'https://via.placeholder.com/400x300.png?text=Sem+imagem';
+    return;
+  }
+  const imagemPath = imagens[currentImageIndex.value].imagem;
+  currentImage.value = getImageUrl(imagemPath);
+}
+
+function nextImage() {
+  const imagens = props.imovel.imagens;
+  if (imagens.length <= 1) return;
+  currentImageIndex.value = (currentImageIndex.value + 1) % imagens.length;
+  updateCurrentImage();
+}
+
+function prevImage() {
+  const imagens = props.imovel.imagens;
+  if (imagens.length <= 1) return;
+  currentImageIndex.value = (currentImageIndex.value - 1 + imagens.length) % imagens.length;
+  updateCurrentImage();
+}
+
+onMounted(() => {
+  const imagens = props.imovel.imagens;
+  if (imagens && imagens.length > 0) {
+    const principal = imagens.find((img: any) => img.principal);
+    if (principal) {
+      currentImageIndex.value = imagens.indexOf(principal);
+    }
+  }
+  updateCurrentImage();
+});
+
+// Watch para garantir que a imagem seja atualizada quando o prop do imóvel mudar
+watch(() => props.imovel, () => {
+    currentImageIndex.value = 0; // Reinicia o índice ao mudar de imóvel
+    updateCurrentImage();
+});
 </script>
 
 <style scoped>
@@ -103,103 +137,135 @@ function getPrincipalImage(imagens: any[]) {
   box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
 }
 
-.image-container {
+.image-link {
+  display: block;
+}
+
+.image-carousel-container {
   width: 100%;
-  height: 200px;
+  height: 180px;
   overflow: hidden;
-  background-color: #f0f0f0;
-  display: flex;
-  justify-content: center;
-  align-items: center;
+  position: relative;
 }
 
 .imovel-image {
   width: 100%;
   height: 100%;
   object-fit: cover;
+  display: block;
+}
+
+.nav-btn {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  background-color: rgba(0, 0, 0, 0.5);
+  color: white;
+  border: none;
+  font-size: 1.5rem;
+  cursor: pointer;
+  padding: 0.5rem 1rem;
+  height: 100%;
+  transition: background-color 0.2s;
+  opacity: 0;
+}
+
+.image-carousel-container:hover .nav-btn {
+  opacity: 1;
+}
+
+.nav-btn:hover {
+  background-color: rgba(0, 0, 0, 0.8);
+}
+
+.prev {
+  left: 0;
+  border-top-left-radius: 8px;
+  border-bottom-left-radius: 8px;
+}
+
+.next {
+  right: 0;
+  border-top-right-radius: 8px;
+  border-bottom-right-radius: 8px;
 }
 
 .card-content {
-  padding: 1.5rem;
+  padding: 1rem;
   display: flex;
   flex-direction: column;
   flex-grow: 1;
   text-align: left;
 }
 
+.card-header-flex {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 0.5rem;
+}
+
 .card-title {
-  font-size: 1.5rem;
+  font-size: 1.2rem;
   font-weight: 600;
-  margin-bottom: 0.5rem;
+  margin: 0;
   color: #343a40;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  flex-grow: 1;
+}
+
+.card-price {
+    font-size: 1rem;
+    font-weight: bold;
+    color: #28a745;
+    margin: 0;
+    flex-shrink: 0;
+    white-space: nowrap;
+    margin-left: 1rem;
 }
 
 .imovel-details-icons {
   display: flex;
   flex-wrap: wrap;
-  gap: 1.5rem;
-  margin-bottom: 1rem;
+  gap: 1rem;
+  margin-bottom: 0.5rem;
+  border-bottom: 1px solid #e9ecef;
+  padding-bottom: 0.5rem;
 }
 
 .detail-item {
   display: flex;
   align-items: center;
-  font-size: 0.9rem;
+  font-size: 0.8rem;
   color: #6c757d;
   font-weight: 500;
 }
 
 .detail-item i {
-  margin-right: 8px;
+  margin-right: 4px;
   color: #007bff;
-  font-size: 1.1rem;
+  font-size: 1em;
 }
 
 .imovel-info-group {
-  margin-bottom: 1rem;
-  border-top: 1px solid #e9ecef;
-  padding-top: 1rem;
+  margin-top: 0.5rem;
 }
 
 .imovel-location {
-  font-size: 0.9rem;
+  font-size: 0.8rem;
   color: #6c757d;
   margin: 0;
   display: flex;
   align-items: center;
   gap: 8px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .imovel-location i {
   color: #007bff;
-}
-
-.card-price {
-  font-size: 1.8rem;
-  font-weight: bold;
-  color: #28a745;
-  margin: 1rem 0;
-}
-
-.card-actions {
-  margin-top: auto;
-  padding-top: 1rem;
-  border-top: 1px solid #e9ecef;
-  text-align: right;
-}
-
-.btn-detalhes {
-  display: inline-block;
-  background-color: #007bff;
-  color: white;
-  padding: 10px 20px;
-  border-radius: 5px;
-  text-decoration: none;
-  font-weight: bold;
-  transition: background-color 0.3s ease;
-}
-
-.btn-detalhes:hover {
-  background-color: #0056b3;
 }
 </style>

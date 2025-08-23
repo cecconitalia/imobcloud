@@ -13,7 +13,8 @@
 
       <div v-if="imoveis.length > 0" class="imoveis-grid-container">
         <div class="grid-header">
-          <h2 class="section-title">Imóveis em Destaque</h2>
+          <p v-if="aiMessage" class="ai-message-title">{{ aiMessage }}</p>
+          <h2 v-else class="section-title">Imóveis em Destaque</h2>
           <span class="results-count">{{ imoveis.length }} resultado{{ imoveis.length > 1 ? 's' : '' }}</span>
         </div>
         <div class="imoveis-grid">
@@ -37,6 +38,7 @@ import ImovelPublicCard from '@/components/ImovelPublicCard.vue';
 const imoveis = ref<any[]>([]);
 const isLoading = ref(true);
 const error = ref<string | null>(null);
+const aiMessage = ref<string | null>(null);
 
 async function fetchImoveis() {
   isLoading.value = true;
@@ -67,8 +69,9 @@ async function fetchImoveis() {
   }
 }
 
-function handleSearchResults(results: any[]) {
-  imoveis.value = results;
+function handleSearchResults(results: any) {
+  imoveis.value = results.imoveis;
+  aiMessage.value = results.mensagem;
 }
 
 onMounted(() => {
@@ -112,6 +115,13 @@ onMounted(() => {
   color: #343a40;
 }
 
+.ai-message-title {
+  font-size: 1.25rem;
+  font-weight: 500;
+  color: #6c757d;
+  margin: 0;
+}
+
 .results-count {
   font-size: 1rem;
   color: #6c757d;
@@ -120,7 +130,7 @@ onMounted(() => {
 
 .imoveis-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
   gap: 2rem;
 }
 
