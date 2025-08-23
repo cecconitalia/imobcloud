@@ -10,9 +10,9 @@ class ImagemImovelInline(admin.TabularInline):
 
 @admin.register(Imovel)
 class ImovelAdmin(admin.ModelAdmin):
-    list_display = ('endereco', 'cidade', 'tipo', 'finalidade', 'status', 'imobiliaria')
+    list_display = ('logradouro', 'cidade', 'tipo', 'finalidade', 'status', 'imobiliaria')
     list_filter = ('imobiliaria', 'status', 'tipo', 'cidade')
-    search_fields = ('endereco', 'cidade', 'descricao')
+    search_fields = ('logradouro', 'cidade', 'descricao')
     inlines = [ImagemImovelInline] # Adiciona a gestão de imagens dentro do formulário do imóvel
 
 # NOVA CLASSE ADICIONADA PARA GERIR OS CONTACTOS

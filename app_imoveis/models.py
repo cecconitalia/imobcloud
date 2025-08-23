@@ -2,6 +2,7 @@
 from django.db import models
 from core.models import Imobiliaria
 from app_clientes.models import Cliente
+from django.db.models import JSONField
 
 class Imovel(models.Model):
     # --- CHOICES (Listas de Opções) ---
@@ -70,6 +71,11 @@ class Imovel(models.Model):
 
     # --- 💻 Controle de Publicação ---
     publicado_no_site = models.BooleanField(default=True, verbose_name="Publicar no site?")
+    configuracao_publica = JSONField(
+        default=dict,
+        blank=True,
+        help_text="Configuração de visibilidade de campos específicos para o site público."
+    )
 
     # --- 💰 Valores e Taxas ---
     valor_venda = models.DecimalField(max_digits=15, decimal_places=2, null=True, blank=True, verbose_name="Valor de Venda")
@@ -78,7 +84,9 @@ class Imovel(models.Model):
     valor_iptu = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True, verbose_name="Valor do IPTU (Anual)")
     
     # --- 📍 Localização ---
-    endereco = models.CharField(max_length=255, verbose_name="Endereço Completo (Rua, Número)")
+    logradouro = models.CharField(max_length=255, verbose_name="Rua/Avenida")
+    numero = models.CharField(max_length=10, blank=True, null=True, verbose_name="Número")
+    complemento = models.CharField(max_length=255, blank=True, null=True, verbose_name="Complemento")
     bairro = models.CharField(max_length=100, verbose_name="Bairro")
     cidade = models.CharField(max_length=100, verbose_name="Cidade")
     estado = models.CharField(max_length=2, verbose_name="Estado (UF)") 
@@ -163,7 +171,6 @@ class Imovel(models.Model):
     possui_exclusividade = models.BooleanField(default=False, verbose_name="Possui Contrato de Exclusividade?")
     comissao_percentual = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True, verbose_name="Comissão Acordada (%)")
     documento_autorizacao = models.FileField(upload_to='autorizacoes/', blank=True, null=True, verbose_name="Documento de Autorização Assinado")
-    # NOVO CAMPO ADICIONADO AQUI
     informacoes_adicionais_autorizacao = models.TextField(blank=True, null=True, verbose_name="Informações Adicionais para o Contrato")
     financiavel = models.BooleanField(default=False, verbose_name="Aceita Financiamento")
     aceita_permuta = models.BooleanField(default=False, verbose_name="Aceita Permuta (Troca)")
@@ -172,6 +179,7 @@ class Imovel(models.Model):
 
     # --- 💬 Observações Gerais ---
     descricao_completa = models.TextField(blank=True, null=True, verbose_name="Descrição Detalhada / Observações")
+    outras_caracteristicas = models.TextField(blank=True, null=True, verbose_name="Outras Características")
     aceita_pet = models.BooleanField(default=False, verbose_name="Aceita Pet")
     mobiliado = models.BooleanField(default=False, verbose_name="Mobiliado / Semimobiliado")
 
@@ -207,15 +215,12 @@ class ImagemImovel(models.Model):
     imagem = models.ImageField(upload_to='imoveis_imagens/')
     principal = models.BooleanField(default=False)
     data_upload = models.DateTimeField(auto_now_add=True)
-    # ##### NOVO CAMPO ADICIONADO AQUI #####
     ordem = models.PositiveIntegerField(default=0, blank=False, null=False)
-    # ######################################
 
     def __str__(self):
         return f"Imagem de {self.imovel.titulo_anuncio} ({self.id})"
 
     class Meta:
-        # Garante que as imagens serão ordenadas corretamente por defeito
         ordering = ['ordem']
     
 class ContatoImovel(models.Model):
