@@ -1,6 +1,12 @@
-# C:\wamp64\www\ImobCloud\app_imoveis\models.py
+# app_imoveis/models.py
+
 from django.db import models
+from django.db.models.signals import pre_save
+from django.dispatch import receiver
+from django.utils.text import slugify
+import uuid
 from core.models import Imobiliaria
+from django.core.exceptions import ValidationError
 from app_clientes.models import Cliente
 from django.db.models import JSONField
 
@@ -238,4 +244,4 @@ class ContatoImovel(models.Model):
         ordering = ['-data_contato']
 
     def __str__(self):
-        return f"Contato de {self.nome} para o imóvel: {self.imovel.endereco}"
+        return f"Contato de {self.nome} para o imóvel: {self.imovel.logradouro}"
