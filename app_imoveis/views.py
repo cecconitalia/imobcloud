@@ -151,24 +151,43 @@ class ImagemImovelViewSet(viewsets.ModelViewSet):
             return ImagemImovel.objects.filter(imovel__imobiliaria=self.request.tenant)
         return ImagemImovel.objects.none()
 
-    def perform_create(self, serializer):
+    @transaction.atomic
+    def create(self, request, *args, **kwargs):
         """
-        Lógica para criar uma nova imagem, associando-a a um imóvel
-        e definindo sua ordem e se é a imagem principal.
+        Lógica para criar múltiplas imagens de uma só vez.
         """
-        imovel_id = self.request.data.get('imovel')
-        imovel = get_object_or_404(Imovel, pk=imovel_id)
+        imovel_id = request.data.get('imovel')
+        if not imovel_id:
+            return Response({'imovel': ['O ID do imóvel é obrigatório.']}, status=status.HTTP_400_BAD_REQUEST)
 
-        if not (self.request.user.is_superuser or (hasattr(self.request.user, 'perfil') and imovel.imobiliaria == self.request.tenant)):
+        imovel = get_object_or_404(Imovel, pk=imovel_id)
+        if not (request.user.is_superuser or (hasattr(request.user, 'perfil') and imovel.imobiliaria == request.tenant)):
             raise PermissionDenied("Você não tem permissão para adicionar imagens a este imóvel.")
 
-        e_primeira_imagem = not ImagemImovel.objects.filter(imovel=imovel).exists()
-        
+        imagens = request.FILES.getlist('imagem')
+        if not imagens:
+            return Response({'imagem': ['Nenhuma imagem foi enviada.']}, status=status.HTTP_400_BAD_REQUEST)
+
         max_ordem_result = ImagemImovel.objects.filter(imovel=imovel).aggregate(Max('ordem'))
         max_ordem = max_ordem_result['ordem__max'] if max_ordem_result['ordem__max'] is not None else -1
-        nova_ordem = max_ordem + 1
 
-        serializer.save(imovel=imovel, ordem=nova_ordem, principal=e_primeira_imagem)
+        new_images = []
+        for index, imagem in enumerate(imagens):
+            nova_ordem = max_ordem + 1 + index
+            new_images.append(ImagemImovel(
+                imovel=imovel,
+                imagem=imagem,
+                ordem=nova_ordem,
+                principal=(nova_ordem == 0)
+            ))
+        
+        ImagemImovel.objects.bulk_create(new_images)
+        
+        # Opcional: Atualizar o campo `principal` para garantir que apenas uma seja principal
+        if ImagemImovel.objects.filter(imovel=imovel, principal=True).count() > 1:
+            ImagemImovel.objects.filter(imovel=imovel).exclude(pk=new_images[0].pk).update(principal=False)
+        
+        return Response({'status': f'{len(new_images)} imagens foram carregadas com sucesso.'}, status=status.HTTP_201_CREATED)
 
     def perform_destroy(self, instance):
         """
@@ -212,7 +231,6 @@ class ImagemImovelViewSet(viewsets.ModelViewSet):
 
 
 class ContatoImovelViewSet(viewsets.ModelViewSet):
-    # Sua lógica para ContatoImovelViewSet mantida intacta
     queryset = ContatoImovel.objects.all()
     serializer_class = ContatoImovelSerializer
 
@@ -273,7 +291,6 @@ class ContatoImovelViewSet(viewsets.ModelViewSet):
 
 
 class GerarAutorizacaoPDFView(APIView):
-    # Sua lógica para gerar PDF mantida intacta
     permission_classes = [permissions.IsAuthenticated]
 
     def get(self, request, imovel_id, *args, **kwargs):
@@ -317,7 +334,6 @@ class GerarAutorizacaoPDFView(APIView):
 
 
 class AutorizacaoStatusView(APIView):
-    # Sua lógica para o status de autorização mantida intacta
     permission_classes = [permissions.IsAuthenticated]
 
     def get(self, request, *args, **kwargs):

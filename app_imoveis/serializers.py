@@ -21,7 +21,7 @@ class ImovelSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'titulo_anuncio', 'codigo_referencia', 'tipo', 'finalidade', 'status', 'situacao',
             'publicado_no_site', 'valor_venda', 'valor_aluguel', 'valor_condominio', 'valor_iptu',
-            'endereco', 'bairro', 'cidade', 'estado', 'cep', 'area_construida', 'area_util', 'area_total',
+            'logradouro', 'numero', 'complemento', 'bairro', 'cidade', 'estado', 'cep', 'area_construida', 'area_util', 'area_total',
             'quartos', 'suites', 'banheiros', 'vagas_garagem', 'lavabo', 'escritorio', 'varanda',
             'mobiliado', 'ar_condicionado', 'moveis_planejados', 'piscina_privativa',
             'churrasqueira_privativa', 'portaria_24h', 'elevador', 'piscina_condominio', 'academia',
@@ -30,8 +30,9 @@ class ImovelSerializer(serializers.ModelSerializer):
             'data_captacao', 'data_fim_autorizacao', 'possui_exclusividade', 'comissao_percentual',
             'informacoes_adicionais_autorizacao',
             'imagens',
-            # NOVO CAMPO ADICIONADO AQUI
-            'posicao_chave'
+            'posicao_chave',
+            'configuracao_publica',
+            'outras_caracteristicas'
         ]
         read_only_fields = ('codigo_referencia',)
 
@@ -47,15 +48,32 @@ class ImovelPublicSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Imovel
-        # Lista de campos que serão visíveis publicamente
         fields = [
             'id', 'codigo_referencia', 'titulo_anuncio', 'tipo', 'finalidade', 'status',
             'valor_venda', 'valor_aluguel', 'valor_condominio', 'valor_iptu',
-            'endereco', 'bairro', 'cidade', 'estado',
+            'logradouro', 'numero', 'complemento', 'bairro', 'cidade', 'estado',
             'area_util', 'area_construida', 'area_total',
             'quartos', 'suites', 'banheiros', 'vagas_garagem',
             'imagens', 'descricao_completa',
             'piscina_privativa', 'piscina_condominio',
             'churrasqueira_privativa', 'churrasqueira_condominio',
-            'academia', 'aceita_pet', 'mobiliado'
+            'academia', 'aceita_pet', 'mobiliado',
+            'configuracao_publica',
+            'outras_caracteristicas'
         ]
+
+    def to_representation(self, instance):
+        """
+        Sobrescreve o método para remover dinamicamente os campos que não
+        devem ser exibidos publicamente, com base em configuracao_publica.
+        """
+        representation = super().to_representation(instance)
+        config = instance.configuracao_publica or {}
+
+        # Itera sobre os campos que têm uma configuração de visibilidade
+        for field_name, is_visible in config.items():
+            if not is_visible:
+                # Remove o campo da resposta se a configuração for False
+                representation.pop(field_name, None)
+
+        return representation

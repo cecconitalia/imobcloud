@@ -19,6 +19,7 @@
         <button type="button" @click="activeTab = 'condominio'" :class="{ active: activeTab === 'condominio' }">Condomínio</button>
         <button type="button" @click="activeTab = 'imagens'" :class="{ active: activeTab === 'imagens' }" :disabled="!isEditing">Imagens</button>
         <button type="button" @click="activeTab = 'autorizacao'" :class="{ active: activeTab === 'autorizacao' }">Autorização</button>
+        <button type="button" @click="activeTab = 'publico'" :class="{ active: activeTab === 'publico' }">Visibilidade Pública</button>
       </div>
 
       <div class="tab-content">
@@ -68,9 +69,17 @@
                 <option value="NA_PLANTA">Na Planta</option>
             </select>
             </div>
-            <div class="form-group full-width">
-            <label for="endereco">Endereço Completo</label>
-            <input type="text" id="endereco" v-model="imovel.endereco" required />
+            <div class="form-group">
+                <label for="logradouro">Logradouro</label>
+                <input type="text" id="logradouro" v-model="imovel.logradouro" required />
+            </div>
+            <div class="form-group">
+                <label for="numero">Número</label>
+                <input type="text" id="numero" v-model="imovel.numero" />
+            </div>
+            <div class="form-group">
+                <label for="complemento">Complemento</label>
+                <input type="text" id="complemento" v-model="imovel.complemento" />
             </div>
             <div class="form-group">
             <label for="bairro">Bairro</label>
@@ -168,6 +177,10 @@
                 <input type="checkbox" id="churrasqueira_privativa" v-model="imovel.churrasqueira_privativa">
                 <label for="churrasqueira_privativa">Churrasqueira Privativa</label>
             </div>
+            <div class="form-group full-width">
+                <label for="outras_caracteristicas">Outras Características (Opcional)</label>
+                <textarea id="outras_caracteristicas" v-model="imovel.outras_caracteristicas" rows="4"></textarea>
+            </div>
         </div>
         <div v-show="activeTab === 'condominio'" class="form-grid checkbox-grid">
             <div class="checkbox-group">
@@ -246,10 +259,6 @@
                 <label for="possui_exclusividade">Possui Contrato de Exclusividade?</label>
             </div>
             <div class="checkbox-group">
-                <input type="checkbox" id="publicado_no_site" v-model="imovel.publicado_no_site">
-                <label for="publicado_no_site">Publicar no site? (Ativar anúncio)</label>
-            </div>
-            <div class="checkbox-group">
                 <input type="checkbox" id="financiavel" v-model="imovel.financiavel">
                 <label for="financiavel">Aceita Financiamento</label>
             </div>
@@ -270,6 +279,28 @@
                 <button type="button" @click="gerarContratoPDF" class="btn-info">
                     Gerar Contrato de Autorização (PDF)
                 </button>
+            </div>
+        </div>
+        <div v-show="activeTab === 'publico'" class="form-section">
+            <div class="info-message">
+              <p>Controle a visibilidade de cada campo deste imóvel no site público da imobiliária.</p>
+              <p>Campos não selecionados não serão exibidos, mesmo que preenchidos.</p>
+            </div>
+             <div class="section-group">
+                <div class="section-title">Opções de Ativação</div>
+                <div class="checkbox-group">
+                    <input type="checkbox" id="publicado_no_site" v-model="imovel.publicado_no_site">
+                    <label for="publicado_no_site">Ativar Anúncio no Site Público</label>
+                </div>
+            </div>
+            <div class="section-group" v-for="(campos, categoria) in camposVisiveis" :key="categoria">
+                <div class="section-title">{{ categoria }}</div>
+                <div class="form-grid checkbox-grid">
+                    <div class="checkbox-group" v-for="(label, key) in campos" :key="key">
+                        <input type="checkbox" :id="key" v-model="imovel.configuracao_publica[key]">
+                        <label :for="key">{{ label }}</label>
+                    </div>
+                </div>
             </div>
         </div>
       </div>
@@ -293,9 +324,6 @@ import { useRoute, useRouter } from 'vue-router';
 import apiClient from '@/services/api'; 
 import ImovelImagensView from './ImovelImagensView.vue';
 
-// A IMPORTAÇÃO E A LÓGICA DO MODAL FORAM REMOVIDAS DAQUI
-// PARA CENTRALIZAR NA PÁGINA DE PUBLICAÇÕES
-
 const route = useRoute();
 const router = useRouter();
 
@@ -304,58 +332,127 @@ const isEditing = computed(() => !!imovelId.value);
 const activeTab = ref('geral');
 const clientes = ref<any[]>([]);
 
-const createEmptyImovel = () => ({
-  id: null,
-  titulo_anuncio: '',
-  codigo_referencia: '',
-  tipo: 'CASA',
-  finalidade: 'RESIDENCIAL',
-  status: 'A_VENDA',
-  situacao: null,
-  publicado_no_site: true,
-  valor_venda: null,
-  valor_aluguel: null,
-  valor_condominio: null,
-  valor_iptu: null,
-  endereco: '',
-  bairro: '',
-  cidade: '',
-  estado: '',
-  cep: '',
-  quartos: 0,
-  suites: 0,
-  banheiros: 0,
-  vagas_garagem: 0,
-  lavabo: false,
-  escritorio: false,
-  varanda: false,
-  mobiliado: false,
-  ar_condicionado: false,
-  moveis_planejados: false,
-  piscina_privativa: false,
-  churrasqueira_privativa: false,
-  portaria_24h: false,
-  elevador: false,
-  piscina_condominio: false,
-  academia: false,
-  salao_festas: false,
-  playground: false,
-  quadra_esportiva: false,
-  espaco_pet: false,
-  financiavel: false,
-  quitado: false,
-  documentacao_ok: false,
-  aceita_pet: false,
-  proprietario: null,
-  numero_matricula: '',
-  data_captacao: null,
-  data_fim_autorizacao: null,
-  possui_exclusividade: false,
-  comissao_percentual: null,
-  informacoes_adicionais_autorizacao: '',
-  // NOVO CAMPO ADICIONADO AQUI
-  posicao_chave: '',
-});
+// Campos que podem ter a visibilidade controlada no site público, separados por categoria
+const camposVisiveis = {
+    'Informações Gerais': {
+        'titulo_anuncio': 'Título do Anúncio',
+        'tipo': 'Tipo de Imóvel',
+        'finalidade': 'Finalidade',
+        'status': 'Status',
+    },
+    'Valores': {
+        'valor_venda': 'Valor de Venda',
+        'valor_aluguel': 'Valor de Aluguel',
+        'valor_condominio': 'Valor do Condomínio',
+        'valor_iptu': 'Valor do IPTU',
+    },
+    'Localização': {
+        'logradouro': 'Logradouro',
+        'numero': 'Número',
+        'complemento': 'Complemento',
+        'bairro': 'Bairro',
+        'cidade': 'Cidade',
+        'estado': 'Estado',
+        'cep': 'CEP',
+    },
+    'Dimensões': {
+        'area_construida': 'Área Construída',
+        'area_util': 'Área Útil',
+        'area_total': 'Área Total',
+        'quartos': 'Quartos',
+        'suites': 'Suítes',
+        'banheiros': 'Banheiros',
+        'vagas_garagem': 'Vagas de Garagem',
+    },
+    'Detalhes e Comodidades': {
+        'descricao_completa': 'Descrição Detalhada',
+        'outras_caracteristicas': 'Outras Características',
+        'lavabo': 'Lavabo',
+        'escritorio': 'Escritório',
+        'varanda': 'Varanda',
+        'mobiliado': 'Mobiliado',
+        'ar_condicionado': 'Ar Condicionado',
+        'moveis_planejados': 'Móveis Planejados',
+        'piscina_privativa': 'Piscina Privativa',
+        'churrasqueira_privativa': 'Churrasqueira Privativa',
+        'portaria_24h': 'Portaria 24h',
+        'elevador': 'Elevador',
+        'piscina_condominio': 'Piscina no Condomínio',
+        'academia': 'Academia',
+        'salao_festas': 'Salão de Festas',
+        'playground': 'Playground',
+        'quadra_esportiva': 'Quadra Esportiva',
+        'espaco_pet': 'Espaço Pet',
+        'financiavel': 'Aceita Financiamento',
+        'quitado': 'Imóvel Quitado',
+        'documentacao_ok': 'Documentação OK',
+        'aceita_pet': 'Aceita Pet',
+    },
+};
+
+const createEmptyImovel = () => {
+    const allPublicKeys = Object.values(camposVisiveis).flatMap(obj => Object.keys(obj));
+    const defaultConfig = allPublicKeys.reduce((acc, key) => {
+        acc[key] = true;
+        return acc;
+    }, {} as { [key: string]: boolean });
+
+    return {
+        id: null,
+        titulo_anuncio: '',
+        codigo_referencia: '',
+        tipo: 'CASA',
+        finalidade: 'RESIDENCIAL',
+        status: 'A_VENDA',
+        situacao: null,
+        publicado_no_site: true,
+        valor_venda: null,
+        valor_aluguel: null,
+        valor_condominio: null,
+        valor_iptu: null,
+        logradouro: '',
+        numero: '',
+        complemento: '',
+        bairro: '',
+        cidade: '',
+        estado: '',
+        cep: '',
+        quartos: 0,
+        suites: 0,
+        banheiros: 0,
+        vagas_garagem: 0,
+        lavabo: false,
+        escritorio: false,
+        varanda: false,
+        mobiliado: false,
+        ar_condicionado: false,
+        moveis_planejados: false,
+        piscina_privativa: false,
+        churrasqueira_privativa: false,
+        portaria_24h: false,
+        elevador: false,
+        piscina_condominio: false,
+        academia: false,
+        salao_festas: false,
+        playground: false,
+        quadra_esportiva: false,
+        espaco_pet: false,
+        financiavel: false,
+        quitado: false,
+        documentacao_ok: false,
+        aceita_pet: false,
+        proprietario: null,
+        numero_matricula: '',
+        data_captacao: null,
+        data_fim_autorizacao: null,
+        possui_exclusividade: false,
+        comissao_percentual: null,
+        informacoes_adicionais_autorizacao: '',
+        posicao_chave: '',
+        outras_caracteristicas: '',
+        configuracao_publica: defaultConfig,
+    };
+};
 
 const imovel = ref(createEmptyImovel());
 const isLoadingData = ref(false);
@@ -375,7 +472,12 @@ async function fetchImovelData() {
     isLoadingData.value = true;
     try {
       const { data } = await apiClient.get(`/v1/imoveis/${imovelId.value}/`);
-      imovel.value = { ...createEmptyImovel(), ...data };
+      const emptyImovel = createEmptyImovel();
+      imovel.value = { 
+        ...emptyImovel,
+        ...data,
+        configuracao_publica: { ...emptyImovel.configuracao_publica, ...data.configuracao_publica }
+      };
     } catch (error) {
       console.error('Erro ao carregar dados do imóvel:', error);
       alert('Não foi possível carregar os dados do imóvel.');
@@ -526,5 +628,23 @@ input, select, textarea { padding: 10px; border: 1px solid #ccc; border-radius: 
 .header-actions {
   display: flex;
   gap: 1rem;
+}
+
+/* NOVOS ESTILOS PARA O LAYOUT DA ABA DE VISIBILIDADE */
+.section-group {
+    border: 1px solid #e9ecef;
+    border-radius: 6px;
+    padding: 1rem;
+    margin-bottom: 1.5rem;
+    background-color: #f8f9fa;
+}
+.section-title {
+    font-size: 1.1rem;
+    font-weight: bold;
+    color: #343a40;
+    margin-top: 0;
+    margin-bottom: 1rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 1px solid #e0e0e0;
 }
 </style>
