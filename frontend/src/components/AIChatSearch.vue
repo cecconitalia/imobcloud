@@ -86,11 +86,8 @@ async function sendMessage() {
   try {
     const response = await publicApiClient.post(`/v1/public/imoveis/busca-ia/?subdomain=${subdomain}`, { query: userText });
     
-    if (response.data.imoveis && response.data.imoveis.length > 0) {
-      emit('searchResults', response.data.imoveis);
-    } else {
-      emit('searchResults', []);
-    }
+    // CORREÇÃO: Emite a resposta completa, incluindo a mensagem da IA
+    emit('searchResults', response.data);
 
   } catch (error: any) {
     console.error("Erro na busca por IA:", error.response?.data || error);
