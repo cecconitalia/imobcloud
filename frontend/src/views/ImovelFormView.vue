@@ -536,6 +536,11 @@ async function saveImovel() {
   Object.keys(payload).forEach(key => {
     if (payload[key] === null) delete payload[key];
   });
+  
+  // CORREÇÃO: Garante que o logradouro é sempre uma string
+  if (Array.isArray(payload.logradouro)) {
+    payload.logradouro = payload.logradouro.join(', ');
+  }
 
   try {
     if (isEditing.value) {

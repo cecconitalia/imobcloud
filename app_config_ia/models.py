@@ -49,6 +49,12 @@ class ModeloDePrompt(models.Model):
         null=True,
         help_text="Notas internas para o superusuário sobre este prompt."
     )
+    
+    # NOVO CAMPO: Adicionamos um campo para prompts específicos de busca com IA
+    em_uso_busca = models.BooleanField(
+        default=False,
+        help_text="Marque esta opção para que este seja o prompt ativo para a busca com IA."
+    )
 
     class Meta:
         verbose_name = "Modelo de Prompt da IA"
@@ -59,10 +65,10 @@ class ModeloDePrompt(models.Model):
 
     def save(self, *args, **kwargs):
         """
-        Garante que apenas um prompt possa estar 'em_uso' de cada vez,
-        evitando conflitos no sistema.
+        Garante que apenas um prompt possa estar 'em_uso' ou 'em_uso_busca' de cada vez.
         """
         if self.em_uso:
-            # Define todos os outros prompts como 'não em uso' antes de salvar.
             ModeloDePrompt.objects.filter(em_uso=True).exclude(pk=self.pk).update(em_uso=False)
+        if self.em_uso_busca:
+            ModeloDePrompt.objects.filter(em_uso_busca=True).exclude(pk=self.pk).update(em_uso_busca=False)
         super(ModeloDePrompt, self).save(*args, **kwargs)

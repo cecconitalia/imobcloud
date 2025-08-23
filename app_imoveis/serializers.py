@@ -1,4 +1,4 @@
-# C:\wamp64\www\ImobCloud\app_imoveis\serializers.py
+# app_imoveis/serializers.py
 
 from rest_framework import serializers
 from .models import Imovel, ImagemImovel, ContatoImovel
@@ -12,68 +12,56 @@ class ContatoImovelSerializer(serializers.ModelSerializer):
     class Meta:
         model = ContatoImovel
         fields = '__all__'
-
+        
 class ImovelSerializer(serializers.ModelSerializer):
     imagens = ImagemImovelSerializer(many=True, read_only=True)
-
+    proprietario = serializers.PrimaryKeyRelatedField(
+        queryset=Imovel.objects.all(),
+        allow_null=True,
+        required=False
+    )
+    
     class Meta:
         model = Imovel
         fields = [
-            'id', 'titulo_anuncio', 'codigo_referencia', 'tipo', 'finalidade', 'status', 'situacao',
-            'publicado_no_site', 'valor_venda', 'valor_aluguel', 'valor_condominio', 'valor_iptu',
-            'logradouro', 'numero', 'complemento', 'bairro', 'cidade', 'estado', 'cep', 'area_construida', 'area_util', 'area_total',
-            'quartos', 'suites', 'banheiros', 'vagas_garagem', 'lavabo', 'escritorio', 'varanda',
-            'mobiliado', 'ar_condicionado', 'moveis_planejados', 'piscina_privativa',
-            'churrasqueira_privativa', 'portaria_24h', 'elevador', 'piscina_condominio', 'academia',
-            'salao_festas', 'playground', 'quadra_esportiva', 'espaco_pet', 'financiavel',
-            'quitado', 'documentacao_ok', 'aceita_pet', 'proprietario', 'numero_matricula',
-            'data_captacao', 'data_fim_autorizacao', 'possui_exclusividade', 'comissao_percentual',
-            'informacoes_adicionais_autorizacao',
+            'id', 'imobiliaria', 'titulo_anuncio', 'codigo_referencia', 'tipo', 'finalidade', 'status', 'situacao',
+            'disponibilidade', 'posicao_chave', 'publicado_no_site', 'configuracao_publica',
+            'valor_venda', 'valor_aluguel', 'valor_condominio', 'valor_iptu',
+            'logradouro', 'numero', 'complemento', 'bairro', 'cidade', 'estado', 'cep', 'posicao_solar', 'andar', 'vista', 'ponto_referencia',
+            'localizacao_condominio', 'area_construida', 'area_util', 'area_total', 'area_terreno', 'dimensao_frente',
+            'dimensao_fundos', 'dimensao_direita', 'dimensao_esquerda', 'ano_construcao', 'numero_pavimentos', 'unidades_por_andar',
+            'tipo_construcao', 'pe_direito', 'quartos', 'suites', 'banheiros', 'lavabo', 'sala_estar', 'sala_jantar', 'sala_tv',
+            'cozinha', 'copa', 'escritorio', 'area_servico', 'despensa', 'closet', 'varanda', 'vagas_garagem', 'vaga_coberta',
+            'vaga_privativa', 'portao_eletronico', 'ar_condicionado', 'aquecimento', 'gas_central', 'hidrometro_individual',
+            'piso', 'moveis_planejados', 'churrasqueira_privativa', 'piscina_privativa',
+            'piscina_condominio', 'churrasqueira_condominio', 'espaco_gourmet', 'playground', 'salao_festas', 'academia',
+            'quadra_esportiva', 'sauna', 'espaco_pet', 'portaria_24h', 'elevador', 'vagas_visitantes', 'bicicletario',
+            'proprietario', 'numero_matricula', 'data_captacao', 'data_fim_autorizacao', 'possui_exclusividade',
+            'comissao_percentual', 'documento_autorizacao', 'informacoes_adicionais_autorizacao', 'financiavel',
+            'aceita_permuta', 'quitado', 'documentacao_ok', 'descricao_completa', 'outras_caracteristicas',
+            'aceita_pet', 'mobiliado', 'data_cadastro', 'data_atualizacao',
             'imagens',
-            'posicao_chave',
-            'configuracao_publica',
-            'outras_caracteristicas'
         ]
         read_only_fields = ('codigo_referencia',)
 
-# --- ADICIONE ESTA NOVA CLASSE NO FINAL DO ARQUIVO ---
 class ImovelPublicSerializer(serializers.ModelSerializer):
-    """
-    Serializer para a visualização pública dos imóveis.
-    Expõe apenas os campos necessários e seguros para o público.
-    """
     imagens = ImagemImovelSerializer(many=True, read_only=True)
-    cidade = serializers.StringRelatedField()
-    bairro = serializers.StringRelatedField()
 
     class Meta:
         model = Imovel
         fields = [
             'id', 'codigo_referencia', 'titulo_anuncio', 'tipo', 'finalidade', 'status',
             'valor_venda', 'valor_aluguel', 'valor_condominio', 'valor_iptu',
-            'logradouro', 'numero', 'complemento', 'bairro', 'cidade', 'estado',
-            'area_util', 'area_construida', 'area_total',
-            'quartos', 'suites', 'banheiros', 'vagas_garagem',
-            'imagens', 'descricao_completa',
-            'piscina_privativa', 'piscina_condominio',
-            'churrasqueira_privativa', 'churrasqueira_condominio',
-            'academia', 'aceita_pet', 'mobiliado',
-            'configuracao_publica',
-            'outras_caracteristicas'
+            'logradouro', 'numero', 'bairro', 'cidade', 'estado',
+            'area_util', 'area_construida', 'area_total', 'quartos', 'suites', 'banheiros', 'vagas_garagem',
+            'imagens', 'descricao_completa', 'aceita_pet', 'mobiliado',
+            'piscina_privativa', 'piscina_condominio', 'configuracao_publica',
         ]
 
     def to_representation(self, instance):
-        """
-        Sobrescreve o método para remover dinamicamente os campos que não
-        devem ser exibidos publicamente, com base em configuracao_publica.
-        """
         representation = super().to_representation(instance)
         config = instance.configuracao_publica or {}
-
-        # Itera sobre os campos que têm uma configuração de visibilidade
         for field_name, is_visible in config.items():
             if not is_visible:
-                # Remove o campo da resposta se a configuração for False
                 representation.pop(field_name, None)
-
         return representation

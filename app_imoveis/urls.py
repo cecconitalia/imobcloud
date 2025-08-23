@@ -9,7 +9,8 @@ from .views import (
     ImovelPublicListView,
     ImovelPublicDetailView,
     GerarAutorizacaoPDFView,
-    AutorizacaoStatusView
+    AutorizacaoStatusView,
+    ImovelIAView,
 )
 
 router = DefaultRouter()
@@ -29,4 +30,8 @@ urlpatterns = [
     path('public/imoveis/<int:pk>/', ImovelPublicDetailView.as_view(), name='imovel-public-detail'),
     path('imoveis/<int:imovel_id>/gerar-autorizacao-pdf/', GerarAutorizacaoPDFView.as_view(), name='gerar-autorizacao-pdf'),
     path('autorizacao-status/', AutorizacaoStatusView.as_view(), name='autorizacao-status'),
+
+    # ROTA NOVA PARA BUSCA COM IA
+    # CORRIGIDO: A rota agora está sob o prefixo 'public/'
+    path('public/imoveis/busca-ia/', ImovelIAView.as_view(), name='imovel-busca-ia')
 ]

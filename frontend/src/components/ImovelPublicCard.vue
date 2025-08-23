@@ -1,46 +1,38 @@
 <template>
   <div class="imovel-card">
     <div class="image-container">
-      <img :src="imovel.imagens && imovel.imagens[0] ? imovel.imagens[0].imagem : 'https://via.placeholder.com/400x300.png?text=Sem+imagem'" alt="Imagem do imóvel" class="imovel-image" />
+      <img :src="getPrincipalImage(imovel.imagens)" alt="Imagem do imóvel" class="imovel-image" />
     </div>
     <div class="card-content">
-      <h3 class="card-title">{{ imovel.titulo_anuncio || imovel.tipo }}</h3>
+      <h3 class="card-title">{{ imovel.titulo_anuncio }}</h3>
+      
+      <div class="imovel-details-icons">
+        <div class="detail-item" v-if="imovel.quartos">
+          <i class="fas fa-bed"></i> {{ imovel.quartos }} Qts
+        </div>
+        <div class="detail-item" v-if="imovel.banheiros">
+          <i class="fas fa-bath"></i> {{ imovel.banheiros }} Ban
+        </div>
+        <div class="detail-item" v-if="imovel.vagas_garagem">
+          <i class="fas fa-car"></i> {{ imovel.vagas_garagem }} Vagas
+        </div>
+        <div class="detail-item" v-if="imovel.area_total">
+          <i class="fas fa-ruler-combined"></i> {{ imovel.area_total }}m²
+        </div>
+      </div>
       
       <div class="imovel-info-group">
-        <p class="imovel-info" v-if="imovel.configuracao_publica?.logradouro && imovel.logradouro">
+        <p class="imovel-location">
           <i class="fas fa-map-marker-alt"></i>
-          {{ imovel.logradouro }}, {{ imovel.numero }} - {{ imovel.bairro }}
-        </p>
-        <p class="imovel-info" v-else-if="imovel.configuracao_publica?.bairro && imovel.bairro">
-          <i class="fas fa-map-marker-alt"></i>
-          {{ imovel.bairro }}
-        </p>
-        <p class="imovel-info" v-if="imovel.configuracao_publica?.cidade && imovel.cidade">
-          <i class="fas fa-city"></i>
-          {{ imovel.cidade }} - {{ imovel.estado }}
+          {{ imovel.bairro || 'N/A' }}, {{ imovel.cidade }}, {{ imovel.estado }}
         </p>
       </div>
 
-      <div class="imovel-details">
-        <span class="detail-item" v-if="imovel.configuracao_publica?.quartos && imovel.quartos">
-          <i class="fas fa-bed"></i> {{ imovel.quartos }} Qts
-        </span>
-        <span class="detail-item" v-if="imovel.configuracao_publica?.suites && imovel.suites">
-          <i class="fas fa-bath"></i> {{ imovel.suites }} Suítes
-        </span>
-        <span class="detail-item" v-if="imovel.configuracao_publica?.vagas_garagem && imovel.vagas_garagem">
-          <i class="fas fa-car"></i> {{ imovel.vagas_garagem }} Vagas
-        </span>
-        <span class="detail-item" v-if="imovel.configuracao_publica?.area_total && imovel.area_total">
-          <i class="fas fa-ruler-combined"></i> {{ imovel.area_total }}m²
-        </span>
-      </div>
-
-      <p class="card-price" v-if="imovel.configuracao_publica?.valor_venda && imovel.valor_venda">
-        R$ {{ formatCurrency(imovel.valor_venda) }}
+      <p class="card-price" v-if="imovel.valor_venda">
+        {{ formatarPreco(imovel.valor_venda) }}
       </p>
-      <p class="card-price" v-else-if="imovel.configuracao_publica?.valor_aluguel && imovel.valor_aluguel">
-        R$ {{ formatCurrency(imovel.valor_aluguel) }}/mês
+      <p class="card-price" v-else-if="imovel.valor_aluguel">
+        {{ formatarPreco(imovel.valor_aluguel) }}/mês
       </p>
 
       <div class="card-actions">
@@ -52,6 +44,7 @@
 
 <script setup lang="ts">
 import { defineProps } from 'vue';
+import publicApiClient from '@/services/publicApiClient';
 
 const props = defineProps({
   imovel: {
@@ -63,9 +56,38 @@ const props = defineProps({
 function formatCurrency(value: number) {
   return value.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
+
+function formatarPreco(value: number) {
+  return value.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+}
+
+function getPrincipalImage(imagens: any[]) {
+  if (!imagens || imagens.length === 0) {
+    return 'https://via.placeholder.com/400x300.png?text=Sem+imagem';
+  }
+  const principal = imagens.find(img => img.principal);
+  const imagemPath = principal ? principal.imagem : imagens[0].imagem;
+  
+  // CORREÇÃO FINAL: Garante que a URL da imagem seja sempre absoluta.
+  // Se o caminho já for absoluto (http/https), usa-o. Caso contrário,
+  // constrói a URL completa.
+  if (imagemPath.startsWith('http')) {
+    return imagemPath;
+  }
+  
+  // Remove o '/api' da base URL para ter o domínio base.
+  const baseUrl = publicApiClient.defaults.baseURL.replace('/api', '');
+  
+  // Adiciona uma barra inicial se o caminho não a tiver, para evitar caminhos quebrados.
+  const path = imagemPath.startsWith('/') ? imagemPath : `/${imagemPath}`;
+  
+  return `${baseUrl}${path}`;
+}
 </script>
 
 <style scoped>
+@import url('https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css');
+
 .imovel-card {
   border-radius: 8px;
   overflow: hidden;
@@ -102,52 +124,53 @@ function formatCurrency(value: number) {
   display: flex;
   flex-direction: column;
   flex-grow: 1;
+  text-align: left;
 }
 
 .card-title {
   font-size: 1.5rem;
   font-weight: 600;
   margin-bottom: 0.5rem;
-  color: #007bff;
-  min-height: 48px; /* Para manter a altura consistente */
+  color: #343a40;
 }
 
-.imovel-info-group {
-  margin-bottom: 1rem;
-}
-
-.imovel-info {
-  display: flex;
-  align-items: center;
-  font-size: 0.9rem;
-  color: #6c757d;
-  margin-bottom: 0.25rem;
-}
-
-.imovel-info i {
-  margin-right: 8px;
-  color: #007bff;
-}
-
-.imovel-details {
+.imovel-details-icons {
   display: flex;
   flex-wrap: wrap;
-  gap: 1rem;
-  margin-bottom: 1.5rem;
-  border-top: 1px solid #e9ecef;
-  border-bottom: 1px solid #e9ecef;
-  padding: 1rem 0;
+  gap: 1.5rem;
+  margin-bottom: 1rem;
 }
 
 .detail-item {
   display: flex;
   align-items: center;
   font-size: 0.9rem;
-  color: #343a40;
+  color: #6c757d;
+  font-weight: 500;
 }
 
 .detail-item i {
-  margin-right: 5px;
+  margin-right: 8px;
+  color: #007bff;
+  font-size: 1.1rem;
+}
+
+.imovel-info-group {
+  margin-bottom: 1rem;
+  border-top: 1px solid #e9ecef;
+  padding-top: 1rem;
+}
+
+.imovel-location {
+  font-size: 0.9rem;
+  color: #6c757d;
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.imovel-location i {
   color: #007bff;
 }
 
@@ -155,13 +178,14 @@ function formatCurrency(value: number) {
   font-size: 1.8rem;
   font-weight: bold;
   color: #28a745;
-  margin-bottom: 1.5rem;
+  margin: 1rem 0;
 }
 
 .card-actions {
   margin-top: auto;
-  display: flex;
-  justify-content: center;
+  padding-top: 1rem;
+  border-top: 1px solid #e9ecef;
+  text-align: right;
 }
 
 .btn-detalhes {
@@ -169,7 +193,7 @@ function formatCurrency(value: number) {
   background-color: #007bff;
   color: white;
   padding: 10px 20px;
-  border-radius: 50px;
+  border-radius: 5px;
   text-decoration: none;
   font-weight: bold;
   transition: background-color 0.3s ease;
