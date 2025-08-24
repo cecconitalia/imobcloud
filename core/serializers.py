@@ -114,3 +114,9 @@ class ImobiliariaIntegracaoSerializer(serializers.ModelSerializer):
             'facebook_page_access_token',
             'instagram_business_account_id',
         ]
+        
+# ADICIONADO: NOVO SERIALIZER PARA A VISIBILIDADE PÚBLICA
+class ImobiliariaPublicSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Imobiliaria
+        fields = ['nome', 'cor_primaria']

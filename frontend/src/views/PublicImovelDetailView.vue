@@ -347,7 +347,7 @@ function formatarPreco(imovel: any) {
   margin-bottom: 2.5rem;
 }
 .details-section h2 {
-  border-bottom: 2px solid #007bff;
+  border-bottom: 2px solid var(--primary-color);
   padding-bottom: 0.5rem;
   margin-bottom: 1.5rem;
   font-size: 1.5rem;
@@ -370,7 +370,7 @@ function formatarPreco(imovel: any) {
 }
 .highlight-item i {
     font-size: 1.8rem;
-    color: #007bff;
+    color: var(--primary-color);
 }
 .features-list {
   list-style: none;
@@ -385,7 +385,7 @@ function formatarPreco(imovel: any) {
   padding: 0.5rem;
   background: #f8f9fa;
   border-radius: 4px;
-  border-left: 3px solid #007bff;
+  border-left: 3px solid var(--primary-color);
 }
 .features-list li span {
   font-weight: bold;

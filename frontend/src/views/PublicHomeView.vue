@@ -110,7 +110,7 @@ onMounted(() => {
 }
 
 .section-title {
-  font-size: 2rem;
+  font-size: 1.05rem;
   font-weight: 600;
   color: #343a40;
 }

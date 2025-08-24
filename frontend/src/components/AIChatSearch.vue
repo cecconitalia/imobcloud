@@ -41,9 +41,9 @@ const dynamicHeaderText = ref(headerTexts[0]);
 let textIndex = 0;
 
 const searchTips = [
-  "Diga o que procura: 'Apartamento com 2 quartos, varanda e piscina'.",
-  "Você pode refinar a busca: 'Com 3 quartos e aceita pet'.",
-  "Tente usar termos como: 'móveis planejados', 'churrasqueira' ou 'financiável'."
+  "Ex: 'Apartamento com 2 quartos e piscina'.",
+  "Refine: '3 quartos e aceita pet'.",
+  "Termos: 'móveis planejados' ou 'financiável'."
 ];
 const visibleTips = ref([searchTips[0]]);
 let tipIndex = 0;
