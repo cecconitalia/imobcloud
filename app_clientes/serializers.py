@@ -1,7 +1,7 @@
 # C:\wamp64\www\ImobCloud\app_clientes\serializers.py
 
 from rest_framework import serializers
-from .models import Cliente, Visita, Atividade, Oportunidade, Tarefa
+from .models import Cliente, Visita, Atividade, Oportunidade, Tarefa, FunilEtapa
 from core.models import PerfilUsuario
 from app_imoveis.models import Imovel
 from django.contrib.auth import get_user_model
@@ -65,7 +65,7 @@ class OportunidadeSerializer(serializers.ModelSerializer):
     class Meta:
         model = Oportunidade
         fields = [
-            'id', 'titulo', 'valor_estimado', 'fase', 'fonte', 'probabilidade',
+            'id', 'titulo', 'valor_estimado', 'fase', 'probabilidade',
             'motivo_perda', 'data_criacao',
             'cliente', 'imovel', 'responsavel', 'tarefas',
         ]
@@ -93,9 +93,12 @@ class OportunidadeSerializer(serializers.ModelSerializer):
 
         if instance.imovel:
             imovel_instance = instance.imovel
+            # CORREÇÃO AQUI: Criar o endereço a partir dos campos disponíveis
+            endereco_completo = f"{imovel_instance.logradouro}, {imovel_instance.bairro}, {imovel_instance.cidade} - {imovel_instance.estado}"
             representation['imovel'] = {
                 'id': imovel_instance.id,
-                'endereco': imovel_instance.endereco,
+                'endereco': endereco_completo,
+                'imovel_titulo': imovel_instance.titulo_anuncio,
             }
         
         return representation
@@ -122,6 +125,13 @@ class ClienteSerializer(serializers.ModelSerializer):
         
     def create(self, validated_data):
         return super().create(validated_data)
+
+# --- SERIALIZER PARA O NOVO MODELO DE ETAPAS ---
+class FunilEtapaSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = FunilEtapa
+        fields = ['id', 'titulo', 'ordem', 'probabilidade_fechamento', 'ativa', 'imobiliaria']
+        read_only_fields = ['imobiliaria']
 
 
 # ===================================================================

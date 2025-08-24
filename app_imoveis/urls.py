@@ -6,32 +6,31 @@ from .views import (
     ImovelViewSet,
     ImagemImovelViewSet,
     ContatoImovelViewSet,
-    ImovelPublicListView,
-    ImovelPublicDetailView,
     GerarAutorizacaoPDFView,
     AutorizacaoStatusView,
+    ImovelPublicListView,
+    ImovelPublicDetailView,
     ImovelIAView,
+    ImobiliariaPublicDetailView,
 )
 
 router = DefaultRouter()
-
-# Registros no router
-router.register(r'imoveis', ImovelViewSet, basename='imovel')
-# ESTA É A ROTA NOVA E CORRETA PARA AS IMAGENS
-router.register(r'imagens-imovel', ImagemImovelViewSet, basename='imagemimovel')
-router.register(r'contatos', ContatoImovelViewSet, basename='contatoimovel')
+router.register(r'imoveis', ImovelViewSet, basename='imoveis')
+router.register(r'imagens', ImagemImovelViewSet, basename='imagens')
+router.register(r'contatos', ContatoImovelViewSet, basename='contatos')
 
 urlpatterns = [
-    # Inclui as URLs do router
+    # Rotas da API Interna
     path('', include(router.urls)),
+    path('imoveis/<int:imovel_id>/gerar-pdf-autorizacao/', GerarAutorizacaoPDFView.as_view(), name='gerar-pdf-autorizacao'),
+    path('autorizacao/status/', AutorizacaoStatusView.as_view(), name='autorizacao-status'),
 
-    # Mantém as URLs customizadas
+    # Rotas da API Pública (Sem Autenticação)
+    # A ROTA MAIS ESPECÍFICA (busca-ia) DEVE VIR ANTES DA ROTA GENÉRICA (<int:pk>)
+    path('public/imoveis/busca-ia/', ImovelIAView.as_view(), name='imovel-busca-ia'),
     path('public/imoveis/', ImovelPublicListView.as_view(), name='imovel-public-list'),
     path('public/imoveis/<int:pk>/', ImovelPublicDetailView.as_view(), name='imovel-public-detail'),
-    path('imoveis/<int:imovel_id>/gerar-autorizacao-pdf/', GerarAutorizacaoPDFView.as_view(), name='gerar-autorizacao-pdf'),
-    path('autorizacao-status/', AutorizacaoStatusView.as_view(), name='autorizacao-status'),
-
-    # ROTA NOVA PARA BUSCA COM IA
-    # CORRIGIDO: A rota agora está sob o prefixo 'public/'
-    path('public/imoveis/busca-ia/', ImovelIAView.as_view(), name='imovel-busca-ia')
+    
+    # Rota para obter detalhes da imobiliária pelo subdomínio (ADICIONADO)
+    path('public/imobiliaria/<str:subdominio>/', ImobiliariaPublicDetailView.as_view(), name='imobiliaria-public-detail'),
 ]

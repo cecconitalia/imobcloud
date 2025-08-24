@@ -25,7 +25,7 @@ from django.db.models import Sum
 
 from core.models import PerfilUsuario, Notificacao, Imobiliaria
 from core.permissions import IsAdminOrSuperUser
-from .models import Oportunidade, Tarefa, Cliente, Visita, Atividade
+from .models import Oportunidade, Tarefa, Cliente, Visita, Atividade, FunilEtapa
 from .serializers import (
     OportunidadeSerializer,
     FunilVendasSerializer,
@@ -35,7 +35,8 @@ from .serializers import (
     RelatorioImobiliariaSerializer,
     ClienteSerializer,
     VisitaSerializer,
-    AtividadeSerializer
+    AtividadeSerializer,
+    FunilEtapaSerializer,
 )
 from ImobCloud.utils.google_calendar_api import agendar_tarefa_no_calendario
 from app_imoveis.models import Imovel
@@ -251,7 +252,7 @@ class OportunidadeViewSet(viewsets.ModelViewSet):
         if self.request.tenant:
             queryset = base_queryset.filter(imobiliaria=self.request.tenant)
             if hasattr(user, 'perfil') and user.perfil.cargo == PerfilUsuario.Cargo.CORRETOR:
-                queryset = queryset.filter(responsavel=user.perfil)
+                queryset = queryset.filter(responsavel=user)
             return queryset
 
         return Oportunidade.objects.none()
@@ -263,7 +264,7 @@ class OportunidadeViewSet(viewsets.ModelViewSet):
         if not hasattr(self.request.user, 'perfil'):
             raise PermissionDenied("O seu utilizador não tem um perfil de corretor associado.")
             
-        serializer.save(imobiliaria=self.request.tenant, responsavel=self.request.user.perfil)
+        serializer.save(imobiliaria=self.request.tenant, responsavel=self.request.user)
     
     def perform_update(self, serializer):
         oportunidade = self.get_object()
@@ -273,20 +274,19 @@ class OportunidadeViewSet(viewsets.ModelViewSet):
 
         responsavel_novo = instance.responsavel
         if responsavel_novo and responsavel_novo != responsavel_anterior:
-            responsavel_anterior_nome = responsavel_anterior.user.first_name if responsavel_anterior and hasattr(responsavel_anterior, 'user') else 'Ninguém'
+            responsavel_anterior_nome = responsavel_anterior.first_name if responsavel_anterior else 'Ninguém'
             
-            descricao = f"Oportunidade transferida de '{responsavel_anterior_nome}' para '{responsavel_novo.user.first_name}'."
-            # CORREÇÃO APLICADA AQUI
+            descricao = f"Oportunidade transferida de '{responsavel_anterior_nome}' para '{responsavel_novo.first_name}'."
+            
             Atividade.objects.create(
                 cliente=instance.cliente,
-                # Removido: 'oportunidade=instance',
                 tipo='NOTA',
                 descricao=descricao,
                 registrado_por=self.request.user
             )
 
             Notificacao.objects.create(
-                destinatario=responsavel_novo.user,
+                destinatario=responsavel_novo,
                 mensagem=f"A oportunidade '{instance.titulo}' foi transferida para si.",
                 link=f"/oportunidades/editar/{instance.id}"
             )
@@ -303,16 +303,50 @@ class OportunidadeViewSet(viewsets.ModelViewSet):
             fase_nova = oportunidade.get_fase_display()
             
             descricao = f"Oportunidade '{oportunidade.titulo}' movida da fase '{fase_anterior}' para '{fase_nova}'."
-            # CORREÇÃO APLICADA AQUI
+            
             Atividade.objects.create(
                 cliente=oportunidade.cliente,
-                # Removido: 'oportunidade=oportunidade',
                 tipo='MUDANCA_FASE',
                 descricao=descricao,
                 registrado_por=request.user
             )
         
         return response
+
+
+# --- ADICIONADO: VIEWSET PARA AS ETAPAS DO FUNIL ---
+class FunilEtapaViewSet(viewsets.ModelViewSet):
+    serializer_class = FunilEtapaSerializer
+    permission_classes = [IsAdminOrSuperUser]
+
+    def get_queryset(self):
+        user = self.request.user
+        if user.is_superuser:
+            return FunilEtapa.objects.all().order_by('imobiliaria', 'ordem')
+        
+        if self.request.tenant:
+            return FunilEtapa.objects.filter(imobiliaria=self.request.tenant, ativa=True).order_by('ordem')
+        return FunilEtapa.objects.none()
+
+    def perform_create(self, serializer):
+        if not self.request.user.is_superuser and not self.request.tenant:
+            raise PermissionDenied("Permissão negada.")
+        
+        if not self.request.tenant:
+            raise PermissionDenied("Imobiliária não identificada.")
+            
+        serializer.save(imobiliaria=self.request.tenant)
+
+    def perform_update(self, serializer):
+        if not self.request.user.is_superuser and serializer.instance.imobiliaria != self.request.tenant:
+            raise PermissionDenied("Permissão negada.")
+        serializer.save()
+
+    def perform_destroy(self, instance):
+        if not self.request.user.is_superuser and instance.imobiliaria != self.request.tenant:
+            raise PermissionDenied("Permissão negada.")
+        instance.delete()
+
 
 class TarefaViewSet(viewsets.ModelViewSet):
     serializer_class = TarefaSerializer
@@ -325,7 +359,7 @@ class TarefaViewSet(viewsets.ModelViewSet):
         if user.is_superuser:
             return Tarefa.objects.all()
 
-        queryset = Tarefa.objects.filter(responsavel__perfil__imobiliaria=tenant)
+        queryset = Tarefa.objects.filter(oportunidade__imobiliaria=tenant)
         return queryset
 
     def perform_create(self, serializer):
@@ -346,7 +380,7 @@ class TarefaViewSet(viewsets.ModelViewSet):
     
     def perform_update(self, serializer):
         instance = self.get_object()
-        if not (self.request.user.is_superuser or (hasattr(instance.responsavel.perfil, 'imobiliaria') and instance.responsavel.perfil.imobiliaria == self.request.tenant)):
+        if not (self.request.user.is_superuser or (instance.oportunidade.imobiliaria == self.request.tenant)):
             raise PermissionDenied("Você não tem permissão para atualizar esta tarefa.")
             
         tarefa = serializer.save()

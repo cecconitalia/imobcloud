@@ -24,6 +24,14 @@ class Imobiliaria(models.Model):
         help_text="A voz da marca que a IA usará para as publicações desta imobiliária."
     )
     # --- FIM DO NOVO CAMPO ---
+    
+    # ADICIONADO: Campo para a cor principal do site
+    cor_primaria = models.CharField(
+        max_length=7,
+        default="#007bff",
+        help_text="Cor principal para o site público (código hexadecimal).",
+        verbose_name="Cor Principal do Site"
+    )
 
     class Meta:
         verbose_name_plural = "Imobiliárias"

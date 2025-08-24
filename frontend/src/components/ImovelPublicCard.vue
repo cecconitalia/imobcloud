@@ -245,7 +245,7 @@ watch(() => props.imovel, () => {
 
 .detail-item i {
   margin-right: 4px;
-  color: #007bff;
+  color: var(--primary-color);
   font-size: 1em;
 }
 
@@ -266,6 +266,6 @@ watch(() => props.imovel, () => {
 }
 
 .imovel-location i {
-  color: #007bff;
+  color: var(--primary-color);
 }
 </style>

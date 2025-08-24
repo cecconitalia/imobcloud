@@ -35,6 +35,7 @@ from .serializers import ImovelSerializer, ImovelPublicSerializer, ContatoImovel
 from core.models import Imobiliaria, PerfilUsuario
 from app_clientes.models import Oportunidade
 from app_config_ia.models import ModeloDePrompt
+from core.serializers import ImobiliariaPublicSerializer # <--- ADICIONADO AQUI
 
 
 # Configura a API do Google Gemini
@@ -306,7 +307,7 @@ class ImovelViewSet(viewsets.ModelViewSet):
             raise PermissionDenied("Você não tem permissão para atualizar este imóvel.")
 
     def perform_destroy(self, instance):
-        if self.request.user.is_superuser or (hasattr(self.request.user, 'perfil') and instance.imobiliaria == self.request.tenant):
+        if self.request.user.is_superuser or (hasattr(self.request.user, 'perfil') and instance.imovel.imobiliaria == self.request.tenant):
             instance.status = Imovel.Status.DESATIVADO
             instance.save()
             return Response(status=status.HTTP_204_NO_CONTENT)
@@ -550,3 +551,15 @@ class AutorizacaoStatusView(APIView):
             'imoveis': list(imoveis_com_status)
         }
         return Response(data)
+
+
+# ADICIONADO: NOVA VIEW PÚBLICA PARA OBTER DETALHES DA IMOBILIÁRIA
+class ImobiliariaPublicDetailView(RetrieveAPIView):
+    """
+    View para detalhar uma imobiliária específica pelo subdomínio.
+    Utilizada pelo site público para obter o nome da imobiliária.
+    """
+    queryset = Imobiliaria.objects.all()
+    serializer_class = ImobiliariaPublicSerializer
+    permission_classes = [permissions.AllowAny]
+    lookup_field = 'subdominio'
