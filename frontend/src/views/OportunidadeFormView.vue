@@ -71,6 +71,11 @@
         </select>
       </div>
 
+      <div class="form-group full-width">
+        <label for="informacoes_adicionais">Informações Adicionais (opcional)</label>
+        <textarea id="informacoes_adicionais" v-model="oportunidade.informacoes_adicionais" rows="3" placeholder="Insira notas importantes sobre a oportunidade..."></textarea>
+      </div>
+
       <div v-if="oportunidade.fase === 'PERDIDO'" class="form-group full-width">
         <label for="motivo_perda">Motivo da Perda</label>
         <textarea id="motivo_perda" v-model="oportunidade.motivo_perda" rows="3" placeholder="Descreva por que este negócio foi perdido..."></textarea>
@@ -153,6 +158,8 @@ const oportunidade = ref({
   probabilidade: 10,
   data_proximo_contato: null,
   motivo_perda: '',
+  // NOVO CAMPO ADICIONADO AQUI
+  informacoes_adicionais: '',
   tarefas: [] as any[],
 });
 
@@ -260,6 +267,8 @@ async function handleSubmit() {
         fonte: oportunidade.value.fonte,
         probabilidade: oportunidade.value.probabilidade,
         motivo_perda: oportunidade.value.motivo_perda,
+        // NOVO CAMPO ADICIONADO AQUI
+        informacoes_adicionais: oportunidade.value.informacoes_adicionais,
         cliente: oportunidade.value.cliente_id,
         imovel: oportunidade.value.imovel_id,
     };

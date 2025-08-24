@@ -23,7 +23,7 @@ urlpatterns = [
     # Rotas da API Interna
     path('', include(router.urls)),
     path('imoveis/<int:imovel_id>/gerar-pdf-autorizacao/', GerarAutorizacaoPDFView.as_view(), name='gerar-pdf-autorizacao'),
-    path('autorizacao/status/', AutorizacaoStatusView.as_view(), name='autorizacao-status'),
+    path('autorizacao-status/', AutorizacaoStatusView.as_view(), name='autorizacao-status'),
 
     # Rotas da API Pública (Sem Autenticação)
     # A ROTA MAIS ESPECÍFICA (busca-ia) DEVE VIR ANTES DA ROTA GENÉRICA (<int:pk>)

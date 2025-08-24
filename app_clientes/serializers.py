@@ -66,7 +66,7 @@ class OportunidadeSerializer(serializers.ModelSerializer):
         model = Oportunidade
         fields = [
             'id', 'titulo', 'valor_estimado', 'fase', 'probabilidade',
-            'motivo_perda', 'data_criacao',
+            'motivo_perda', 'informacoes_adicionais', 'data_criacao',
             'cliente', 'imovel', 'responsavel', 'tarefas',
         ]
         read_only_fields = ('data_criacao', 'probabilidade') # A probabilidade será definida pelo backend

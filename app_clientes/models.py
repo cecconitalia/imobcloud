@@ -97,6 +97,9 @@ class Oportunidade(models.Model):
     valor_estimado = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True, verbose_name="Valor Estimado")
     probabilidade = models.IntegerField(default=10, verbose_name="Probabilidade de Fechamento")
     
+    # NOVO CAMPO: Adicionamos o campo genérico de informações adicionais
+    informacoes_adicionais = models.TextField(blank=True, null=True, verbose_name="Informações Adicionais")
+    
     motivo_perda = models.TextField(blank=True, null=True, verbose_name="Motivo da Perda")
     
     data_criacao = models.DateTimeField(auto_now_add=True, verbose_name="Data de Criação")

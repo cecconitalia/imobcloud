@@ -56,11 +56,11 @@
             <template #item="{ element: oportunidade }">
               <transition-group name="oportunidade-list-fade" tag="div">
                 <router-link :to="`/oportunidades/editar/${oportunidade.id}`" class="oportunidade-card-link">
-                  <div class="oportunidade-card" :key="oportunidade.id">
+                  <div class="oportunidade-card" :key="oportunidade.id" :class="{ 'recolhido': cardsRecolhidos }">
                     <h4 class="card-titulo">{{ oportunidade.titulo }}</h4>
-                    <p class="card-cliente">{{ oportunidade.cliente?.nome_completo }}</p>
-                    <p class="card-imovel">{{ oportunidade.imovel?.endereco || 'Sem Imóvel' }}</p>
-                    <div class="card-footer">
+                    <p class="card-cliente" v-if="!cardsRecolhidos">{{ oportunidade.cliente?.nome_completo }}</p>
+                    <p class="card-imovel" v-if="!cardsRecolhidos">{{ oportunidade.imovel?.endereco || 'Sem Imóvel' }}</p>
+                    <div class="card-footer" v-if="!cardsRecolhidos">
                       <span class="card-valor">{{ formatarValor(oportunidade.valor_estimado) }}</span>
                       <div class="card-responsavel">
                         <span class="responsavel-avatar" :title="oportunidade.responsavel?.first_name">{{ oportunidade.responsavel?.first_name?.charAt(0).toUpperCase() || '?' }}</span>
@@ -74,7 +74,11 @@
         </div>
       </div>
     </div>
-
+    
+    <button @click="toggleCardsRecolhidos" class="btn-recolher-cards">
+        {{ cardsRecolhidos ? 'Expandir Cards' : 'Recolher Cards' }}
+    </button>
+    
     <div v-if="!isLoading" class="funil-stats">
       <h3 class="stats-title">Estatísticas do Funil</h3>
       <div class="stats-grid">
@@ -115,6 +119,8 @@ const error = ref<string | null>(null);
 const corretores = ref<any[]>([]);
 const funilFases = ref<any[]>([]);
 
+const cardsRecolhidos = ref(false);
+
 const filtro = ref({
   search: '',
   responsavel: ''
@@ -123,7 +129,6 @@ const filtro = ref({
 const fasesDeFunilCores = computed(() => {
   const cores = {};
   funilFases.value.forEach(fase => {
-    // Definimos cores com base no título da fase para manter a consistência visual
     const titulo = fase.titulo.toUpperCase();
     if (titulo.includes('LEAD')) cores[fase.id] = '#4DA3FF';
     else if (titulo.includes('CONTATO')) cores[fase.id] = '#00C8A0';
@@ -184,7 +189,7 @@ const onFaseChange = async (event: any, novaFaseId: string) => {
         if (!fase) return;
 
         try {
-            await api.patch(`/v1/oportunidades/${oportunidadeId}/`, { fase: fase.titulo });
+            await api.patch(`/v1/oportunidades/${oportunidadeId}/`, { fase: fase.id });
             console.log(`Oportunidade ${oportunidadeId} movida para ${fase.titulo}`);
             fetchOportunidades();
         } catch (error) {
@@ -194,13 +199,17 @@ const onFaseChange = async (event: any, novaFaseId: string) => {
     }
 };
 
+function toggleCardsRecolhidos() {
+    cardsRecolhidos.value = !cardsRecolhidos.value;
+}
+
 watch(oportunidadesFiltradas, (novaLista) => {
   const agrupado: { [key: string]: any[] } = {};
   funilFases.value.forEach(fase => {
     agrupado[fase.id] = [];
   });
   novaLista.forEach(oportunidade => {
-    const faseEncontrada = funilFases.value.find(f => f.titulo === oportunidade.fase);
+    const faseEncontrada = funilFases.value.find(f => f.id === oportunidade.fase);
     if (faseEncontrada) {
         agrupado[faseEncontrada.id].push(oportunidade);
     }
@@ -210,8 +219,15 @@ watch(oportunidadesFiltradas, (novaLista) => {
 
 async function fetchFunilEtapas() {
     try {
-        const response = await api.get('/v1/funil-etapas/');
-        funilFases.value = response.data;
+        funilFases.value = [
+            { id: 'LEAD', titulo: 'Novo Lead' },
+            { id: 'CONTATO', titulo: 'Primeiro Contato' },
+            { id: 'VISITA', titulo: 'Visitação' },
+            { id: 'PROPOSTA', titulo: 'Proposta' },
+            { id: 'NEGOCIACAO', titulo: 'Fechamento' },
+            { id: 'GANHO', titulo: 'Negócio Ganho' },
+            { id: 'PERDIDO', titulo: 'Negócio Perdido' }
+        ];
     } catch (err) {
         console.error("Erro ao buscar as etapas do funil:", err);
     }
@@ -377,18 +393,20 @@ onMounted(() => {
 /* Kanban Board Funil */
 .funil-board-container {
   display: flex;
-  gap: 1.5rem;
+  gap: 0.5rem;
   overflow-x: auto;
-  padding-bottom: 1rem;
+  padding-bottom: 0.5rem;
   background-color: #f4f7f6;
+  white-space: nowrap;
+  flex-wrap: nowrap;
 }
 
 .funil-coluna {
   background-color: #e9ecef;
   border-radius: 8px;
-  min-width: 300px;
-  flex: 1; /* Distribui o espaço igualmente */
-  padding: 1rem;
+  min-width: 157px;
+  flex: 1; 
+  padding: 0.66rem;
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.05);
   display: flex;
   flex-direction: column;
@@ -398,24 +416,27 @@ onMounted(() => {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding-bottom: 1rem;
+  padding-bottom: 0.66rem;
   border-bottom: 1px solid #ced4da;
-  margin-bottom: 1rem;
+  margin-bottom: 0.66rem;
 }
 
 .coluna-titulo {
-  font-size: 1.25rem;
+  font-size: 0.968rem;
   font-weight: 600;
   color: #343a40;
   margin: 0;
+  white-space: normal;
+  text-overflow: ellipsis;
+  overflow: hidden;
 }
 
 .badge {
   background-color: #6c757d;
   color: white;
   border-radius: 12px;
-  padding: 0.25rem 0.75rem;
-  font-size: 0.9rem;
+  padding: 0.176rem 0.528rem;
+  font-size: 0.704rem;
   font-weight: bold;
 }
 
@@ -427,17 +448,37 @@ onMounted(() => {
 .oportunidade-card-link {
   text-decoration: none;
   color: inherit;
+  display: block;
 }
 
+/* Estilos do card de oportunidade */
 .oportunidade-card {
   background-color: white;
   border-radius: 8px;
-  padding: 1rem;
-  margin-bottom: 0.75rem;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.08);
+  padding: 0.561rem;
+  margin-bottom: 0.44rem;
+  box-shadow: 0 1.7px 3.4px rgba(0, 0, 0, 0.08);
   cursor: grab;
   transition: all 0.3s ease;
-  border-left: 5px solid transparent;
+  border-left: 4.25px solid transparent;
+  white-space: normal;
+  
+  /* TRANSITION para a altura */
+  height: auto;
+  transition: all 0.3s ease-out;
+}
+
+/* Estado recolhido */
+.oportunidade-card.recolhido {
+    height: 40px; /* Altura fixa para o estado recolhido */
+    padding-bottom: 0;
+}
+
+/* Oculta o conteúdo interno quando o card está recolhido */
+.oportunidade-card.recolhido .card-cliente,
+.oportunidade-card.recolhido .card-imovel,
+.oportunidade-card.recolhido .card-footer {
+    display: none;
 }
 
 .oportunidade-card:hover {
@@ -447,29 +488,31 @@ onMounted(() => {
 }
 
 .card-titulo {
-  font-size: 1rem;
+  font-size: 0.836rem;
   font-weight: 600;
   color: #343a40;
-  margin: 0 0 0.25rem 0;
+  margin: 0 0 0.176rem 0;
+  line-height: 1.2;
 }
 
 .card-cliente, .card-imovel {
-  font-size: 0.9rem;
+  font-size: 0.748rem;
   color: #6c757d;
   margin: 0;
+  line-height: 1.2;
 }
 
 .card-footer {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-top: 1rem;
+  margin-top: 0.66rem;
   border-top: 1px solid #e9ecef;
-  padding-top: 0.75rem;
+  padding-top: 0.44rem;
 }
 
 .card-valor {
-  font-size: 1.2rem;
+  font-size: 0.88rem;
   font-weight: bold;
   color: #28a745;
 }
@@ -480,8 +523,8 @@ onMounted(() => {
 }
 
 .responsavel-avatar {
-  width: 32px;
-  height: 32px;
+  width: 21.12px;
+  height: 21.12px;
   border-radius: 50%;
   background-color: #007bff;
   color: white;
@@ -489,47 +532,47 @@ onMounted(() => {
   align-items: center;
   justify-content: center;
   font-weight: bold;
-  font-size: 0.9rem;
+  font-size: 0.6rem;
 }
 
 /* --- Estatísticas --- */
 .funil-stats {
-  margin-top: 3rem;
+  margin-top: 2.244rem;
   background-color: #fff;
-  padding: 2rem;
-  border-radius: 12px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+  padding: 1.496rem;
+  border-radius: 8.976px;
+  box-shadow: 0 3.4px 10.2px rgba(0, 0, 0, 0.05);
 }
 
 .stats-title {
-  font-size: 1.5rem;
+  font-size: 1.122rem;
   font-weight: 600;
   color: #343a40;
   margin-top: 0;
-  margin-bottom: 1.5rem;
+  margin-bottom: 1.122rem;
   border-bottom: 2px solid #e9ecef;
-  padding-bottom: 0.75rem;
+  padding-bottom: 0.561rem;
 }
 
 .stats-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-  gap: 2rem;
+  grid-template-columns: repeat(auto-fit, minmax(164.56px, 1fr));
+  gap: 1.496rem;
 }
 
 .stats-item {
   display: flex;
   align-items: center;
-  gap: 1rem;
+  gap: 0.748rem;
 }
 
 .stats-item i {
-  font-size: 2.5rem;
+  font-size: 1.867rem;
   color: #007bff;
 }
 
 .stats-item p {
-  font-size: 1rem;
+  font-size: 0.748rem;
   font-weight: 500;
   color: #495057;
   margin: 0;
@@ -548,11 +591,26 @@ onMounted(() => {
 .oportunidade-list-fade-enter-from,
 .oportunidade-list-fade-leave-to {
   opacity: 0;
-  transform: translateY(20px);
+  transform: translateY(17px);
 }
 
 .oportunidade-list-fade-leave-active {
   position: absolute;
+}
+
+.btn-recolher-cards {
+    margin-top: 1rem;
+    padding: 10px 20px;
+    border: none;
+    background-color: #34495e;
+    color: white;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: background-color 0.3s;
+}
+
+.btn-recolher-cards:hover {
+    background-color: #2c3e50;
 }
 
 @media (max-width: 768px) {
@@ -561,7 +619,7 @@ onMounted(() => {
     align-items: flex-start;
   }
   .page-title {
-    font-size: 2rem;
+    font-size: 1.76rem;
   }
   .filter-controls {
     flex-direction: column;
