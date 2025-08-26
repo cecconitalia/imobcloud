@@ -97,9 +97,6 @@ class Oportunidade(models.Model):
     valor_estimado = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True, verbose_name="Valor Estimado")
     probabilidade = models.IntegerField(default=10, verbose_name="Probabilidade de Fechamento")
     
-    # NOVO CAMPO: Adicionamos o campo genérico de informações adicionais
-    informacoes_adicionais = models.TextField(blank=True, null=True, verbose_name="Informações Adicionais")
-    
     motivo_perda = models.TextField(blank=True, null=True, verbose_name="Motivo da Perda")
     
     data_criacao = models.DateTimeField(auto_now_add=True, verbose_name="Data de Criação")
@@ -137,7 +134,14 @@ class Tarefa(models.Model):
     descricao = models.TextField(blank=True, null=True)
     data_vencimento = models.DateTimeField()
     concluida = models.BooleanField(default=False)
-    oportunidade = models.ForeignKey(Oportunidade, on_delete=models.CASCADE, related_name='tarefas')
+    # CORREÇÃO: O campo oportunidade agora aceita valores nulos
+    oportunidade = models.ForeignKey(
+        Oportunidade, 
+        on_delete=models.CASCADE, 
+        related_name='tarefas', 
+        null=True,
+        blank=True,
+    )
     responsavel = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='tarefas_responsavel')
     google_calendar_event_id = models.CharField(max_length=255, blank=True, null=True)
     

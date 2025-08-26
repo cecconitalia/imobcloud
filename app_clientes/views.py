@@ -403,9 +403,11 @@ class MinhasTarefasView(viewsets.ReadOnlyModelViewSet):
             start_date = parse_date(start_date_str)
             end_date = parse_date(end_date_str)
             if start_date and end_date:
-                queryset = queryset.filter(data_conclusao__date__gte=start_date, data_conclusao__date__lte=end_date)
+                # CORREÇÃO: Usar 'data_vencimento' em vez de 'data_conclusao'
+                queryset = queryset.filter(data_vencimento__date__gte=start_date, data_vencimento__date__lte=end_date)
         
-        return queryset.order_by('data_conclusao')
+        # CORREÇÃO: Usar 'data_vencimento' em vez de 'data_conclusao'
+        return queryset.order_by('data_vencimento')
 
 class RelatoriosView(viewsets.ViewSet):
     permission_classes = [IsAdminOrSuperUser]
