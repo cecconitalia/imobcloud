@@ -1,69 +1,70 @@
 <template>
-  <div class="modal-overlay">
+  <div class="modal-overlay" @click.self="closeModal">
     <div class="modal-container">
       <div class="modal-header">
-        <h3>{{ isEditing ? 'Editar Tarefa' : 'Adicionar Nova Tarefa' }}</h3>
-        <button @click="emit('close')" class="close-btn">&times;</button>
+        <h3>{{ tituloModal }}</h3>
+        <button @click="closeModal" class="close-btn">&times;</button>
       </div>
 
-      <div v-if="isEditing && tarefaLocal.oportunidade_titulo" class="info-section">
-        <p>Esta tarefa está atualmente ligada à oportunidade: <strong>{{ tarefaLocal.oportunidade_titulo }}</strong></p>
-      </div>
-
-      <form @submit.prevent="handleSubmit">
+      <form @submit.prevent="submitForm" class="modal-form">
+        
         <div class="form-group">
-          <label for="cliente-select">Cliente (Opcional)</label>
-          <v-select
-            id="cliente-select"
-            label="nome_completo"
-            :options="clientes"
-            v-model="clienteSelecionado"
-            placeholder="Pesquisar clientes..."
-          >
-            <template #option="option">
-              {{ option.nome_completo }}
-            </template>
-            <template #no-options>
-              <div class="no-results-message">Nenhum cliente encontrado.</div>
-            </template>
-          </v-select>
-        </div>
-
-        <div class="form-group" v-if="clienteSelecionado">
-          <label for="oportunidade-select">Oportunidade (Opcional)</label>
-          <v-select
-            id="oportunidade-select"
-            label="titulo"
-            :options="oportunidadesFiltradas"
-            v-model="oportunidadeSelecionada"
-            placeholder="Selecione a oportunidade..."
-          >
-            <template #option="option">
-              {{ option.titulo }}
-            </template>
-            <template #no-options>
-              <div class="no-results-message">Nenhuma oportunidade encontrada para este cliente.</div>
-            </template>
-          </v-select>
+          <label for="titulo">Título da Tarefa</label>
+          <input 
+            id="titulo"
+            v-model="tarefa.titulo" 
+            type="text" 
+            placeholder="Ex: Ligar para o cliente" 
+            required 
+          />
         </div>
 
         <div class="form-group">
           <label for="descricao">Descrição</label>
-          <textarea id="descricao" v-model="tarefaLocal.descricao" required></textarea>
+          <textarea 
+            id="descricao"
+            v-model="tarefa.descricao" 
+            placeholder="Adicionar mais detalhes..."
+            rows="3"
+          ></textarea>
         </div>
+
         <div class="form-group">
-          <label for="data_conclusao">Prazo</label>
-          <input type="date" id="data_conclusao" v-model="tarefaLocal.data_conclusao" />
+          <label for="data_vencimento">Prazo Final</label>
+          <input 
+            id="data_vencimento"
+            v-model="tarefa.data_vencimento" 
+            type="datetime-local" 
+            required 
+          />
         </div>
+
+        <div class="form-group">
+          <label for="oportunidade">Associar à Oportunidade</label>
+          <v-select
+            id="oportunidade"
+            label="titulo"
+            :options="oportunidades"
+            :reduce="oportunidade => oportunidade.id"
+            v-model="tarefa.oportunidade"
+            placeholder="Nenhuma oportunidade associada"
+          >
+            <template #option="option">
+              <strong>{{ option.titulo }}</strong><br>
+              <small>{{ option.cliente_nome }}</small>
+            </template>
+            <template #no-options>
+              Nenhuma oportunidade encontrada.
+            </template>
+          </v-select>
+        </div>
+
         <div class="modal-actions">
-          <button v-if="isEditing && !tarefaLocal.concluida" type="button" @click="handleConcluir" class="btn-success">
-            Concluir Tarefa
-          </button>
           <button v-if="isEditing" type="button" @click="handleDelete" class="btn-danger">
             Eliminar
           </button>
           <button type="submit" class="btn-primary" :disabled="isSubmitting">
-            {{ isSubmitting ? 'A guardar...' : 'Guardar' }}
+            {{ submitButtonText }}
           </button>
         </div>
       </form>
@@ -72,272 +73,259 @@
 </template>
 
 <script setup lang="ts">
-import { ref, defineProps, defineEmits, onMounted, watch } from 'vue';
+import { ref, reactive, computed, onMounted, defineProps, defineEmits } from 'vue';
 import apiClient from '@/services/api';
 import vSelect from 'vue-select';
 import 'vue-select/dist/vue-select.css';
 
-const props = defineProps({
-  oportunidadeId: { type: [String, Number, null], default: null },
-  // A tarefa recebida como prop pode ter a estrutura que vem do backend
-  tarefa: { type: Object as () => any, default: null },
-  dataInicial: { type: String, default: '' },
-});
+// --- PROPS E EMITS ---
+const props = defineProps<{
+  tarefaParaEditar?: any | null;
+}>();
 
 const emit = defineEmits(['close', 'saved']);
 
-const isEditing = ref(false);
+// --- ESTADO DO COMPONENTE ---
 const isSubmitting = ref(false);
-const clientes = ref<any[]>([]);
 const oportunidades = ref<any[]>([]);
-const clienteSelecionado = ref<any>(null);
-const oportunidadeSelecionada = ref<any>(null);
 
-const oportunidadesFiltradas = ref<any[]>([]);
-
-const tarefaLocal = ref({
-  id: null,
+const tarefa = reactive({
+  id: null as number | null,
+  titulo: '',
   descricao: '',
-  data_conclusao: '',
-  oportunidade: props.oportunidadeId,
-  oportunidade_titulo: '',
-  cliente_nome: '',
-  imovel_endereco: '',
-  concluida: false,
+  data_vencimento: '',
+  oportunidade: null as number | null,
 });
 
-watch(() => props.tarefa, (novaTarefa) => {
-    if (novaTarefa) {
-        isEditing.value = true;
-        tarefaLocal.value = { ...novaTarefa };
-    } else {
-        isEditing.value = false;
-        tarefaLocal.value = {
-            id: null,
-            descricao: '',
-            data_conclusao: props.dataInicial,
-            oportunidade: props.oportunidadeId,
-            oportunidade_titulo: '',
-            cliente_nome: '',
-            imovel_endereco: '',
-            concluida: false,
-        };
-        clienteSelecionado.value = null;
-        oportunidadeSelecionada.value = null;
-    }
-}, { immediate: true });
-
-watch(clienteSelecionado, (novoCliente) => {
-    if (novoCliente) {
-        oportunidadesFiltradas.value = oportunidades.value.filter(op => op.cliente?.id === novoCliente.id);
-        if (oportunidadeSelecionada.value && oportunidadeSelecionada.value.cliente?.id !== novoCliente.id) {
-            oportunidadeSelecionada.value = null;
-        }
-    } else {
-        oportunidadesFiltradas.value = [];
-        oportunidadeSelecionada.value = null;
-    }
-});
-
-watch(oportunidadeSelecionada, (novaOportunidade) => {
-    if (novaOportunidade) {
-        tarefaLocal.value.oportunidade = novaOportunidade.id;
-    } else {
-        tarefaLocal.value.oportunidade = null;
-    }
-});
-
-onMounted(async () => {
-  try {
-    // Carrega as listas de clientes e oportunidades
-    const [clientesResponse, oportunidadesResponse] = await Promise.all([
-      apiClient.get('/v1/clientes/clientes/'), // URL corrigida
-      apiClient.get('/v1/clientes/oportunidades/') // URL corrigida
-    ]);
-    clientes.value = clientesResponse.data;
-    oportunidades.value = oportunidadesResponse.data;
-
-    // CORREÇÃO: Lógica para pré-selecionar os campos no modo de edição
-    if (isEditing.value && props.tarefa) {
-      let clienteIdParaBuscar: number | null = null;
-
-      // Se a tarefa tem uma oportunidade, o cliente vem dela
-      if (props.tarefa.oportunidade) {
-        // Encontra a oportunidade completa na lista
-        const oportunidadeDaTarefa = oportunidades.value.find(o => o.id === props.tarefa.oportunidade);
-        if (oportunidadeDaTarefa) {
-          oportunidadeSelecionada.value = oportunidadeDaTarefa;
-          // Pega o ID do cliente a partir da oportunidade encontrada
-          if (oportunidadeDaTarefa.cliente) {
-            clienteIdParaBuscar = oportunidadeDaTarefa.cliente.id;
-          }
-        }
-      } 
-      // Se não tem oportunidade, mas tem um cliente direto
-      else if (props.tarefa.cliente) {
-        clienteIdParaBuscar = props.tarefa.cliente.id;
-      }
-
-      // Se encontramos um ID de cliente, busca o objeto completo e seleciona
-      if (clienteIdParaBuscar) {
-        clienteSelecionado.value = clientes.value.find(c => c.id === clienteIdParaBuscar) || null;
-      }
-    }
-  } catch (error) {
-    console.error("Erro ao carregar dados do modal:", error);
+// --- DADOS COMPUTADOS ---
+const isEditing = computed(() => !!tarefa.id);
+const tituloModal = computed(() => isEditing.value ? 'Editar Tarefa' : 'Adicionar Nova Tarefa');
+const submitButtonText = computed(() => {
+  if (isSubmitting.value) {
+    return isEditing.value ? 'A atualizar...' : 'A criar...';
   }
+  return isEditing.value ? 'Atualizar Tarefa' : 'Criar Tarefa';
 });
 
+// --- MÉTODOS ---
+const closeModal = () => {
+  emit('close');
+};
 
-async function handleSubmit() {
+const fetchOportunidades = async () => {
+  try {
+    const response = await apiClient.get('/v1/oportunidades/');
+    oportunidades.value = response.data;
+  } catch (error) {
+    console.error("Erro ao carregar oportunidades:", error);
+  }
+};
+
+const submitForm = async () => {
   isSubmitting.value = true;
   try {
     const payload = {
-        descricao: tarefaLocal.value.descricao,
-        data_conclusao: tarefaLocal.value.data_conclusao,
-        oportunidade: oportunidadeSelecionada.value ? oportunidadeSelecionada.value.id : null,
-        concluida: tarefaLocal.value.concluida,
-        cliente: clienteSelecionado.value ? clienteSelecionado.value.id : null,
+      titulo: tarefa.titulo,
+      descricao: tarefa.descricao,
+      data_vencimento: tarefa.data_vencimento,
+      oportunidade: tarefa.oportunidade,
     };
+
     if (isEditing.value) {
-        await apiClient.patch(`/v1/clientes/tarefas/${tarefaLocal.value.id}/`, payload);
+      await apiClient.patch(`/v1/tarefas/${tarefa.id}/`, payload);
     } else {
-        await apiClient.post(`/v1/clientes/tarefas/`, payload);
+      await apiClient.post('/v1/tarefas/', payload);
     }
+    
+    // --- INÍCIO DA CORREÇÃO ---
+    // Após o sucesso, emite o evento e força o recarregamento da página.
     emit('saved');
+    window.location.reload();
+    // --- FIM DA CORREÇÃO ---
+
   } catch (error) {
     console.error("Erro ao salvar a tarefa:", error);
-    alert('Ocorreu um erro ao salvar a tarefa.');
+    alert('Ocorreu um erro ao salvar a tarefa. Verifique a consola para mais detalhes.');
   } finally {
     isSubmitting.value = false;
   }
-}
+};
 
-async function handleConcluir() {
-  if (!window.confirm('Tem certeza que deseja concluir esta tarefa?')) {
+const handleDelete = async () => {
+  if (!window.confirm('Tem a certeza de que deseja eliminar esta tarefa?')) {
     return;
   }
   isSubmitting.value = true;
   try {
-    const payload = { concluida: true };
-    await apiClient.patch(`/v1/clientes/tarefas/${tarefaLocal.value.id}/`, payload);
+    await apiClient.delete(`/v1/tarefas/${tarefa.id}/`);
+    
+    // --- INÍCIO DA CORREÇÃO ---
+    // Após o sucesso, emite o evento e força o recarregamento da página.
     emit('saved');
-  } catch (error) {
-    console.error("Erro ao concluir a tarefa:", error);
-    alert('Ocorreu um erro ao concluir a tarefa.');
-  } finally {
-    isSubmitting.value = false;
-  }
-}
+    window.location.reload();
+    // --- FIM DA CORREÇÃO ---
 
-async function handleDelete() {
-  if (!window.confirm('Tem certeza que deseja eliminar esta tarefa?')) {
-    return;
-  }
-  isSubmitting.value = true;
-  try {
-    await apiClient.delete(`/v1/clientes/tarefas/${tarefaLocal.value.id}/`);
-    emit('saved');
   } catch (error) {
     console.error("Erro ao eliminar a tarefa:", error);
     alert('Ocorreu um erro ao eliminar a tarefa.');
   } finally {
     isSubmitting.value = false;
   }
-}
+};
+
+const preencherFormularioParaEdicao = (tarefaParaEditar: any) => {
+    tarefa.id = tarefaParaEditar.id;
+    tarefa.titulo = tarefaParaEditar.titulo;
+    tarefa.descricao = tarefaParaEditar.descricao;
+    tarefa.data_vencimento = tarefaParaEditar.data_vencimento 
+      ? new Date(tarefaParaEditar.data_vencimento).toISOString().slice(0, 16) 
+      : '';
+    tarefa.oportunidade = tarefaParaEditar.oportunidade;
+};
+
+// --- CICLO DE VIDA ---
+onMounted(() => {
+  fetchOportunidades();
+  if (props.tarefaParaEditar) {
+    preencherFormularioParaEdicao(props.tarefaParaEditar);
+  }
+});
 </script>
 
 <style scoped>
-/* Estilos permanecem os mesmos */
+/* Estilos modernos e limpos para o modal */
 .modal-overlay {
   position: fixed;
   top: 0;
   left: 0;
   right: 0;
   bottom: 0;
-  background: rgba(0, 0, 0, 0.5);
+  background: rgba(0, 0, 0, 0.6);
   display: flex;
   justify-content: center;
   align-items: center;
   z-index: 1000;
+  backdrop-filter: blur(5px);
 }
 .modal-container {
   background: white;
   padding: 2rem;
-  border-radius: 8px;
+  border-radius: 12px;
   width: 100%;
-  max-width: 500px;
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  max-width: 550px;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+  transform: scale(0.95);
+  animation: scaleIn 0.3s forwards;
 }
+
+@keyframes scaleIn {
+  to {
+    transform: scale(1);
+  }
+}
+
 .modal-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
   margin-bottom: 1.5rem;
+  border-bottom: 1px solid #e5e7eb;
+  padding-bottom: 1rem;
 }
 .modal-header h3 {
   margin: 0;
+  font-size: 1.5rem;
+  color: #111827;
 }
 .close-btn {
-  background: none;
+  background: #f3f4f6;
   border: none;
   font-size: 1.5rem;
   cursor: pointer;
   line-height: 1;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  color: #6b7280;
+  transition: background-color 0.2s, color 0.2s;
 }
-.info-section {
-    background-color: #f0f4f8;
-    padding: 1rem;
-    border-radius: 4px;
-    margin-bottom: 1.5rem;
-    border-left: 4px solid #007bff;
+.close-btn:hover {
+    background-color: #e5e7eb;
+    color: #111827;
 }
-.info-section p {
-    margin: 0;
+
+.modal-form {
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
 }
+
 .form-group {
-    margin-bottom: 1.5rem;
     display: flex;
     flex-direction: column;
 }
 .form-group label {
-    font-weight: bold;
+    font-weight: 600;
     margin-bottom: 0.5rem;
+    color: #374151;
+    font-size: 0.9rem;
 }
-.form-group textarea,
-.form-group input {
+.form-group input,
+.form-group textarea {
     width: 100%;
-    padding: 10px;
-    border: 1px solid #ccc;
-    border-radius: 4px;
+    padding: 12px;
+    border: 1px solid #d1d5db;
+    border-radius: 8px;
     font-size: 1rem;
     box-sizing: border-box;
+    transition: border-color 0.2s, box-shadow 0.2s;
 }
+.form-group input:focus,
+.form-group textarea:focus {
+    outline: none;
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
+}
+textarea {
+    resize: vertical;
+}
+
 .modal-actions {
   margin-top: 1.5rem;
   display: flex;
   justify-content: flex-end;
   gap: 1rem;
+  border-top: 1px solid #e5e7eb;
+  padding-top: 1.5rem;
 }
-.btn-primary, .btn-danger, .btn-success {
-  padding: 10px 20px;
+.btn-primary, .btn-danger {
+  padding: 12px 24px;
   border: none;
-  border-radius: 5px;
+  border-radius: 8px;
   cursor: pointer;
   font-weight: bold;
+  font-size: 1rem;
+  transition: background-color 0.2s, transform 0.1s;
 }
-.btn-primary { background-color: #007bff; color: white; }
-.btn-danger { background-color: #dc3545; color: white; }
-.btn-success { background-color: #28a745; color: white; }
-.no-results-message { padding: 1rem; text-align: center; }
+.btn-primary { background-color: #2563eb; color: white; }
+.btn-primary:hover { background-color: #1d4ed8; }
+.btn-primary:disabled { background-color: #9ca3af; cursor: not-allowed; }
+
+.btn-danger { background-color: #dc2626; color: white; }
+.btn-danger:hover { background-color: #b91c1c; }
+
+.btn-primary:active, .btn-danger:active {
+    transform: scale(0.98);
+}
 
 /* Estilos para o v-select */
 :deep(.vs__dropdown-toggle) {
     padding: 8px;
-    border-radius: 4px;
-    border: 1px solid #ccc;
+    border-radius: 8px;
+    border: 1px solid #d1d5db;
 }
-:deep(.vs__search::placeholder) {
-    color: #999;
+:deep(.vs--open .vs__dropdown-toggle) {
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
 }
 </style>

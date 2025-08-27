@@ -35,12 +35,9 @@
 import { ref, onMounted, defineProps } from 'vue';
 import apiClient from '@/services/api';
 
-const props = defineProps({
-  clienteId: {
-    type: [String, Number],
-    required: true
-  }
-});
+const props = defineProps<{
+  clienteId: string | number;
+}>();
 
 const atividades = ref<any[]>([]);
 const isLoading = ref(true);
@@ -50,10 +47,14 @@ const isSubmittingNota = ref(false);
 async function fetchAtividades() {
   isLoading.value = true;
   try {
-    const response = await apiClient.get(`/v1/clientes/clientes/${props.clienteId}/atividades/`);
+    // --- INÍCIO DA CORREÇÃO: URL da API corrigida ---
+    const response = await apiClient.get('/v1/clientes/atividades/', {
+      params: { cliente_id: props.clienteId }
+    });
+    // --- FIM DA CORREÇÃO ---
     atividades.value = response.data;
   } catch (error) {
-    console.error("Erro ao buscar atividades:", error);
+    console.error("Erro ao carregar atividades:", error);
   } finally {
     isLoading.value = false;
   }
@@ -64,17 +65,19 @@ async function adicionarNota() {
 
   isSubmittingNota.value = true;
   try {
-    const novaAtividade = {
+    const payload = {
       cliente: props.clienteId,
       tipo: 'NOTA',
       descricao: novaNota.value,
     };
-    await apiClient.post('/v1/clientes/atividades/', novaAtividade);
+    // --- INÍCIO DA CORREÇÃO: URL da API corrigida ---
+    await apiClient.post('/v1/clientes/atividades/', payload);
+    // --- FIM DA CORREÇÃO ---
     novaNota.value = '';
-    await fetchAtividades();
+    await fetchAtividades(); // Recarrega a lista
   } catch (error) {
     console.error("Erro ao adicionar nota:", error);
-    alert('Não foi possível adicionar a nota.');
+    alert('Não foi possível guardar a nota.');
   } finally {
     isSubmittingNota.value = false;
   }
@@ -84,7 +87,8 @@ onMounted(() => {
   fetchAtividades();
 });
 
-function formatarData(data: string) {
+function formatarData(data: string): string {
+  if (!data) return '';
   return new Date(data).toLocaleString('pt-BR', {
     day: '2-digit', month: '2-digit', year: 'numeric',
     hour: '2-digit', minute: '2-digit'
@@ -92,7 +96,15 @@ function formatarData(data: string) {
 }
 
 function getIconClass(tipo: string): string {
-  return `icon-${tipo.toLowerCase()}`;
+  // A sua lógica de ícones é mantida
+  switch (tipo.toUpperCase()) {
+    case 'LIGACAO': return 'fas fa-phone-alt';
+    case 'EMAIL': return 'fas fa-envelope';
+    case 'WHATSAPP': return 'fab fa-whatsapp';
+    case 'NOTA': return 'fas fa-sticky-note';
+    case 'MUDANCA_FASE': return 'fas fa-exchange-alt';
+    default: return 'fas fa-info-circle';
+  }
 }
 </script>
 
@@ -142,26 +154,26 @@ function getIconClass(tipo: string): string {
   width: 40px;
   height: 40px;
   border-radius: 50%;
-  background-color: #e0e0e0;
+  background-color: #007bff;
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   margin-right: 1rem;
   flex-shrink: 0;
 }
-.icon-nota { background-color: #ffc107; }
-.icon-visita { background-color: #17a2b8; }
-.icon-contrato { background-color: #28a745; }
-
 .timeline-content {
   background-color: #f8f9fa;
   padding: 1rem;
   border-radius: 5px;
-  width: 100%;
+  flex-grow: 1;
 }
 .atividade-descricao {
-  margin: 0 0 0.5rem 0;
-  white-space: pre-wrap;
+  margin-top: 0;
+  margin-bottom: 0.5rem;
 }
 .atividade-meta {
+  font-size: 0.8em;
   color: #6c757d;
-  font-size: 0.85em;
 }
 </style>

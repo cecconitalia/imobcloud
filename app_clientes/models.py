@@ -75,6 +75,13 @@ class Oportunidade(models.Model):
         GANHO = 'GANHO', 'Negócio Ganho'
         PERDIDO = 'PERDIDO', 'Negócio Perdido'
 
+    class Fontes(models.TextChoices):
+        SITE = 'SITE', 'Site'
+        INDICACAO = 'INDICACAO', 'Indicação'
+        ANUNCIO = 'ANUNCIO', 'Anúncio Online'
+        CLIENTE_ANTIGO = 'CLIENTE_ANTIGO', 'Cliente Antigo'
+        OUTRO = 'OUTRO', 'Outro'
+
     imobiliaria = models.ForeignKey('core.Imobiliaria', on_delete=models.CASCADE, related_name='oportunidades')
     imovel = models.ForeignKey('app_imoveis.Imovel', on_delete=models.SET_NULL, null=True, blank=True, related_name='oportunidades')
     cliente = models.ForeignKey(Cliente, on_delete=models.CASCADE, related_name='oportunidades')
@@ -83,6 +90,9 @@ class Oportunidade(models.Model):
     # Para manter a compatibilidade, vamos usar um CharField por enquanto
     # e migrar no futuro.
     fase = models.CharField(max_length=20, choices=Fases.choices, default=Fases.LEAD)
+
+    # NOVO CAMPO: fonte
+    fonte = models.CharField(max_length=20, choices=Fontes.choices, null=True, blank=True, verbose_name="Fonte do Lead")
     
     # Campo de responsável agora é um ForeignKey para o User, não para PerfilUsuario
     responsavel = models.ForeignKey(
@@ -101,6 +111,7 @@ class Oportunidade(models.Model):
     
     data_criacao = models.DateTimeField(auto_now_add=True, verbose_name="Data de Criação")
     data_atualizacao = models.DateTimeField(auto_now=True, verbose_name="Última Atualização")
+    informacoes_adicionais = models.TextField(blank=True, null=True, verbose_name="Informações Adicionais")
 
     history = HistoricalRecords()
 
@@ -134,7 +145,6 @@ class Tarefa(models.Model):
     descricao = models.TextField(blank=True, null=True)
     data_vencimento = models.DateTimeField()
     concluida = models.BooleanField(default=False)
-    # CORREÇÃO: O campo oportunidade agora aceita valores nulos
     oportunidade = models.ForeignKey(
         Oportunidade, 
         on_delete=models.CASCADE, 
@@ -145,12 +155,20 @@ class Tarefa(models.Model):
     responsavel = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='tarefas_responsavel')
     google_calendar_event_id = models.CharField(max_length=255, blank=True, null=True)
     
+    # --- INÍCIO DA ALTERAÇÃO ---
+    # Novo campo para guardar as notas de finalização
+    observacoes_finalizacao = models.TextField(
+        blank=True, 
+        null=True, 
+        verbose_name="Observações da Finalização"
+    )
+    # --- FIM DA ALTERAÇÃO ---
+
     def __str__(self):
         return f"Tarefa: {self.titulo}"
 
     def save(self, *args, **kwargs):
         super().save(*args, **kwargs)
-        # Lógica de notificação pode ser adicionada aqui, se necessário
 
 class Visita(models.Model):
     imobiliaria = models.ForeignKey('core.Imobiliaria', on_delete=models.CASCADE)

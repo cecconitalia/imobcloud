@@ -27,15 +27,37 @@ class VisitaSerializer(serializers.ModelSerializer):
         model = Visita
         fields = '__all__'
 
+# --- INÍCIO DA CORREÇÃO ---
+# Adicionámos um serializer para o utilizador e atualizámos o AtividadeSerializer
+# para incluir os dados completos do utilizador que registou a atividade.
+class UsuarioSimplesSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = User
+        fields = ['id', 'first_name', 'username']
+
 class AtividadeSerializer(serializers.ModelSerializer):
+    # Usamos o serializer acima para mostrar os detalhes do utilizador
+    registrado_por_obj = UsuarioSimplesSerializer(source='registrado_por', read_only=True)
+
     class Meta:
         model = Atividade
-        fields = '__all__'
+        fields = [
+            'id', 'tipo', 'descricao', 'data_criacao', 
+            'registrado_por', 'registrado_por_obj', 'cliente'
+        ]
+        read_only_fields = ['registrado_por']
+# --- FIM DA CORREÇÃO ---
 
 class TarefaSerializer(serializers.ModelSerializer):
+    """ Serializer para o modelo Tarefa. """
     class Meta:
         model = Tarefa
-        fields = '__all__'
+        fields = [
+            'id', 'titulo', 'descricao', 'data_vencimento', 'concluida', 
+            'oportunidade', 'responsavel', 'google_calendar_event_id',
+            'observacoes_finalizacao'
+        ]
+        read_only_fields = ['responsavel']
 
 # --- SERIALIZER DE OPORTUNIDADE ATUALIZADO ---
 class OportunidadeSerializer(serializers.ModelSerializer):
@@ -44,7 +66,6 @@ class OportunidadeSerializer(serializers.ModelSerializer):
     - Usa PrimaryKeyRelatedField para aceitar IDs para escrita (POST/PUT/PATCH).
     - Sobrescreve 'to_representation' para mostrar dados completos para leitura (GET).
     """
-    # NOVO: Dicionário para mapear fases a probabilidades
     PROBABILIDADE_POR_FASE = {
         'LEAD': 10,
         'CONTATO': 25,
@@ -57,52 +78,39 @@ class OportunidadeSerializer(serializers.ModelSerializer):
 
     cliente = serializers.PrimaryKeyRelatedField(queryset=Cliente.objects.all())
     imovel = serializers.PrimaryKeyRelatedField(queryset=Imovel.objects.all(), required=False, allow_null=True)
-    
     responsavel = ResponsavelSimplificadoSerializer(read_only=True)
-    
     tarefas = TarefaSerializer(many=True, read_only=True)
 
     class Meta:
         model = Oportunidade
         fields = [
             'id', 'titulo', 'valor_estimado', 'fase', 'probabilidade',
-            'motivo_perda', 'data_criacao',
+            'motivo_perda', 'data_criacao', 'fonte',
             'cliente', 'imovel', 'responsavel', 'tarefas',
+            'informacoes_adicionais'
         ]
-        read_only_fields = ('data_criacao', 'probabilidade') # A probabilidade será definida pelo backend
+        read_only_fields = ('data_criacao', 'probabilidade')
 
     def validate_fase(self, value):
-        """
-        Define a probabilidade de fechamento automaticamente com base na fase.
-        """
         self.initial_data['probabilidade'] = self.PROBABILIDADE_POR_FASE.get(value, 0)
         return value
 
     def to_representation(self, instance):
-        """
-        Customiza a saída (JSON) para requisições GET.
-        Aqui, transformamos os IDs de volta em objetos completos para o frontend.
-        """
         representation = super().to_representation(instance)
-
         cliente_instance = instance.cliente
         representation['cliente'] = {
             'id': cliente_instance.id,
             'nome_completo': cliente_instance.nome_completo,
         }
-
         if instance.imovel:
             imovel_instance = instance.imovel
-            # CORREÇÃO AQUI: Criar o endereço a partir dos campos disponíveis
             endereco_completo = f"{imovel_instance.logradouro}, {imovel_instance.bairro}, {imovel_instance.cidade} - {imovel_instance.estado}"
             representation['imovel'] = {
                 'id': imovel_instance.id,
                 'endereco': endereco_completo,
                 'imovel_titulo': imovel_instance.titulo_anuncio,
             }
-        
         return representation
-
 
 class ClienteSerializer(serializers.ModelSerializer):
     """ Serializer principal para o modelo Cliente. """
@@ -114,7 +122,6 @@ class ClienteSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Cliente
-        # AQUI ESTÁ A ALTERAÇÃO: Adicionando os novos campos
         fields = [
             'id', 'nome_completo', 'cpf_cnpj', 'email', 'telefone', 'preferencias_imovel', 
             'ativo', 'data_cadastro', 'data_atualizacao', 'data_nascimento', 
@@ -126,13 +133,11 @@ class ClienteSerializer(serializers.ModelSerializer):
     def create(self, validated_data):
         return super().create(validated_data)
 
-# --- SERIALIZER PARA O NOVO MODELO DE ETAPAS ---
 class FunilEtapaSerializer(serializers.ModelSerializer):
     class Meta:
         model = FunilEtapa
         fields = ['id', 'titulo', 'ordem', 'probabilidade_fechamento', 'ativa', 'imobiliaria']
         read_only_fields = ['imobiliaria']
-
 
 # ===================================================================
 # Serializers para Relatórios (mantidos como estavam)

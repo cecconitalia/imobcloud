@@ -215,26 +215,35 @@ class VisitaViewSet(viewsets.ModelViewSet):
 
 
 class AtividadeViewSet(viewsets.ModelViewSet):
-    queryset = Atividade.objects.all()
     serializer_class = AtividadeSerializer
     permission_classes = [permissions.IsAuthenticated]
+    
+    # Fornecemos um queryset base para ajudar o router a construir as rotas corretamente, incluindo o POST.
+    queryset = Atividade.objects.all()
 
     def get_queryset(self):
-        user = self.request.user
-        if user.is_superuser:
-            return Atividade.objects.all()
-        elif hasattr(user, 'perfil') and user.perfil.imobiliaria:
-            return Atividade.objects.filter(cliente__imobiliaria=user.perfil.imobiliaria)
-        return Atividade.objects.none()
+        # Filtramos o queryset base pela imobiliária do tenant.
+        # A filtragem por cliente será feita no método 'list'.
+        tenant = Imobiliaria.objects.get(subdominio=self.request.tenant.subdominio)
+        return self.queryset.filter(cliente__imobiliaria=tenant)
+
+    def list(self, request, *args, **kwargs):
+        # Sobrescrevemos o método GET (list) para implementar a lógica de filtragem.
+        cliente_id = request.query_params.get('cliente_id')
+        if not cliente_id:
+            # Se nenhum cliente for especificado, retornamos uma lista vazia para evitar expor dados.
+            return Response([])
+            
+        queryset = self.get_queryset().filter(cliente_id=cliente_id)
+        serializer = self.get_serializer(queryset, many=True)
+        return Response(serializer.data)
 
     def perform_create(self, serializer):
-        cliente_id = self.request.data.get('cliente')
-        cliente = get_object_or_404(Cliente, pk=cliente_id)
-
-        if not (self.request.user.is_superuser or cliente.imobiliaria == self.request.tenant):
-            raise PermissionDenied("Você não tem permissão para adicionar atividades a este cliente.")
-
-        serializer.save(cliente=cliente, registrado_por=self.request.user)
+        # Esta função agora é chamada corretamente.
+        # O 'cliente' já vem nos dados validados do frontend.
+        # Adicionamos apenas o utilizador que está a registar a nota.
+        serializer.save(registrado_por=self.request.user)
+# --- FIM DA CORREÇÃO ---
 
 
 class OportunidadeViewSet(viewsets.ModelViewSet):

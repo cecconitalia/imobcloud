@@ -23,23 +23,39 @@
 
       <div class="form-group">
         <label for="cliente">Cliente</label>
-        <select id="cliente" v-model="oportunidade.cliente_id" required>
-          <option disabled :value="null">Selecione um cliente</option>
-          <option v-for="c in clientes" :key="c.id" :value="c.id">
-            {{ c.nome_completo }}
-          </option>
-        </select>
+        <v-select
+          id="cliente"
+          label="nome_completo"
+          :options="clientes"
+          :reduce="cliente => cliente.id"
+          v-model="oportunidade.cliente_id"
+          placeholder="Digite para buscar um cliente"
+          required
+        >
+          <template #no-options>
+            Nenhum cliente encontrado.
+          </template>
+        </v-select>
       </div>
       <div class="form-group">
         <label for="imovel">Imóvel de Interesse (opcional)</label>
-        <select id="imovel" v-model="oportunidade.imovel_id">
-          <option :value="null">Nenhum</option>
-          <option v-for="i in imoveis" :key="i.id" :value="i.id">
-            {{ i.titulo_anuncio }}
-          </option>
-        </select>
+        <v-select
+          id="imovel"
+          label="titulo_anuncio"
+          :options="imoveis"
+          :reduce="imovel => imovel.id"
+          v-model="oportunidade.imovel_id"
+          placeholder="Digite para buscar um imóvel"
+        >
+          <template #option="option">
+            <strong>{{ option.titulo_anuncio }}</strong><br>
+            <small>{{ option.logradouro }}</small>
+          </template>
+          <template #no-options>
+            Nenhum imóvel encontrado.
+          </template>
+        </v-select>
       </div>
-
       <div class="form-group">
         <label for="valor_estimado">Valor Estimado (R$)</label>
         <input type="number" step="0.01" id="valor_estimado" v-model="oportunidade.valor_estimado" />
@@ -140,6 +156,8 @@ import apiClient from '@/services/api';
 import OportunidadeTransferir from '@/components/OportunidadeTransferir.vue';
 import TarefaModal from '@/components/TarefaModal.vue';
 import FaseSelector from '@/components/FaseSelector.vue';
+import vSelect from 'vue-select'; // Importa o v-select
+import 'vue-select/dist/vue-select.css'; // Importa os estilos do v-select
 
 const router = useRouter();
 const route = useRoute();
@@ -156,9 +174,7 @@ const oportunidade = ref({
   fase: 'LEAD',
   fonte: null,
   probabilidade: 10,
-  data_proximo_contato: null,
   motivo_perda: '',
-  // NOVO CAMPO ADICIONADO AQUI
   informacoes_adicionais: '',
   tarefas: [] as any[],
 });
@@ -267,7 +283,6 @@ async function handleSubmit() {
         fonte: oportunidade.value.fonte,
         probabilidade: oportunidade.value.probabilidade,
         motivo_perda: oportunidade.value.motivo_perda,
-        // NOVO CAMPO ADICIONADO AQUI
         informacoes_adicionais: oportunidade.value.informacoes_adicionais,
         cliente: oportunidade.value.cliente_id,
         imovel: oportunidade.value.imovel_id,
@@ -293,6 +308,13 @@ function handleCancel() {
 </script>
 
 <style scoped>
+/* Estilos do v-select para se parecer com os outros inputs */
+:deep(.vs__dropdown-toggle) {
+  padding: 6px;
+  border-radius: 4px;
+  border: 1px solid #ccc;
+}
+
 .form-container { padding: 2rem; }
 .view-header { margin-bottom: 1.5rem; }
 .oportunidade-form { display: flex; flex-wrap: wrap; gap: 1.5rem; }
