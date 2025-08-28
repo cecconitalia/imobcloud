@@ -47,6 +47,9 @@
             <span class="imovel-endereco">{{ contrato.imovel?.logradouro || 'Endereço não disponível' }}</span>
           </div>
           <div class="card-actions" @click.stop>
+            <button @click="visualizarContrato(contrato.id)" class="btn-action view-btn" title="Visualizar">
+              <i class="fas fa-eye"></i>
+            </button>
             <router-link :to="`/contratos/editar/${contrato.id}`" class="btn-action edit-btn" title="Editar">
               <i class="fas fa-edit"></i>
             </router-link>
@@ -75,7 +78,7 @@
 
         <div class="card-footer">
           <div class="footer-info">
-             <span :class="['status-badge', getTipoClass(contrato.tipo_contrato)]">
+              <span :class="['status-badge', getTipoClass(contrato.tipo_contrato)]">
                 {{ contrato.tipo_contrato }}
               </span>
               <span class="date-info">
@@ -93,6 +96,24 @@
       <i class="fas fa-file-contract icon-large"></i>
       <p>Nenhum contrato encontrado para os filtros selecionados.</p>
     </div>
+
+    <!-- Modal para visualização do contrato -->
+    <div v-if="showModal" class="modal-overlay">
+      <div class="modal-container">
+        <div class="modal-header">
+          <h3 class="modal-title">Visualização do Contrato</h3>
+          <button @click="showModal = false" class="modal-close-btn">&times;</button>
+        </div>
+        <div v-if="loadingModal" class="modal-loading-message">
+          <div class="spinner"></div>
+          Carregando conteúdo do contrato...
+        </div>
+        <div v-else-if="modalError" class="modal-error-message">
+          {{ modalError }}
+        </div>
+        <div v-else class="modal-body" v-html="contratoHtml"></div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -101,8 +122,10 @@ import { ref, onMounted, computed } from 'vue';
 import { useRouter } from 'vue-router';
 import apiClient from '@/services/api';
 import '@fortawesome/fontawesome-free/css/all.css';
+import { useToast } from 'vue-toast-notification';
 
 const router = useRouter(); 
+const toast = useToast();
 
 const contratos = ref<any[]>([]);
 const isLoading = ref(true);
@@ -111,6 +134,13 @@ const searchTerm = ref('');
 const filterTipo = ref('');
 const filterStatus = ref('');
 const userCargo = ref('');
+
+// Variáveis para a modal de visualização
+const showModal = ref(false);
+const contratoHtml = ref('');
+const loadingModal = ref(false);
+const modalError = ref('');
+
 
 const filteredContratos = computed(() => {
   return contratos.value.filter(c => {
@@ -136,6 +166,7 @@ async function fetchContratos() {
   } catch (err) {
     console.error("Erro ao buscar contratos:", err);
     error.value = 'Não foi possível carregar os contratos.';
+    toast.error(error.value);
   } finally {
     isLoading.value = false;
   }
@@ -153,15 +184,15 @@ async function handleInativar(contratoId: number) {
   try {
     await apiClient.delete(`/v1/contratos/${contratoId}/`);
     contratos.value = contratos.value.filter(contrato => contrato.id !== contratoId);
-    alert('Contrato inativado com sucesso.');
-  } catch (error) {
-    console.error("Erro ao inativar contrato:", error);
-    alert("Ocorreu um erro ao tentar inativar o contrato.");
+    toast.success('Contrato inativado com sucesso.');
+  } catch (err) {
+    console.error("Erro ao inativar contrato:", err);
+    toast.error("Ocorreu um erro ao tentar inativar o contrato.");
   }
 }
 
 function goToContrato(contratoId: number) {
-  router.push({ name: 'contrato-editar', params: { id: contratoId } });
+  router.push({ path: `/contratos/editar/${contratoId}` });
 }
 
 function getTipoClass(tipo: string) {
@@ -176,6 +207,21 @@ function getStatusClass(status: string) {
     case 'Rescindido':
     case 'Inativo': return 'status-inativo';
     default: return 'status-default';
+  }
+}
+
+async function visualizarContrato(id: number) {
+  showModal.value = true;
+  loadingModal.value = true;
+  modalError.value = '';
+  try {
+    const response = await apiClient.get(`/v1/contratos/${id}/get-html/`);
+    contratoHtml.value = response.data;
+  } catch (err) {
+    modalError.value = 'Não foi possível carregar o conteúdo do contrato.';
+    toast.error(modalError.value);
+  } finally {
+    loadingModal.value = false;
   }
 }
 </script>
@@ -381,6 +427,7 @@ h1 {
 }
 .edit-btn:hover { background-color: #ffc107; color: white; }
 .delete-btn:hover { background-color: #dc3545; color: white; }
+.view-btn:hover { background-color: #17a2b8; color: white;}
 
 /* =================================== */
 /* LAYOUT PADRÃO - FIM */
@@ -442,5 +489,60 @@ h1 {
 @keyframes spin {
   0% { transform: rotate(0deg); }
   100% { transform: rotate(360deg); }
+}
+
+/* Estilos para a Modal */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+}
+.modal-container {
+  background: #fff;
+  padding: 2rem;
+  border-radius: 8px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  width: 90%;
+  max-width: 900px;
+  max-height: 90%;
+  overflow-y: auto;
+  position: relative;
+}
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid #e9ecef;
+  padding-bottom: 1rem;
+  margin-bottom: 1rem;
+}
+.modal-title {
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: #212529;
+}
+.modal-close-btn {
+  background: none;
+  border: none;
+  font-size: 2rem;
+  color: #6c757d;
+  cursor: pointer;
+  transition: color 0.2s;
+}
+.modal-close-btn:hover {
+  color: #dc3545;
+}
+.modal-body {
+  white-space: pre-wrap; /* Mantém a formatação do texto, como quebras de linha */
+  font-family: 'Inter', sans-serif;
+  color: #333;
+  line-height: 1.6;
 }
 </style>

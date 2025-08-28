@@ -1,5 +1,3 @@
-# C:\wamp64\www\imobcloud\app_contratos\views.py
-
 from rest_framework import viewsets, status, permissions
 from rest_framework.response import Response
 from rest_framework.decorators import action, api_view, permission_classes
@@ -10,8 +8,6 @@ from django.shortcuts import get_object_or_404
 from rest_framework.exceptions import ValidationError
 from django.template.loader import render_to_string
 from xhtml2pdf import pisa
-
-
 from django.http import HttpResponse
 from reportlab.lib.pagesizes import letter
 from reportlab.pdfgen import canvas
@@ -19,13 +15,11 @@ from reportlab.lib.utils import ImageReader
 from io import BytesIO
 from django.conf import settings
 import os
-
 from django.utils.dateparse import parse_date
 from django.db import transaction
 from app_financeiro.models import Transacao
 from rest_framework.views import APIView
 from django.utils import timezone
-
 
 class ContratoViewSet(viewsets.ModelViewSet):
     serializer_class = ContratoSerializer

@@ -6,7 +6,7 @@
         <!-- NOVO BOTÃO: Visualizar PDF -->
         <button
           v-if="isEditing"
-          @click="visualizarPDF"
+          @click="visualizarContrato"
           class="btn-info"
           type="button"
         >
@@ -18,7 +18,7 @@
           class="btn-info"
           type="button"
         >
-          <i class="fas fa-file-pdf"></i> Gerar PDF
+          <i class="fas fa-file-pdf"></i> Gerar/Editar Contrato
         </button>
         <router-link to="/contratos" class="btn-secondary">
           <i class="fas fa-arrow-left"></i> Voltar à Lista
@@ -155,6 +155,24 @@
       </div>
     </div>
   </div>
+
+  <!-- Modal de Visualização de Contrato -->
+  <div v-if="showVisualizarModal" class="modal-overlay">
+    <div class="modal-container">
+      <div class="modal-header">
+        <h3 class="modal-title">Visualização do Contrato (ID: {{ contrato.id }})</h3>
+        <button @click="showVisualizarModal = false" class="modal-close-btn">&times;</button>
+      </div>
+      <div v-if="loadingModal" class="modal-loading-message">
+        <div class="spinner"></div>
+        Carregando conteúdo do contrato...
+      </div>
+      <div v-else-if="modalError" class="modal-error-message">
+        {{ modalError }}
+      </div>
+      <div v-else class="modal-body-visualizar" v-html="contratoHtml"></div>
+    </div>
+  </div>
 </template>
 
 <script setup lang="ts">
@@ -164,9 +182,11 @@ import apiClient from '@/services/api';
 import '@fortawesome/fontawesome-free/css/all.css';
 import Quill from 'quill';
 import 'quill/dist/quill.snow.css';
+import { useToast } from 'vue-toast-notification';
 
 const route = useRoute();
 const router = useRouter();
+const toast = useToast();
 
 const contrato = ref({
   id: null,
@@ -197,6 +217,13 @@ const isGenerating = ref(false);
 const editorContainer = ref(null);
 let quillEditor: Quill | null = null;
 
+// Variáveis para a modal de visualização
+const showVisualizarModal = ref(false);
+const contratoHtml = ref('');
+const loadingModal = ref(false);
+const modalError = ref('');
+
+
 async function fetchData() {
   try {
     const [clientesRes, imoveisRes] = await Promise.all([
@@ -217,9 +244,9 @@ async function fetchData() {
         inquilino: data.inquilino?.id || null,
       };
     }
-  } catch (error) {
-    console.error("Erro ao buscar dados para o formulário:", error);
-    alert("Não foi possível carregar os dados necessários.");
+  } catch (err) {
+    console.error("Erro ao buscar dados para o formulário:", err);
+    toast.error("Não foi possível carregar os dados necessários.");
   }
 }
 
@@ -236,7 +263,7 @@ watch(() => contrato.value.imovel, (newImovelId) => {
 
 async function prepararContrato() {
     if (!contrato.value.id) {
-        alert('Por favor, salve o contrato antes de gerar o PDF.');
+        toast.error('Por favor, salve o contrato antes de gerar o PDF.');
         return;
     }
     try {
@@ -251,17 +278,17 @@ async function prepararContrato() {
               quillEditor = new Quill(editorContainer.value, {
                   theme: 'snow',
                   modules: {
-                      toolbar: [
-                          [{ 'header': [1, 2, 3, false] }],
-                          ['bold', 'italic', 'underline', 'strike'],
-                          [{ 'list': 'ordered'}, { 'list': 'bullet' }],
-                          [{ 'script': 'sub'}, { 'script': 'super' }],
-                          [{ 'indent': '-1'}, { 'indent': '+1' }],
-                          [{ 'direction': 'rtl' }],
-                          [{ 'align': [] }],
-                          ['link'],
-                          ['clean']
-                      ]
+                    toolbar: [
+                      [{ 'header': [1, 2, 3, false] }],
+                      ['bold', 'italic', 'underline', 'strike'],
+                      [{ 'list': 'ordered'}, { 'list': 'bullet' }],
+                      [{ 'script': 'sub'}, { 'script': 'super' }],
+                      [{ 'indent': '-1'}, { 'indent': '+1' }],
+                      [{ 'direction': 'rtl' }],
+                      [{ 'align': [] }],
+                      ['link'],
+                      ['clean']
+                    ]
                   }
               });
               quillEditor.on('text-change', () => {
@@ -274,7 +301,7 @@ async function prepararContrato() {
         }
     } catch (error) {
         console.error("Erro ao preparar HTML do contrato:", error);
-        alert('Ocorreu um erro ao preparar o contrato para edição.');
+        toast.error('Ocorreu um erro ao preparar o contrato para edição.');
     }
 }
 
@@ -305,27 +332,32 @@ async function salvarEGerarPDF() {
         link.remove();
         window.URL.revokeObjectURL(url);
         showModal.value = false;
-        alert('Contrato salvo e PDF gerado com sucesso!');
+        toast.success('Contrato salvo e PDF gerado com sucesso!');
     } catch (error) {
         console.error("Erro ao salvar ou gerar PDF:", error);
-        alert('Ocorreu um erro ao salvar o conteúdo ou gerar o PDF.');
+        toast.error('Ocorreu um erro ao salvar o conteúdo ou gerar o PDF.');
     } finally {
         isGenerating.value = false;
     }
 }
 
-async function visualizarPDF() {
-    if (!contrato.value.id) {
-        alert('Por favor, salve o contrato antes de visualizá-lo.');
-        return;
-    }
-
-    try {
-        window.open(`/api/v1/contratos/${contrato.value.id}/visualizar-pdf/`, '_blank');
-    } catch (error) {
-        console.error("Erro ao visualizar PDF:", error);
-        alert('Ocorreu um erro ao tentar visualizar o contrato.');
-    }
+async function visualizarContrato() {
+  if (!contrato.value.id) {
+    toast.error('Por favor, salve o contrato antes de visualizá-lo.');
+    return;
+  }
+  showVisualizarModal.value = true;
+  loadingModal.value = true;
+  modalError.value = '';
+  try {
+    const response = await apiClient.get(`/v1/contratos/${contrato.value.id}/get-html/`);
+    contratoHtml.value = response.data;
+  } catch (err) {
+    modalError.value = 'Não foi possível carregar o conteúdo do contrato.';
+    toast.error(modalError.value);
+  } finally {
+    loadingModal.value = false;
+  }
 }
 
 async function handleSubmit() {
@@ -340,17 +372,17 @@ async function handleSubmit() {
   try {
     if (isEditing.value) {
       await apiClient.put(`/v1/contratos/${contratoId.value}/`, payload);
-      alert('Contrato atualizado com sucesso!');
+      toast.success('Contrato atualizado com sucesso!');
     } else {
       const createRes = await apiClient.post('/v1/contratos/', payload);
-      alert('Contrato criado com sucesso!');
+      toast.success('Contrato criado com sucesso!');
       router.push(`/contratos/editar/${createRes.data.id}`);
     }
     router.push('/contratos');
   } catch (error: any) {
     console.error("Erro ao salvar contrato:", error.response?.data || error);
     const errorMsg = error.response?.data ? JSON.stringify(error.response.data) : 'Verifique os dados e tente novamente.';
-    alert(`Ocorreu um erro ao salvar o contrato: ${errorMsg}`);
+    toast.error(`Ocorreu um erro ao salvar o contrato: ${errorMsg}`);
   } finally {
     isSubmitting.value = false;
   }
@@ -542,5 +574,25 @@ input:focus, select:focus, textarea:focus {
   gap: 1rem;
   padding-top: 1rem;
   border-top: 1px solid #e0e0e0;
+}
+
+/* Estilos para a nova modal de visualização */
+.modal-container {
+  background: #fff;
+  padding: 2rem;
+  border-radius: 8px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  width: 90%;
+  max-width: 900px;
+  max-height: 90%;
+  overflow-y: auto;
+  position: relative;
+}
+
+.modal-body-visualizar {
+  white-space: pre-wrap;
+  font-family: 'Inter', sans-serif;
+  color: #333;
+  line-height: 1.6;
 }
 </style>
