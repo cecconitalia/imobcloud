@@ -314,13 +314,13 @@
             <div class="form-section">
                  <div class="section-title">Observações e Ações</div>
                  <div class="form-group full-width">
-                     <label for="informacoes_adicionais_autorizacao">Informações Adicionais (para o contrato)</label>
-                     <textarea id="informacoes_adicionais_autorizacao" v-model="imovel.informacoes_adicionais_autorizacao" rows="4"></textarea>
+                      <label for="informacoes_adicionais_autorizacao">Informações Adicionais (para o contrato)</label>
+                      <textarea id="informacoes_adicionais_autorizacao" v-model="imovel.informacoes_adicionais_autorizacao" rows="4"></textarea>
                  </div>
                  <div class="form-group full-width" v-if="isEditing && imovel.id">
-                     <button type="button" @click="gerarContratoPDF" class="btn-info">
-                         Gerar Contrato de Autorização (PDF)
-                     </button>
+                      <button type="button" @click="gerarContratoPDF" class="btn-info">
+                          Gerar Contrato de Autorização (PDF)
+                      </button>
                  </div>
             </div>
         </div>
@@ -517,6 +517,7 @@ async function fetchImovelData() {
     try {
       const { data } = await apiClient.get(`/v1/imoveis/${imovelId.value}/`);
       const emptyImovel = createEmptyImovel();
+      // Mescla os dados para garantir que todos os campos reativos existam
       imovel.value = { 
         ...emptyImovel,
         ...data,
@@ -578,14 +579,10 @@ async function saveImovel() {
   
   delete payload.id;
   Object.keys(payload).forEach(key => {
-    if (payload[key] === null) delete payload[key];
+    // Mantém o 'proprietario' como null se for o caso, não remove
+    if (key !== 'proprietario' && payload[key] === null) delete payload[key];
   });
   
-  // CORREÇÃO: Garante que o logradouro é sempre uma string
-  if (Array.isArray(payload.logradouro)) {
-    payload.logradouro = payload.logradouro.join(', ');
-  }
-
   try {
     if (isEditing.value) {
       return await apiClient.put(`/v1/imoveis/${imovelId.value}/`, payload);
@@ -603,7 +600,10 @@ async function saveImovel() {
 
 async function handleSaveAndExit() {
   const response = await saveImovel();
-  if (response) {
+  if (response && response.data) {
+    // Atualiza o estado local com a resposta antes de sair
+    imovel.value = { ...imovel.value, ...response.data };
+    alert('Imóvel guardado com sucesso!');
     router.push({ name: 'imoveis' });
   }
 }
@@ -613,13 +613,22 @@ async function handleSaveAndContinue() {
   if (response && response.data) {
     const wasCreating = !isEditing.value;
     
+    // ATUALIZAÇÃO CRÍTICA: Mescla a resposta da API com o estado local
+    const emptyImovel = createEmptyImovel();
+    imovel.value = {
+        ...emptyImovel,
+        ...response.data,
+        configuracao_publica: { ...emptyImovel.configuracao_publica, ...response.data.configuracao_publica }
+    };
+    
+    alert('Imóvel guardado com sucesso!');
+
     if (wasCreating && response.data.id) {
-      await router.push({ name: 'imovel-editar', params: { id: response.data.id } });
-    } else {
-      alert('Imóvel guardado com sucesso!');
-      await fetchImovelData();
+        // Se estava a criar, navega para a nova rota de edição
+        await router.push({ name: 'imovel-editar', params: { id: response.data.id } });
     }
     
+    // Muda para a aba de imagens após salvar
     activeTab.value = 'imagens';
   }
 }

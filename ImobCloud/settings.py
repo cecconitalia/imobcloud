@@ -43,12 +43,13 @@ INSTALLED_APPS = [
     'rest_framework', # Django REST Framework
     'corsheaders',    # CORS Headers for cross-origin requests
     'rest_framework_simplejwt', # Adicione esta linha para JWT
+    'django_celery_beat', # Adicionado para agendamento de tarefas
 
     'core', # Nosso app que conterá o modelo Imobiliaria
     'app_imoveis.apps.AppImoveisConfig',
     'app_clientes.apps.AppClientesConfig',
     'app_contratos.apps.AppContratosConfig',
-    'app_financeiro.apps.AppFinanceiroConfig', 
+    'app_financeiro.apps.AppFinanceiroConfig',
     'app_publicacoes',
     'app_config_ia',
     'app_alugueis',

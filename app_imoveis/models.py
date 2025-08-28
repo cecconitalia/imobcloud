@@ -56,16 +56,16 @@ class Imovel(models.Model):
         PRE_MOLDADO = 'PRE_MOLDADO', 'Pré-Moldado'
         MISTA = 'MISTA', 'Mista'
         MADEIRA = 'MADEIRA', 'Madeira'
-    
+
     # --- 🏠 Características Gerais ---
     imobiliaria = models.ForeignKey(Imobiliaria, on_delete=models.CASCADE, verbose_name="Imobiliária")
     titulo_anuncio = models.CharField(max_length=255, blank=True, null=True, verbose_name="Título do Anúncio")
     codigo_referencia = models.CharField(
-        max_length=50, 
-        unique=True, 
-        blank=True, 
+        max_length=50,
+        unique=True,
+        blank=True,
         null=True,
-        editable=False, 
+        editable=False,
         verbose_name="Código de Referência"
     )
     tipo = models.CharField(max_length=50, verbose_name="Tipo de Imóvel", choices=TipoImovel.choices)
@@ -88,14 +88,14 @@ class Imovel(models.Model):
     valor_aluguel = models.DecimalField(max_digits=15, decimal_places=2, null=True, blank=True, verbose_name="Valor de Aluguel")
     valor_condominio = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True, verbose_name="Valor do Condomínio")
     valor_iptu = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True, verbose_name="Valor do IPTU (Anual)")
-    
+
     # --- 📍 Localização ---
     logradouro = models.CharField(max_length=255, verbose_name="Rua/Avenida")
     numero = models.CharField(max_length=10, blank=True, null=True, verbose_name="Número")
     complemento = models.CharField(max_length=255, blank=True, null=True, verbose_name="Complemento")
     bairro = models.CharField(max_length=100, verbose_name="Bairro")
     cidade = models.CharField(max_length=100, verbose_name="Cidade")
-    estado = models.CharField(max_length=2, verbose_name="Estado (UF)") 
+    estado = models.CharField(max_length=2, verbose_name="Estado (UF)")
     cep = models.CharField(max_length=9, blank=True, null=True, verbose_name="CEP")
     posicao_solar = models.CharField(max_length=10, choices=PosicaoSolar.choices, blank=True, null=True, verbose_name="Posição Solar")
     andar = models.IntegerField(null=True, blank=True, verbose_name="Andar (se apartamento)")
@@ -135,7 +135,7 @@ class Imovel(models.Model):
     despensa = models.BooleanField(default=False, verbose_name="Despensa")
     closet = models.BooleanField(default=False, verbose_name="Closet")
     varanda = models.BooleanField(default=False, verbose_name="Varanda / Sacada")
-    
+
     # --- 🚗 Vagas e Garagem ---
     vagas_garagem = models.IntegerField(default=0, verbose_name="Número de Vagas")
     vaga_coberta = models.BooleanField(default=False, verbose_name="Vaga Coberta")
@@ -151,7 +151,7 @@ class Imovel(models.Model):
     moveis_planejados = models.BooleanField(default=False, verbose_name="Móveis Planejados")
     churrasqueira_privativa = models.BooleanField(default=False, verbose_name="Churrasqueira Privativa")
     piscina_privativa = models.BooleanField(default=False, verbose_name="Piscina Privativa")
-    
+
     # --- 🌳 Área Comum / Lazer (Condomínio) ---
     piscina_condominio = models.BooleanField(default=False, verbose_name="Piscina no Condomínio")
     churrasqueira_condominio = models.BooleanField(default=False, verbose_name="Churrasqueira no Condomínio")
@@ -168,7 +168,7 @@ class Imovel(models.Model):
     elevador = models.BooleanField(default=False, verbose_name="Elevador")
     vagas_visitantes = models.BooleanField(default=False, verbose_name="Vagas para Visitantes")
     bicicletario = models.BooleanField(default=False, verbose_name="Bicicletário")
-    
+
     # --- 📄 Documentação e Autorização de Venda ---
     proprietario = models.ForeignKey(Cliente, on_delete=models.SET_NULL, null=True, blank=True, related_name='imoveis_propriedade', verbose_name="Proprietário")
     numero_matricula = models.CharField(max_length=100, blank=True, null=True, verbose_name="Número da Matrícula do Imóvel")
@@ -192,11 +192,11 @@ class Imovel(models.Model):
     # --- Datas de Controle ---
     data_cadastro = models.DateTimeField(auto_now_add=True, verbose_name="Data de Cadastro")
     data_atualizacao = models.DateTimeField(auto_now=True, verbose_name="Última Atualização")
-    
+
     class Meta:
         verbose_name = "Imóvel"
         verbose_name_plural = "Imóveis"
-        ordering = ['-data_cadastro'] 
+        ordering = ['-data_cadastro']
 
     def __str__(self):
         return f"#{self.codigo_referencia} - {self.titulo_anuncio or self.tipo}"
@@ -212,7 +212,7 @@ class Imovel(models.Model):
                 self.codigo_referencia = "1000"
             else:
                 self.codigo_referencia = str(ultimo_codigo_int + 1)
-                
+
         super(Imovel, self).save(*args, **kwargs)
 
 
@@ -228,7 +228,7 @@ class ImagemImovel(models.Model):
 
     class Meta:
         ordering = ['ordem']
-    
+
 class ContatoImovel(models.Model):
     imovel = models.ForeignKey(Imovel, on_delete=models.CASCADE, related_name='contatos', verbose_name="Imóvel")
     nome = models.CharField(max_length=200, verbose_name="Nome do Interessado")
