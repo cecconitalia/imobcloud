@@ -5,6 +5,8 @@ from rest_framework.response import Response
 from rest_framework.decorators import action
 from rest_framework.exceptions import PermissionDenied
 from rest_framework import filters
+# ADIÇÃO DA IMPORTAÇÃO NECESSÁRIA PARA UPLOAD
+from rest_framework.parsers import MultiPartParser, FormParser
 from django.db.models import Count, Q
 from django.utils.timezone import localdate
 from django.utils import timezone
@@ -126,6 +128,9 @@ class ClienteViewSet(viewsets.ModelViewSet):
     permission_classes = [permissions.IsAuthenticated]
     filter_backends = [filters.SearchFilter]
     search_fields = ['nome_completo', 'cpf_cnpj', 'email', 'logradouro']
+    
+    # LINHA ADICIONADA PARA PERMITIR UPLOAD DE IMAGENS
+    parser_classes = (MultiPartParser, FormParser)
 
     def get_queryset(self):
         base_queryset = Cliente.objects.filter(ativo=True)

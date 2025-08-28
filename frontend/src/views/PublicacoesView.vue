@@ -145,7 +145,7 @@
 import { ref, onMounted, computed } from 'vue';
 import apiClient from '@/services/api';
 import PublicacaoModal from '@/components/PublicacaoModal.vue';
-import ImovelCard from '@/components/ImovelCard.vue';
+import ImovelCard from "@/components/ImovelPublicCard.vue";
 import HistoricoPublicacoesModal from '@/components/HistoricoPublicacoesModal.vue';
 import '@fortawesome/fontawesome-free/css/all.css';
 

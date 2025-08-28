@@ -79,7 +79,9 @@ class Contrato(models.Model):
         ordering = ['-data_cadastro']
 
     def __str__(self):
-        return f"Contrato de {self.tipo_contrato} - {self.imovel.endereco} ({self.imobiliaria.nome})"
+        # *** CORREÇÃO APLICADA AQUI ***
+        # Alterado de 'self.imovel.endereco' para 'self.imovel.logradouro'
+        return f"Contrato de {self.tipo_contrato} - {self.imovel.logradouro} ({self.imobiliaria.nome})"
 
 
 class Pagamento(models.Model):

@@ -1,7 +1,8 @@
-# ImobCloud/urls.py
+# Em ImobCloud/urls.py
 
 from django.contrib import admin
 from django.urls import path, include
+# ADIÇÃO DAS DUAS IMPORTAÇÕES NECESSÁRIAS
 from django.conf import settings
 from django.conf.urls.static import static
 from rest_framework_simplejwt.views import TokenRefreshView
@@ -44,6 +45,8 @@ urlpatterns = [
     path('api-auth/', include('rest_framework.urls')),
 ]
 
-# Adicionar URLs de media em modo de desenvolvimento
+# ADICIONE ESTE BLOCO DE CÓDIGO NO FINAL DO ARQUIVO
+# Ele serve os arquivos de mídia (uploads) apenas em modo de desenvolvimento
 if settings.DEBUG:
     urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
+
