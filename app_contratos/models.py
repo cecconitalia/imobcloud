@@ -72,6 +72,14 @@ class Contrato(models.Model):
         blank=True,
         verbose_name="Formas de Pagamento Aceitas"
     )
+    
+    # NOVO CAMPO: Para armazenar o conteúdo HTML editado pelo usuário
+    conteudo_personalizado = models.TextField(
+        blank=True, 
+        null=True, 
+        verbose_name="Conteúdo Personalizado do Contrato",
+        help_text="Armazena o conteúdo HTML do contrato após a edição."
+    )
 
     class Meta:
         verbose_name = "Contrato"
@@ -79,8 +87,6 @@ class Contrato(models.Model):
         ordering = ['-data_cadastro']
 
     def __str__(self):
-        # *** CORREÇÃO APLICADA AQUI ***
-        # Alterado de 'self.imovel.endereco' para 'self.imovel.logradouro'
         return f"Contrato de {self.tipo_contrato} - {self.imovel.logradouro} ({self.imobiliaria.nome})"
 
 

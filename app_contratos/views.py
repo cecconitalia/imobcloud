@@ -1,13 +1,16 @@
 # C:\wamp64\www\imobcloud\app_contratos\views.py
 
-from rest_framework import viewsets, status
+from rest_framework import viewsets, status, permissions
 from rest_framework.response import Response
-from rest_framework.decorators import action
+from rest_framework.decorators import action, api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from .models import Contrato, Pagamento
 from .serializers import ContratoSerializer, PagamentoSerializer, ContratoCriacaoSerializer
 from django.shortcuts import get_object_or_404
 from rest_framework.exceptions import ValidationError
+from django.template.loader import render_to_string
+from xhtml2pdf import pisa
+
 
 from django.http import HttpResponse
 from reportlab.lib.pagesizes import letter
@@ -23,12 +26,12 @@ from app_financeiro.models import Transacao
 from rest_framework.views import APIView
 from django.utils import timezone
 
+
 class ContratoViewSet(viewsets.ModelViewSet):
     serializer_class = ContratoSerializer
     permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
-        # Corrigido para usar request.user.perfil.imobiliaria para consistência
         if hasattr(self.request.user, 'perfil') and self.request.user.perfil.imobiliaria:
             return Contrato.objects.filter(imobiliaria=self.request.user.perfil.imobiliaria).select_related('imovel', 'inquilino', 'proprietario')
         return Contrato.objects.none()
@@ -39,15 +42,10 @@ class ContratoViewSet(viewsets.ModelViewSet):
         return ContratoSerializer
 
     def perform_create(self, serializer):
-        # Associa a imobiliária do usuário logado ao criar o contrato
         serializer.save(imobiliaria=self.request.user.perfil.imobiliaria)
 
-    # *** INÍCIO DA CORREÇÃO ***
-    # Adiciona a mesma lógica para a atualização, garantindo que a imobiliária
-    # seja sempre associada ao contrato, que é um campo obrigatório.
     def perform_update(self, serializer):
         serializer.save(imobiliaria=self.request.user.perfil.imobiliaria)
-    # *** FIM DA CORREÇÃO ***
 
     @action(detail=True, methods=['get'])
     def pagamentos(self, request, pk=None):
@@ -56,13 +54,73 @@ class ContratoViewSet(viewsets.ModelViewSet):
         serializer = PagamentoSerializer(pagamentos, many=True)
         return Response(serializer.data)
 
+    @action(detail=True, methods=['get'], url_path='get-html')
+    def get_html(self, request, pk=None):
+        contrato = self.get_object()
+        if contrato.conteudo_personalizado:
+            return HttpResponse(contrato.conteudo_personalizado, content_type='text/html; charset=utf-8')
+
+        template_name = 'contrato_aluguel_template.html' if contrato.tipo_contrato == 'Aluguel' else 'contrato_venda_template.html'
+        context = {
+            'contrato': contrato,
+            'imovel': contrato.imovel,
+            'proprietario': contrato.proprietario,
+            'inquilino': contrato.inquilino,
+            'imobiliaria': contrato.imobiliaria,
+            'data_hoje': timezone.now().date(),
+        }
+        html_string = render_to_string(template_name, context)
+        return HttpResponse(html_string, content_type='text/html; charset=utf-8')
+
+    @action(detail=True, methods=['post'], url_path='salvar-html-editado')
+    def salvar_html_editado(self, request, pk=None):
+        contrato = self.get_object()
+        html_content = request.data.get('html_content')
+        if not html_content:
+            return Response({"error": "Conteúdo HTML é obrigatório."}, status=status.HTTP_400_BAD_REQUEST)
+        
+        contrato.conteudo_personalizado = html_content
+        contrato.save()
+        return Response({"status": "Conteúdo do contrato salvo com sucesso."}, status=status.HTTP_200_OK)
+
+    @action(detail=True, methods=['get'], url_path='visualizar-pdf')
+    def visualizar_pdf(self, request, pk=None):
+        contrato = self.get_object()
+        
+        if contrato.conteudo_personalizado:
+            html_content = contrato.conteudo_personalizado
+        else:
+            template_name = 'contrato_aluguel_template.html' if contrato.tipo_contrato == 'Aluguel' else 'contrato_venda_template.html'
+            context = {
+                'contrato': contrato,
+                'imovel': contrato.imovel,
+                'proprietario': contrato.proprietario,
+                'inquilino': contrato.inquilino,
+                'imobiliaria': contrato.imobiliaria,
+                'data_hoje': timezone.now().date(),
+            }
+            html_content = render_to_string(template_name, context)
+        
+        html_string_with_meta = f'<html><head><meta charset="UTF-8"></head><body>{html_content}</body></html>'
+        
+        result = BytesIO()
+        pdf = pisa.pisaDocument(BytesIO(html_string_with_meta.encode("UTF-8")), result)
+        
+        if not pdf.err:
+            response = HttpResponse(result.getvalue(), content_type='application/pdf')
+            filename = f"contrato_{contrato.tipo_contrato.lower()}_{contrato.id}.pdf"
+            response['Content-Disposition'] = f'inline; filename="{filename}"'
+            return response
+        
+        return HttpResponse("Erro ao gerar o PDF.", status=500)
+
+
 class PagamentoViewSet(viewsets.ModelViewSet):
     queryset = Pagamento.objects.all()
     serializer_class = PagamentoSerializer
     permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
-        # Corrigido para usar request.user.perfil.imobiliaria
         if hasattr(self.request.user, 'perfil') and self.request.user.perfil.imobiliaria:
             return Pagamento.objects.filter(contrato__imobiliaria=self.request.user.perfil.imobiliaria).order_by('-data_vencimento')
         return Pagamento.objects.none()
@@ -107,7 +165,6 @@ class GerarReciboView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request, pagamento_id):
-        # Corrigido para usar request.user.perfil.imobiliaria
         imobiliaria = request.user.perfil.imobiliaria
         pagamento = get_object_or_404(Pagamento, pk=pagamento_id, contrato__imobiliaria=imobiliaria)
         contrato = pagamento.contrato
@@ -119,8 +176,6 @@ class GerarReciboView(APIView):
         width, height = letter
 
         y_position = height - 50
-        # Lógica do logo mantida
-        # ...
 
         p.setFont("Helvetica-Bold", 16)
         p.drawCentredString(width / 2.0, y_position, "Recibo de Pagamento de Aluguel")
@@ -133,7 +188,6 @@ class GerarReciboView(APIView):
         y_position -= 40
         p.drawString(70, y_position, f"A importância de R$ {pagamento.valor:.2f}")
         y_position -= 20
-        # O campo 'endereco' não existe no modelo Imovel, usando 'logradouro'
         p.drawString(70, y_position, f"Referente ao aluguel do imóvel situado em: {imovel.logradouro}")
         y_position -= 20
         p.drawString(70, y_position, f"Vencimento original: {pagamento.data_vencimento.strftime('%d/%m/%Y')}")
@@ -144,9 +198,6 @@ class GerarReciboView(APIView):
         p.drawString(70, y_position, f"_________________________________________")
         y_position -= 15
         p.drawString(70, y_position, imobiliaria.nome)
-        # O campo 'cnpj' não existe no modelo Imobiliaria
-        # y_position -= 15
-        # p.drawString(70, y_position, f"CNPJ: {imobiliaria.cnpj}")
         y_position -= 30
         
         p.setFont("Helvetica-Oblique", 10)
@@ -159,3 +210,27 @@ class GerarReciboView(APIView):
         response = HttpResponse(buffer, content_type='application/pdf')
         response['Content-Disposition'] = f'inline; filename="recibo_{pagamento.id}.pdf"'
         return response
+    
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def gerar_contrato_pdf_editado(request, contrato_id):
+    contrato = get_object_or_404(Contrato, pk=contrato_id)
+    if not request.user.is_superuser and contrato.imobiliaria != request.tenant:
+        return HttpResponse("Acesso negado.", status=403)
+    
+    html_content = request.data.get('html_content')
+    if not html_content:
+        return HttpResponse("Conteúdo HTML é obrigatório.", status=400)
+    
+    html_string_with_meta = f'<html><head><meta charset="UTF-8"></head><body>{html_content}</body></html>'
+
+    result = BytesIO()
+    pdf = pisa.pisaDocument(BytesIO(html_string_with_meta.encode("UTF-8")), result)
+    
+    if not pdf.err:
+        response = HttpResponse(result.getvalue(), content_type='application/pdf')
+        filename = f"contrato_{contrato.tipo_contrato.lower()}_{contrato.id}.pdf"
+        response['Content-Disposition'] = f'attachment; filename="{filename}"'
+        return response
+    
+    return HttpResponse("Erro ao gerar o PDF.", status=500)

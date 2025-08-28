@@ -521,6 +521,8 @@ async function fetchImovelData() {
       imovel.value = { 
         ...emptyImovel,
         ...data,
+        // Garante que o ID do proprietário seja usado para o v-model
+        proprietario: data.proprietario_detalhes?.id || null,
         configuracao_publica: { ...emptyImovel.configuracao_publica, ...data.configuracao_publica }
       };
     } catch (error) {
