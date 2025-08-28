@@ -1,14 +1,13 @@
-# C:\wamp64\www\ImobCloud\app_contratos\views.py
+# C:\wamp64\www\imobcloud\app_contratos\views.py
 
 from rest_framework import viewsets, status
 from rest_framework.response import Response
 from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated
 from .models import Contrato, Pagamento
-# CORREÇÃO: Importando todos os serializadores necessários
-from .serializers import ContratoSerializer, PagamentoSerializer, ContratoListSerializer, ContratoDetailSerializer
+from .serializers import ContratoSerializer, PagamentoSerializer, ContratoCriacaoSerializer
 from django.shortcuts import get_object_or_404
-from rest_framework.exceptions import PermissionDenied, ValidationError
+from rest_framework.exceptions import ValidationError
 
 from django.http import HttpResponse
 from reportlab.lib.pagesizes import letter
@@ -20,26 +19,21 @@ import os
 
 from django.utils.dateparse import parse_date
 from django.db import transaction
-from app_financeiro.models import Transacao, Categoria, Conta
+from app_financeiro.models import Transacao
 from rest_framework.views import APIView
-
+from django.utils import timezone
 
 class ContratoViewSet(viewsets.ModelViewSet):
-    queryset = Contrato.objects.all()
-    # Define o serializador padrão para criar/atualizar
     serializer_class = ContratoSerializer
     permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
-        return Contrato.objects.filter(imobiliaria=self.request.tenant).select_related('imovel', 'inquilino', 'proprietario')
+        return Contrato.objects.filter(imovel__imobiliaria=self.request.tenant).select_related('imovel', 'inquilino', 'proprietario')
 
-    # CORREÇÃO: Método para escolher o serializador certo para cada ação
     def get_serializer_class(self):
-        if self.action == 'list':
-            return ContratoListSerializer
-        if self.action == 'retrieve':
-            return ContratoDetailSerializer
-        return ContratoSerializer # Ação 'create', 'update', 'partial_update'
+        if self.action in ['create', 'update', 'partial_update']:
+            return ContratoCriacaoSerializer
+        return ContratoSerializer
 
     def perform_create(self, serializer):
         serializer.save(imobiliaria=self.request.tenant)
@@ -57,8 +51,7 @@ class PagamentoViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
-        # Filtra pagamentos para garantir que pertençam à imobiliária do usuário
-        return Pagamento.objects.filter(contrato__imobiliaria=self.request.tenant)
+        return Pagamento.objects.filter(contrato__imobiliaria=self.request.tenant).order_by('-data_vencimento')
     
     @action(detail=True, methods=['post'], url_path='marcar-pago')
     @transaction.atomic
@@ -71,7 +64,7 @@ class PagamentoViewSet(viewsets.ModelViewSet):
             if not data_pagamento:
                 raise ValidationError({"data_pagamento": "Formato de data inválido. Use AAAA-MM-DD."})
         else:
-            raise ValidationError({"data_pagamento": "A data de pagamento é obrigatória."})
+            data_pagamento = timezone.now().date()
 
         if pagamento.status == 'PAGO':
             return Response({'status': 'Pagamento já estava baixado.'}, status=status.HTTP_400_BAD_REQUEST)
@@ -102,7 +95,7 @@ class GerarReciboView(APIView):
     def get(self, request, pagamento_id):
         pagamento = get_object_or_404(Pagamento, pk=pagamento_id, contrato__imobiliaria=request.tenant)
         contrato = pagamento.contrato
-        cliente = contrato.inquilino # Usando o campo 'inquilino' do contrato
+        cliente = contrato.inquilino
         imovel = contrato.imovel
         imobiliaria = request.tenant
 
@@ -131,6 +124,7 @@ class GerarReciboView(APIView):
         y_position -= 40
         p.drawString(70, y_position, f"A importância de R$ {pagamento.valor:.2f}")
         y_position -= 20
+        # CORREÇÃO: Usa o campo 'endereco' do modelo Imovel
         p.drawString(70, y_position, f"Referente ao aluguel do imóvel situado em: {imovel.endereco}")
         y_position -= 20
         p.drawString(70, y_position, f"Vencimento original: {pagamento.data_vencimento.strftime('%d/%m/%Y')}")

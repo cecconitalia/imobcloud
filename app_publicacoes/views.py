@@ -9,12 +9,15 @@ from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
 from app_imoveis.models import Imovel, ImagemImovel
-from .models import PublicacaoSocial, PostAgendado
+from .models import PublicacaoSocial, PostAgendado, PublicacaoHistorico
 from app_config_ia.models import ModeloDePrompt
 from core.models import Imobiliaria
 from rest_framework import viewsets
-from .serializers import PostAgendadoSerializer
+from .serializers import PostAgendadoSerializer, PublicacaoHistoricoSerializer
+from app_imoveis.serializers import ImovelSerializer
 
+# Importa a tarefa Celery, resolvendo a importação circular
+from .tasks import publicar_post_agendado
 
 # --- IMPORTAÇÕES ADICIONADAS PARA TRATAR O FUSO HORÁRIO ---
 from django.utils import timezone
@@ -126,119 +129,30 @@ class PublicacaoRedeSocialView(APIView):
             imovel = Imovel.objects.get(id=imovel_id, imobiliaria=request.tenant)
         except Imovel.DoesNotExist:
             return Response({'error': 'Imóvel não encontrado.'}, status=status.HTTP_404_NOT_FOUND)
-
-        resultados = {}
-        for plataforma in plataformas:
-            if plataforma == 'facebook':
-                try:
-                    self.publicar_facebook(imovel, texto_da_publicacao)
-                    resultados['facebook'] = 'Publicado com sucesso'
-                    if hasattr(request.user, 'perfil'):
-                        PublicacaoSocial.objects.create(
-                            imovel=imovel, 
-                            texto_gerado=texto_da_publicacao, 
-                            plataforma='facebook', 
-                            sucesso=True, 
-                            publicado_por=request.user.perfil
-                        )
-                except Exception as e:
-                    resultados['facebook'] = f'Erro: {str(e)}'
-                    if hasattr(request.user, 'perfil'):
-                        PublicacaoSocial.objects.create(
-                            imovel=imovel, 
-                            texto_gerado=texto_da_publicacao, 
-                            plataforma='facebook', 
-                            sucesso=False, 
-                            publicado_por=request.user.perfil
-                        )
-
-            elif plataforma == 'instagram':
-                try:
-                    self.publicar_instagram(imovel, texto_da_publicacao)
-                    resultados['instagram'] = 'Publicado com sucesso'
-                    if hasattr(request.user, 'perfil'):
-                        PublicacaoSocial.objects.create(
-                            imovel=imovel, 
-                            texto_gerado=texto_da_publicacao, 
-                            plataforma='instagram', 
-                            sucesso=True, 
-                            publicado_por=request.user.perfil
-                        )
-                except Exception as e:
-                    resultados['instagram'] = f'Erro: {str(e)}'
-                    if hasattr(request.user, 'perfil'):
-                        PublicacaoSocial.objects.create(
-                            imovel=imovel, 
-                            texto_gerado=texto_da_publicacao, 
-                            plataforma='instagram', 
-                            sucesso=False, 
-                            publicado_por=request.user.perfil
-                        )
-
-        return Response(resultados, status=status.HTTP_200_OK)
-
-    def publicar_facebook(self, imovel, texto):
-        imobiliaria = imovel.imobiliaria
-        page_id = imobiliaria.facebook_page_id
-        access_token = imobiliaria.facebook_page_access_token
-
-        if not page_id or not access_token:
-            raise Exception("Credenciais do Facebook não configuradas.")
-
-        primeira_imagem = ImagemImovel.objects.filter(imovel=imovel).order_by('ordem').first()
-        if not primeira_imagem:
-            raise Exception("Imóvel não possui imagem para publicação.")
         
-        base_url = "https://9ddacb56c314.ngrok-free.app"
-        image_url = f"{base_url}{primeira_imagem.imagem.url}" 
+        try:
+            post_agendado = PostAgendado.objects.create(
+                imovel=imovel,
+                imobiliaria=request.tenant,
+                agendado_por=request.user.perfil,
+                texto=texto_da_publicacao,
+                plataformas=plataformas,
+                data_agendamento=timezone.now(),
+                status='AGENDADO'
+            )
+            
+            publicar_post_agendado.delay(post_agendado.id)
+            
+            return Response(
+                {"success": "Publicação enviada para processamento. Verifique o histórico em breve!"},
+                status=status.HTTP_201_CREATED
+            )
+        except Exception as e:
+            return Response(
+                {"error": f"Erro ao agendar a publicação: {e}"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
 
-        url = f'https://graph.facebook.com/v18.0/{page_id}/photos'
-        params = { 'caption': texto, 'url': image_url, 'access_token': access_token }
-        response = requests.post(url, params=params)
-        response_data = response.json()
-
-        if 'error' in response_data:
-            raise Exception(response_data['error']['message'])
-        
-        return response_data
-
-    def publicar_instagram(self, imovel, texto):
-        imobiliaria = imovel.imobiliaria
-        ig_user_id = imobiliaria.instagram_business_account_id
-        access_token = imobiliaria.facebook_page_access_token
-
-        if not ig_user_id or not access_token:
-            raise Exception("Credenciais do Instagram não configuradas.")
-
-        primeira_imagem = ImagemImovel.objects.filter(imovel=imovel).order_by('ordem').first()
-        if not primeira_imagem:
-            raise Exception("Imóvel não possui imagem para publicação.")
-
-        base_url = "https://9ddacb56c314.ngrok-free.app"
-        image_url = f"{base_url}{primeira_imagem.imagem.url}"
-
-        url_media = f'https://graph.facebook.com/v18.0/{ig_user_id}/media'
-        params_media = { 'image_url': image_url, 'caption': texto, 'access_token': access_token }
-        response_media = requests.post(url_media, params=params_media)
-        media_data = response_media.json()
-
-        if 'error' in media_data:
-            raise Exception(media_data['error']['message'])
-        
-        creation_id = media_data.get('id')
-        if not creation_id:
-            raise Exception(f"Falha ao obter ID de criação. Resposta da API: {media_data}")
-
-        url_publish = f'https://graph.facebook.com/v18.0/{ig_user_id}/media_publish'
-        params_publish = { 'creation_id': creation_id, 'access_token': access_token }
-        response_publish = requests.post(url_publish, params=params_publish)
-        publish_data = response_publish.json()
-
-        if 'error' in publish_data:
-            raise Exception(publish_data['error']['message'])
-
-        return publish_data
-    
 class AgendarPublicacaoView(APIView):
     """
     Endpoint para agendar uma publicação para o futuro.
@@ -249,24 +163,19 @@ class AgendarPublicacaoView(APIView):
         imovel_id = request.data.get('imovel_id')
         texto = request.data.get('texto')
         plataformas = request.data.get('plataformas')
-        data_agendamento_str = request.data.get('data_agendamento') # Renomeado para _str
+        data_agendamento_str = request.data.get('data_agendamento')
 
-        # Validação dos dados recebidos
         if not all([imovel_id, texto, plataformas, data_agendamento_str]):
             return Response(
                 {"error": "Todos os campos (imovel_id, texto, plataformas, data_agendamento) são obrigatórios."},
                 status=status.HTTP_400_BAD_REQUEST
             )
 
-        # --- CORREÇÃO PARA O AVISO DE NAIVE DATETIME ---
         try:
-            # Converte a string do frontend para um objeto datetime
             naive_datetime = datetime.fromisoformat(data_agendamento_str)
-            # Torna o datetime "consciente" do fuso horário configurado no seu settings.py
             data_agendamento_aware = timezone.make_aware(naive_datetime)
         except (ValueError, TypeError):
             return Response({"error": "Formato de data_agendamento inválido."}, status=status.HTTP_400_BAD_REQUEST)
-        # --- FIM DA CORREÇÃO ---
 
         try:
             imovel = Imovel.objects.get(pk=imovel_id, imobiliaria=request.tenant)
@@ -274,18 +183,19 @@ class AgendarPublicacaoView(APIView):
             return Response({"error": "Imóvel não encontrado."}, status=status.HTTP_404_NOT_FOUND)
 
         if not hasattr(request.user, 'perfil'):
-             return Response({"error": "Utilizador sem perfil associado."}, status=status.HTTP_400_BAD_REQUEST)
+              return Response({"error": "Utilizador sem perfil associado."}, status=status.HTTP_400_BAD_REQUEST)
 
-        # Cria a instância do PostAgendado
-        PostAgendado.objects.create(
+        post_agendado = PostAgendado.objects.create(
             imovel=imovel,
             imobiliaria=request.tenant,
             agendado_por=request.user.perfil,
             texto=texto,
             plataformas=plataformas,
-            data_agendamento=data_agendamento_aware, # Usamos a data com fuso horário
+            data_agendamento=data_agendamento_aware,
             status='AGENDADO'
         )
+        
+        publicar_post_agendado.apply_async(args=[post_agendado.id], eta=data_agendamento_aware)
 
         return Response(
             {"success": f"Publicação para o imóvel '{imovel.titulo_anuncio}' agendada com sucesso para {data_agendamento_str}!"},
@@ -300,7 +210,6 @@ class CalendarioPublicacoesView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request, *args, **kwargs):
-        # Pega os parâmetros 'start' e 'end' que a maioria das bibliotecas de calendário envia
         start_date_str = request.query_params.get('start')
         end_date_str = request.query_params.get('end')
 
@@ -311,13 +220,11 @@ class CalendarioPublicacoesView(APIView):
             )
 
         try:
-            # Converte as strings de data para objetos datetime
             start_date = datetime.fromisoformat(start_date_str.replace('Z', '+00:00'))
             end_date = datetime.fromisoformat(end_date_str.replace('Z', '+00:00'))
         except ValueError:
             return Response({"error": "Formato de data inválido."}, status=status.HTTP_400_BAD_REQUEST)
         
-        # Filtra os posts que estão dentro da janela de datas visível no calendário
         posts = PostAgendado.objects.filter(
             imobiliaria=request.tenant,
             data_agendamento__gte=start_date,
@@ -335,5 +242,27 @@ class PostAgendadoViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
-        """ Garante que os utilizadores só podem ver/editar os seus próprios posts agendados. """
         return PostAgendado.objects.filter(imobiliaria=self.request.tenant)
+        
+class ImovelViewSet(viewsets.ModelViewSet):
+    """
+    Este é um ViewSet de "placeholder" para que o roteador aninhado funcione.
+    A API de Imóveis provavelmente existe em app_imoveis.views.py.
+    """
+    queryset = Imovel.objects.all()
+    serializer_class = ImovelSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        return Imovel.objects.filter(imobiliaria=self.request.tenant)
+
+
+class PublicacaoHistoricoViewSet(viewsets.ReadOnlyModelViewSet):
+    """
+    API para visualizar o histórico de publicações de um imóvel.
+    """
+    serializer_class = PublicacaoHistoricoSerializer
+
+    def get_queryset(self):
+        imovel_id = self.kwargs['imovel_pk']
+        return PublicacaoHistorico.objects.filter(imovel_id=imovel_id).order_by('-data_publicacao')

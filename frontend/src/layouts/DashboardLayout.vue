@@ -2,401 +2,403 @@
   <div class="dashboard-layout">
     <aside class="sidebar">
       <div class="sidebar-header">
-        <router-link to="/dashboard" class="header-link">
-          <h2 class="full-text">ImobCloud</h2>
-          <i class="icon-logo compact-icon"></i>
+        <router-link to="/dashboard">
+          <img src="@/assets/vue.svg" alt="ImobCloud Logo" class="logo" />
         </router-link>
-        <p class="user-name full-text">{{ userName }}</p>
       </div>
       <nav class="sidebar-nav">
-        <router-link to="/dashboard" class="nav-link">
-          <i class="icon-dashboard"></i>
-          <span class="nav-link-text">Dashboard</span>
-        </router-link>
-        <router-link to="/funil-vendas" class="nav-link">
-          <i class="icon-funil"></i>
-          <span class="nav-link-text">Funil de Vendas</span>
-        </router-link>
-        <router-link to="/calendario" class="nav-link">
-          <i class="icon-calendario"></i>
-          <span class="nav-link-text">Calendário</span>
-        </router-link>
-        
-        <router-link to="/publicacoes" class="nav-link">
-          <i class="icon-publicacoes"></i>
-          <span class="nav-link-text">Publicações</span>
-        </router-link>
+        <ul>
+          <li>
+            <router-link to="/dashboard" class="nav-item">
+              <i class="fas fa-home"></i>
+              <span>Dashboard</span>
+            </router-link>
+          </li>
+        </ul>
 
-        <router-link to="/calendario-publicacoes" class="nav-link">
-          <i class="icon-calendario-publicacoes"></i>
-          <span class="nav-link-text">Calendário Editorial</span>
-        </router-link>
-        
-        <router-link to="/imoveis" class="nav-link">
-          <i class="icon-imoveis"></i>
-          <span class="nav-link-text">Imóveis</span>
-        </router-link>
-        <router-link to="/clientes" class="nav-link">
-          <i class="icon-clientes"></i>
-          <span class="nav-link-text">Clientes</span>
-        </router-link>
-        <router-link to="/contratos" class="nav-link">
-          <i class="icon-contratos"></i>
-          <span class="nav-link-text">Contratos</span>
-        </router-link>
-        <router-link to="/visitas" class="nav-link">
-          <i class="icon-visitas"></i>
-          <span class="nav-link-text">Visitas</span>
-        </router-link>
-
-        <div v-if="userCargo === 'ADMIN'" class="nav-section-header">
-          <span class="nav-link-text">Financeiro</span>
+        <div class="menu-group">
+          <h4><i class="fas fa-folder-open group-icon"></i> Gestão Imóveis & Clientes</h4>
+          <ul>
+            <li>
+              <router-link to="/imoveis" class="nav-item">
+                <i class="fas fa-building"></i>
+                <span>Imóveis</span>
+              </router-link>
+            </li>
+            <li>
+              <router-link to="/clientes" class="nav-item">
+                <i class="fas fa-users"></i>
+                <span>Clientes</span>
+              </router-link>
+            </li>
+            <li>
+              <router-link to="/contratos" class="nav-item">
+                <i class="fas fa-file-signature"></i>
+                <span>Contratos</span>
+              </router-link>
+            </li>
+            <li>
+              <router-link to="/visitas" class="nav-item">
+                <i class="fas fa-calendar-check"></i>
+                <span>Visitas</span>
+              </router-link>
+            </li>
+            <li>
+              <router-link to="/autorizacoes" class="nav-item">
+                <i class="fas fa-user-lock"></i>
+                <span>Autorizações</span>
+              </router-link>
+            </li>
+          </ul>
         </div>
-        <router-link to="/financeiro/dashboard" class="nav-link">
-          <i class="icon-financeiro"></i>
-          <span class="nav-link-text">Dashboard</span>
-        </router-link>
-        
-        <router-link to="/financeiro/contas-a-receber" class="nav-link">
-          <i class="fas fa-hand-holding-usd"></i>
-          <span class="nav-link-text">Contas a Receber</span>
-        </router-link>
-        <router-link to="/financeiro/contas-a-pagar" class="nav-link">
-          <i class="fas fa-file-invoice-dollar"></i>
-          <span class="nav-link-text">Contas a Pagar</span>
-        </router-link>
-        <router-link to="/alugueis/dashboard" class="nav-link">
-          <i class="icon-alugueis"></i>
-          <span class="nav-link-text">Aluguéis</span>
-        </router-link>
 
-        <router-link to="/financeiro/transacoes" class="nav-link">
-          <i class="icon-transacoes"></i>
-          <span class="nav-link-text">Transações</span>
-        </router-link>
-        <router-link to="/financeiro/dre" class="nav-link">
-          <i class="icon-dre"></i>
-          <span class="nav-link-text">Relatório DRE</span>
-        </router-link>
-        <router-link to="/financeiro/contas" class="nav-link">
-          <i class="icon-contas"></i>
-          <span class="nav-link-text">Gerir Contas</span>
-        </router-link>
-        <router-link to="/financeiro/categorias" class="nav-link">
-          <i class="icon-categorias"></i>
-          <span class="nav-link-text">Gerir Categorias</span>
-        </router-link>
-        <router-link to="/financeiro/formas-pagamento" class="nav-link">
-          <i class="fas fa-wallet"></i>
-          <span class="nav-link-text">Gerir Formas de Pagamento</span>
-        </router-link>
-        <router-link to="/financeiro/remessa-retorno" class="nav-link">
-          <i class="fas fa-exchange-alt"></i>
-          <span class="nav-link-text">Remessa/Retorno</span>
-        </router-link>
-
-
-        <div v-if="userCargo === 'ADMIN'" class="nav-section-header">
-          <span class="nav-link-text">Administração</span>
+        <div class="menu-group">
+          <h4><i class="fas fa-chart-line group-icon"></i> Gestão Comercial</h4>
+          <ul>
+            <li>
+              <router-link to="/funil-vendas" class="nav-item">
+                <i class="fas fa-filter"></i>
+                <span>Funil de Vendas</span>
+              </router-link>
+            </li>
+            <li>
+              <router-link to="/oportunidades/nova" class="nav-item">
+                <i class="fas fa-bullseye"></i>
+                <span>Nova Oportunidade</span>
+              </router-link>
+            </li>
+          </ul>
         </div>
-        <router-link v-if="userCargo === 'ADMIN'" to="/autorizacoes" class="nav-link">
-          <i class="icon-autorizacoes"></i>
-          <span class="nav-link-text">Gestão de Autorizações</span>
-        </router-link>
-        <router-link v-if="userCargo === 'ADMIN'" to="/contatos" class="nav-link">
-          <i class="icon-contatos"></i>
-          <span class="nav-link-text">Contatos</span>
-        </router-link>
-        <router-link v-if="userCargo === 'ADMIN'" to="/corretores" class="nav-link">
-          <i class="icon-users"></i>
-          <span class="nav-link-text">Gerir Utilizadores</span>
-        </router-link>
-        <router-link v-if="userCargo === 'ADMIN'" to="/relatorios" class="nav-link">
-          <i class="icon-relatorios"></i>
-          <span class="nav-link-text">Relatórios</span>
-        </router-link>
-        <router-link v-if="userCargo === 'ADMIN'" to="/configuracoes-ia" class="nav-link">
-          <i class="icon-ia"></i>
-          <span class="nav-link-text">Configurações da IA</span>
-        </router-link>
-        <router-link v-if="userCargo === 'ADMIN'" to="/integracoes" class="nav-link">
-          <i class="icon-integracoes"></i>
-          <span class="nav-link-text">Integrações</span>
-        </router-link>
+
+        <div class="menu-group">
+          <h4><i class="fas fa-dollar-sign group-icon"></i> Financeiro</h4>
+          <ul>
+            <li>
+              <router-link to="/financeiro/dashboard" class="nav-item">
+                <i class="fas fa-chart-pie"></i>
+                <span>Dashboard Financeiro</span>
+              </router-link>
+            </li>
+            <li>
+              <router-link to="/financeiro/transacoes" class="nav-item">
+                <i class="fas fa-exchange-alt"></i>
+                <span>Transações</span>
+              </router-link>
+            </li>
+            <li>
+              <router-link to="/financeiro/contas-a-pagar" class="nav-item">
+                <i class="fas fa-money-bill-wave"></i>
+                <span>Contas a Pagar</span>
+              </router-link>
+            </li>
+            <li>
+              <router-link to="/financeiro/contas-a-receber" class="nav-item">
+                <i class="fas fa-hand-holding-usd"></i>
+                <span>Contas a Receber</span>
+              </router-link>
+            </li>
+             <li>
+              <router-link to="/financeiro/remessa-retorno" class="nav-item">
+                <i class="fas fa-exchange-alt"></i>
+                <span>Remessa e Retorno</span>
+              </router-link>
+            </li>
+            <li>
+              <router-link to="/financeiro/contas" class="nav-item">
+                <i class="fas fa-university"></i>
+                <span>Contas Bancárias</span>
+              </router-link>
+            </li>
+            <li>
+              <router-link to="/financeiro/categorias" class="nav-item">
+                <i class="fas fa-tags"></i>
+                <span>Categorias</span>
+              </router-link>
+            </li>
+            <li>
+              <router-link to="/financeiro/formas-pagamento" class="nav-item">
+                <i class="fas fa-credit-card"></i>
+                <span>Formas de Pagamento</span>
+              </router-link>
+            </li>
+          </ul>
+        </div>
+
+        <div class="menu-group">
+          <h4><i class="fas fa-bullhorn group-icon"></i> Marketing & IA</h4>
+          <ul>
+            <li>
+              <router-link to="/publicacoes" class="nav-item">
+                <i class="fas fa-share-alt"></i>
+                <span>Central de Publicações</span>
+              </router-link>
+            </li>
+            <li>
+              <router-link to="/calendario-publicacoes" class="nav-item">
+                <i class="fas fa-calendar-alt"></i>
+                <span>Calendário de Posts</span>
+              </router-link>
+            </li>
+            <li>
+              <router-link to="/integracoes" class="nav-item">
+                <i class="fas fa-cogs"></i>
+                <span>Integrações</span>
+              </router-link>
+            </li>
+            <li>
+              <router-link to="/configuracoes-ia" class="nav-item">
+                <i class="fas fa-brain"></i>
+                <span>Configurações da IA</span>
+              </router-link>
+            </li>
+          </ul>
+        </div>
+        
+        <div class="menu-group">
+          <h4><i class="fas fa-chart-bar group-icon"></i> Relatórios</h4>
+          <ul>
+             <li>
+              <router-link to="/relatorios" class="nav-item">
+                <i class="fas fa-chart-line"></i>
+                <span>Relatórios Gerais</span>
+              </router-link>
+            </li>
+            <li>
+              <router-link to="/alugueis/dashboard" class="nav-item">
+                <i class="fas fa-house-user"></i>
+                <span>Dashboard de Aluguéis</span>
+              </router-link>
+            </li>
+            <li>
+              <router-link to="/financeiro/dre" class="nav-item">
+                <i class="fas fa-file-alt"></i>
+                <span>Relatório DRE</span>
+              </router-link>
+            </li>
+          </ul>
+        </div>
       </nav>
-      <div class="sidebar-footer">
-        <button @click="handleLogout" class="logout-button">
+      <div class="profile-section">
+        <div class="user-info">
+          <span class="user-name">{{ user.nome }}</span>
+          <small class="user-role">{{ user.cargo }}</small>
+        </div>
+        <button @click="logout" class="logout-btn">
           <i class="fas fa-sign-out-alt"></i>
-          <span class="full-text">Sair</span>
         </button>
       </div>
     </aside>
 
-    <div class="main-container">
-      <header class="main-header">
-        <div class="header-content">
-          <h1 class="page-title">{{ route.meta.title || 'Dashboard' }}</h1>
-          <div class="spacer"></div>
+    <main class="main-content">
+      <header class="topbar">
+        <h2 class="page-title">{{ routeTitle }}</h2>
+        <div class="header-right">
           <NotificationBell />
+          <router-link to="/settings" class="settings-link" title="Configurações">
+            <i class="fas fa-cog"></i>
+          </router-link>
         </div>
       </header>
-      <main class="main-content">
-        <div class="dashboard-grid">
-          <router-view />
-        </div>
-      </main>
-    </div>
+      <div class="content-wrapper">
+        <router-view />
+      </div>
+    </main>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue';
-import { useRouter, useRoute } from 'vue-router';
+import { ref, onMounted, computed, watch } from 'vue';
+import { useRoute, useRouter } from 'vue-router';
 import NotificationBell from '@/components/NotificationBell.vue';
-import '@fortawesome/fontawesome-free/css/all.min.css';
 
 const router = useRouter();
 const route = useRoute();
-const userCargo = ref('');
-const imobiliariaName = ref('');
-const userName = ref('');
+const user = ref({ nome: 'Usuário', cargo: 'Corretor' });
 
-function handleLogout() {
-  localStorage.removeItem('authToken');
-  localStorage.removeItem('userCargo');
-  localStorage.removeItem('imobiliariaName');
-  localStorage.removeItem('userName');
-  router.push({ name: 'login' });
-}
+const routeTitle = computed(() => route.meta.title || 'Dashboard');
 
 onMounted(() => {
-  userCargo.value = localStorage.getItem('userCargo') || '';
-  imobiliariaName.value = localStorage.getItem('imobiliariaName') || '';
-  userName.value = localStorage.getItem('userName') || '';
+    const userName = localStorage.getItem('userName');
+    const userCargo = localStorage.getItem('userCargo');
+    if (userName && userCargo) {
+        user.value.nome = userName;
+        user.value.cargo = userCargo === 'ADMIN' ? 'Administrador' : 'Corretor';
+    }
 });
+
+function logout() {
+    localStorage.removeItem('authToken');
+    localStorage.removeItem('userName');
+    localStorage.removeItem('userCargo');
+    router.push('/login');
+}
 </script>
 
 <style scoped>
-@import url('https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css');
-
-/* Icones */
-.nav-link i::before {
-  font-family: "Font Awesome 5 Free";
-  font-weight: 900;
-  margin-right: 10px;
-  width: 20px;
-  text-align: center;
-}
-.icon-dashboard::before { content: "\f3fd"; }
-.icon-funil::before { content: "\f1de"; }
-.icon-calendario::before { content: "\f073"; }
-.icon-imoveis::before { content: "\f279"; }
-.icon-clientes::before { content: "\f0c0"; }
-.icon-contratos::before { content: "\f15c"; }
-.icon-visitas::before { content: "\f0f3"; }
-.icon-contatos::before { content: "\f0e0"; }
-.icon-users::before { content: "\f500"; }
-.icon-relatorios::before { content: "\f080"; }
-.icon-autorizacoes::before { content: "\f2b5"; }
-.icon-financeiro::before { content: "\f53c"; }
-.icon-transacoes::before { content: "\f0d6"; }
-.icon-dre::before { content: "\f200"; }
-.icon-contas::before { content: "\f53d"; }
-.icon-categorias::before { content: "\f02d"; }
-.icon-pendentes::before { content: "\f252"; }
-.icon-ia::before { content: "\f544"; } 
-.icon-integracoes::before { content: "\f368"; }
-.icon-publicacoes::before { content: "\f1d8"; }
-.icon-calendario-publicacoes::before { content: "\f133"; }
-.icon-alugueis::before { content: "\f0a9"; }
-
-.icon-logo::before { content: "\f279"; } /* Ícone para o logo quando recolhido */
-
-/* Layout principal */
+/* Estilos globais e de layout para o dashboard */
 .dashboard-layout {
   display: flex;
   min-height: 100vh;
+  background-color: #f4f7f9;
+  font-family: 'Arial', sans-serif;
 }
 
-/* Sidebar - Estado recolhido */
 .sidebar {
-  width: 64px;
+  width: 250px;
   background-color: #2c3e50;
-  color: white;
+  color: #ecf0f1;
   display: flex;
   flex-direction: column;
-  padding: 0.8rem 0.4rem;
-  flex-shrink: 0;
-  transition: width 0.3s ease;
-  overflow-x: hidden;
-  position: sticky;
-  top: 0;
-  height: 100vh;
-}
-
-/* Sidebar - Estado expandido ao passar o mouse */
-.sidebar:hover {
-  width: 200px;
-}
-
-/* Conteúdo que deve ser escondido/mostrado com transição */
-.full-text, .nav-link-text, .nav-section-header {
-  white-space: nowrap;
-  opacity: 0;
-  transition: opacity 0.1s ease, visibility 0.1s ease;
-  overflow: hidden;
-}
-
-/* Mostra o conteúdo ao expandir */
-.sidebar:hover .full-text, .sidebar:hover .nav-link-text, .sidebar:hover .nav-section-header {
-  opacity: 1;
-  visibility: visible;
-  transition: opacity 0.3s ease 0.1s, visibility 0.3s ease 0.1s;
+  padding: 1rem 0;
+  box-shadow: 2px 0 5px rgba(0, 0, 0, 0.1);
+  transition: all 0.3s ease;
 }
 
 .sidebar-header {
-  padding-bottom: 0.8rem;
-  border-bottom: 1px solid #34495e;
   text-align: center;
+  margin-bottom: 2rem;
+  padding: 0 1rem;
 }
-.header-link {
-  text-decoration: none;
-  color: white;
+
+.logo {
+  max-width: 150px;
+  height: auto;
 }
-.sidebar-header h2 {
-  font-size: 1.2rem;
-  margin: 0;
-}
-.user-name {
-  margin-top: 0.4rem;
-  color: #bdc3c7;
-  font-size: 0.72em;
-}
+
 .sidebar-nav {
-  margin-top: 1.2rem;
-  flex-grow: 1;
-}
-.nav-link {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 9.6px;
-  color: #ecf0f1;
-  text-decoration: none;
-  border-radius: 4px;
-  margin-bottom: 0.4rem;
-  transition: background-color 0.2s, color 0.2s;
-}
-.sidebar:hover .nav-link {
-  justify-content: flex-start;
-  padding: 9.6px 12px;
-}
-.nav-link:hover {
-  background-color: #34495e;
-}
-.nav-link.router-link-exact-active {
-  background-color: #3498db;
-  color: white;
-  font-weight: bold;
-}
-.nav-section-header {
-  color: #95a5a6;
-  font-weight: bold;
-  padding: 9.6px 12px;
-  margin-top: 0.8rem;
-  text-transform: uppercase;
-  font-size: 0.64em;
-  border-top: 1px solid #34495e;
-}
-.sidebar-footer {
-  margin-top: auto;
-  text-align: center;
-}
-.logout-button {
-  width: 100%;
-  padding: 8px;
-  background-color: #e74c3c;
-  color: white;
-  border: none;
-  border-radius: 4px;
-  cursor: pointer;
-  font-size: 0.8rem;
-  transition: all 0.3s ease;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6.4px;
-}
-.sidebar:hover .logout-button {
-  justify-content: flex-start;
-}
-
-/* O corpo principal do sistema */
-.main-container {
-  flex-grow: 1;
-  display: flex;
-  flex-direction: column;
-  background-color: #f4f7f6;
-  transition: margin-left 0.3s ease;
-}
-
-/* O cabeçalho do corpo principal */
-.main-header {
-  background-color: #fff;
-  padding: 0;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.05);
-  z-index: 50;
-  flex-shrink: 0;
-  display: flex;
-  align-items: center;
-  height: 48px;
-  margin-left: 64px;
-  transition: margin-left 0.3s ease;
-}
-
-/* O header-content foi atualizado para ocupar toda a largura e ter o padding interno */
-.header-content {
-  display: flex;
-  align-items: center;
-  justify-content: space-between; /* Alinhamento dos elementos */
-  width: 100%;
-  height: 100%;
-  padding: 0 1.6rem; /* Adicionado o padding interno aqui */
-}
-
-/* Título da página no cabeçalho */
-.page-title {
-  font-size: 1.25rem;
-  font-weight: 600;
-  color: #343a40;
-  margin: 0;
-  line-height: 1; /* Garante alinhamento com o sino */
-}
-
-/* Ajuste do cabeçalho quando o menu expande */
-.sidebar:hover ~ .main-container .main-header {
-  margin-left: 200px;
-}
-
-/* O conteúdo dentro do corpo principal */
-.main-content {
   flex-grow: 1;
   overflow-y: auto;
 }
 
-/* A nova grelha de dashboard */
-.dashboard-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-  gap: 1.5rem;
-  padding: 1.5rem;
+/* Novo estilo para os grupos de menu */
+.menu-group {
+  margin-bottom: 1.5rem;
+  padding: 0 1rem;
 }
 
-/* Ícones do logo no estado recolhido/expandido */
-.full-text { display: block; }
-.compact-icon { display: none; }
-.sidebar:hover .full-text { display: block; }
-.sidebar:hover .compact-icon { display: none; }
-.sidebar .full-text { display: none; }
-.sidebar .compact-icon { display: block; }
+.menu-group h4 {
+  color: #a0a0a0;
+  font-size: 0.9rem;
+  font-weight: bold;
+  margin-bottom: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.group-icon {
+  font-size: 1rem;
+}
+
+.sidebar-nav ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.nav-item {
+  display: flex;
+  align-items: center;
+  padding: 0.8rem 1rem;
+  color: #ecf0f1;
+  text-decoration: none;
+  font-size: 1rem;
+  border-radius: 5px;
+  transition: background-color 0.2s ease, transform 0.2s ease;
+}
+
+.nav-item:hover, .nav-item.router-link-exact-active {
+  background-color: #34495e;
+  color: #ffffff;
+  transform: translateX(5px);
+}
+
+.nav-item i {
+  margin-right: 12px;
+  width: 20px;
+  text-align: center;
+}
+
+.profile-section {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1rem;
+  border-top: 1px solid #34495e;
+}
+
+.user-info {
+  display: flex;
+  flex-direction: column;
+}
+
+.user-name {
+  font-weight: bold;
+  font-size: 1rem;
+}
+
+.user-role {
+  font-size: 0.8rem;
+  color: #bdc3c7;
+}
+
+.logout-btn {
+  background: none;
+  border: none;
+  color: #ecf0f1;
+  cursor: pointer;
+  font-size: 1.2rem;
+  transition: color 0.2s ease;
+}
+
+.logout-btn:hover {
+  color: #e74c3c;
+}
+
+.main-content {
+  flex-grow: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.topbar {
+  background-color: #ffffff;
+  padding: 1.5rem 2rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+  z-index: 100;
+}
+
+.page-title {
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: #333;
+  margin: 0;
+}
+
+.header-right {
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+}
+
+.settings-link {
+  color: #555;
+  font-size: 1.2rem;
+  transition: color 0.2s ease;
+}
+
+.settings-link:hover {
+  color: #007bff;
+}
+
+.content-wrapper {
+  flex-grow: 1;
+  padding: 2rem;
+  overflow-y: auto;
+}
 </style>

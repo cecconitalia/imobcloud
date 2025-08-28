@@ -23,199 +23,229 @@
       </div>
 
       <div class="tab-content">
-        <div v-show="activeTab === 'geral'" class="form-grid">
-            <div class="form-group full-width">
-            <label for="titulo_anuncio">Título do Anúncio</label>
-            <input type="text" id="titulo_anuncio" v-model="imovel.titulo_anuncio" required />
+        <div v-show="activeTab === 'geral'">
+            <div class="form-section">
+                <div class="section-title">Informações Principais</div>
+                <div class="form-grid">
+                    <div class="form-group full-width">
+                        <label for="titulo_anuncio">Título do Anúncio</label>
+                        <input type="text" id="titulo_anuncio" v-model="imovel.titulo_anuncio" required />
+                    </div>
+                    <div class="form-group">
+                        <label for="tipo">Tipo de Imóvel</label>
+                        <select id="tipo" v-model="imovel.tipo" required>
+                            <option value="CASA">Casa</option>
+                            <option value="APARTAMENTO">Apartamento</option>
+                            <option value="TERRENO">Terreno</option>
+                            <option value="SALA_COMERCIAL">Sala Comercial</option>
+                            <option value="GALPAO">Galpão</option>
+                            <option value="RURAL">Rural</option>
+                            <option value="OUTRO">Outro</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="finalidade">Finalidade</label>
+                        <select id="finalidade" v-model="imovel.finalidade" required>
+                            <option value="RESIDENCIAL">Residencial</option>
+                            <option value="COMERCIAL">Comercial</option>
+                            <option value="INDUSTRIAL">Industrial</option>
+                            <option value="RURAL">Rural</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="status">Status</label>
+                        <select id="status" v-model="imovel.status" required>
+                            <option value="A_VENDA">À Venda</option>
+                            <option value="PARA_ALUGAR">Para Alugar</option>
+                            <option value="VENDIDO">Vendido</option>
+                            <option value="ALUGADO">Alugado</option>
+                            <option value="EM_CONSTRUCAO">Em Construção</option>
+                            <option value="DESATIVADO">Desativado</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="situacao">Situação do Imóvel</label>
+                        <select id="situacao" v-model="imovel.situacao">
+                            <option :value="null">Não informado</option>
+                            <option value="NOVO">Novo</option>
+                            <option value="USADO">Usado</option>
+                            <option value="NA_PLANTA">Na Planta</option>
+                        </select>
+                    </div>
+                </div>
             </div>
-            <div class="form-group">
-            <label for="tipo">Tipo de Imóvel</label>
-            <select id="tipo" v-model="imovel.tipo" required>
-                <option value="CASA">Casa</option>
-                <option value="APARTAMENTO">Apartamento</option>
-                <option value="TERRENO">Terreno</option>
-                <option value="SALA_COMERCIAL">Sala Comercial</option>
-                <option value="GALPAO">Galpão</option>
-                <option value="RURAL">Rural</option>
-                <option value="OUTRO">Outro</option>
-            </select>
-            </div>
-            <div class="form-group">
-            <label for="finalidade">Finalidade</label>
-            <select id="finalidade" v-model="imovel.finalidade" required>
-                <option value="RESIDENCIAL">Residencial</option>
-                <option value="COMERCIAL">Comercial</option>
-                <option value="INDUSTRIAL">Industrial</option>
-                <option value="RURAL">Rural</option>
-            </select>
-            </div>
-            <div class="form-group">
-            <label for="status">Status</label>
-            <select id="status" v-model="imovel.status" required>
-                <option value="A_VENDA">À Venda</option>
-                <option value="PARA_ALUGAR">Para Alugar</option>
-                <option value="VENDIDO">Vendido</option>
-                <option value="ALUGADO">Alugado</option>
-                <option value="EM_CONSTRUCAO">Em Construção</option>
-                <option value="DESATIVADO">Desativado</option>
-            </select>
-            </div>
-            <div class="form-group">
-            <label for="situacao">Situação do Imóvel</label>
-            <select id="situacao" v-model="imovel.situacao">
-                <option :value="null">Não informado</option>
-                <option value="NOVO">Novo</option>
-                <option value="USADO">Usado</option>
-                <option value="NA_PLANTA">Na Planta</option>
-            </select>
-            </div>
-            <div class="form-group">
-                <label for="logradouro">Logradouro</label>
-                <input type="text" id="logradouro" v-model="imovel.logradouro" required />
-            </div>
-            <div class="form-group">
-                <label for="numero">Número</label>
-                <input type="text" id="numero" v-model="imovel.numero" />
-            </div>
-            <div class="form-group">
-                <label for="complemento">Complemento</label>
-                <input type="text" id="complemento" v-model="imovel.complemento" />
-            </div>
-            <div class="form-group">
-            <label for="bairro">Bairro</label>
-            <input type="text" id="bairro" v-model="imovel.bairro" required />
-            </div>
-            <div class="form-group">
-            <label for="cidade">Cidade</label>
-            <input type="text" id="cidade" v-model="imovel.cidade" required />
-            </div>
-            <div class="form-group">
-            <label for="estado">Estado (UF)</label>
-            <input type="text" id="estado" maxlength="2" v-model="imovel.estado" required />
-            </div>
-            <div class="form-group">
-            <label for="cep">CEP</label>
-            <input type="text" id="cep" v-model="imovel.cep" />
-            </div>
-            <div class="form-group">
-                <label for="posicao_chave">Posição da Chave</label>
-                <input type="text" id="posicao_chave" v-model="imovel.posicao_chave" />
-            </div>
-        </div>
-        <div v-show="activeTab === 'valores'" class="form-grid">
-            <div class="form-group">
-                <label for="valor_venda">Valor de Venda (R$)</label>
-                <input type="number" step="0.01" id="valor_venda" v-model.number="imovel.valor_venda" />
-            </div>
-            <div class="form-group">
-                <label for="valor_aluguel">Valor de Aluguel (R$)</label>
-                <input type="number" step="0.01" id="valor_aluguel" v-model.number="imovel.valor_aluguel" />
-            </div>
-            <div class="form-group">
-                <label for="valor_condominio">Valor do Condomínio (R$)</label>
-                <input type="number" step="0.01" id="valor_condominio" v-model.number="imovel.valor_condominio" />
-            </div>
-            <div class="form-group">
-                <label for="valor_iptu">Valor do IPTU (Anual, R$)</label>
-                <input type="number" step="0.01" id="valor_iptu" v-model.number="imovel.valor_iptu" />
-            </div>
-            <div class="form-group">
-                <label for="area_total">Área Total (m²)</label>
-                <input type="number" step="0.01" id="area_total" v-model.number="imovel.area_total" />
-            </div>
-            <div class="form-group">
-                <label for="area_util">Área Útil (m²)</label>
-                <input type="number" step="0.01" id="area_util" v-model.number="imovel.area_util" />
-            </div>
-            <div class="form-group">
-                <label for="quartos">Quartos</label>
-                <input type="number" id="quartos" v-model.number="imovel.quartos" />
-            </div>
-            <div class="form-group">
-                <label for="suites">Suítes</label>
-                <input type="number" id="suites" v-model.number="imovel.suites" />
-            </div>
-            <div class="form-group">
-                <label for="banheiros">Banheiros</label>
-                <input type="number" id="banheiros" v-model.number="imovel.banheiros" />
-            </div>
-            <div class="form-group">
-                <label for="vagas_garagem">Vagas de Garagem</label>
-                <input type="number" id="vagas_garagem" v-model.number="imovel.vagas_garagem" />
+            <div class="form-section">
+                <div class="section-title">Endereço</div>
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label for="logradouro">Logradouro</label>
+                        <input type="text" id="logradouro" v-model="imovel.logradouro" required />
+                    </div>
+                    <div class="form-group">
+                        <label for="numero">Número</label>
+                        <input type="text" id="numero" v-model="imovel.numero" />
+                    </div>
+                    <div class="form-group">
+                        <label for="complemento">Complemento</label>
+                        <input type="text" id="complemento" v-model="imovel.complemento" />
+                    </div>
+                    <div class="form-group">
+                        <label for="bairro">Bairro</label>
+                        <input type="text" id="bairro" v-model="imovel.bairro" required />
+                    </div>
+                    <div class="form-group">
+                        <label for="cidade">Cidade</label>
+                        <input type="text" id="cidade" v-model="imovel.cidade" required />
+                    </div>
+                    <div class="form-group">
+                        <label for="estado">Estado (UF)</label>
+                        <input type="text" id="estado" maxlength="2" v-model="imovel.estado" required />
+                    </div>
+                    <div class="form-group">
+                        <label for="cep">CEP</label>
+                        <input type="text" id="cep" v-model="imovel.cep" />
+                    </div>
+                </div>
             </div>
         </div>
-        <div v-show="activeTab === 'caracteristicas'" class="form-grid checkbox-grid">
-            <div class="checkbox-group">
-                <input type="checkbox" id="lavabo" v-model="imovel.lavabo">
-                <label for="lavabo">Lavabo</label>
+
+        <div v-show="activeTab === 'valores'">
+            <div class="form-section">
+                <div class="section-title">Valores Financeiros</div>
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label for="valor_venda">Valor de Venda (R$)</label>
+                        <input type="number" step="0.01" id="valor_venda" v-model.number="imovel.valor_venda" />
+                    </div>
+                    <div class="form-group">
+                        <label for="valor_aluguel">Valor de Aluguel (R$)</label>
+                        <input type="number" step="0.01" id="valor_aluguel" v-model.number="imovel.valor_aluguel" />
+                    </div>
+                    <div class="form-group">
+                        <label for="valor_condominio">Valor do Condomínio (R$)</label>
+                        <input type="number" step="0.01" id="valor_condominio" v-model.number="imovel.valor_condominio" />
+                    </div>
+                    <div class="form-group">
+                        <label for="valor_iptu">Valor do IPTU (Anual, R$)</label>
+                        <input type="number" step="0.01" id="valor_iptu" v-model.number="imovel.valor_iptu" />
+                    </div>
+                </div>
             </div>
-            <div class="checkbox-group">
-                <input type="checkbox" id="escritorio" v-model="imovel.escritorio">
-                <label for="escritorio">Escritório</label>
-            </div>
-            <div class="checkbox-group">
-                <input type="checkbox" id="varanda" v-model="imovel.varanda">
-                <label for="varanda">Varanda / Sacada</label>
-            </div>
-            <div class="checkbox-group">
-                <input type="checkbox" id="mobiliado" v-model="imovel.mobiliado">
-                <label for="mobiliado">Mobiliado</label>
-            </div>
-            <div class="checkbox-group">
-                <input type="checkbox" id="ar_condicionado" v-model="imovel.ar_condicionado">
-                <label for="ar_condicionado">Ar Condicionado</label>
-            </div>
-            <div class="checkbox-group">
-                <input type="checkbox" id="moveis_planejados" v-model="imovel.moveis_planejados">
-                <label for="moveis_planejados">Móveis Planejados</label>
-            </div>
-            <div class="checkbox-group">
-                <input type="checkbox" id="piscina_privativa" v-model="imovel.piscina_privativa">
-                <label for="piscina_privativa">Piscina Privativa</label>
-            </div>
-            <div class="checkbox-group">
-                <input type="checkbox" id="churrasqueira_privativa" v-model="imovel.churrasqueira_privativa">
-                <label for="churrasqueira_privativa">Churrasqueira Privativa</label>
-            </div>
-            <div class="form-group full-width">
-                <label for="outras_caracteristicas">Outras Características (Opcional)</label>
-                <textarea id="outras_caracteristicas" v-model="imovel.outras_caracteristicas" rows="4"></textarea>
-            </div>
-        </div>
-        <div v-show="activeTab === 'condominio'" class="form-grid checkbox-grid">
-            <div class="checkbox-group">
-                <input type="checkbox" id="portaria_24h" v-model="imovel.portaria_24h">
-                <label for="portaria_24h">Portaria 24h</label>
-            </div>
-            <div class="checkbox-group">
-                <input type="checkbox" id="elevador" v-model="imovel.elevador">
-                <label for="elevador">Elevador</label>
-            </div>
-            <div class="checkbox-group">
-                <input type="checkbox" id="piscina_condominio" v-model="imovel.piscina_condominio">
-                <label for="piscina_condominio">Piscina no Condomínio</label>
-            </div>
-            <div class="checkbox-group">
-                <input type="checkbox" id="academia" v-model="imovel.academia">
-                <label for="academia">Academia</label>
-            </div>
-            <div class="checkbox-group">
-                <input type="checkbox" id="salao_festas" v-model="imovel.salao_festas">
-                <label for="salao_festas">Salão de Festas</label>
-            </div>
-            <div class="checkbox-group">
-                <input type="checkbox" id="playground" v-model="imovel.playground">
-                <label for="playground">Playground</label>
-            </div>
-            <div class="checkbox-group">
-                <input type="checkbox" id="quadra_esportiva" v-model="imovel.quadra_esportiva">
-                <label for="quadra_esportiva">Quadra Esportiva</label>
-            </div>
-            <div class="checkbox-group">
-                <input type="checkbox" id="espaco_pet" v-model="imovel.espaco_pet">
-                <label for="espaco_pet">Espaço Pet</label>
+            <div class="form-section">
+                <div class="section-title">Dimensões e Divisões</div>
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label for="area_total">Área Total (m²)</label>
+                        <input type="number" step="0.01" id="area_total" v-model.number="imovel.area_total" />
+                    </div>
+                    <div class="form-group">
+                        <label for="area_util">Área Útil (m²)</label>
+                        <input type="number" step="0.01" id="area_util" v-model.number="imovel.area_util" />
+                    </div>
+                    <div class="form-group">
+                        <label for="quartos">Quartos</label>
+                        <input type="number" id="quartos" v-model.number="imovel.quartos" />
+                    </div>
+                    <div class="form-group">
+                        <label for="suites">Suítes</label>
+                        <input type="number" id="suites" v-model.number="imovel.suites" />
+                    </div>
+                    <div class="form-group">
+                        <label for="banheiros">Banheiros</label>
+                        <input type="number" id="banheiros" v-model.number="imovel.banheiros" />
+                    </div>
+                    <div class="form-group">
+                        <label for="vagas_garagem">Vagas de Garagem</label>
+                        <input type="number" id="vagas_garagem" v-model.number="imovel.vagas_garagem" />
+                    </div>
+                </div>
             </div>
         </div>
+
+        <div v-show="activeTab === 'caracteristicas'">
+            <div class="form-section">
+                <div class="section-title">Características Adicionais</div>
+                <div class="form-grid checkbox-grid">
+                    <div class="checkbox-group">
+                        <input type="checkbox" id="lavabo" v-model="imovel.lavabo">
+                        <label for="lavabo">Lavabo</label>
+                    </div>
+                    <div class="checkbox-group">
+                        <input type="checkbox" id="escritorio" v-model="imovel.escritorio">
+                        <label for="escritorio">Escritório</label>
+                    </div>
+                    <div class="checkbox-group">
+                        <input type="checkbox" id="varanda" v-model="imovel.varanda">
+                        <label for="varanda">Varanda / Sacada</label>
+                    </div>
+                    <div class="checkbox-group">
+                        <input type="checkbox" id="mobiliado" v-model="imovel.mobiliado">
+                        <label for="mobiliado">Mobiliado</label>
+                    </div>
+                    <div class="checkbox-group">
+                        <input type="checkbox" id="ar_condicionado" v-model="imovel.ar_condicionado">
+                        <label for="ar_condicionado">Ar Condicionado</label>
+                    </div>
+                    <div class="checkbox-group">
+                        <input type="checkbox" id="moveis_planejados" v-model="imovel.moveis_planejados">
+                        <label for="moveis_planejados">Móveis Planejados</label>
+                    </div>
+                    <div class="checkbox-group">
+                        <input type="checkbox" id="piscina_privativa" v-model="imovel.piscina_privativa">
+                        <label for="piscina_privativa">Piscina Privativa</label>
+                    </div>
+                    <div class="checkbox-group">
+                        <input type="checkbox" id="churrasqueira_privativa" v-model="imovel.churrasqueira_privativa">
+                        <label for="churrasqueira_privativa">Churrasqueira Privativa</label>
+                    </div>
+                </div>
+                <div class="form-group full-width">
+                    <label for="outras_caracteristicas">Outras Características (Opcional)</label>
+                    <textarea id="outras_caracteristicas" v-model="imovel.outras_caracteristicas" rows="4"></textarea>
+                </div>
+            </div>
+        </div>
+        
+        <div v-show="activeTab === 'condominio'">
+             <div class="form-section">
+                <div class="section-title">Infraestrutura do Condomínio</div>
+                <div class="form-grid checkbox-grid">
+                    <div class="checkbox-group">
+                        <input type="checkbox" id="portaria_24h" v-model="imovel.portaria_24h">
+                        <label for="portaria_24h">Portaria 24h</label>
+                    </div>
+                    <div class="checkbox-group">
+                        <input type="checkbox" id="elevador" v-model="imovel.elevador">
+                        <label for="elevador">Elevador</label>
+                    </div>
+                    <div class="checkbox-group">
+                        <input type="checkbox" id="piscina_condominio" v-model="imovel.piscina_condominio">
+                        <label for="piscina_condominio">Piscina no Condomínio</label>
+                    </div>
+                    <div class="checkbox-group">
+                        <input type="checkbox" id="academia" v-model="imovel.academia">
+                        <label for="academia">Academia</label>
+                    </div>
+                    <div class="checkbox-group">
+                        <input type="checkbox" id="salao_festas" v-model="imovel.salao_festas">
+                        <label for="salao_festas">Salão de Festas</label>
+                    </div>
+                    <div class="checkbox-group">
+                        <input type="checkbox" id="playground" v-model="imovel.playground">
+                        <label for="playground">Playground</label>
+                    </div>
+                    <div class="checkbox-group">
+                        <input type="checkbox" id="quadra_esportiva" v-model="imovel.quadra_esportiva">
+                        <label for="quadra_esportiva">Quadra Esportiva</label>
+                    </div>
+                    <div class="checkbox-group">
+                        <input type="checkbox" id="espaco_pet" v-model="imovel.espaco_pet">
+                        <label for="espaco_pet">Espaço Pet</label>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <div v-show="activeTab === 'imagens'">
             <div v-if="isEditing && imovel.id" class="card">
               <div class="card-header">Gestor de Imagens</div>
@@ -228,59 +258,73 @@
               <p>Preencha as informações nas outras abas e clique em "Salvar e Continuar".</p>
             </div>
         </div>
-        <div v-show="activeTab === 'autorizacao'" class="form-grid">
-            <div class="form-group">
-                <label for="proprietario">Proprietário (Cliente)</label>
-                <select id="proprietario" v-model="imovel.proprietario">
-                    <option :value="null">-- Selecione um Cliente --</option>
-                    <option v-for="cliente in clientes" :key="cliente.id" :value="cliente.id">
-                        {{ cliente.nome_completo }}
-                    </option>
-                </select>
+
+        <div v-show="activeTab === 'autorizacao'">
+            <div class="form-section">
+                <div class="section-title">Documentação e Venda</div>
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label for="proprietario">Proprietário (Cliente)</label>
+                        <select id="proprietario" v-model="imovel.proprietario">
+                            <option :value="null">-- Selecione um Cliente --</option>
+                            <option v-for="cliente in clientes" :key="cliente.id" :value="cliente.id">
+                                {{ cliente.nome_completo }}
+                            </option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="numero_matricula">Número da Matrícula</label>
+                        <input type="text" id="numero_matricula" v-model="imovel.numero_matricula" />
+                    </div>
+                    <div class="form-group">
+                        <label for="data_captacao">Data de Captação</label>
+                        <input type="date" id="data_captacao" v-model="imovel.data_captacao" />
+                    </div>
+                    <div class="form-group">
+                        <label for="data_fim_autorizacao">Data de Fim da Autorização</label>
+                        <input type="date" id="data_fim_autorizacao" v-model="imovel.data_fim_autorizacao" />
+                    </div>
+                    <div class="form-group">
+                        <label for="comissao_percentual">Comissão (%)</label>
+                        <input type="number" step="0.01" id="comissao_percentual" v-model.number="imovel.comissao_percentual" />
+                    </div>
+                </div>
             </div>
-            <div class="form-group">
-                <label for="numero_matricula">Número da Matrícula</label>
-                <input type="text" id="numero_matricula" v-model="imovel.numero_matricula" />
+            <div class="form-section">
+                <div class="section-title">Status da Documentação</div>
+                <div class="form-grid checkbox-grid">
+                    <div class="checkbox-group">
+                        <input type="checkbox" id="possui_exclusividade" v-model="imovel.possui_exclusividade">
+                        <label for="possui_exclusividade">Possui Contrato de Exclusividade?</label>
+                    </div>
+                    <div class="checkbox-group">
+                        <input type="checkbox" id="financiavel" v-model="imovel.financiavel">
+                        <label for="financiavel">Aceita Financiamento</label>
+                    </div>
+                    <div class="checkbox-group">
+                        <input type="checkbox" id="quitado" v-model="imovel.quitado">
+                        <label for="quitado">Imóvel Quitado</label>
+                    </div>
+                    <div class="checkbox-group">
+                        <input type="checkbox" id="documentacao_ok" v-model="imovel.documentacao_ok">
+                        <label for="documentacao_ok">Documentação OK</label>
+                    </div>
+                </div>
             </div>
-            <div class="form-group">
-                <label for="data_captacao">Data de Captação</label>
-                <input type="date" id="data_captacao" v-model="imovel.data_captacao" />
-            </div>
-            <div class="form-group">
-                <label for="data_fim_autorizacao">Data de Fim da Autorização</label>
-                <input type="date" id="data_fim_autorizacao" v-model="imovel.data_fim_autorizacao" />
-            </div>
-            <div class="form-group">
-                <label for="comissao_percentual">Comissão (%)</label>
-                <input type="number" step="0.01" id="comissao_percentual" v-model.number="imovel.comissao_percentual" />
-            </div>
-            <div class="checkbox-group">
-                <input type="checkbox" id="possui_exclusividade" v-model="imovel.possui_exclusividade">
-                <label for="possui_exclusividade">Possui Contrato de Exclusividade?</label>
-            </div>
-            <div class="checkbox-group">
-                <input type="checkbox" id="financiavel" v-model="imovel.financiavel">
-                <label for="financiavel">Aceita Financiamento</label>
-            </div>
-            <div class="checkbox-group">
-                <input type="checkbox" id="quitado" v-model="imovel.quitado">
-                <label for="quitado">Imóvel Quitado</label>
-            </div>
-            <div class="checkbox-group">
-                <input type="checkbox" id="documentacao_ok" v-model="imovel.documentacao_ok">
-                <label for="documentacao_ok">Documentação OK</label>
-            </div>
-            <div class="form-group full-width">
-                <label for="informacoes_adicionais_autorizacao">Informações Adicionais (para o contrato)</label>
-                <textarea id="informacoes_adicionais_autorizacao" v-model="imovel.informacoes_adicionais_autorizacao" rows="4"></textarea>
-            </div>
-            
-            <div class="form-group full-width" v-if="isEditing && imovel.id">
-                <button type="button" @click="gerarContratoPDF" class="btn-info">
-                    Gerar Contrato de Autorização (PDF)
-                </button>
+            <div class="form-section">
+                 <div class="section-title">Observações e Ações</div>
+                 <div class="form-group full-width">
+                     <label for="informacoes_adicionais_autorizacao">Informações Adicionais (para o contrato)</label>
+                     <textarea id="informacoes_adicionais_autorizacao" v-model="imovel.informacoes_adicionais_autorizacao" rows="4"></textarea>
+                 </div>
+                 <div class="form-group full-width" v-if="isEditing && imovel.id">
+                     <button type="button" @click="gerarContratoPDF" class="btn-info">
+                         Gerar Contrato de Autorização (PDF)
+                     </button>
+                 </div>
             </div>
         </div>
+
         <div v-show="activeTab === 'publico'" class="form-section">
             <div class="info-message">
               <p>Controle a visibilidade de cada campo deste imóvel no site público da imobiliária.</p>
@@ -651,5 +695,14 @@ input, select, textarea { padding: 10px; border: 1px solid #ccc; border-radius: 
     margin-bottom: 1rem;
     padding-bottom: 0.5rem;
     border-bottom: 1px solid #e0e0e0;
+}
+
+/* NOVO ESTILO PARA AS SEÇÕES DO FORMULÁRIO */
+.form-section {
+    background-color: #f9fafb;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    padding: 1.5rem;
+    margin-bottom: 2rem;
 }
 </style>

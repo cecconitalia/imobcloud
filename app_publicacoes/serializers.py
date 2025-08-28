@@ -2,6 +2,8 @@
 
 from rest_framework import serializers
 from .models import PostAgendado
+from .models import PublicacaoHistorico, PublicacaoSocial
+
 
 class PostAgendadoSerializer(serializers.ModelSerializer):
     """
@@ -33,3 +35,8 @@ class PostAgendadoSerializer(serializers.ModelSerializer):
             'imovel',
             'resultado_publicacao'
         ]
+
+class PublicacaoHistoricoSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = PublicacaoHistorico
+        fields = '__all__'

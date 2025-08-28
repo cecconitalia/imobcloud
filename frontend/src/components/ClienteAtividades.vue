@@ -47,11 +47,9 @@ const isSubmittingNota = ref(false);
 async function fetchAtividades() {
   isLoading.value = true;
   try {
-    // --- INÍCIO DA CORREÇÃO: URL da API corrigida ---
-    const response = await apiClient.get('/v1/clientes/atividades/', {
+    const response = await apiClient.get('/v1/atividades/', {
       params: { cliente_id: props.clienteId }
     });
-    // --- FIM DA CORREÇÃO ---
     atividades.value = response.data;
   } catch (error) {
     console.error("Erro ao carregar atividades:", error);
@@ -70,9 +68,7 @@ async function adicionarNota() {
       tipo: 'NOTA',
       descricao: novaNota.value,
     };
-    // --- INÍCIO DA CORREÇÃO: URL da API corrigida ---
-    await apiClient.post('/v1/clientes/atividades/', payload);
-    // --- FIM DA CORREÇÃO ---
+    await apiClient.post('/v1/atividades/', payload);
     novaNota.value = '';
     await fetchAtividades(); // Recarrega a lista
   } catch (error) {
@@ -96,7 +92,6 @@ function formatarData(data: string): string {
 }
 
 function getIconClass(tipo: string): string {
-  // A sua lógica de ícones é mantida
   switch (tipo.toUpperCase()) {
     case 'LIGACAO': return 'fas fa-phone-alt';
     case 'EMAIL': return 'fas fa-envelope';

@@ -104,6 +104,7 @@ class OportunidadeSerializer(serializers.ModelSerializer):
         }
         if instance.imovel:
             imovel_instance = instance.imovel
+            # CORRIGIDO: O campo de endereço agora é 'logradouro' no modelo
             endereco_completo = f"{imovel_instance.logradouro}, {imovel_instance.bairro}, {imovel_instance.cidade} - {imovel_instance.estado}"
             representation['imovel'] = {
                 'id': imovel_instance.id,
@@ -122,12 +123,15 @@ class ClienteSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Cliente
+        # CORREÇÃO AQUI: 'endereco' foi substituído por 'logradouro' e os novos campos foram adicionados.
         fields = [
             'id', 'nome_completo', 'cpf_cnpj', 'email', 'telefone', 'preferencias_imovel', 
             'ativo', 'data_cadastro', 'data_atualizacao', 'data_nascimento', 
-            'estado_civil', 'profissao', 'rg', 'endereco', 'numero', 'bairro', 
+            'estado_civil', 'profissao', 'rg', 
+            'logradouro', 'numero', 'complemento', 'bairro', # 'endereco' foi substituído por 'logradouro' e 'complemento' foi adicionado.
             'cidade', 'estado', 'cep', 'observacoes', 
-            'imobiliaria', 'oportunidades', 'visitas', 'atividades', 'tarefas'
+            'imobiliaria', 'oportunidades', 'visitas', 'atividades', 'tarefas',
+            'foto_perfil', 'inscricao_estadual'
         ]
         
     def create(self, validated_data):

@@ -32,7 +32,7 @@ from django.test import RequestFactory
 
 from .models import Imovel, ImagemImovel, ContatoImovel
 from .serializers import ImovelSerializer, ImovelPublicSerializer, ContatoImovelSerializer, ImagemImovelSerializer
-from core.models import Imobiliaria, PerfilUsuario
+from core.models import Imobiliaria, PerfilUsuario, Notificacao
 from app_clientes.models import Oportunidade
 from app_config_ia.models import ModeloDePrompt
 from core.serializers import ImobiliariaPublicSerializer # <--- ADICIONADO AQUI
@@ -307,10 +307,9 @@ class ImovelViewSet(viewsets.ModelViewSet):
             raise PermissionDenied("Você não tem permissão para atualizar este imóvel.")
 
     def perform_destroy(self, instance):
-        if self.request.user.is_superuser or (hasattr(self.request.user, 'perfil') and instance.imovel.imobiliaria == self.request.tenant):
+        if self.request.user.is_superuser or (hasattr(self.request.user, 'perfil') and instance.imobiliaria == self.request.tenant):
             instance.status = Imovel.Status.DESATIVADO
             instance.save()
-            return Response(status=status.HTTP_204_NO_CONTENT)
         else:
             raise PermissionDenied("Você não tem permissão para inativar este imóvel.")
 

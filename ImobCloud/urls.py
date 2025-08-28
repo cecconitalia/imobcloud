@@ -26,15 +26,12 @@ urlpatterns = [
     path('api/v1/logout/', LogoutView.as_view(), name='auth_logout'),
     
     # --- Inclusão das rotas de cada app da API (MÉTODO CORRIGIDO) ---
-    # Ao incluir o app inteiro, as rotas ficam mais limpas e sem duplicação.
-    # Ex: a rota 'imoveis' em app_imoveis.urls.py será acedida como /api/v1/imoveis/
     path('api/v1/', include('core.urls')),
     path('api/v1/', include('app_imoveis.urls')),
     path('api/v1/', include('app_clientes.urls')),
     path('api/v1/', include('app_contratos.urls')),
     path('api/v1/financeiro/', include('app_financeiro.urls')),
     path('api/v1/alugueis/', include('app_alugueis.urls')),
-    # CORREÇÃO: a URL da app de boletos deve ser incluída sem um prefixo adicional
     path('api/v1/boletos/', include('app_boletos.urls')),
     
     # Rota corrigida para a app de publicações

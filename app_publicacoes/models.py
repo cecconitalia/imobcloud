@@ -74,3 +74,24 @@ class PostAgendado(models.Model):
 
     def __str__(self):
         return f"Post para '{self.imovel.titulo_anuncio}' agendado para {self.data_agendamento}"
+    
+class PublicacaoHistorico(models.Model):
+    REDE_SOCIAL_CHOICES = [
+        ('Facebook', 'Facebook'),
+        ('Instagram', 'Instagram'),
+        ('TikTok', 'TikTok'),
+        ('LinkedIn', 'LinkedIn'),
+        ('Outro', 'Outro'),
+    ]
+    imovel = models.ForeignKey(Imovel, on_delete=models.CASCADE, related_name='historico_publicacoes')
+    rede_social = models.CharField(max_length=50, choices=REDE_SOCIAL_CHOICES)
+    data_publicacao = models.DateTimeField(auto_now_add=True)
+    link_publicacao = models.URLField(max_length=200, blank=True, null=True)
+
+    class Meta:
+        ordering = ['-data_publicacao']
+        verbose_name = 'Histórico de Publicação'
+        verbose_name_plural = 'Histórico de Publicações'
+
+    def __str__(self):
+        return f"Publicação de {self.imovel.titulo_anuncio} em {self.rede_social}"

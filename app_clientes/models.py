@@ -32,6 +32,11 @@ class FunilEtapa(models.Model):
 # ====================================================================
 
 class Cliente(models.Model):
+    # --- NOVOS CAMPOS ADICIONADOS ---
+    foto_perfil = models.ImageField(upload_to='clientes_fotos/', blank=True, null=True, verbose_name="Foto de Perfil")
+    inscricao_estadual = models.CharField(max_length=20, blank=True, null=True, verbose_name="Inscrição Estadual")
+    complemento = models.CharField(max_length=255, blank=True, null=True, verbose_name="Complemento")
+
     imobiliaria = models.ForeignKey('core.Imobiliaria', on_delete=models.CASCADE, verbose_name="Imobiliária")
     nome_completo = models.CharField(max_length=200, verbose_name="Nome Completo")
     cpf_cnpj = models.CharField(max_length=18, unique=False, verbose_name="CPF/CNPJ")
@@ -47,7 +52,7 @@ class Cliente(models.Model):
     profissao = models.CharField(max_length=100, blank=True, null=True, verbose_name="Profissão")
     rg = models.CharField(max_length=20, blank=True, null=True, verbose_name="RG")
 
-    endereco = models.CharField(max_length=255, blank=True, null=True, verbose_name="Endereço (Rua, Av.)")
+    logradouro = models.CharField(max_length=255, blank=True, null=True, verbose_name="Logradouro (Rua, Av.)")
     numero = models.CharField(max_length=10, blank=True, null=True, verbose_name="Número")
     bairro = models.CharField(max_length=100, blank=True, null=True, verbose_name="Bairro")
     cidade = models.CharField(max_length=100, blank=True, null=True, verbose_name="Cidade")
@@ -65,7 +70,6 @@ class Cliente(models.Model):
         return f"{self.nome_completo} ({self.imobiliaria.nome})"
 
 class Oportunidade(models.Model):
-    # CORREÇÃO AQUI: As fases agora são dinâmicas, mas mantemos o choices para compatibilidade
     class Fases(models.TextChoices):
         LEAD = 'LEAD', 'Novo Lead'
         CONTATO = 'CONTATO', 'Primeiro Contato'
@@ -86,15 +90,10 @@ class Oportunidade(models.Model):
     imovel = models.ForeignKey('app_imoveis.Imovel', on_delete=models.SET_NULL, null=True, blank=True, related_name='oportunidades')
     cliente = models.ForeignKey(Cliente, on_delete=models.CASCADE, related_name='oportunidades')
 
-    # A fase agora pode ser um ForeignKey para o novo modelo
-    # Para manter a compatibilidade, vamos usar um CharField por enquanto
-    # e migrar no futuro.
     fase = models.CharField(max_length=20, choices=Fases.choices, default=Fases.LEAD)
 
-    # NOVO CAMPO: fonte
     fonte = models.CharField(max_length=20, choices=Fontes.choices, null=True, blank=True, verbose_name="Fonte do Lead")
     
-    # Campo de responsável agora é um ForeignKey para o User, não para PerfilUsuario
     responsavel = models.ForeignKey(
         settings.AUTH_USER_MODEL, 
         on_delete=models.SET_NULL, 
@@ -123,12 +122,9 @@ class Oportunidade(models.Model):
         return self.titulo
     
     def save(self, *args, **kwargs):
-        # Lógica para atualizar a probabilidade baseada na fase
-        # Será removida quando o funil for 100% dinâmico
         self.probabilidade = Oportunidade.PROBABILIDADE_POR_FASE.get(self.fase, 0)
         super().save(*args, **kwargs)
 
-    # Dicionário auxiliar para a lógica de probabilidade
     PROBABILIDADE_POR_FASE = {
         Fases.LEAD: 10,
         Fases.CONTATO: 25,
@@ -155,14 +151,11 @@ class Tarefa(models.Model):
     responsavel = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='tarefas_responsavel')
     google_calendar_event_id = models.CharField(max_length=255, blank=True, null=True)
     
-    # --- INÍCIO DA ALTERAÇÃO ---
-    # Novo campo para guardar as notas de finalização
     observacoes_finalizacao = models.TextField(
         blank=True, 
         null=True, 
         verbose_name="Observações da Finalização"
     )
-    # --- FIM DA ALTERAÇÃO ---
 
     def __str__(self):
         return f"Tarefa: {self.titulo}"

@@ -43,7 +43,7 @@
           <label for="oportunidade">Associar à Oportunidade</label>
           <v-select
             id="oportunidade"
-            label="titulo"
+            label="formatted_title"
             :options="oportunidades"
             :reduce="oportunidade => oportunidade.id"
             v-model="tarefa.oportunidade"
@@ -51,7 +51,7 @@
           >
             <template #option="option">
               <strong>{{ option.titulo }}</strong><br>
-              <small>{{ option.cliente_nome }}</small>
+              <small>{{ option.cliente?.nome_completo || 'Cliente não informado' }}</small>
             </template>
             <template #no-options>
               Nenhuma oportunidade encontrada.
@@ -73,7 +73,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, onMounted, defineProps, defineEmits } from 'vue';
+import { ref, reactive, computed, onMounted, defineProps, defineEmits, watch } from 'vue';
 import apiClient from '@/services/api';
 import vSelect from 'vue-select';
 import 'vue-select/dist/vue-select.css';
@@ -81,6 +81,7 @@ import 'vue-select/dist/vue-select.css';
 // --- PROPS E EMITS ---
 const props = defineProps<{
   tarefaParaEditar?: any | null;
+  oportunidadeInicial?: any | null;
 }>();
 
 const emit = defineEmits(['close', 'saved']);
@@ -115,7 +116,11 @@ const closeModal = () => {
 const fetchOportunidades = async () => {
   try {
     const response = await apiClient.get('/v1/oportunidades/');
-    oportunidades.value = response.data;
+    // CORREÇÃO: Mapeia os dados para incluir uma propriedade formatada para o v-select
+    oportunidades.value = response.data.map((op: any) => ({
+      ...op,
+      formatted_title: `${op.titulo} - ${op.cliente?.nome_completo || 'Cliente não informado'}`
+    }));
   } catch (error) {
     console.error("Erro ao carregar oportunidades:", error);
   }
@@ -124,6 +129,34 @@ const fetchOportunidades = async () => {
 const submitForm = async () => {
   isSubmitting.value = true;
   try {
+    // CORREÇÃO: Cria uma oportunidade padrão se nenhuma for selecionada
+    if (!tarefa.oportunidade) {
+      let clientePadraoId = null;
+      try {
+        const clienteResponse = await apiClient.get('/v1/clientes/', { params: { search: 'Cliente Padrão' } });
+        if (clienteResponse.data.length > 0) {
+          clientePadraoId = clienteResponse.data[0].id;
+        } else {
+          const novoClienteResponse = await apiClient.post('/v1/clientes/', { nome_completo: 'Cliente Padrão', tipo_cliente: 'PESSOA_FISICA' });
+          clientePadraoId = novoClienteResponse.data.id;
+        }
+      } catch (error) {
+        console.error("Erro ao encontrar ou criar cliente padrão:", error);
+        alert('Ocorreu um erro ao preparar o cliente padrão.');
+        return;
+      }
+
+      const novaOportunidadePayload = {
+        titulo: `Oportunidade gerada automaticamente para a tarefa '${tarefa.titulo}'`,
+        fase: 'LEAD',
+        probabilidade: 10,
+        valor_estimado: 0,
+        cliente: clientePadraoId, // Adiciona o cliente padrão
+      };
+      const response = await apiClient.post('/v1/oportunidades/', novaOportunidadePayload);
+      tarefa.oportunidade = response.data.id;
+    }
+
     const payload = {
       titulo: tarefa.titulo,
       descricao: tarefa.descricao,
@@ -137,11 +170,7 @@ const submitForm = async () => {
       await apiClient.post('/v1/tarefas/', payload);
     }
     
-    // --- INÍCIO DA CORREÇÃO ---
-    // Após o sucesso, emite o evento e força o recarregamento da página.
     emit('saved');
-    window.location.reload();
-    // --- FIM DA CORREÇÃO ---
 
   } catch (error) {
     console.error("Erro ao salvar a tarefa:", error);
@@ -159,11 +188,7 @@ const handleDelete = async () => {
   try {
     await apiClient.delete(`/v1/tarefas/${tarefa.id}/`);
     
-    // --- INÍCIO DA CORREÇÃO ---
-    // Após o sucesso, emite o evento e força o recarregamento da página.
     emit('saved');
-    window.location.reload();
-    // --- FIM DA CORREÇÃO ---
 
   } catch (error) {
     console.error("Erro ao eliminar a tarefa:", error);
@@ -188,6 +213,17 @@ onMounted(() => {
   fetchOportunidades();
   if (props.tarefaParaEditar) {
     preencherFormularioParaEdicao(props.tarefaParaEditar);
+  }
+  else if (props.oportunidadeInicial) {
+    tarefa.oportunidade = props.oportunidadeInicial.id;
+  }
+});
+
+watch(() => props.oportunidadeInicial, (novaOportunidade) => {
+  if (novaOportunidade) {
+    tarefa.oportunidade = novaOportunidade.id;
+  } else {
+    tarefa.oportunidade = null;
   }
 });
 </script>

@@ -1,148 +1,206 @@
 <template>
   <div class="imoveis-container">
     <header class="view-header">
-      <h1>Meus Imóveis</h1>
-      <router-link to="/imoveis/novo" class="btn-primary">
-        + Adicionar Imóvel
-      </router-link>
+      <h1>Gerir Imóveis</h1>
+      <div class="header-actions">
+        <button class="btn-primary" @click="goToCreateImovel">
+          <i class="fas fa-plus"></i> Novo Imóvel
+        </button>
+      </div>
     </header>
-
-    <div class="filters-bar">
-      <input
-        type="text"
-        v-model="searchTerm"
-        placeholder="Pesquisar por endereço, cidade..."
+    
+    <div class="search-and-filter-bar">
+      <input 
+        type="text" 
+        v-model="searchQuery" 
+        placeholder="Buscar por código, título, cidade..." 
+        class="search-input"
       />
-      <select v-model="filterStatus">
-        <option value="">Todos os Status</option>
-        <option value="A_VENDA">À Venda</option>
-        <option value="PARA_ALUGAR">Para Alugar</option>
-        <option value="VENDIDO">Vendido</option>
-        <option value="ALUGADO">Alugado</option>
-        <option value="EM_CONSTRUCAO">Em Construção</option>
-        <option value="DESATIVADO">Desativado</option>
-      </select>
-    </div>
-
-    <div v-if="isLoading" class="loading-message">A carregar...</div>
-    <div v-if="error" class="error-message">{{ error }}</div>
-
-    <div v-if="imoveis.length > 0" class="imoveis-grid">
-      <div v-for="imovel in imoveis" :key="imovel.id" class="imovel-card">
-        <img
-          :src="getPrincipalImage(imovel.imagens)"
-          :alt="imovel.titulo_anuncio"
-          class="imovel-image"
-        />
-        <div class="imovel-info">
-          <div class="imovel-header">
-            <h3 class="imovel-title">{{ imovel.endereco }}</h3>
-            <span :class="['status-badge', getStatusClass(imovel.status)]">
-              {{ formatStatus(imovel.status) }}
-            </span>
-          </div>
-          <p class="imovel-details">{{ imovel.cidade }} - {{ imovel.estado }}</p>
-          <div class="imovel-actions">
-            <router-link :to="`/imoveis/editar/${imovel.id}`" class="btn-action">
-              <i class="fas fa-edit"></i>
-              <span>Editar</span>
-            </router-link>
-            <router-link v-if="userIsAdmin" :to="{ name: 'imovel-imagens', params: { id: imovel.id } }" class="btn-action">
-              <i class="fas fa-images"></i>
-              <span>Imagens</span>
-            </router-link>
-            <button v-if="userIsAdmin" @click="handleInativar(imovel.id)" class="btn-action danger">
-              <i class="fas fa-trash"></i>
-              <span>Inativar</span>
-            </button>
-          </div>
-        </div>
+      <div class="filter-group">
+        <label for="tipo">Tipo:</label>
+        <select id="tipo" v-model="filters.tipo">
+          <option value="">Todos</option>
+          <option value="CASA">Casa</option>
+          <option value="APARTAMENTO">Apartamento</option>
+          <option value="TERRENO">Terreno</option>
+          <option value="SALA_COMERCIAL">Sala Comercial</option>
+          <option value="GALPAO">Galpão</option>
+          <option value="RURAL">Rural</option>
+          <option value="OUTRO">Outro</option>
+        </select>
+      </div>
+      <div class="filter-group">
+        <label for="finalidade">Finalidade:</label>
+        <select id="finalidade" v-model="filters.finalidade">
+          <option value="">Todas</option>
+          <option value="RESIDENCIAL">Residencial</option>
+          <option value="COMERCIAL">Comercial</option>
+          <option value="INDUSTRIAL">Industrial</option>
+          <option value="RURAL">Rural</option>
+        </select>
+      </div>
+      <div class="filter-group">
+        <label for="status">Status:</label>
+        <select id="status" v-model="filters.status">
+          <option value="">Todos</option>
+          <option value="A_VENDA">À Venda</option>
+          <option value="PARA_ALUGAR">Para Alugar</option>
+          <option value="VENDIDO">Vendido</option>
+          <option value="ALUGADO">Alugado</option>
+          <option value="EM_CONSTRUCAO">Em Construção</option>
+          <option value="DESATIVADO">Desativado</option>
+        </select>
       </div>
     </div>
-    <div v-if="!isLoading && !imoveis.length && !error" class="no-data-message">
-      <p>Nenhum imóvel encontrado.</p>
+
+    <div v-if="isLoading" class="loading-message">
+      A carregar imóveis...
+    </div>
+    <div v-else-if="imoveis.length === 0" class="empty-message">
+      Nenhum imóvel encontrado.
+    </div>
+    <div v-else class="imoveis-grid">
+      <div v-for="imovel in filteredImoveis" :key="imovel.id" class="imovel-card">
+        <div class="card-image-container" @click="editImovel(imovel.id)">
+          <img 
+            :src="getPrincipalImage(imovel.imagens)" 
+            alt="Imagem do Imóvel" 
+            class="imovel-image"
+          />
+          <span :class="['status-badge', getStatusClass(imovel.status)]">
+            {{ formatStatus(imovel.status) }}
+          </span>
+        </div>
+        <div class="card-content">
+          <div class="card-header-content">
+            <h3 class="card-title">{{ imovel.titulo_anuncio || 'Imóvel sem título' }}</h3>
+            <span class="card-codigo">#{{ imovel.codigo_referencia }}</span>
+          </div>
+          <div class="card-details">
+            <p><strong>Tipo:</strong> {{ imovel.tipo }}</p>
+            <p><strong>Finalidade:</strong> {{ imovel.finalidade }}</p>
+            <p><strong>Localização:</strong> {{ imovel.bairro }}, {{ imovel.cidade }}</p>
+            <p v-if="imovel.valor_venda"><strong>Valor de Venda:</strong> {{ formatCurrency(imovel.valor_venda) }}</p>
+            <p v-if="imovel.valor_aluguel"><strong>Valor de Aluguel:</strong> {{ formatCurrency(imovel.valor_aluguel) }}</p>
+            <p><strong>Área:</strong> {{ imovel.area_total }} m²</p>
+            <p><strong>Quartos:</strong> {{ imovel.quartos }} | <strong>Suítes:</strong> {{ imovel.suites }}</p>
+          </div>
+        </div>
+        <div class="card-actions">
+          <button @click="editImovel(imovel.id)" class="btn-edit">
+            <i class="fas fa-edit"></i> Editar
+          </button>
+          <button @click="confirmInativar(imovel.id)" class="btn-delete">
+            <i class="fas fa-trash-alt"></i> Inativar
+          </button>
+        </div>
+      </div>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, onMounted, computed, watch } from 'vue';
+import { useRouter } from 'vue-router';
 import apiClient from '@/services/api';
-// É necessário instalar o Font Awesome para os ícones
-// npm install --save-dev @fortawesome/fontawesome-free
-import '@fortawesome/fontawesome-free/css/all.css';
+import { formatCurrency, formatStatus } from '@/utils/formatters';
 
+const router = useRouter();
 const imoveis = ref<any[]>([]);
 const isLoading = ref(true);
-const error = ref<string | null>(null);
-const searchTerm = ref('');
-const filterStatus = ref('');
-const userIsAdmin = computed(() => localStorage.getItem('userCargo') === 'ADMIN');
+const searchQuery = ref('');
+const filters = ref({
+  tipo: '',
+  finalidade: '',
+  status: '',
+});
 
+const defaultImage = 'https://via.placeholder.com/400x300.png?text=Sem+imagem';
 let debounceTimeout: number | undefined = undefined;
 
 async function fetchImoveis() {
   isLoading.value = true;
   try {
-    const params: { [key: string]: string } = {};
-    if (searchTerm.value) {
-      params.search = searchTerm.value;
-    }
-    if (filterStatus.value) {
-      params.status = filterStatus.value;
-    }
-    // A CORREÇÃO ESTÁ AQUI:
-    // A URL estava '/v1/imoveis/imoveis/'. Corrigimos para '/v1/imoveis/'.
-    const response = await apiClient.get('/v1/imoveis/', { params });
+    const response = await apiClient.get('/v1/imoveis/');
     imoveis.value = response.data;
-  } catch (err) {
-    console.error("Erro ao buscar imóveis:", err);
-    error.value = 'Não foi possível carregar os imóveis.';
+  } catch (error) {
+    console.error("Erro ao carregar imóveis:", error);
   } finally {
     isLoading.value = false;
   }
 }
 
-function getPrincipalImage(imagens: any[]) {
+function getPrincipalImage(imagens: any[]): string {
   if (!imagens || imagens.length === 0) {
-    return 'https://via.placeholder.com/400x250.png?text=Sem+Imagem';
+    return defaultImage;
   }
   const principal = imagens.find(img => img.principal);
   return principal ? principal.imagem : imagens[0].imagem;
 }
 
 function getStatusClass(status: string) {
-  switch (status) {
-    case 'A_VENDA':
-    case 'PARA_ALUGAR':
-      return 'status-ativo';
-    case 'VENDIDO':
-    case 'ALUGADO':
-      return 'status-concluido';
-    case 'EM_CONSTRUCAO':
-      return 'status-pendente';
-    case 'DESATIVADO':
-      return 'status-inativo';
-    default:
-      return '';
+    switch (status) {
+        case 'A_VENDA':
+        case 'PARA_ALUGAR':
+            return 'status-ativo';
+        case 'VENDIDO':
+        case 'ALUGADO':
+            return 'status-concluido';
+        case 'EM_CONSTRUCAO':
+            return 'status-pendente';
+        case 'DESATIVADO':
+            return 'status-inativo';
+        default:
+            return '';
+    }
+}
+
+const filteredImoveis = computed(() => {
+  return imoveis.value.filter(imovel => {
+    const matchesSearch = searchQuery.value
+      ? (imovel.codigo_referencia?.toLowerCase().includes(searchQuery.value.toLowerCase()) ||
+         imovel.titulo_anuncio?.toLowerCase().includes(searchQuery.value.toLowerCase()) ||
+         imovel.cidade?.toLowerCase().includes(searchQuery.value.toLowerCase()))
+      : true;
+    
+    const matchesFilters = 
+      (filters.value.tipo === '' || imovel.tipo === filters.value.tipo) &&
+      (filters.value.finalidade === '' || imovel.finalidade === filters.value.finalidade) &&
+      (filters.value.status === '' || imovel.status === filters.value.status);
+      
+    return matchesSearch && matchesFilters;
+  });
+});
+
+function goToCreateImovel() {
+  router.push({ name: 'imovel-novo' });
+}
+
+function editImovel(id: number) {
+  router.push({ name: 'imovel-editar', params: { id } });
+}
+
+function confirmInativar(id: number) {
+  if (confirm('Tem certeza que deseja inativar este imóvel? Ele continuará existindo, mas não estará disponível para venda/aluguel.')) {
+    inativarImovel(id);
   }
 }
 
-function formatStatus(status: string) {
-    return status.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
-}
-
-async function handleInativar(imovelId: number) {
-  if (!window.confirm('Tem a certeza de que deseja inativar este imóvel? Ele não aparecerá mais nas listas.')) {
-    return;
-  }
+async function inativarImovel(id: number) {
   try {
-    // A CORREÇÃO TAMBÉM ESTÁ AQUI: URL corrigida
-    await apiClient.delete(`/v1/imoveis/${imovelId}/`);
-    imoveis.value = imoveis.value.filter(imovel => imovel.id !== imovelId);
+    // Altera a chamada para uma requisição PATCH
+    await apiClient.patch(`/v1/imoveis/${id}/`, { status: 'DESATIVADO' });
+    
+    // Atualiza a lista localmente para refletir a mudança de status
+    const index = imoveis.value.findIndex(imovel => imovel.id === id);
+    if (index !== -1) {
+      imoveis.value[index].status = 'DESATIVADO';
+    }
+
+    alert('Imóvel inativado com sucesso!');
   } catch (error) {
     console.error("Erro ao inativar imóvel:", error);
-    alert("Ocorreu um erro ao tentar inativar o imóvel.");
+    alert('Ocorreu um erro ao inativar o imóvel.');
   }
 }
 
@@ -150,157 +208,232 @@ onMounted(() => {
   fetchImoveis();
 });
 
-// Watchers para monitorar as mudanças nos filtros e chamar a API
-watch(filterStatus, () => {
-    fetchImoveis();
-});
+watch([filters.value, searchQuery], () => {
+    if (debounceTimeout) {
+        clearTimeout(debounceTimeout);
+    }
+    debounceTimeout = setTimeout(() => {
+        fetchImoveis();
+    }, 500);
+}, { deep: true });
 
-watch(searchTerm, () => {
-  if (debounceTimeout) {
-    clearTimeout(debounceTimeout);
-  }
-  debounceTimeout = setTimeout(() => {
-    fetchImoveis();
-  }, 500); // Espera 500ms para o usuário parar de digitar
-});
 </script>
 
 <style scoped>
 .imoveis-container {
   padding: 2rem;
+  background-color: #f4f7f9;
+  min-height: calc(100vh - 80px);
 }
+
 .view-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  padding-bottom: 1.5rem;
+  border-bottom: 1px solid #e0e0e0;
   margin-bottom: 1.5rem;
 }
+
+.view-header h1 {
+  font-size: 1.8rem;
+  font-weight: 600;
+  color: #333;
+  margin: 0;
+}
+
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
 .btn-primary {
   background-color: #007bff;
   color: white;
-  padding: 10px 15px;
-  border-radius: 5px;
-  text-decoration: none;
-  font-weight: bold;
+  padding: 10px 20px;
   border: none;
+  border-radius: 5px;
   cursor: pointer;
+  transition: background-color 0.3s ease;
 }
-.filters-bar {
+
+.btn-primary i {
+  margin-right: 8px;
+}
+
+.btn-primary:hover {
+  background-color: #0056b3;
+}
+
+.search-and-filter-bar {
   display: flex;
+  flex-wrap: wrap;
   gap: 1rem;
-  margin-bottom: 1.5rem;
+  margin-bottom: 2rem;
+  background-color: #ffffff;
+  padding: 1.5rem;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+  align-items: center;
 }
-.filters-bar input,
-.filters-bar select {
-  flex: 1;
+
+.search-input {
   padding: 10px;
-  font-size: 1rem;
   border: 1px solid #ccc;
-  border-radius: 4px;
+  border-radius: 5px;
+  width: 100%;
+  max-width: 350px;
   box-sizing: border-box;
 }
-.imoveis-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-  gap: 1.5rem;
-}
-.imovel-card {
-  background-color: white;
-  border-radius: 8px;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.08);
-  overflow: hidden;
-  transition: transform 0.2s, box-shadow 0.2s;
-  display: flex;
-  flex-direction: column;
-}
-.imovel-card:hover {
-  transform: translateY(-5px);
-  box-shadow: 0 6px 16px rgba(0,0,0,0.12);
-}
-.imovel-image {
-  width: 100%;
-  height: 200px; /* Altura fixa para consistência */
-  object-fit: cover;
-}
-.imovel-info {
-  padding: 1.25rem;
-  display: flex;
-  flex-direction: column;
-  flex-grow: 1;
-}
-.imovel-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  gap: 0.5rem;
-  margin-bottom: 0.5rem;
-}
-.imovel-title {
-  font-size: 1.1rem;
-  font-weight: 600;
-  margin: 0;
-  color: #343a40;
-}
-.imovel-details {
-  font-size: 0.9rem;
-  color: #6c757d;
-  margin: 0 0 1rem 0;
-}
-.status-badge {
-  padding: 4px 8px;
-  border-radius: 12px;
-  font-size: 0.75rem;
-  font-weight: bold;
-  color: white;
-  white-space: nowrap;
-}
-.status-ativo { background-color: #28a745; }
-.status-concluido { background-color: #007bff; }
-.status-pendente { background-color: #ffc107; color: #333; }
-.status-inativo { background-color: #6c757d; }
 
-.imovel-actions {
-  margin-top: auto;
-  padding-top: 1rem;
-  border-top: 1px solid #e9ecef;
-  display: flex;
-  justify-content: space-between;
-  gap: 0.5rem;
-}
-.btn-action {
+.filter-group {
   display: flex;
   align-items: center;
   gap: 0.5rem;
+}
+
+.filter-group label {
+  font-weight: bold;
+  color: #555;
+  white-space: nowrap;
+}
+
+.filter-group select {
   padding: 8px 12px;
-  border-radius: 4px;
-  text-decoration: none;
+  border: 1px solid #ccc;
+  border-radius: 5px;
+  font-size: 1rem;
+  background-color: #f8f9fa;
+  min-width: 120px;
+}
+
+.imoveis-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+  gap: 1.5rem;
+}
+
+.imovel-card {
+  background-color: #ffffff;
+  border-radius: 8px;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.imovel-card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
+}
+
+.card-image-container {
+  position: relative;
+  width: 100%;
+  height: 180px;
+  overflow: hidden;
+  cursor: pointer;
+}
+
+.imovel-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.status-badge {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  padding: 4px 8px;
+  border-radius: 16px;
+  color: white;
+  font-weight: bold;
+  font-size: 0.75em;
+}
+
+.status-badge.status-ativo { background-color: #28a745; }
+.status-badge.status-concluido { background-color: #007bff; }
+.status-badge.status-pendente { background-color: #ffc107; color: #333; }
+.status-badge.status-inativo { background-color: #6c757d; }
+
+.card-content {
+  padding: 1rem;
+  flex-grow: 1;
+}
+
+.card-header-content {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.4rem;
+}
+
+.card-title {
+  font-size: 1.1rem;
+  margin: 0;
+  color: #333;
+}
+
+.card-codigo {
   font-size: 0.85rem;
   font-weight: 600;
-  transition: background-color 0.2s, color 0.2s;
-  border: 1px solid #e9ecef;
   color: #6c757d;
-  background-color: #f8f9fa;
 }
-.btn-action i {
-    font-size: 1rem;
+
+.card-details p {
+  margin: 0.3rem 0;
+  font-size: 0.85rem;
+  color: #666;
 }
-.btn-action:hover {
-  background-color: #e9ecef;
+
+.card-details strong {
+  color: #333;
 }
-.btn-action.danger {
-  color: #dc3545;
-  border-color: #dc3545;
+
+.card-actions {
+  display: flex;
+  justify-content: space-around;
+  padding: 0.8rem;
+  border-top: 1px solid #f0f0f0;
+  gap: 0.8rem;
 }
-.btn-action.danger:hover {
+
+.btn-edit, .btn-delete {
+  flex-grow: 1;
+  padding: 8px;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-weight: bold;
+  transition: background-color 0.3s ease;
+  font-size: 0.9rem;
+}
+
+.btn-edit {
+  background-color: #17a2b8;
+  color: white;
+}
+
+.btn-edit:hover {
+  background-color: #138496;
+}
+
+.btn-delete {
   background-color: #dc3545;
   color: white;
 }
-.loading-message, .no-data-message, .error-message {
+
+.btn-delete:hover {
+  background-color: #c82333;
+}
+
+.loading-message, .empty-message {
   text-align: center;
   padding: 2rem;
+  font-size: 1.2rem;
   color: #6c757d;
-}
-.error-message {
-  color: red;
 }
 </style>

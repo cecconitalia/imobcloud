@@ -121,11 +121,11 @@ class GoogleCalendarAuthCallbackView(APIView):
 # ====================================================================
 
 class ClienteViewSet(viewsets.ModelViewSet):
-    queryset = Cliente.objects.all()
+    queryset = Cliente.objects.all().order_by('-data_cadastro')
     serializer_class = ClienteSerializer
     permission_classes = [permissions.IsAuthenticated]
     filter_backends = [filters.SearchFilter]
-    search_fields = ['nome_completo', 'cpf_cnpj', 'email']
+    search_fields = ['nome_completo', 'cpf_cnpj', 'email', 'logradouro']
 
     def get_queryset(self):
         base_queryset = Cliente.objects.filter(ativo=True)
@@ -218,20 +218,20 @@ class AtividadeViewSet(viewsets.ModelViewSet):
     serializer_class = AtividadeSerializer
     permission_classes = [permissions.IsAuthenticated]
     
-    # Fornecemos um queryset base para ajudar o router a construir as rotas corretamente, incluindo o POST.
     queryset = Atividade.objects.all()
 
     def get_queryset(self):
-        # Filtramos o queryset base pela imobiliária do tenant.
-        # A filtragem por cliente será feita no método 'list'.
-        tenant = Imobiliaria.objects.get(subdominio=self.request.tenant.subdominio)
-        return self.queryset.filter(cliente__imobiliaria=tenant)
+        queryset = super().get_queryset()
+        queryset = queryset.order_by('-data_criacao')
+        
+        if self.request.tenant:
+            queryset = queryset.filter(cliente__imobiliaria=self.request.tenant)
+
+        return queryset
 
     def list(self, request, *args, **kwargs):
-        # Sobrescrevemos o método GET (list) para implementar a lógica de filtragem.
         cliente_id = request.query_params.get('cliente_id')
         if not cliente_id:
-            # Se nenhum cliente for especificado, retornamos uma lista vazia para evitar expor dados.
             return Response([])
             
         queryset = self.get_queryset().filter(cliente_id=cliente_id)
@@ -239,15 +239,14 @@ class AtividadeViewSet(viewsets.ModelViewSet):
         return Response(serializer.data)
 
     def perform_create(self, serializer):
-        # Esta função agora é chamada corretamente.
-        # O 'cliente' já vem nos dados validados do frontend.
-        # Adicionamos apenas o utilizador que está a registar a nota.
         serializer.save(registrado_por=self.request.user)
-# --- FIM DA CORREÇÃO ---
 
+# ====================================================================
+# VIEWS DE OPORTUNIDADE E OUTRAS
+# ====================================================================
 
 class OportunidadeViewSet(viewsets.ModelViewSet):
-    queryset = Oportunidade.objects.all().select_related('cliente', 'imovel', 'responsavel__user')
+    queryset = Oportunidade.objects.all().select_related('cliente', 'imovel', 'responsavel')
     serializer_class = OportunidadeSerializer
     permission_classes = [permissions.IsAuthenticated]
 
@@ -270,7 +269,7 @@ class OportunidadeViewSet(viewsets.ModelViewSet):
         if not self.request.tenant:
             raise PermissionDenied("Apenas utilizadores associados a uma imobiliária podem criar oportunidades.")
         
-        if not hasattr(self.request.user, 'perfil'):
+        if not self.request.user.is_superuser and not hasattr(self.request.user, 'perfil'):
             raise PermissionDenied("O seu utilizador não tem um perfil de corretor associado.")
             
         serializer.save(imobiliaria=self.request.tenant, responsavel=self.request.user)
@@ -412,10 +411,8 @@ class MinhasTarefasView(viewsets.ReadOnlyModelViewSet):
             start_date = parse_date(start_date_str)
             end_date = parse_date(end_date_str)
             if start_date and end_date:
-                # CORREÇÃO: Usar 'data_vencimento' em vez de 'data_conclusao'
                 queryset = queryset.filter(data_vencimento__date__gte=start_date, data_vencimento__date__lte=end_date)
         
-        # CORREÇÃO: Usar 'data_vencimento' em vez de 'data_conclusao'
         return queryset.order_by('data_vencimento')
 
 class RelatoriosView(viewsets.ViewSet):
