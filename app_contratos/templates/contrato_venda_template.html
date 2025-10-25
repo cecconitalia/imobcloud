@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Instrumento Particular de Promessa de Compra e Venda de Imóvel</title>
+    <meta charset="UTF-8">
+    <style>
+        body { font-family: 'Times New Roman', serif; line-height: 1.8; font-size: 14px; margin: 2cm; }
+        h1, h2, h3 { text-align: center; margin-bottom: 20px; }
+        h1 { font-size: 20px; }
+        h2 { font-size: 16px; }
+        h3 { font-size: 14px; }
+        p { text-align: justify; text-indent: 30px; }
+        .parte { text-align: left; margin-bottom: 15px; }
+        .clausula { margin-bottom: 25px; }
+        .assinaturas { margin-top: 60px; text-align: center; }
+        .assinatura-line { border-top: 1px solid black; width: 70%; margin: 0 auto; padding-top: 5px; }
+        .data-local { text-align: center; margin-top: 40px; }
+    </style>
+</head>
+<body>
+    {% load custom_filters %}
+
+    <h1>INSTRUMENTO PARTICULAR DE PROMESSA DE COMPRA E VENDA DE IMÓVEL</h1>
+
+    <div class="parte">
+        <p>
+            **IDENTIFICAÇÃO DAS PARTES**
+        </p>
+        <p>
+            **VENDEDOR(A):** {{ proprietario.nome_completo }}, {{ proprietario.estado_civil|default:"(Estado Civil não informado)" }},
+            {{ proprietario.profissao|default:"(Profissão não informada)" }}, portador(a) do RG nº {{ proprietario.rg|default:"(Não informado)" }} e
+            inscrito(a) no CPF sob o nº {{ proprietario.cpf_cnpj|default:"(Não informado)" }}, residente e domiciliado(a)
+            em {{ proprietario.logradouro }}, {{ proprietario.numero|default:"s/n" }}, {{ proprietario.complemento|default:"(Complemento não informado)" }},
+            bairro {{ proprietario.bairro }}, {{ proprietario.cidade }}-{{ proprietario.estado }}.
+        </p>
+        <p>
+            **COMPRADOR(A):** {{ inquilino.nome_completo }}, {{ inquilino.estado_civil|default:"(Estado Civil não informado)" }},
+            {{ inquilino.profissao|default:"(Profissão não informada)" }}, portador(a) do RG nº {{ inquilino.rg|default:"(Não informado)" }} e
+            inscrito(a) no CPF sob o nº {{ inquilino.cpf_cnpj|default:"(Não informado)" }}, residente e domiciliado(a)
+            em {{ inquilino.logradouro }}, {{ inquilino.numero|default:"s/n" }}, {{ inquilino.complemento|default:"(Complemento não informado)" }},
+            bairro {{ inquilino.bairro }}, {{ inquilino.cidade }}-{{ inquilino.estado }}.
+        </p>
+    </div>
+
+    <div class="clausula">
+        <h2>CLÁUSULA PRIMEIRA - DO OBJETO</h2>
+        <p>O presente contrato tem como objeto a promessa de compra e venda do imóvel de propriedade do(a) VENDEDOR(A),
+        localizado na {{ imovel.logradouro }}, nº {{ imovel.numero|default:"s/n" }}, {{ imovel.complemento|default:"" }}, bairro {{ imovel.bairro }},
+        {{ imovel.cidade }}-{{ imovel.estado }}, CEP {{ imovel.cep|default:"N/A" }}, com matrícula nº {{ imovel.numero_matricula|default:"(Não informada)" }}.
+        O imóvel possui área total de {{ imovel.area_total|default:"N/A" }} m².</p>
+    </div>
+    <div class="clausula">
+        <h2>CLÁUSULA SEGUNDA - DO PREÇO E DAS CONDIÇÕES DE PAGAMENTO</h2>
+        <p>O preço certo e ajustado para a presente promessa de compra e venda é de **R$ {{ contrato.valor_total|floatformat:2 }}**
+        ({{ contrato.valor_total|num2words:"pt_BR"|capfirst }}), a ser pago na forma e condições seguintes: {{ contrato.informacoes_adicionais|default:"(Não especificadas)." }}</p>
+    </div>
+    <div class="clausula">
+        <h2>CLÁUSULA TERCEIRA - DA POSSE</h2>
+        <p>A posse do imóvel será transferida ao(à) COMPRADOR(A) na data da quitação integral do preço e assinatura da escritura definitiva de compra e venda.</p>
+    </div>
+    <div class="clausula">
+        <h2>CLÁUSULA QUARTA - DAS RESPONSABILIDADES</h2>
+        <p>O(A) VENDEDOR(A) se responsabiliza por débitos de IPTU, condomínio e outras taxas incidentes sobre o imóvel até a data da entrega das chaves.</p>
+    </div>
+    
+    <div class="clausula">
+        <h2>CLÁUSULA QUINTA - DA RESCISÃO</h2>
+        <p>O presente contrato será rescindido de pleno direito na hipótese de inadimplemento de qualquer das partes.
+        A parte que der causa à rescisão arcará com multa contratual de 10% sobre o valor total do contrato, sem prejuízo de perdas e danos.</p>
+    </div>
+    <p>E, por estarem justos e contratados, assinam o presente em 2 (duas) vias de igual teor e forma, na presença das testemunhas abaixo.</p>
+
+    <div class="data-local">
+        {{ imobiliaria.cidade|default:"(Localidade não informada)" }}, {{ data_hoje|date:"d" }} de {{ data_hoje|date:"F" }} de {{ data_hoje|date:"Y" }}.
+    </div>
+
+    <div class="assinaturas">
+        <p class="assinatura-line">VENDEDOR(A)</p>
+        <p>Nome: {{ proprietario.nome_completo }}</p>
+        <p>CPF: {{ proprietario.cpf_cnpj }}</p>
+        <br>
+        <p class="assinatura-line">COMPRADOR(A)</p>
+        <p>Nome: {{ inquilino.nome_completo }}</p>
+        <p>CPF: {{ inquilino.cpf_cnpj }}</p>
+    </div>
+</body>
+</html>

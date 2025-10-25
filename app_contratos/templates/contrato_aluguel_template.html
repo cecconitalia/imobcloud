@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Contrato de Locação Residencial</title>
+    <meta charset="UTF-8">
+    <style>
+        body { font-family: 'Times New Roman', serif; line-height: 1.8; font-size: 14px; margin: 2cm; }
+        h1, h2, h3 { text-align: center; margin-bottom: 20px; }
+        h1 { font-size: 20px; }
+        h2 { font-size: 16px; }
+        h3 { font-size: 14px; }
+        p { text-align: justify; text-indent: 30px; }
+        .parte { text-align: left; margin-bottom: 15px; }
+        .clausula { margin-bottom: 25px; }
+        .assinaturas { margin-top: 60px; text-align: center; }
+        .assinatura-line { border-top: 1px solid black; width: 70%; margin: 0 auto; padding-top: 5px; }
+        .data-local { text-align: center; margin-top: 40px; }
+    </style>
+</head>
+<body>
+    {% load custom_filters %}
+    
+    <h1>CONTRATO DE LOCAÇÃO RESIDENCIAL</h1>
+    
+    <div class="parte">
+        <p>
+            **IDENTIFICAÇÃO DAS PARTES**
+        </p>
+        <p>
+            **LOCADOR(A):** {{ proprietario.nome_completo }}, {{ proprietario.estado_civil|default:"(Estado Civil não informado)" }},
+            {{ proprietario.profissao|default:"(Profissão não informada)" }}, portador(a) do RG nº {{ proprietario.rg|default:"(Não informado)" }} e
+            inscrito(a) no CPF sob o nº {{ proprietario.cpf_cnpj|default:"(Não informado)" }}, residente e domiciliado(a)
+            em {{ proprietario.logradouro }}, {{ proprietario.numero|default:"s/n" }}, {{ proprietario.complemento|default:"(Complemento não informado)" }},
+            bairro {{ proprietario.bairro }}, {{ proprietario.cidade }}-{{ proprietario.estado }}.
+        </p>
+        <p>
+            **LOCATÁRIO(A):** {{ inquilino.nome_completo }}, {{ inquilino.estado_civil|default:"(Estado Civil não informado)" }},
+            {{ inquilino.profissao|default:"(Profissão não informada)" }}, portador(a) do RG nº {{ inquilino.rg|default:"(Não informado)" }} e
+            inscrito(a) no CPF sob o nº {{ inquilino.cpf_cnpj|default:"(Não informado)" }}, residente e domiciliado(a)
+            em {{ inquilino.logradouro }}, {{ inquilino.numero|default:"s/n" }}, {{ inquilino.complemento|default:"(Complemento não informado)" }},
+            bairro {{ inquilino.bairro }}, {{ inquilino.cidade }}-{{ inquilino.estado }}.
+        </p>
+    </div>
+
+    <div class="clausula">
+        <h2>CLÁUSULA PRIMEIRA - DO OBJETO E DESTINAÇÃO</h2>
+        <p>O objeto deste contrato é a locação do imóvel residencial localizado em {{ imovel.logradouro }},
+        nº {{ imovel.numero|default:"s/n" }}, {{ imovel.complemento|default:"" }}, bairro {{ imovel.bairro }},
+        {{ imovel.cidade }}-{{ imovel.estado }}, CEP {{ imovel.cep|default:"N/A" }}. A destinação do imóvel é
+        exclusivamente para fins residenciais do(a) LOCATÁRIO(A) e sua família.</p>
+    </div>
+    <div class="clausula">
+        <h2>CLÁUSULA SEGUNDA - DO PRAZO</h2>
+        <p>O prazo de locação é de **{{ contrato.duracao_meses }}** meses, com início em
+        **{{ contrato.data_inicio|date:"d/m/Y" }}** e término em **{{ contrato.data_fim|date:"d/m/Y" }}**.</p>
+    </div>
+    <div class="clausula">
+        <h2>CLÁUSULA TERCEIRA - DO VALOR DO ALUGUEL E PAGAMENTO</h2>
+        <p>O aluguel mensal é de **R$ {{ contrato.valor_total|floatformat:2 }}** ({{ contrato.valor_total|num2words:"pt_BR"|capfirst }}),
+        devendo ser pago até o 5º dia útil de cada mês na forma: {{ contrato.informacoes_adicionais|default:"(Não especificadas)." }}</p>
+    </div>
+    <div class="clausula">
+        <h2>CLÁUSULA QUARTA - DAS RESPONSABILIDADES</h2>
+        <p>São de responsabilidade do(a) LOCATÁRIO(A) o pagamento de todas as despesas de água, luz, gás, IPTU,
+        taxas de condomínio e qualquer outra despesa que venha a incidir sobre o imóvel durante a vigência do contrato.</p>
+    </div>
+    
+    <div class="clausula">
+        <h2>CLÁUSULA QUINTA - DA RESCISÃO</h2>
+        <p>A rescisão antecipada do contrato por qualquer das partes implicará na aplicação de multa de 3 (três)
+        vezes o valor do aluguel vigente, proporcionalmente ao período restante de contrato.</p>
+    </div>
+    <p>E, por estarem justos e contratados, assinam o presente em 2 (duas) vias de igual teor e forma, na presença das testemunhas abaixo.</p>
+
+    <div class="data-local">
+        {{ imobiliaria.cidade|default:"(Localidade não informada)" }}, {{ data_hoje|date:"d" }} de {{ data_hoje|date:"F" }} de {{ data_hoje|date:"Y" }}.
+    </div>
+
+    <div class="assinaturas">
+        <p class="assinatura-line">LOCADOR(A)</p>
+        <p>Nome: {{ proprietario.nome_completo }}</p>
+        <p>CPF: {{ proprietario.cpf_cnpj }}</p>
+        <br>
+        <p class="assinatura-line">LOCATÁRIO(A)</p>
+        <p>Nome: {{ inquilino.nome_completo }}</p>
+        <p>CPF: {{ inquilino.cpf_cnpj }}</p>
+    </div>
+</body>
+</html>

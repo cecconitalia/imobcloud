@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <title>Autorização de Intermediação Imobiliária</title>
+    <style>
+        @page { size: A4; margin: 2.5cm; }
+        body { font-family: 'Times New Roman', Times, serif; font-size: 12pt; line-height: 1.5; }
+        h1 { text-align: center; font-size: 14pt; margin-bottom: 40px; text-transform: uppercase; }
+        p { text-align: justify; margin-bottom: 20px; }
+        .clausula { margin-bottom: 20px; }
+        .clausula strong { display: block; margin-bottom: 5px; }
+        .assinaturas { margin-top: 80px; }
+        .assinatura { display: inline-block; width: 45%; text-align: center; }
+        .assinatura p { margin: 0; }
+        .linha-assinatura { border-bottom: 1px solid #000; margin-top: 60px; }
+        table { width: 100%; border-collapse: collapse; margin: 20px 0; }
+        th, td { border: 1px solid #ccc; padding: 8px; text-align: left; }
+        th { background-color: #f2f2f2; }
+    </style>
+</head>
+<body>
+    <h1>Contrato de Autorização para Intermediação de {{ finalidade_texto|capfirst }} de Imóvel</h1>
+
+    <p>
+        <strong>CONTRATANTE (PROPRIETÁRIO):</strong> {{ proprietario.nome_completo|upper }}, CPF/CNPJ nº {{ proprietario.cpf_cnpj }}, residente e domiciliado em {{ proprietario_endereco }}.
+    </p>
+    <p>
+        <strong>CONTRATADA (IMOBILIÁRIA):</strong> {{ imobiliaria.nome|upper }}, com sede em [Endereço da Imobiliária], inscrita no CNPJ sob o nº [CNPJ da Imobiliária] e CRECI nº [CRECI da Imobiliária].
+    </p>
+
+    <p>
+        Pelo presente instrumento, o CONTRATANTE autoriza a CONTRATADA a promover a intermediação da {{ finalidade_texto }} do imóvel de sua propriedade, descrito abaixo:
+    </p>
+
+    <table>
+        <tr>
+            <th colspan="2">DETALHES DO IMÓVEL</th>
+        </tr>
+        <tr>
+            <td><strong>Código de Referência:</strong></td>
+            <td>{{ imovel.codigo_referencia }}</td>
+        </tr>
+        <tr>
+            <td><strong>Endereço:</strong></td>
+            <td>{{ imovel.endereco }}, {{ imovel.bairro }}, {{ imovel.cidade }} - {{ imovel.estado }}</td>
+        </tr>
+        <tr>
+            <td><strong>Tipo de Imóvel:</strong></td>
+            <td>{{ imovel.get_tipo_display }}</td>
+        </tr>
+        <tr>
+            <td><strong>Matrícula do Imóvel:</strong></td>
+            <td>{{ imovel.numero_matricula|default:"Não informado" }}</td>
+        </tr>
+    </table>
+
+    <div class="clausula">
+        <strong>CLÁUSULA PRIMEIRA - DO OBJETO</strong>
+        <p>
+            A CONTRATADA compromete-se a envidar seus melhores esforços na promoção e divulgação do imóvel supracitado, visando a sua {{ finalidade_texto }}, conforme as condições de preço e pagamento estabelecidas pelo CONTRATANTE.
+        </p>
+    </div>
+
+    <div class="clausula">
+        <strong>CLÁUSULA SEGUNDA - DO PREÇO E CONDIÇÕES</strong>
+        <p>
+            O valor estipulado para a {{ finalidade_texto }} do imóvel é de <strong>R$ {{ valor|floatformat:2 }}</strong> ({{ valor_por_extenso }}). Quaisquer alterações neste valor deverão ser comunicadas por escrito à CONTRATADA.
+        </p>
+    </div>
+
+    <div class="clausula">
+        <strong>CLÁUSULA TERCEIRA - DO PRAZO E DA EXCLUSIVIDADE</strong>
+        <p>
+            A presente autorização é válida a partir de {{ imovel.data_captacao|date:"d/m/Y" }} até {{ imovel.data_fim_autorizacao|date:"d/m/Y" }}.
+            {% if imovel.possui_exclusividade %}
+            Durante este período, a CONTRATADA atuará com <strong>EXCLUSIVIDADE</strong> na intermediação do negócio, ficando o CONTRATANTE impedido de tratar diretamente ou por intermédio de outrem a negociação do imóvel.
+            {% else %}
+            Esta autorização é concedida em caráter <strong>NÃO EXCLUSIVO</strong>, podendo o CONTRATANTE negociar o imóvel diretamente ou por meio de outros intermediários.
+            {% endif %}
+        </p>
+    </div>
+
+    <div class="clausula">
+        <strong>CLÁUSULA QUARTA - DA REMUNERAÇÃO</strong>
+        <p>
+            Em caso de concretização do negócio durante o prazo de vigência desta autorização, mesmo que a negociação tenha sido iniciada pela CONTRATADA e concluída posteriormente pelo CONTRATANTE, será devida à CONTRATADA a comissão de <strong>{{ imovel.comissao_percentual }}%</strong> ({{ comissao_por_extenso }}) sobre o valor total da transação, a ser paga no ato do recebimento do sinal ou da assinatura do contrato definitivo.
+        </p>
+    </div>
+    
+    {% if imovel.informacoes_adicionais_autorizacao %}
+    <div class="clausula">
+        <strong>CLÁUSULA QUINTA - DISPOSIÇÕES ADICIONAIS</strong>
+        <p>
+            {{ imovel.informacoes_adicionais_autorizacao|linebreaksbr }}
+        </p>
+    </div>
+    {% endif %}
+
+    <p>
+        E por estarem justos e contratados, assinam o presente instrumento em 2 (duas) vias de igual teor e forma.
+    </p>
+
+    <p style="text-align: center;">
+        {{ imovel.cidade }}, {{ data_hoje|date:"d" }} de {{ mes_hoje }} de {{ data_hoje|date:"Y" }}.
+    </p>
+
+    <div class="assinaturas">
+        <div class="assinatura">
+            <div class="linha-assinatura"></div>
+            <p><strong>{{ imobiliaria.nome|upper }}</strong></p>
+            <p>(Contratada)</p>
+        </div>
+        <div class="assinatura">
+            <div class="linha-assinatura"></div>
+            <p><strong>{{ proprietario.nome_completo|upper }}</strong></p>
+            <p>(Contratante)</p>
+        </div>
+    </div>
+</body>
+</html>
