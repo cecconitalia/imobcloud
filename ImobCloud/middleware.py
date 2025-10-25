@@ -57,6 +57,10 @@ class TenantIdentificationMiddleware(MiddlewareMixin):
                         request._cached_user = user_from_token 
                         request.user = user_from_token 
                         
+                        # *** CORREÇÃO ***
+                        # Esta flag é essencial para pular a lógica de fallback anônima
+                        identified_by_user_or_jwt = True 
+                        
                         if user_from_token.is_superuser:
                             request.tenant = None 
                             print(f"DEBUG MW JWT: Superuser identificado por JWT. Tenant set to None.")
@@ -108,8 +112,12 @@ class TenantIdentificationMiddleware(MiddlewareMixin):
                     correct_url = f"http://{user_identified_tenant.subdominio}.localhost:5173{request.path}"
                     return redirect(correct_url)
             
-            # Se o usuário está logado e o subdomínio corresponde ou não há subdomínio,
-            # OU se é superusuário, o middleware termina aqui.
+        # Se o usuário está logado e o subdomínio corresponde ou não há subdomínio,
+        # OU se é superusuário, o middleware termina aqui.
+        
+        # Este bloco 'return' agora será alcançado corretamente por usuários JWT
+        # porque 'identified_by_user_or_jwt' estará True.
+        if identified_by_user_or_jwt:
             print(f"DEBUG MW Final Check: Tenant identified or Superuser. Tenant: {request.tenant.nome if request.tenant else 'None'}. Exiting early from middleware.")
             return # Sai aqui para usuários logados que acessam o subdomínio correto ou sem subdomínio
 
@@ -142,7 +150,7 @@ class TenantIdentificationMiddleware(MiddlewareMixin):
              subdomain_param = request.GET.get('subdomain', None)
              if subdomain_param:
                  try:
-                     # AQUI ESTÁ A CORREÇÃO: "subdomino" foi alterado para "subdominio"
+                     # AQUI ESTÁ A CORREÇÃO que você já havia feito: "subdomino" foi alterado para "subdominio"
                      tenant_by_param = Imobiliaria.objects.get(subdominio=subdomain_param)
                      request.tenant = tenant_by_param
                      print(f"DEBUG MW Fallback: Tenant identified by query param 'subdomain' for public views: {request.tenant.nome}")
