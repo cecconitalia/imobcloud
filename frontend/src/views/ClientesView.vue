@@ -90,7 +90,7 @@
           <i v-else class="fas fa-user-circle profile-icon"></i>
         </div>
         <div class="cliente-info">
-          <h3 class="cliente-nome">{{ cliente.nome_completo || cliente.razao_social || 'Nome não disponível' }}</h3>
+          <h3 class="cliente-nome">{{ cliente.nome_exibicao || 'Nome não disponível' }}</h3>
           <p class="cliente-contato">{{ cliente.email || 'Email não informado'}}</p>
           <p class="cliente-contato">{{ cliente.telefone || 'Telefone não informado' }}</p>
           <p class="cliente-contato tipo-pessoa">({{ cliente.tipo_pessoa === 'PF' ? 'Pessoa Física' : 'Pessoa Jurídica' }})</p>
@@ -116,12 +116,13 @@ import apiClient from '@/services/api';
 
 interface Cliente {
   id: number;
-  nome_completo?: string; // PF
-  razao_social?: string; // PJ
+  nome_exibicao: string; // NOVO: Campo que resolve o nome (PF ou PJ) para exibição
+  nome?: string; // Nome PF / Nome Fantasia PJ
+  razao_social?: string; // Razão Social PJ
   tipo_pessoa: 'PF' | 'PJ';
   email?: string;
   telefone?: string;
-  documento?: string; // Assumindo que este campo existe para pesquisa
+  documento?: string;
   foto_perfil?: string;
   tipo: 'PROPRIETARIO' | 'INTERESSADO' | 'AMBOS';
   ativo: boolean;
@@ -224,11 +225,12 @@ const filteredClientes = computed(() => {
   // 1. Filtrar por termo de busca
   if (lowerSearch) {
       list = list.filter(cliente =>
-        (cliente.nome_completo?.toLowerCase().includes(lowerSearch)) ||
-        (cliente.razao_social?.toLowerCase().includes(lowerSearch)) ||
+        (cliente.nome_exibicao?.toLowerCase().includes(lowerSearch)) || // Usa nome_exibicao
+        (cliente.nome?.toLowerCase().includes(lowerSearch)) || // Fallback
+        (cliente.razao_social?.toLowerCase().includes(lowerSearch)) || // Fallback
         (cliente.email?.toLowerCase().includes(lowerSearch)) ||
         (cliente.telefone?.includes(searchTerm.value)) ||
-        (cliente.documento?.includes(searchTerm.value)) // Assumindo campo documento existe
+        (cliente.documento?.includes(searchTerm.value)) 
       );
   }
 

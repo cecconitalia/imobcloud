@@ -28,15 +28,12 @@ class VisitaSerializer(serializers.ModelSerializer):
         fields = '__all__'
 
 # --- INÍCIO DA CORREÇÃO ---
-# Adicionámos um serializer para o utilizador e atualizámos o AtividadeSerializer
-# para incluir os dados completos do utilizador que registou a atividade.
 class UsuarioSimplesSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
         fields = ['id', 'first_name', 'username']
 
 class AtividadeSerializer(serializers.ModelSerializer):
-    # Usamos o serializer acima para mostrar os detalhes do utilizador
     registrado_por_obj = UsuarioSimplesSerializer(source='registrado_por', read_only=True)
 
     class Meta:
@@ -100,11 +97,10 @@ class OportunidadeSerializer(serializers.ModelSerializer):
         cliente_instance = instance.cliente
         representation['cliente'] = {
             'id': cliente_instance.id,
-            'nome_completo': cliente_instance.nome_completo,
+            'nome_completo': getattr(cliente_instance, 'nome_completo', cliente_instance.nome),
         }
         if instance.imovel:
             imovel_instance = instance.imovel
-            # CORRIGIDO: O campo de endereço agora é 'logradouro' no modelo
             endereco_completo = f"{imovel_instance.logradouro}, {imovel_instance.bairro}, {imovel_instance.cidade} - {imovel_instance.estado}"
             representation['imovel'] = {
                 'id': imovel_instance.id,
@@ -114,26 +110,39 @@ class OportunidadeSerializer(serializers.ModelSerializer):
         return representation
 
 class ClienteSerializer(serializers.ModelSerializer):
+    # NOVO: Campo de leitura para garantir que o frontend tenha um nome para exibir
+    nome_exibicao = serializers.SerializerMethodField()
+    
     class Meta:
         model = Cliente
-        # CORRIGIDO: Lista de campos atualizada para refletir o novo models.py
         fields = [
             'id', 'tipo_pessoa', 'documento', 'nome', 'rg', 'data_nascimento', 
             'estado_civil', 'profissao', 'razao_social', 'inscricao_estadual',
             'email', 'telefone', 'cep', 'logradouro', 'numero', 'complemento',
             'bairro', 'cidade', 'estado', 'ativo', 'observacoes', 'foto_perfil',
-            'preferencias_imovel', 'imobiliaria', 'data_cadastro', 'data_atualizacao'
+            'preferencias_imovel', 'imobiliaria', 'data_cadastro', 'data_atualizacao',
+            'nome_exibicao' # Inclui o novo campo
         ]
+        
+        extra_kwargs = {
+            'imobiliaria': {'read_only': True}
+        }
+
+    def get_nome_exibicao(self, obj: Cliente):
+        """ Retorna o nome mais apropriado para exibição na lista. """
+        if obj.tipo_pessoa == 'JURIDICA' and obj.razao_social:
+            return obj.razao_social
+        return obj.nome if obj.nome else "Nome não disponível"
 
     def validate_documento(self, value):
         """Limpa e valida o documento."""
         return apenas_numeros(value)
 
+    # ... (validate method permanece inalterado)
     def validate(self, data):
         """
         Validação customizada baseada no tipo de pessoa.
         """
-        # Pega o tipo de pessoa do dado sendo validado ou da instância existente (para PATCH)
         tipo_pessoa = data.get('tipo_pessoa', getattr(self.instance, 'tipo_pessoa', None))
         documento = data.get('documento')
 
@@ -145,7 +154,6 @@ class ClienteSerializer(serializers.ModelSerializer):
             if documento and len(apenas_numeros(documento)) != 14:
                 raise serializers.ValidationError({"documento": "CNPJ inválido. Deve conter 14 dígitos."})
             
-            # Razão social é obrigatória para PJ
             razao_social = data.get('razao_social', getattr(self.instance, 'razao_social', None))
             if not razao_social:
                 raise serializers.ValidationError({"razao_social": "Razão Social é obrigatória para Pessoa Jurídica."})
