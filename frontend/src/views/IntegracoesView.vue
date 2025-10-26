@@ -1,9 +1,5 @@
 <template>
   <div class="integracoes-container">
-    <header class="view-header">
-      <h1>Integrações com Redes Sociais</h1>
-    </header>
-
     <div v-if="isLoading" class="loading-message">
       A carregar configurações...
     </div>
@@ -42,12 +38,12 @@
           {{ isSaving ? 'A guardar...' : 'Salvar Alterações' }}
         </button>
       </div>
-      
+
       <div v-if="saveStatus" :class="['save-status', { success: saveStatus.includes('sucesso') }]">
         {{ saveStatus }}
       </div>
     </form>
-    
+
     <div class="card mt-4">
         <div class="card-header d-flex justify-content-between align-items-center">
             <h3>Configurações Bancárias (Boletos)</h3>
@@ -87,7 +83,6 @@
             </div>
         </div>
     </div>
-
   </div>
 </template>
 
@@ -113,6 +108,7 @@ async function fetchIntegrations() {
   isLoading.value = true;
   error.value = null;
   try {
+    // Endpoint original
     const response = await apiClient.get('/v1/integracoes/redes-sociais/');
     credentials.value = response.data;
   } catch (err) {
@@ -126,6 +122,7 @@ async function fetchIntegrations() {
 async function fetchBancos() {
     isLoadingBancos.value = true;
     try {
+        // Endpoint original
         const response = await apiClient.get('/v1/boletos/configuracoes-banco/');
         bancos.value = response.data;
     } catch (err) {
@@ -139,6 +136,7 @@ async function saveIntegrations() {
   isSaving.value = true;
   saveStatus.value = null;
   try {
+    // Endpoint original
     const response = await apiClient.put('/v1/integracoes/redes-sociais/', credentials.value);
     saveStatus.value = response.data.success || 'Configurações guardadas.';
   } catch (err: any) {
@@ -160,15 +158,16 @@ onMounted(() => {
 .integracoes-container {
   max-width: 900px;
   margin: 0 auto;
+  padding: 0; /* CORREÇÃO APLICADA AQUI */
 }
-.view-header {
-  margin-bottom: 2rem;
-}
+/* Regras .view-header e afins removidas */
+
 .card {
   background-color: #fff;
   border-radius: 8px;
   box-shadow: 0 4px 8px rgba(0,0,0,0.05);
-  margin-bottom: 2rem;
+  margin-bottom: 1.5rem; /* Ajustado para consistência */
+  overflow: hidden;
 }
 .card-header {
   padding: 1.5rem;
@@ -210,21 +209,20 @@ onMounted(() => {
 .form-actions {
   display: flex;
   justify-content: flex-end;
+  padding: 0 1.5rem 1.5rem; /* Padding inferior para ações */
 }
 .save-status {
   margin-top: 1rem;
   padding: 1rem;
   border-radius: 4px;
   text-align: center;
-  background-color: #f8d7da;
-  color: #721c24;
 }
 .save-status.success {
   background-color: #d4edda;
   color: #155724;
 }
 
-/* Novos estilos para a seção de bancos */
+/* Bancos */
 .card-header.d-flex {
     display: flex;
     justify-content: space-between;
@@ -232,6 +230,7 @@ onMounted(() => {
 }
 .tabela-wrapper {
     overflow-x: auto;
+    padding: 0 1.5rem 1.5rem;
 }
 .table {
     width: 100%;
@@ -259,11 +258,6 @@ onMounted(() => {
 .btn-secondary {
     background-color: #6c757d;
 }
-.no-data-message, .loading-message {
-    text-align: center;
-    padding: 2rem;
-    color: #6c757d;
-}
 .file-status-ok {
     color: #28a745;
     font-weight: bold;
@@ -271,5 +265,17 @@ onMounted(() => {
 .file-status-missing {
     color: #dc3545;
     font-weight: bold;
+}
+.loading-message, .no-data-message, .error-message {
+    text-align: center;
+    padding: 2rem;
+    color: #6c757d;
+}
+.error-message {
+    color: #dc3545;
+    background-color: #f8d7da;
+}
+.no-data-message {
+    padding: 1.5rem;
 }
 </style>

@@ -1,12 +1,5 @@
 <template>
   <div class="users-container">
-    <header class="view-header">
-      <h1>Gerir Utilizadores</h1>
-      <router-link to="/corretores/novo" class="btn-primary">
-        + Adicionar Novo
-      </router-link>
-    </header>
-
     <div class="filters-bar">
       <input
         type="text"
@@ -45,14 +38,14 @@
           <td>{{ user.perfil?.telefone || 'N/A' }}</td>
           <td>{{ user.perfil?.cargo || 'N/A' }}</td>
           <td class="actions-cell">
-             <router-link :to="`/corretores/editar/${user.id}`" class="btn-secondary">
+            <router-link :to="`/corretores/editar/${user.id}`" class="btn-secondary">
               Editar
             </router-link>
           </td>
         </tr>
       </tbody>
     </table>
-    
+
     <div v-if="!isLoading && filteredUsers.length === 0 && !error" class="no-data-message">
       <p>Nenhum utilizador encontrado.</p>
     </div>
@@ -72,14 +65,14 @@ const filterCargo = ref('');
 // A lista de utilizadores é filtrada dinamicamente
 const filteredUsers = computed(() => {
   let filteredList = users.value;
-  
+
   if (filterCargo.value) {
     filteredList = filteredList.filter(user => user.perfil?.cargo === filterCargo.value);
   }
 
   if (searchTerm.value) {
     const searchLower = searchTerm.value.toLowerCase();
-    filteredList = filteredList.filter(user => 
+    filteredList = filteredList.filter(user =>
       user.first_name.toLowerCase().includes(searchLower) ||
       user.email.toLowerCase().includes(searchLower) ||
       user.perfil?.creci?.toLowerCase().includes(searchLower)
@@ -91,8 +84,9 @@ const filteredUsers = computed(() => {
 
 async function fetchUsers() {
   isLoading.value = true;
+  error.value = null; // Limpa erro antes de tentar
   try {
-    // CORREÇÃO: URL corrigida, o prefixo 'core/' foi removido
+    // Endpoint que o código original utilizava
     const response = await apiClient.get('/v1/corretores/');
     users.value = response.data;
   } catch (err) {
@@ -114,28 +108,18 @@ onMounted(() => {
 
 <style scoped>
 .users-container {
-  padding: 2rem;
+  padding: 0; /* CORREÇÃO: Removido padding: 2rem; */
 }
-.view-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 1.5rem;
-}
-.btn-primary {
-  background-color: #007bff;
-  color: white;
-  padding: 10px 15px;
-  border-radius: 5px;
-  text-decoration: none;
-  font-weight: bold;
-  border: none;
-  cursor: pointer;
-}
+/* Regras .view-header e .btn-primary removidas */
+
 .filters-bar {
   display: flex;
   gap: 1rem;
   margin-bottom: 1.5rem;
+  background-color: #fff;
+  padding: 1rem 1.5rem;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.05);
 }
 .filters-bar input,
 .filters-bar select {
@@ -149,29 +133,32 @@ onMounted(() => {
 table {
   width: 100%;
   border-collapse: collapse;
-  margin-top: 1rem;
+  background-color: #fff;
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 4px 10px rgba(0,0,0,0.05);
 }
 th, td {
-  border: 1px solid #ddd;
-  padding: 12px;
+  border-bottom: 1px solid #e9ecef;
+  padding: 1rem;
   text-align: left;
   vertical-align: middle;
+  white-space: nowrap;
 }
 th {
-  background-color: #f2f2f2;
+  background-color: #f8f9fa;
+  font-weight: 600;
+  color: #495057;
+  font-size: 0.9rem;
 }
-.loading-message, .no-data-message {
-  text-align: center;
-  padding: 2rem;
-  color: #6c757d;
-}
-.error-message {
-  color: red;
+tr:hover {
+    background-color: #f1f3f5;
 }
 .actions-cell {
-  display: flex;
-  gap: 0.5rem;
+    text-align: right; /* Alinha o botão à direita */
+    min-width: 120px; /* Garante espaço */
 }
+
 .btn-secondary {
     background-color: #6c757d;
     color: white;
@@ -181,5 +168,23 @@ th {
     font-size: 0.9em;
     border: none;
     cursor: pointer;
+    transition: background-color 0.2s;
+}
+.btn-secondary:hover {
+    background-color: #5a6268;
+}
+
+.loading-message, .error-message, .no-data-message {
+  text-align: center;
+  padding: 2rem;
+  color: #6c757d;
+  background-color: #fff;
+  border-radius: 8px;
+  margin-bottom: 1.5rem;
+}
+.error-message {
+    color: #dc3545;
+    background-color: #f8d7da;
+    border: 1px solid #f5c6cb;
 }
 </style>

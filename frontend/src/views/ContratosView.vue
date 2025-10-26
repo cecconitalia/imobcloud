@@ -1,13 +1,6 @@
 <template>
   <div class="page-container">
-    <header class="view-header">
-      <h1>Gestão de Contratos</h1>
-      <router-link to="/contratos/novo" class="btn-primary">
-        <i class="fas fa-plus"></i> Adicionar Contrato
-      </router-link>
-    </header>
-
-    <div class="filters-bar">
+    <div class="filters-bar card">
       <div class="search-wrapper">
         <i class="fas fa-search"></i>
         <input
@@ -19,101 +12,59 @@
       <div class="filter-groups">
         <select v-model="filterStatus">
           <option value="">Todos os Status</option>
-          <option value="Ativo">Ativo</option>
-          <option value="Pendente">Pendente</option>
-          <option value="Concluído">Concluído</option>
-          <option value="Rescindido">Rescindido</option>
-          <option value="Inativo">Inativo</option>
+          <option value="ATIVO">Ativo</option>
+          <option value="PENDENTE">Pendente</option>
+          <option value="CONCLUIDO">Concluído</option>
+          <option value="RESCINDIDO">Rescindido</option>
+          <option value="INATIVO">Inativo</option>
         </select>
         <select v-model="filterTipo">
           <option value="">Todos os Tipos</option>
-          <option value="Venda">Venda</option>
-          <option value="Aluguel">Aluguel</option>
+          <option value="VENDA">Venda</option>
+          <option value="ALUGUEL">Aluguel</option>
         </select>
       </div>
     </div>
 
-    <div v-if="isLoading" class="loading-message">
+    <div v-if="isLoading" class="loading-message card">
         <div class="spinner"></div>
         A carregar contratos...
     </div>
-    <div v-if="error" class="error-message">{{ error }}</div>
+    <div v-if="error" class="error-message card">{{ error }}</div>
 
-    <div v-if="!isLoading && filteredContratos.length > 0" class="content-grid">
-      <div v-for="contrato in filteredContratos" :key="contrato.id" class="data-card" @click="goToContrato(contrato.id)">
+    <div v-if="filteredContratos.length > 0 && !isLoading" class="contratos-grid">
+      <div v-for="contrato in filteredContratos" :key="contrato.id" class="contrato-card">
         <div class="card-header">
-          <div class="imovel-info">
-            <strong class="imovel-titulo">{{ contrato.imovel?.titulo_anuncio || 'Imóvel não especificado' }}</strong>
-            <span class="imovel-endereco">{{ contrato.imovel?.logradouro || 'Endereço não disponível' }}</span>
-          </div>
-          <div class="card-actions" @click.stop>
-            <button @click="visualizarContrato(contrato.id)" class="btn-action view-btn" title="Visualizar">
-              <i class="fas fa-eye"></i>
-            </button>
-            <router-link :to="`/contratos/editar/${contrato.id}`" class="btn-action edit-btn" title="Editar">
-              <i class="fas fa-edit"></i>
-            </router-link>
-            <button v-if="userCargo === 'ADMIN'" @click="handleInativar(contrato.id)" class="btn-action delete-btn" title="Inativar">
-              <i class="fas fa-trash"></i>
-            </button>
-          </div>
+           <span :class="['status-badge', getStatusClass(contrato.status)]">{{ formatStatus(contrato.status) }}</span>
+           <span class="tipo-badge">{{ contrato.tipo === 'VENDA' ? 'Venda' : 'Aluguel' }}</span>
         </div>
-
         <div class="card-body">
-          <div class="info-item">
-            <i class="fas fa-user-tie icon"></i>
-            <div>
-              <span>Proprietário</span>
-              <strong>{{ contrato.proprietario?.nome_completo || 'N/A' }}</strong>
-            </div>
-          </div>
-          <div class="info-item">
-            <i class="fas fa-user icon"></i>
-            <div>
-              <span>Inquilino / Comprador</span>
-              <strong>{{ contrato.inquilino?.nome_completo || 'N/A' }}</strong>
-            </div>
-          </div>
+            <p><strong>Imóvel:</strong> {{ contrato.imovel_detalhes?.titulo_anuncio || contrato.imovel_detalhes?.codigo_referencia || 'N/A' }}</p>
+            <p v-if="contrato.tipo === 'ALUGUEL'"><strong>Inquilino:</strong> {{ contrato.inquilino_detalhes?.nome_completo || contrato.inquilino_detalhes?.razao_social || 'N/A' }}</p>
+            <p v-if="contrato.tipo === 'VENDA'"><strong>Comprador:</strong> {{ contrato.comprador_detalhes?.nome_completo || contrato.comprador_detalhes?.razao_social || 'N/A' }}</p>
+            <p><strong>Proprietário:</strong> {{ contrato.proprietario_detalhes?.nome_completo || contrato.proprietario_detalhes?.razao_social || 'N/A' }}</p>
+            <p><strong>Data Início:</strong> {{ formatarData(contrato.data_inicio) }}</p>
+            <p><strong>Data Fim:</strong> {{ formatarData(contrato.data_fim) || 'Indeterminado' }}</p>
+            <p><strong>Valor:</strong> {{ formatarValor(contrato.valor_total || contrato.valor_mensal) }} {{ contrato.tipo === 'ALUGUEL' ? '/mês' : '' }}</p>
         </div>
-
-        <div class="card-footer">
-          <div class="footer-info">
-              <span :class="['status-badge', getTipoClass(contrato.tipo_contrato)]">
-                {{ contrato.tipo_contrato }}
-              </span>
-              <span class="date-info">
-                <i class="fas fa-calendar-alt"></i> {{ new Date(contrato.data_inicio).toLocaleDateString('pt-BR') }}
-              </span>
-          </div>
-          <span :class="['status-badge', getStatusClass(contrato.status_contrato)]">
-            {{ contrato.status_contrato }}
-          </span>
+        <div class="card-actions">
+          <button @click="verContrato(contrato.id)" class="btn-action btn-view"><i class="fas fa-eye"></i> Ver</button>
+          <button @click="editarContrato(contrato.id)" class="btn-action btn-edit"><i class="fas fa-edit"></i> Editar</button>
+           <button @click="abrirModalFinanceiro(contrato)" class="btn-action btn-financeiro"><i class="fas fa-dollar-sign"></i> Financeiro</button>
+          <button @click="excluirContrato(contrato.id)" class="btn-action btn-delete"><i class="fas fa-trash-alt"></i> Excluir</button>
         </div>
       </div>
     </div>
-    
-    <div v-if="!isLoading && filteredContratos.length === 0 && !error" class="no-data-message">
-      <i class="fas fa-file-contract icon-large"></i>
-      <p>Nenhum contrato encontrado para os filtros selecionados.</p>
+    <div v-else-if="!isLoading && !error" class="empty-state card">
+      Nenhum contrato encontrado com os filtros selecionados.
     </div>
 
-    <!-- Modal para visualização do contrato -->
-    <div v-if="showModal" class="modal-overlay">
-      <div class="modal-container">
-        <div class="modal-header">
-          <h3 class="modal-title">Visualização do Contrato</h3>
-          <button @click="showModal = false" class="modal-close-btn">&times;</button>
-        </div>
-        <div v-if="loadingModal" class="modal-loading-message">
-          <div class="spinner"></div>
-          Carregando conteúdo do contrato...
-        </div>
-        <div v-else-if="modalError" class="modal-error-message">
-          {{ modalError }}
-        </div>
-        <div v-else class="modal-body" v-html="contratoHtml"></div>
-      </div>
-    </div>
+     <ModalFinanceiroContrato
+        v-if="showModalFinanceiro && contratoSelecionado"
+        :contrato="contratoSelecionado"
+        @close="fecharModalFinanceiro"
+    />
+
   </div>
 </template>
 
@@ -121,355 +72,224 @@
 import { ref, onMounted, computed } from 'vue';
 import { useRouter } from 'vue-router';
 import apiClient from '@/services/api';
-import '@fortawesome/fontawesome-free/css/all.css';
-import { useToast } from 'vue-toast-notification';
+import { format } from 'date-fns';
+import { ptBR } from 'date-fns/locale';
+import ModalFinanceiroContrato from '@/components/ContratoFinanceiro.vue'; // Importa o modal
 
-const router = useRouter(); 
-const toast = useToast();
+// Interfaces
+interface ClienteDetalhes { id: number; nome_completo?: string; razao_social?: string; }
+interface ImovelDetalhes { id: number; codigo_referencia?: string; titulo_anuncio?: string; }
+interface Contrato {
+  id: number;
+  tipo: 'VENDA' | 'ALUGUEL';
+  imovel: number;
+  imovel_detalhes?: ImovelDetalhes;
+  proprietario: number;
+  proprietario_detalhes?: ClienteDetalhes;
+  inquilino?: number | null; // Apenas para aluguel
+  inquilino_detalhes?: ClienteDetalhes | null;
+  comprador?: number | null; // Apenas para venda
+  comprador_detalhes?: ClienteDetalhes | null;
+  data_inicio: string;
+  data_fim?: string | null;
+  valor_total?: number | null; // Venda
+  valor_mensal?: number | null; // Aluguel
+  status: 'ATIVO' | 'PENDENTE' | 'CONCLUIDO' | 'RESCINDIDO' | 'INATIVO'; // Ajuste conforme backend
+}
 
-const contratos = ref<any[]>([]);
+
+const router = useRouter();
+const contratos = ref<Contrato[]>([]);
 const isLoading = ref(true);
 const error = ref<string | null>(null);
 const searchTerm = ref('');
-const filterTipo = ref('');
 const filterStatus = ref('');
-const userCargo = ref('');
+const filterTipo = ref('');
 
-// Variáveis para a modal de visualização
-const showModal = ref(false);
-const contratoHtml = ref('');
-const loadingModal = ref(false);
-const modalError = ref('');
-
+// Estado do Modal Financeiro
+const showModalFinanceiro = ref(false);
+const contratoSelecionado = ref<Contrato | null>(null);
 
 const filteredContratos = computed(() => {
-  return contratos.value.filter(c => {
-    const term = searchTerm.value.toLowerCase();
-    const matchesSearch = !term || 
-      c.imovel?.titulo_anuncio?.toLowerCase().includes(term) ||
-      c.imovel?.logradouro?.toLowerCase().includes(term) ||
-      c.inquilino?.nome_completo?.toLowerCase().includes(term) ||
-      c.proprietario?.nome_completo?.toLowerCase().includes(term);
-    
-    const matchesTipo = !filterTipo.value || c.tipo_contrato === filterTipo.value;
-    const matchesStatus = !filterStatus.value || c.status_contrato === filterStatus.value;
-    
-    return matchesSearch && matchesTipo && matchesStatus;
+  return contratos.value.filter(contrato => {
+    const searchLower = searchTerm.value.toLowerCase();
+    const matchSearch = !searchLower ||
+      (contrato.imovel_detalhes?.titulo_anuncio?.toLowerCase() || '').includes(searchLower) ||
+      (contrato.imovel_detalhes?.codigo_referencia?.toLowerCase() || '').includes(searchLower) ||
+      (contrato.inquilino_detalhes?.nome_completo?.toLowerCase() || '').includes(searchLower) ||
+      (contrato.inquilino_detalhes?.razao_social?.toLowerCase() || '').includes(searchLower) ||
+      (contrato.comprador_detalhes?.nome_completo?.toLowerCase() || '').includes(searchLower) ||
+      (contrato.comprador_detalhes?.razao_social?.toLowerCase() || '').includes(searchLower) ||
+      (contrato.proprietario_detalhes?.nome_completo?.toLowerCase() || '').includes(searchLower) ||
+      (contrato.proprietario_detalhes?.razao_social?.toLowerCase() || '').includes(searchLower);
+
+    const matchStatus = !filterStatus.value || contrato.status === filterStatus.value;
+    const matchTipo = !filterTipo.value || contrato.tipo === filterTipo.value;
+
+    return matchSearch && matchStatus && matchTipo;
   });
 });
 
+
 async function fetchContratos() {
   isLoading.value = true;
+  error.value = null;
   try {
-    const response = await apiClient.get('/v1/contratos/');
+    const response = await apiClient.get<Contrato[]>('/v1/contratos/');
     contratos.value = response.data;
   } catch (err) {
     console.error("Erro ao buscar contratos:", err);
-    error.value = 'Não foi possível carregar os contratos.';
-    toast.error(error.value);
+    error.value = "Não foi possível carregar os contratos.";
   } finally {
     isLoading.value = false;
   }
 }
 
-onMounted(() => {
-  fetchContratos();
-  userCargo.value = localStorage.getItem('userCargo') || '';
-});
-
-async function handleInativar(contratoId: number) {
-  if (!window.confirm('Tem a certeza de que deseja inativar este contrato? Esta ação não pode ser desfeita.')) {
-    return;
-  }
+function formatarData(data: string | null | undefined): string {
+  if (!data) return '';
   try {
-    await apiClient.delete(`/v1/contratos/${contratoId}/`);
-    contratos.value = contratos.value.filter(contrato => contrato.id !== contratoId);
-    toast.success('Contrato inativado com sucesso.');
-  } catch (err) {
-    console.error("Erro ao inativar contrato:", err);
-    toast.error("Ocorreu um erro ao tentar inativar o contrato.");
+    return format(new Date(data + 'T00:00:00'), 'dd/MM/yyyy', { locale: ptBR });
+  } catch {
+    return 'Inválida';
   }
 }
 
-function goToContrato(contratoId: number) {
-  router.push({ path: `/contratos/editar/${contratoId}` });
+function formatarValor(valor: number | null | undefined): string {
+  if (valor === null || valor === undefined) return 'R$ -';
+  return valor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 }
 
-function getTipoClass(tipo: string) {
-  return tipo === 'Venda' ? 'tipo-venda' : 'tipo-aluguel';
+function formatStatus(status: string): string {
+    const map: { [key: string]: string } = {
+        'ATIVO': 'Ativo', 'PENDENTE': 'Pendente', 'CONCLUIDO': 'Concluído',
+        'RESCINDIDO': 'Rescindido', 'INATIVO': 'Inativo',
+    };
+    return map[status] || status;
 }
 
-function getStatusClass(status: string) {
-  switch (status) {
-    case 'Ativo': return 'status-ativo';
-    case 'Pendente': return 'status-pendente';
-    case 'Concluído': return 'status-concluido';
-    case 'Rescindido':
-    case 'Inativo': return 'status-inativo';
-    default: return 'status-default';
-  }
-}
-
-async function visualizarContrato(id: number) {
-  showModal.value = true;
-  loadingModal.value = true;
-  modalError.value = '';
-  try {
-    const response = await apiClient.get(`/v1/contratos/${id}/get-html/`);
-    contratoHtml.value = response.data;
-  } catch (err) {
-    modalError.value = 'Não foi possível carregar o conteúdo do contrato.';
-    toast.error(modalError.value);
-  } finally {
-    loadingModal.value = false;
-  }
-}
-</script>
-
-<style scoped>
-/* =================================== */
-/* LAYOUT PADRÃO - INÍCIO */
-/* =================================== */
-
-.page-container {
-  padding: 2rem;
-  max-width: 1800px;
-  margin: 0 auto;
-}
-
-.view-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 2rem;
-  padding-bottom: 1rem;
-  border-bottom: 1px solid #e9ecef;
-}
-
-h1 {
-  font-size: 2rem;
-}
-
-.btn-primary {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.5rem;
-  background-color: #007bff;
-  color: white;
-  padding: 12px 20px;
-  border-radius: 8px;
-  text-decoration: none;
-  font-weight: 600;
-  border: none;
-  cursor: pointer;
-  transition: all 0.2s ease-in-out;
-}
-.btn-primary:hover {
-  background-color: #0056b3;
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(0, 123, 255, 0.2);
-}
-
-.filters-bar {
-  display: flex;
-  justify-content: space-between;
-  flex-wrap: wrap;
-  gap: 1rem;
-  margin-bottom: 2rem;
-}
-.search-wrapper {
-  position: relative;
-  flex: 1 1 400px;
-}
-.search-wrapper i {
-  position: absolute;
-  top: 50%;
-  left: 15px;
-  transform: translateY(-50%);
-  color: #adb5bd;
-}
-.filters-bar input {
-  width: 100%;
-  padding: 12px 15px 12px 40px;
-  font-size: 1rem;
-  border: 1px solid #ced4da;
-  border-radius: 6px;
-  box-sizing: border-box;
-}
-.filter-groups {
-  display: flex;
-  gap: 1rem;
-  flex: 1 1 auto;
-}
-.filters-bar select {
-  width: 100%;
-  padding: 12px 15px;
-  font-size: 1rem;
-  border: 1px solid #ced4da;
-  border-radius: 6px;
-  box-sizing: border-box;
-  flex: 1;
-}
-
-/* GRID DE CONTEÚDO PADRONIZADO */
-.content-grid {
-  display: grid;
-  gap: 1.5rem;
-  /* MUDANÇA PRINCIPAL ABAIXO */
-  /* Força 4 colunas em telas extra largas */
-  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
-}
-
-@media (min-width: 1600px) {
-    .content-grid {
-        grid-template-columns: repeat(4, 1fr);
+function getStatusClass(status: string): string {
+    switch(status) {
+        case 'ATIVO': return 'status-ativo';
+        case 'PENDENTE': return 'status-pendente';
+        case 'CONCLUIDO': return 'status-concluido';
+        case 'RESCINDIDO': return 'status-rescindido';
+        case 'INATIVO': return 'status-inativo';
+        default: return '';
     }
 }
 
-/* CARD DE DADOS PADRONIZADO */
-.data-card {
-  background-color: white;
-  border-radius: 12px;
-  box-shadow: 0 4px 15px rgba(0,0,0,0.07);
-  display: flex;
-  flex-direction: column;
-  transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
-  cursor: pointer;
-}
-.data-card:hover {
-  transform: translateY(-5px);
-  box-shadow: 0 8px 25px rgba(0,0,0,0.1);
+
+// --- Funções de Ação ---
+function verContrato(id: number) {
+    // Ajuste a rota se o nome for diferente no seu router/index.ts
+    router.push({ name: 'contrato-detalhes', params: { id } });
 }
 
-.card-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  padding: 1rem;
-  border-bottom: 1px solid #e9ecef;
+function editarContrato(id: number) {
+  // Ajuste a rota se o nome for diferente no seu router/index.ts
+  router.push({ name: 'contrato-editar', params: { id } });
 }
 
-.card-body {
-  padding: 1rem;
-  flex-grow: 1;
-  display: flex;
-  flex-direction: column;
-  gap: 0.8rem;
+async function excluirContrato(id: number) {
+  if (window.confirm("Tem certeza que deseja excluir este contrato? Esta ação não pode ser desfeita.")) {
+    try {
+      await apiClient.delete(`/v1/contratos/${id}/`);
+      alert('Contrato excluído com sucesso!');
+      fetchContratos(); // Recarrega a lista
+    } catch (err) {
+      console.error("Erro ao excluir contrato:", err);
+      alert('Não foi possível excluir o contrato.');
+    }
+  }
 }
 
-.info-item {
+// Funções do Modal Financeiro
+function abrirModalFinanceiro(contrato: Contrato) {
+    contratoSelecionado.value = contrato;
+    showModalFinanceiro.value = true;
+    document.body.style.overflow = 'hidden'; // Trava scroll do fundo
+}
+
+function fecharModalFinanceiro() {
+    showModalFinanceiro.value = false;
+    contratoSelecionado.value = null;
+    document.body.style.overflow = ''; // Libera scroll do fundo
+}
+
+
+onMounted(fetchContratos);
+</script>
+
+<style scoped>
+.page-container {
+  /* padding: 2rem; */ /* Removido */
+  padding: 0; /* Adicionado */
+}
+
+/* Regras .view-header e .btn-primary removidas */
+
+.card { /* Estilo base para cards */
+    background: white;
+    padding: 1.5rem;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+    margin-bottom: 1.5rem;
+}
+.card:last-child {
+    margin-bottom: 0;
+}
+
+
+/* Filtros Melhorados */
+.filters-bar {
   display: flex;
-  align-items: center;
-  gap: 0.8rem;
+  flex-wrap: wrap; /* Permite quebrar linha */
+  /* justify-content: space-between; */ /* Removido */
+  align-items: center; /* Alinha verticalmente */
+  gap: 1rem 1.5rem; /* Espaço vertical e horizontal */
 }
-.info-item .icon {
-  font-size: 1.2rem;
-  color: #007bff;
-  width: 25px;
-  text-align: center;
+
+.search-wrapper {
+  position: relative;
+  flex: 1 1 300px; /* Cresce, encolhe, base 300px */
+  min-width: 250px;
 }
-.info-item div {
-  display: flex;
-  flex-direction: column;
+.search-wrapper i {
+  position: absolute;
+  left: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #adb5bd;
 }
-.info-item span {
-  font-size: 0.75rem;
-  color: #6c757d;
-}
-.info-item strong {
+.search-wrapper input {
+  width: 100%;
+  padding: 10px 10px 10px 35px;
+  border: 1px solid #ced4da;
+  border-radius: 6px;
   font-size: 0.9rem;
-  font-weight: 600;
-  color: #212529;
+  box-sizing: border-box; /* Garante padding correto */
 }
 
-.card-footer {
+.filter-groups {
   display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 0.8rem 1rem;
-  background-color: #f8f9fa;
-  border-top: 1px solid #e9ecef;
-  border-bottom-left-radius: 12px;
-  border-bottom-right-radius: 12px;
-}
-.footer-info {
-  display: flex;
-  align-items: center;
   gap: 1rem;
+  flex-wrap: wrap; /* Permite que selects quebrem linha */
+  flex-grow: 1; /* Tenta ocupar espaço */
 }
-.date-info {
-  display: flex;
-  align-items: center;
-  gap: 0.4rem;
-  font-size: 0.8rem;
-  color: #6c757d;
-}
-
-.card-actions {
-  display: flex;
-  gap: 0.5rem;
-}
-.btn-action {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 34px;
-  height: 34px;
-  border-radius: 50%;
-  background-color: #f1f3f5;
-  border: none;
-  color: #6c757d;
-  cursor: pointer;
-  transition: all 0.2s;
-}
-.btn-action i {
-  font-size: 0.85rem;
-}
-.edit-btn:hover { background-color: #ffc107; color: white; }
-.delete-btn:hover { background-color: #dc3545; color: white; }
-.view-btn:hover { background-color: #17a2b8; color: white;}
-
-/* =================================== */
-/* LAYOUT PADRÃO - FIM */
-/* =================================== */
-
-/* Estilos Específicos da Página de Contratos */
-.imovel-titulo {
-  font-weight: 600;
-  font-size: 1rem;
-  color: #343a40;
-}
-.imovel-endereco {
-  font-size: 0.8rem;
-  color: #6c757d;
+.filter-groups select {
+  padding: 10px;
+  border: 1px solid #ced4da;
+  border-radius: 6px;
+  font-size: 0.9rem;
+  background-color: #fff;
+  flex: 1 1 150px; /* Cresce, encolhe, base 150px */
+  min-width: 150px;
 }
 
-/* Badges */
-.status-badge {
-  padding: 4px 10px;
-  border-radius: 15px;
-  font-size: 0.75rem;
-  font-weight: 600;
-  color: white;
-}
-.tipo-venda { background-color: #6f42c1; }
-.tipo-aluguel { background-color: #fd7e14; }
-.status-ativo { background-color: #28a745; }
-.status-pendente { background-color: #ffc107; color: #333; }
-.status-concluido { background-color: #17a2b8; }
-.status-inativo { background-color: #dc3545; }
-.status-default { background-color: #6c757d; }
-
-/* MENSAGENS DE ESTADO */
-.loading-message, .no-data-message, .error-message {
+.loading-message, .error-message, .empty-state {
   text-align: center;
-  padding: 3rem;
+  padding: 2rem;
   color: #6c757d;
-}
-.no-data-message .icon-large {
-  font-size: 4rem;
-  margin-bottom: 1rem;
-  color: #ced4da;
 }
 .error-message {
   color: #dc3545;
@@ -491,58 +311,100 @@ h1 {
   100% { transform: rotate(360deg); }
 }
 
-/* Estilos para a Modal */
-.modal-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background: rgba(0, 0, 0, 0.5);
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  z-index: 1000;
+.contratos-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 1.5rem;
+  margin-top: 1.5rem;
 }
-.modal-container {
-  background: #fff;
-  padding: 2rem;
+
+.contrato-card {
+  background-color: #fff;
   border-radius: 8px;
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-  width: 90%;
-  max-width: 900px;
-  max-height: 90%;
-  overflow-y: auto;
-  position: relative;
+  box-shadow: 0 4px 8px rgba(0,0,0,0.07);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
-.modal-header {
+.contrato-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 6px 12px rgba(0,0,0,0.1);
+}
+
+
+.card-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  padding: 0.8rem 1.2rem;
+  background-color: #f8f9fa;
   border-bottom: 1px solid #e9ecef;
-  padding-bottom: 1rem;
-  margin-bottom: 1rem;
 }
-.modal-title {
-  font-size: 1.5rem;
-  font-weight: 600;
-  color: #212529;
+
+.status-badge {
+    padding: 4px 10px; border-radius: 12px; font-size: 0.75rem;
+    font-weight: bold; color: white; text-transform: uppercase;
 }
-.modal-close-btn {
-  background: none;
-  border: none;
-  font-size: 2rem;
-  color: #6c757d;
-  cursor: pointer;
-  transition: color 0.2s;
+.status-ativo { background-color: #198754; }
+.status-pendente { background-color: #ffc107; color: #333; }
+.status-concluido { background-color: #0d6efd; }
+.status-rescindido { background-color: #dc3545; }
+.status-inativo { background-color: #6c757d; }
+
+
+.tipo-badge {
+    font-size: 0.8rem; font-weight: 500; color: #495057;
+    background-color: #e9ecef; padding: 3px 8px; border-radius: 4px;
 }
-.modal-close-btn:hover {
-  color: #dc3545;
+
+.card-body {
+  padding: 1.2rem;
+  flex-grow: 1;
 }
-.modal-body {
-  white-space: pre-wrap; /* Mantém a formatação do texto, como quebras de linha */
-  font-family: 'Inter', sans-serif;
-  color: #333;
-  line-height: 1.6;
+.card-body p { margin: 0 0 0.6rem 0; font-size: 0.9rem; color: #495057; }
+.card-body p strong { color: #212529; margin-right: 5px; }
+
+.card-actions {
+  display: flex; justify-content: flex-end; gap: 0.5rem;
+  padding: 0.8rem 1.2rem; border-top: 1px solid #e9ecef;
+  background-color: #f8f9fa;
 }
+
+.btn-action {
+    background: none; border: 1px solid transparent; padding: 6px 10px;
+    border-radius: 5px; cursor: pointer; font-size: 0.8rem; font-weight: 500;
+    transition: background-color 0.2s, color 0.2s, border-color 0.2s;
+    display: inline-flex; align-items: center; gap: 0.4rem;
+}
+.btn-action i { font-size: 0.9em; }
+
+.btn-view { border-color: #6c757d; color: #6c757d; }
+.btn-view:hover { background-color: #6c757d; color: white; }
+.btn-edit { border-color: #0d6efd; color: #0d6efd; }
+.btn-edit:hover { background-color: #0d6efd; color: white; }
+.btn-financeiro { border-color: #198754; color: #198754; }
+.btn-financeiro:hover { background-color: #198754; color: white; }
+.btn-delete { border-color: #dc3545; color: #dc3545; }
+.btn-delete:hover { background-color: #dc3545; color: white; }
+
+
+/* Estilos para a Modal Financeiro */
+:global(.modal-overlay) {
+  position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+  background: rgba(0, 0, 0, 0.6); display: flex;
+  justify-content: center; align-items: center; z-index: 1050;
+}
+:global(.modal-container) { /* Ajuste o seletor se o modal usar outra classe */
+  background: #fff; padding: 2rem; border-radius: 8px;
+  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+  width: 90%; max-width: 700px; /* Largura do modal financeiro */
+  max-height: 90vh; overflow-y: auto; position: relative;
+}
+:global(.modal-close-button) { /* Ajuste o seletor */
+    position: absolute; top: 1rem; right: 1rem; background: none; border: none;
+    font-size: 1.5rem; cursor: pointer; color: #6c757d; line-height: 1;
+}
+
+
 </style>

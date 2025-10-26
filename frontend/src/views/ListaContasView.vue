@@ -1,12 +1,5 @@
 <template>
   <div class="page-container">
-    <div class="header-section">
-      <h1 class="page-title">Gerir Contas Bancárias</h1>
-      <button @click="adicionarConta" class="add-button">
-        + Adicionar Conta
-      </button>
-    </div>
-
     <div v-if="isLoading" class="loading-state">
       <p>A carregar contas...</p>
     </div>
@@ -40,7 +33,8 @@
             <th>Agência</th>
             <th>Número da Conta</th>
             <th>Saldo Atual</th>
-            <th class="actions-column">Ações</th>
+            <th>Status</th>
+            <th>Ações</th>
           </tr>
         </thead>
         <tbody>
@@ -48,15 +42,12 @@
             <td>{{ conta.nome }}</td>
             <td>{{ conta.banco }}</td>
             <td>{{ conta.agencia }}</td>
-            <td>{{ conta.numero_conta }}</td>
-            <td>{{ formatCurrency(conta.saldo_atual) }}</td>
-            <td class="actions-column">
-              <button @click="editarConta(conta.id)" class="action-button edit-button">
-                Editar
-              </button>
-              <button @click="inativarConta(conta.id)" class="action-button delete-button">
-                Inativar
-              </button>
+            <td>{{ conta.conta }}</td>
+            <td>{{ formatarValor(conta.saldo_atual) }}</td>
+            <td>{{ conta.is_active ? 'Ativa' : 'Inativa' }}</td>
+            <td class="actions-cell">
+              <button @click="editarConta(conta.id)" class="btn-action btn-edit">Editar</button>
+              <button @click="excluirConta(conta.id)" class="btn-action btn-delete">Excluir</button>
             </td>
           </tr>
         </tbody>
@@ -68,137 +59,115 @@
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue';
 import { useRouter } from 'vue-router';
-import api from '@/services/api';
+import apiClient from '@/services/api';
 
+// Interfaces
 interface Conta {
-  id: number;
-  nome: string;
-  banco: string;
-  agencia: string;
-  numero_conta: string;
-  saldo_atual: number;
-  ativo: boolean;
+    id: number;
+    nome: string;
+    banco: string;
+    agencia: string;
+    conta: string;
+    saldo_atual: number;
+    is_active: boolean;
 }
 
+const router = useRouter();
 const contas = ref<Conta[]>([]);
-const isLoading = ref(false);
+const isLoading = ref(true);
 const error = ref<string | null>(null);
 const searchTerm = ref('');
-const router = useRouter();
-const showInactive = ref(false);
+const showInactive = ref(false); // Filtro para mostrar inativas ou não
 
-const fetchContas = async () => {
+async function fetchContas() {
   isLoading.value = true;
   error.value = null;
   try {
-    const url = showInactive.value ? '/v1/financeiro/contas/?status=inativo' : '/v1/financeiro/contas/';
-    const response = await api.get(url);
+    const response = await apiClient.get<Conta[]>('/v1/financeiro/contas/');
     contas.value = response.data;
   } catch (err) {
-    console.error('Erro ao buscar contas:', err);
-    error.value = 'Falha ao carregar as contas bancárias.';
+    console.error("Erro ao buscar contas:", err);
+    error.value = 'Não foi possível carregar as contas bancárias.';
   } finally {
     isLoading.value = false;
   }
-};
-
-const toggleStatus = () => {
-  showInactive.value = !showInactive.value;
-  fetchContas();
-};
-
-const adicionarConta = () => {
-  router.push({ name: 'conta-nova' });
-};
-
-const editarConta = (id: number) => {
-  router.push({ name: 'conta-editar', params: { id } });
-};
-
-const inativarConta = async (id: number) => {
-  if (confirm('Tem certeza que deseja inativar esta conta?')) {
-    try {
-      await api.patch(`/v1/financeiro/contas/${id}/`, { ativo: false });
-      fetchContas();
-    } catch (err) {
-      console.error('Erro ao inativar conta:', err);
-      alert('Falha ao inativar a conta.');
-    }
-  }
-};
-
-const formatCurrency = (value: number) => {
-  return new Intl.NumberFormat('pt-BR', {
-    style: 'currency',
-    currency: 'BRL',
-  }).format(value);
-};
+}
 
 const filteredContas = computed(() => {
-  if (!searchTerm.value) {
-    return contas.value;
-  }
-  const term = searchTerm.value.toLowerCase();
-  return contas.value.filter(conta => 
-    conta.nome.toLowerCase().includes(term) ||
-    conta.banco.toLowerCase().includes(term) ||
-    conta.agencia.toLowerCase().includes(term) ||
-    conta.numero_conta.toLowerCase().includes(term)
-  );
+    let filtered = contas.value;
+
+    // Filtra por status (ativo/inativo)
+    if (!showInactive.value) {
+        filtered = filtered.filter(conta => conta.is_active);
+    }
+    
+    // Filtro por termo de busca
+    if (searchTerm.value) {
+        const term = searchTerm.value.toLowerCase();
+        filtered = filtered.filter(conta =>
+            conta.nome.toLowerCase().includes(term) ||
+            conta.banco.toLowerCase().includes(term) ||
+            conta.agencia.includes(term) ||
+            conta.conta.includes(term)
+        );
+    }
+
+    return filtered;
 });
 
-onMounted(fetchContas);
+
+function toggleStatus() {
+    showInactive.value = !showInactive.value;
+}
+
+function formatarValor(valor: number): string {
+    return valor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+}
+
+function adicionarConta() {
+    router.push({ name: 'conta-nova' });
+}
+
+function editarConta(id: number) {
+    router.push({ name: 'conta-editar', params: { id } });
+}
+
+async function excluirConta(id: number) {
+    if (window.confirm("Tem certeza que deseja excluir esta conta? Esta ação não pode ser desfeita.")) {
+        try {
+            await apiClient.delete(`/v1/financeiro/contas/${id}/`);
+            alert('Conta excluída com sucesso!');
+            fetchContas(); // Recarrega a lista
+        } catch (err) {
+            console.error("Erro ao excluir conta:", err);
+            alert('Não foi possível excluir a conta.');
+        }
+    }
+}
+
+onMounted(() => {
+    fetchContas();
+});
 </script>
 
 <style scoped>
 .page-container {
-  max-width: 1000px;
-  margin: 2rem auto;
-  padding: 0 1rem;
+  padding: 0; /* CORREÇÃO: Removido padding: 2rem; */
 }
 
-.header-section {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 2rem;
-}
+/* Regras do Header removidas */
 
-.page-title {
-  font-size: 2rem;
-  font-weight: bold;
-  color: #333;
-}
-
-.add-button, .filter-button {
-  background-color: #007bff;
-  color: white;
-  padding: 10px 20px;
-  border: none;
-  border-radius: 6px;
-  text-decoration: none;
-  font-weight: bold;
-  cursor: pointer;
-  transition: background-color 0.3s;
-}
-
-.add-button:hover, .filter-button:hover {
-  background-color: #0056b3;
-}
-
-.loading-state, .empty-state, .error-message {
+.loading-state, .error-message, .empty-state {
   text-align: center;
-  font-size: 1.2rem;
-  color: #666;
-  margin-top: 2rem;
+  padding: 2rem;
+  color: #6c757d;
+  background-color: #fff;
+  border-radius: 8px;
+  margin-bottom: 1.5rem;
 }
-
 .error-message {
-  color: #d9534f;
-  background-color: #f2dede;
-  border: 1px solid #ebccd1;
-  padding: 10px;
-  border-radius: 4px;
+    color: #dc3545;
+    background-color: #f8d7da;
 }
 
 .table-card {
@@ -211,13 +180,14 @@ onMounted(fetchContas);
 
 .filter-section {
   display: flex;
-  justify-content: space-between;
+  flex-wrap: wrap; /* Permite quebra de linha */
   gap: 1rem;
   margin-bottom: 1.5rem;
+  align-items: center; /* Alinha verticalmente */
 }
 
 .filter-input {
-  flex-grow: 1;
+  flex: 1 1 250px; /* Garante que o input de pesquisa ocupe mais espaço */
   padding: 10px 12px;
   border: 1px solid #ccc;
   border-radius: 6px;
@@ -226,10 +196,21 @@ onMounted(fetchContas);
   transition: border-color 0.3s;
 }
 
-.filter-input:focus {
-  outline: none;
-  border-color: #007bff;
+.filter-button {
+    padding: 10px 15px;
+    background-color: #007bff;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 1rem;
+    font-weight: 500;
+    transition: background-color 0.3s;
 }
+.filter-button:hover {
+    background-color: #0056b3;
+}
+
 
 .data-table {
   width: 100%;
@@ -240,51 +221,39 @@ onMounted(fetchContas);
   padding: 12px 15px;
   text-align: left;
   border-bottom: 1px solid #ddd;
+  vertical-align: middle;
+  white-space: nowrap;
 }
 
 .data-table thead th {
   background-color: #f8f9fa;
-  color: #333;
-  font-weight: bold;
-  text-transform: uppercase;
+  font-weight: 600;
+  color: #495057;
   font-size: 0.9rem;
 }
 
 .data-table tbody tr:hover {
-  background-color: #f1f1f1;
+    background-color: #f1f3f5;
 }
 
-.actions-column {
-  text-align: right;
-  white-space: nowrap;
+.actions-cell {
+    text-align: right;
+    white-space: nowrap;
 }
 
-.action-button {
-  padding: 8px 12px;
-  border: none;
-  border-radius: 4px;
-  cursor: pointer;
-  font-size: 0.85rem;
-  font-weight: bold;
-  margin-left: 8px;
-  transition: background-color 0.3s;
+.btn-action {
+    padding: 6px 10px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 0.9em;
+    text-decoration: none;
+    margin-left: 0.5rem;
+    font-weight: 500;
+    transition: background-color 0.2s;
 }
-
-.edit-button {
-  background-color: #ffc107;
-  color: #333;
-}
-
-.edit-button:hover {
-  background-color: #e0a800;
-}
-
-.delete-button {
-  background-color: #dc3545;
-  color: white;
-}
-
-.delete-button:hover {
-  background-color: #c82333;
-}
+.btn-edit { background-color: #17a2b8; color: white; }
+.btn-edit:hover { background-color: #138496; }
+.btn-delete { background-color: #dc3545; color: white; }
+.btn-delete:hover { background-color: #c82333; }
 </style>

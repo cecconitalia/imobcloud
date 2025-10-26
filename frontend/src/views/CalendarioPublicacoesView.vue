@@ -1,10 +1,5 @@
 <template>
   <div class="calendario-container">
-    <header class="view-header">
-      <h1>Calendário de Publicações</h1>
-      <p>Visualize e gira as suas publicações agendadas, concluídas e as que falharam.</p>
-    </header>
-
     <div class="card">
       <div class="card-body">
         <FullCalendar :options="calendarOptions" ref="calendar" />
@@ -20,7 +15,7 @@
       </div>
       <div class="modal-body">
         <h4>{{ selectedEvent.title }}</h4>
-        
+
         <div class="form-group">
           <label for="event-text">Texto da Publicação:</label>
           <textarea id="event-text" v-model="editableEvent.texto" rows="8"></textarea>
@@ -30,7 +25,7 @@
           <label for="event-date">Data do Agendamento:</label>
           <input type="datetime-local" id="event-date" v-model="editableEvent.data_agendamento">
         </div>
-        
+
         <div class="form-group">
           <label>Plataformas:</label>
           <div class="plataformas-edit">
@@ -80,9 +75,9 @@ const calendarOptions = ref({
   },
   locale: 'pt-br',
   buttonText: {
-      today:    'Hoje',
-      month:    'Mês',
-      week:     'Semana',
+    today:    'Hoje',
+    month:    'Mês',
+    week:     'Semana',
   },
   events: async (fetchInfo: any, successCallback: any, failureCallback: any) => {
     try {
@@ -135,7 +130,10 @@ async function handleSave() {
             plataformas: editableEvent.value.plataformas
         });
         closeModal();
-        calendar.value.getApi().refetchEvents(); // Recarrega os eventos no calendário
+        // Verifica se calendar.value.getApi existe antes de chamar refetchEvents
+        if (calendar.value && calendar.value.getApi) {
+             calendar.value.getApi().refetchEvents(); // Recarrega os eventos no calendário
+        }
     } catch (error) {
         console.error("Erro ao salvar o agendamento:", error);
         alert("Não foi possível salvar as alterações.");
@@ -153,7 +151,10 @@ async function handleDelete() {
     try {
         await apiClient.delete(`/v1/publicacoes/posts-agendados/${editableEvent.value.id}/`);
         closeModal();
-        calendar.value.getApi().refetchEvents(); // Recarrega os eventos no calendário
+         // Verifica se calendar.value.getApi existe antes de chamar refetchEvents
+        if (calendar.value && calendar.value.getApi) {
+             calendar.value.getApi().refetchEvents(); // Recarrega os eventos no calendário
+        }
     } catch (error) {
         console.error("Erro ao excluir o agendamento:", error);
         alert("Não foi possível excluir o agendamento.");
@@ -169,52 +170,77 @@ function closeModal() {
 </script>
 
 <style scoped>
-.calendario-container { padding: 2rem; }
-.card { background-color: #fff; padding: 1.5rem; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.08); }
+.calendario-container {
+  padding: 0; /* Removido padding: 2rem; */
+}
+
+/* Regras .view-header e .view-header h1, .subtitle removidas */
+
+.card {
+  background-color: #fff;
+  padding: 1.5rem;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+}
+.card-body {
+    padding: 0; /* Remove padding extra dentro do card se necessário */
+}
 
 /* Estilos do Modal */
-.modal-overlay { /* ... */ }
-.modal-container { /* ... */ }
-.modal-header { /* ... */ }
-.modal-body { 
+.modal-overlay {
+    position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+    background: rgba(0, 0, 0, 0.6); display: flex; justify-content: center;
+    align-items: center; z-index: 1050;
+}
+.modal-container {
+    background: #fff; padding: 0; border-radius: 8px;
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+    width: 90%; max-width: 600px;
+}
+.modal-header {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 1rem 1.5rem; border-bottom: 1px solid #eee;
+}
+.modal-header h3 { margin: 0; font-size: 1.2rem; }
+.close-button {
+    background: none; border: none; font-size: 1.5rem; cursor: pointer;
+    color: #6c757d; line-height: 1;
+}
+.modal-body {
     padding: 1.5rem;
     display: flex;
     flex-direction: column;
     gap: 1rem;
 }
 .form-group label {
-    display: block;
-    font-weight: 600;
-    margin-bottom: 0.5rem;
+    display: block; font-weight: 600; margin-bottom: 0.5rem;
 }
 .form-group textarea, .form-group input {
-    width: 100%;
-    padding: 0.75rem;
-    border-radius: 4px;
-    border: 1px solid #ccc;
+    width: 100%; padding: 0.75rem; border-radius: 4px; border: 1px solid #ccc;
+    box-sizing: border-box;
 }
-.plataformas-edit {
-    display: flex;
-    gap: 1rem;
+.plataformas-edit { display: flex; gap: 1rem; }
+.resultado-erro {
+    background-color: #f8d7da; color: #721c24; border: 1px solid #f5c6cb;
+    padding: 1rem; border-radius: 4px;
 }
+.resultado-erro pre {
+    margin: 0.5rem 0 0 0; white-space: pre-wrap; font-size: 0.8rem;
+}
+
 .modal-footer {
-    padding: 1rem 1.5rem;
-    border-top: 1px solid #eee;
-    display: flex;
-    justify-content: flex-end;
-    gap: 1rem;
+    padding: 1rem 1.5rem; border-top: 1px solid #eee;
+    display: flex; justify-content: flex-end; gap: 1rem;
 }
-.btn-danger {
-    background-color: #dc3545;
-    color: white;
+.btn-danger, .btn-primary {
+    padding: 10px 15px; border-radius: 4px; font-weight: 500; border: none;
+    cursor: pointer; transition: background-color 0.2s;
 }
-.btn-primary {
-    background-color: #007bff;
-    color: white;
-}
+.btn-danger { background-color: #dc3545; color: white; }
+.btn-primary { background-color: #007bff; color: white; }
+.btn-danger:hover { background-color: #c82333; }
+.btn-primary:hover { background-color: #0056b3; }
 .btn-danger:disabled, .btn-primary:disabled {
-    background-color: #6c757d;
-    cursor: not-allowed;
+    background-color: #adb5bd; cursor: not-allowed;
 }
-/* ... (outros estilos) ... */
 </style>

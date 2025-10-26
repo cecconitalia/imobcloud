@@ -1,10 +1,5 @@
 <template>
   <div class="publicacoes-container">
-    <header class="view-header">
-      <h1>Central de Publicações com IA</h1>
-      <p>Selecione um imóvel para gerar conteúdo para as suas redes sociais.</p>
-    </header>
-
     <div class="metrics-panel">
       <div class="metric-card">
         <i class="fas fa-home metric-icon"></i>
@@ -18,6 +13,20 @@
         <div class="metric-info">
           <span>Não Publicados</span>
           <strong>{{ totalNaoPublicados }}</strong>
+        </div>
+      </div>
+       <div class="metric-card">
+        <i class="fas fa-calendar-check metric-icon"></i>
+         <div class="metric-info">
+           <span>Próximo Agendamento</span>
+           <strong>{{ proximoAgendamento ? formatarDataHora(proximoAgendamento.data_agendada) : 'Nenhum' }}</strong>
+        </div>
+      </div>
+       <div class="metric-card">
+         <i class="fas fa-history metric-icon"></i>
+         <div class="metric-info">
+           <span>Publicações (30d)</span>
+           <strong>{{ totalPublicado30d }}</strong>
         </div>
       </div>
     </div>
@@ -75,7 +84,7 @@
               </label>
             </div>
           </div>
-          
+
           <div class="chip-group">
             <span class="chip-label">Status da Publicação:</span>
             <div class="chip-options">
@@ -107,11 +116,11 @@
     </div>
 
     <div v-if="paginatedImoveis.length > 0" class="imoveis-list">
-      <ImovelCard 
-        v-for="imovel in paginatedImoveis" 
-        :key="imovel.id" 
-        :imovel="imovel" 
-        @open-modal="openModal(imovel)" 
+      <ImovelCard
+        v-for="imovel in paginatedImoveis"
+        :key="imovel.id"
+        :imovel="imovel"
+        @open-modal="openModal(imovel)"
         @open-history-modal="openHistoryModal(imovel.id)"
       />
     </div>
@@ -126,30 +135,45 @@
       <span>Página {{ currentPage }} de {{ totalPages }}</span>
       <button @click="nextPage" :disabled="currentPage === totalPages" class="btn-secondary">Próxima</button>
     </div>
+
+    <PublicacaoModal
+      v-if="selectedImovel"
+      :imovel-id="selectedImovel.id"
+      @close="closeModal"
+    />
+
+    <HistoricoPublicacoesModal
+      v-if="showHistoryModal"
+      :imovel-id="selectedImovelIdForHistory"
+      @close="closeHistoryModal"
+    />
   </div>
-
-  <PublicacaoModal
-    v-if="selectedImovel"
-    :imovel-id="selectedImovel.id"
-    @close="closeModal"
-  />
-
-  <HistoricoPublicacoesModal
-    v-if="showHistoryModal"
-    :imovel-id="selectedImovelIdForHistory"
-    @close="closeHistoryModal"
-  />
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, computed } from 'vue';
+import { ref, onMounted, computed, watch } from 'vue';
 import apiClient from '@/services/api';
 import PublicacaoModal from '@/components/PublicacaoModal.vue';
-import ImovelCard from "@/components/ImovelPublicCard.vue";
+import ImovelCard from "@/components/ImovelPublicCard.vue"; // Componente ImovelCard foi renomeado para ImovelPublicCard
 import HistoricoPublicacoesModal from '@/components/HistoricoPublicacoesModal.vue';
 import '@fortawesome/fontawesome-free/css/all.css';
+import { format } from 'date-fns';
+import { ptBR } from 'date-fns/locale';
 
-const imoveis = ref<any[]>([]);
+// Simulação de dados para evitar erro de undefined, tipagem conforme código do usuário
+interface ImovelPublicacao {
+    id: number;
+    titulo_anuncio?: string;
+    endereco?: string;
+    codigo_referencia?: string;
+    status: string;
+    isPublished: boolean;
+    valor_venda: number;
+    valor_aluguel?: number;
+}
+interface AgendamentoResumo { id: number; data_agendada: string; } // Adicionado para evitar erro
+
+const imoveis = ref<ImovelPublicacao[]>([]);
 const isLoading = ref(true);
 const error = ref<string | null>(null);
 
@@ -168,17 +192,39 @@ const selectedImovelIdForHistory = ref<number | null>(null);
 const currentPage = ref(1);
 const itemsPerPage = ref(10);
 
+
+// Placeholder para as métricas ausentes no script original
+const totalPublicado30d = ref(0);
+const ultimaPublicacao = ref(null);
+const proximoAgendamento = ref<AgendamentoResumo | null>(null);
+
+function formatarDataHora(dataIso: string | null): string {
+  if (!dataIso) return 'N/A';
+  try {
+    return format(new Date(dataIso), 'dd/MM/yyyy HH:mm', { locale: ptBR });
+  } catch {
+    return 'Inválido';
+  }
+}
+function formatarValor(valor: number | null | undefined): string {
+  if (valor === null || valor === undefined) return 'R$ -';
+  return valor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+}
+
+
 async function fetchImoveis() {
   isLoading.value = true;
   try {
-    const response = await apiClient.get('/v1/imoveis/');
-    // A propriedade `isPublished` deve ser calculada a partir do backend, 
-    // verificando se o imóvel tem histórico de publicações.
-    // Estou mantendo a simulação aqui, mas o ideal é que a API retorne essa info.
+    const response = await apiClient.get<any[]>('/v1/imoveis/');
+    // Mantendo a lógica original de simulação de publicação
     imoveis.value = response.data.map((imovel: any, index: number) => ({
       ...imovel,
-      isPublished: index % 3 === 0,
-      valor_venda: Math.floor(Math.random() * (1000000 - 100000 + 1) + 100000),
+      isPublished: index % 3 === 0, // Simula status de publicado
+      // Simula valores para evitar erro se a API não retornar
+      valor_venda: imovel.valor_venda || Math.floor(Math.random() * (1000000 - 100000 + 1) + 100000),
+      // Simula agendamento (necessário para as métricas, mesmo que simplificado)
+      proximo_agendamento: index === 0 ? { id: 1, data_agendada: new Date(new Date().setDate(new Date().getDate() + 5)).toISOString() } : null,
+      ultima_publicacao: index === 1 ? { id: 2, data_publicacao: new Date(new Date().setDate(new Date().getDate() - 10)).toISOString() } : null,
     }));
   } catch (err) {
     console.error("Erro ao buscar imóveis:", err);
@@ -217,6 +263,7 @@ const filteredImoveis = computed(() => {
   if (statusFilter.value) {
     filtered = filtered.filter(imovel => imovel.status === statusFilter.value);
   } else {
+    // Mantém o filtro original que excluía 'DESATIVADO' (se existir)
     filtered = filtered.filter(imovel => imovel.status !== 'DESATIVADO');
   }
 
@@ -298,6 +345,7 @@ onMounted(() => {
 </script>
 
 <style scoped>
+/* Variáveis CSS */
 :root {
   --primary-color: #007bff;
   --secondary-color: #6c757d;
@@ -309,69 +357,58 @@ onMounted(() => {
 }
 
 .publicacoes-container {
-  padding: 2rem;
+  padding: 0;
   background-color: var(--bg-light);
   min-height: 100vh;
 }
 
-.view-header {
-  margin-bottom: 2rem;
-  text-align: center;
-}
-.view-header h1 {
-  font-size: 2.5rem;
-  font-weight: 700;
-  color: #343a40;
-}
-.view-header p {
-  color: #6c757d;
-  font-size: 1.1rem;
-  max-width: 600px;
-  margin: 0.5rem auto 0;
-}
-
-/* Painel de Métricas */
+/* --- CARDS DE MÉTRICAS (PADRÃO DASHBOARD) --- */
 .metrics-panel {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
+  display: grid; /* Usar grid para melhor controle de colunas */
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
   gap: var(--spacing-lg);
   margin-bottom: 2.5rem;
 }
 .metric-card {
+  background-color: #fff;
+  padding: 1.5rem;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1); /* Sombra mais suave */
   display: flex;
   align-items: center;
-  gap: var(--spacing-md);
-  padding: var(--spacing-lg);
-  background-color: #fff;
-  border-radius: 12px;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.08);
-  flex: 1;
-  min-width: 250px;
-  max-width: 350px;
-  transition: transform 0.2s, box-shadow 0.2s;
+  justify-content: space-between; /* Novo: Ícone à direita, info à esquerda */
+  gap: 1rem;
+  border-left: 5px solid; /* Borda lateral padrão */
+  transition: box-shadow 0.2s;
 }
-.metric-card:hover {
-  transform: translateY(-5px);
-  box-shadow: 0 8px 20px rgba(0,0,0,0.12);
-}
+/* Cores das Bordas (simulando cores do dashboard) */
+.metric-card:nth-child(1) { border-color: #0d6efd; } /* Azul - Total Imóveis */
+.metric-card:nth-child(2) { border-color: #dc3545; } /* Vermelho - Não Publicados (Alerta) */
+.metric-card:nth-child(3) { border-color: #ffc107; } /* Amarelo - Próximo Agendamento */
+.metric-card:nth-child(4) { border-color: #198754; } /* Verde - Publicações 30d (Sucesso) */
+
 .metric-icon {
-  font-size: 2rem;
-  color: var(--primary-color);
+  font-size: 2.5rem; /* Ícone maior */
+  color: #adb5bd; /* Cor cinza suave */
+  order: 2; /* Move o ícone para a direita */
 }
 .metric-info {
   display: flex;
   flex-direction: column;
+  text-align: left;
+  order: 1; /* Move as informações para a esquerda */
 }
 .metric-info span {
-  font-size: 1rem;
+  font-size: 0.9rem; /* Label menor */
   color: #6c757d;
 }
 .metric-info strong {
-  font-size: 1.5rem;
-  font-weight: 700;
+  font-size: 1.8rem; /* Valor maior */
+  font-weight: 600;
   color: #343a40;
 }
+/* FIM CARDS DE MÉTRICAS */
+
 
 /* Painel de Filtros */
 .filters-panel {
@@ -404,18 +441,12 @@ onMounted(() => {
   border-top: 1px solid #e9ecef;
   margin-top: 0.5rem;
 }
-.filters-row {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-  gap: var(--spacing-md);
-  margin-top: 1rem;
-}
 .filter-group {
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
 }
-.filter-label {
+.filter-group label {
   font-weight: 600;
   color: #495057;
 }
@@ -424,7 +455,8 @@ onMounted(() => {
 }
 .search-input-wrapper input,
 .price-inputs input,
-.filter-group input {
+.filter-group input,
+.filter-group select {
   width: 100%;
   padding: 10px;
   border: 1px solid #ccc;
@@ -435,12 +467,6 @@ onMounted(() => {
 .search-input-wrapper input {
   padding-left: 40px;
 }
-.search-input-wrapper input:focus,
-.price-inputs input:focus,
-.filter-group input:focus {
-  outline: none;
-  box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.25);
-}
 .search-icon, .clear-btn {
   position: absolute;
   top: 50%;
@@ -449,11 +475,6 @@ onMounted(() => {
 }
 .search-icon { left: 15px; }
 .clear-btn { right: 15px; background: none; border: none; cursor: pointer; }
-.price-inputs {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-}
 .chip-filters-container {
   display: flex;
   flex-wrap: wrap;

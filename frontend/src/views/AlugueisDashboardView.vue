@@ -1,10 +1,5 @@
 <template>
   <div class="dashboard-alugueis-container">
-    <header class="view-header">
-      <h1>Dashboard de Aluguéis</h1>
-      <p class="subtitle">Visão geral e gestão de contratos de aluguel e pagamentos.</p>
-    </header>
-
     <div v-if="isLoading" class="loading-message">
       A carregar dados...
     </div>
@@ -61,8 +56,7 @@
               <tr v-for="aluguel in stats.proximos_alugueis" :key="aluguel.id">
                 <td>{{ aluguel.imovel_titulo }}</td>
                 <td>{{ aluguel.inquilino_nome }}</td>
-                <td>{{ aluguel.data_vencimento }}</td>
-                <td>{{ formatarValor(aluguel.valor) }}</td>
+                <td>{{ formatarDataParaTabela(aluguel.data_vencimento) }}</td> <td>{{ formatarValor(aluguel.valor) }}</td>
               </tr>
             </tbody>
           </table>
@@ -77,9 +71,28 @@
 import { ref, onMounted } from 'vue';
 import apiClient from '@/services/api';
 import '@fortawesome/fontawesome-free/css/all.css';
+import { format } from 'date-fns'; // Importar format
+import { ptBR } from 'date-fns/locale'; // Importar locale
 
-// CORREÇÃO: Inicializa stats com valores padrão para evitar o erro de `undefined`
-const stats = ref<any>({
+// Interface baseada na estrutura de dados que a API /dashboard-stats/ retorna
+interface ProximoAluguel {
+    id: number; // Ou a chave primária correta
+    imovel_titulo: string;
+    inquilino_nome: string;
+    data_vencimento: string; // Espera-se YYYY-MM-DD
+    valor: number;
+}
+interface StatsAlugueisOriginal {
+  contratos_ativos: number;
+  alugueis_a_vencer: number;
+  alugueis_atrasados: number;
+  valor_recebido_mes: number;
+  proximos_alugueis: ProximoAluguel[];
+}
+
+
+// Inicializa stats com valores padrão para evitar erros de undefined
+const stats = ref<StatsAlugueisOriginal>({
   contratos_ativos: 0,
   alugueis_a_vencer: 0,
   alugueis_atrasados: 0,
@@ -89,14 +102,30 @@ const stats = ref<any>({
 const isLoading = ref(true);
 const error = ref<string | null>(null);
 
-function formatarValor(valor: number) {
-  if (typeof valor !== 'number') return 'R$ 0,00';
+// Função formatarValor ajustada para aceitar undefined
+function formatarValor(valor: number | null | undefined): string {
+  if (valor === null || valor === undefined) return 'R$ 0,00';
   return valor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 }
 
+// Nova função para formatar data especificamente para a tabela (dd/MM/yyyy)
+function formatarDataParaTabela(data: string | null | undefined): string {
+    if (!data) return 'N/A';
+    try {
+        // Assume YYYY-MM-DD e adiciona T00:00:00 para tratar como data local
+        return format(new Date(data + 'T00:00:00'), 'dd/MM/yyyy', { locale: ptBR });
+    } catch {
+        return 'Inválida';
+    }
+}
+
+
 onMounted(async () => {
+  isLoading.value = true; // Garante que isLoading é true no início
+  error.value = null; // Limpa erros anteriores
   try {
-    const response = await apiClient.get('/v1/alugueis/dashboard-stats/');
+    // Usando o endpoint original que funcionava
+    const response = await apiClient.get<StatsAlugueisOriginal>('/v1/alugueis/dashboard-stats/');
     stats.value = response.data;
   } catch (err) {
     console.error("Erro ao carregar dashboard de aluguéis:", err);
@@ -109,19 +138,12 @@ onMounted(async () => {
 
 <style scoped>
 .dashboard-alugueis-container {
-  padding: 2rem;
+  /* padding: 2rem; */ /* Removido */
+  padding: 0; /* Adicionado */
 }
-.view-header {
-  margin-bottom: 2rem;
-}
-.view-header h1 {
-  font-size: 2.5rem;
-  margin: 0;
-}
-.subtitle {
-  color: #6c757d;
-  font-size: 1.1rem;
-}
+
+/* Regras .view-header e .subtitle removidas */
+
 .loading-message, .error-message {
   text-align: center;
   padding: 2rem;
@@ -151,8 +173,16 @@ onMounted(async () => {
 }
 .stat-icon {
   font-size: 3rem;
-  color: #007bff;
+  color: #007bff; /* Cor padrão azul */
+  width: 50px; /* Largura fixa */
+  text-align: center; /* Centraliza o ícone */
 }
+/* Cores específicas dos ícones (opcional, pode remover se preferir a cor padrão) */
+.stat-card:nth-child(1) .stat-icon { color: #0d6efd; } /* Contratos - Azul */
+.stat-card:nth-child(2) .stat-icon { color: #ffc107; } /* Vencer - Amarelo */
+.stat-card:nth-child(3) .stat-icon { color: #dc3545; } /* Atrasados - Vermelho */
+.stat-card:nth-child(4) .stat-icon { color: #198754; } /* Recebido - Verde */
+
 .stat-info {
   display: flex;
   flex-direction: column;
@@ -178,6 +208,7 @@ onMounted(async () => {
   margin-bottom: 1.5rem;
   border-bottom: 2px solid #007bff;
   padding-bottom: 0.5rem;
+  color: #343a40; /* Cor mais escura */
 }
 .tabela-wrapper {
   overflow-x: auto;
@@ -190,10 +221,12 @@ onMounted(async () => {
   padding: 1rem;
   text-align: left;
   border-bottom: 1px solid #e9ecef;
+  white-space: nowrap; /* Evita quebra de linha */
 }
 .tabela-list th {
   background-color: #f8f9fa;
   font-weight: bold;
+  color: #495057; /* Cor mais escura para cabeçalho */
 }
 .tabela-list tbody tr:hover {
   background-color: #f1f3f5;

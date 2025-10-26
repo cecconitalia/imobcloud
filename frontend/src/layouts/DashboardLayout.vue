@@ -7,7 +7,7 @@
           <span class="brand-text">ImobCloud</span>
         </div>
       </div>
-      
+
       <ul class="sidebar-nav">
         <li>
           <router-link to="/dashboard" active-class="active" title="Dashboard">
@@ -37,6 +37,7 @@
             <li><router-link to="/clientes" active-class="active" exact-active-class="active">Listar Clientes</router-link></li>
             <li><router-link to="/clientes/novo" active-class="active">Adicionar Cliente</router-link></li>
             <li><router-link to="/funil-vendas" active-class="active">Funil de Vendas</router-link></li>
+            <li><router-link to="/oportunidades/nova" active-class="active">Nova Oportunidade</router-link></li>
           </ul>
         </li>
 
@@ -47,15 +48,15 @@
           </a>
           <ul class="submenu">
             <li><router-link to="/financeiro/dashboard" active-class="active">Dashboard Financeiro</router-link></li>
-            <li><router-link to="/financeiro/pagar" active-class="active">Contas a Pagar</router-link></li>
-            <li><router-link to="/financeiro/receber" active-class="active">Contas a Receber</router-link></li>
+            <li><router-link to="/financeiro/contas-a-pagar" active-class="active">Contas a Pagar</router-link></li>
+            <li><router-link to="/financeiro/contas-a-receber" active-class="active">Contas a Receber</router-link></li>
             <li><router-link to="/financeiro/transacoes" active-class="active">Extrato (Transações)</router-link></li>
             <li><router-link to="/financeiro/dre" active-class="active">Relatório DRE</router-link></li>
             <li><router-link to="/contratos" active-class="active">Contratos</router-link></li>
             <li><router-link to="/alugueis/dashboard" active-class="active">Gerenciar Aluguéis</router-link></li>
           </ul>
         </li>
-        
+
         <li class="nav-item-dropdown" :class="{ open: isMenuOpen('marketing') }">
           <a @click.prevent="toggleMenu('marketing')" href="#">
             <i class="fas fa-share-square fa-fw"></i> <span class="nav-text">Marketing</span>
@@ -63,7 +64,7 @@
           </a>
           <ul class="submenu">
             <li><router-link to="/publicacoes" active-class="active">Gerenciar Publicações</router-link></li>
-            <li><router-link to="/publicacoes/calendario" active-class="active">Calendário de Posts</router-link></li>
+            <li><router-link :to="{ name: 'calendario-publicacoes' }" active-class="active">Calendário de Posts</router-link></li>
           </ul>
         </li>
 
@@ -74,7 +75,7 @@
         </li>
 
         <li class="nav-section-title"><span class="nav-text">Configurações</span></li>
-        
+
         <li class="nav-item-dropdown" :class="{ open: isMenuOpen('config_geral') }">
           <a @click.prevent="toggleMenu('config_geral')" href="#">
             <i class="fas fa-cogs fa-fw"></i> <span class="nav-text">Geral</span>
@@ -83,7 +84,7 @@
           <ul class="submenu">
             <li><router-link to="/corretores" active-class="active">Utilizadores</router-link></li>
             <li><router-link to="/integracoes" active-class="active">Integrações</router-link></li>
-            <li><router-link to="/configuracao-ia" active-class="active">Configurações da IA</router-link></li>
+            <li><router-link to="/configuracoes-ia" active-class="active">Configurações da IA</router-link></li>
           </ul>
         </li>
 
@@ -106,7 +107,7 @@
         </button>
       </div>
     </nav>
-    
+
     <div v-if="isSidebarOpen" class="sidebar-overlay" @click="toggleSidebar"></div>
 
     <div class="content-wrapper">
@@ -288,7 +289,9 @@ const logout = () => {
   position: relative; /* Adicionado para o caret */
 }
 .sidebar-nav a:hover { background-color: #f8f9fa; }
-.sidebar-nav > li > a.active {
+/* Aplica estilo ativo apenas para links diretos */
+.sidebar-nav > li > a.router-link-active.router-link-exact-active,
+.sidebar-nav > li > a.router-link-active {
   background-color: #e9ecef;
   color: #0056b3;
   font-weight: 600;
@@ -300,7 +303,11 @@ const logout = () => {
   margin-right: 1rem;
   color: #718096;
 }
-.sidebar-nav > li > a.active i { color: #007bff; }
+/* Aplica estilo ativo aos ícones apenas para links diretos */
+.sidebar-nav > li > a.router-link-active.router-link-exact-active i,
+.sidebar-nav > li > a.router-link-active i {
+  color: #007bff;
+}
 
 .nav-section-title {
   padding: 1.5rem 24px 0.5rem;
@@ -372,7 +379,7 @@ const logout = () => {
 .submenu a {
   height: 44px;
   /* (Padding Pai) + (Largura Icone Pai) + (Margem Icone Pai) */
-  padding-left: calc(24px + 25px + 1rem); 
+  padding-left: calc(24px + 25px + 1rem);
   font-size: 0.9rem;
   font-weight: 500;
   color: #4a5568;
@@ -380,8 +387,10 @@ const logout = () => {
 .submenu a:hover {
   background-color: #f1f3f5;
 }
-.submenu a.active {
-  background-color: transparent;
+/* Estilo ativo para links DENTRO do submenu */
+.submenu a.router-link-active.router-link-exact-active,
+.submenu a.router-link-active {
+  background-color: transparent; /* Sem fundo diferente */
   color: #0056b3;
   font-weight: 600;
 }
@@ -452,9 +461,9 @@ const logout = () => {
 
 
 .page-title {
-  font-size: 1.25rem; 
-  margin: 0; 
-  font-weight: 600; 
+  font-size: 1.25rem;
+  margin: 0;
+  font-weight: 600;
   color: #2d3748;
 }
 .header-actions {
