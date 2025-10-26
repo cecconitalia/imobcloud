@@ -1,5 +1,40 @@
 <template>
   <div class="clientes-container">
+    
+    <div v-if="sumarioClientes" class="summary-cards">
+      <div 
+        class="card" 
+        @click="setFilter('status', 'ATIVO')" 
+        :class="{ active: filters.status === 'ATIVO' }"
+      >
+        <p class="card-value">{{ sumarioClientes.ativos }}</p>
+        <p class="card-label">Clientes Ativos</p>
+      </div>
+      <div 
+        class="card" 
+        @click="setFilter('tipo', 'PROPRIETARIO_OU_AMBOS')" 
+        :class="{ active: filters.tipo === 'PROPRIETARIO_OU_AMBOS' }"
+      >
+        <p class="card-value">{{ sumarioClientes.proprietarios }}</p>
+        <p class="card-label">Proprietários</p>
+      </div>
+      <div 
+        class="card" 
+        @click="setFilter('tipo', 'INTERESSADO_OU_AMBOS')" 
+        :class="{ active: filters.tipo === 'INTERESSADO_OU_AMBOS' }"
+      >
+        <p class="card-value">{{ sumarioClientes.interessados }}</p>
+        <p class="card-label">Interessados (Leads)</p>
+      </div>
+      <div 
+        class="card" 
+        @click="setFilter('tipo_pessoa', 'PJ')" 
+        :class="{ active: filters.tipo_pessoa === 'PJ' }"
+      >
+        <p class="card-value">{{ sumarioClientes.pj }}</p>
+        <p class="card-label">Pessoa Jurídica</p>
+      </div>
+    </div>
     <div class="search-and-filter-bar">
       <input
         type="text"
@@ -7,12 +42,43 @@
         placeholder="Pesquisar por nome, email, documento..."
         class="search-input"
       />
+      
+      <div class="filter-group">
+        <label for="tipo">Tipo:</label>
+        <select id="tipo" v-model="filters.tipo">
+          <option value="">Todos</option>
+          <option value="PROPRIETARIO">Proprietário</option>
+          <option value="INTERESSADO">Interessado</option>
+          <option value="AMBOS">Ambos</option>
+        </select>
       </div>
+      
+      <div class="filter-group">
+        <label for="status">Status:</label>
+        <select id="status" v-model="filters.status">
+          <option value="">Todos</option>
+          <option value="ATIVO">Ativo</option>
+          <option value="INATIVO">Inativo</option>
+        </select>
+      </div>
+      
+      <div class="filter-group">
+        <label for="tipo_pessoa">Pessoa:</label>
+        <select id="tipo_pessoa" v-model="filters.tipo_pessoa">
+          <option value="">Todas</option>
+          <option value="PF">Física</option>
+          <option value="PJ">Jurídica</option>
+        </select>
+      </div>
+      <button @click="goToCreateCliente" class="btn-add">
+        <i class="fas fa-plus"></i> Adicionar Cliente
+      </button>
+    </div>
 
     <div v-if="isLoading" class="loading-message">A carregar...</div>
     <div v-if="error" class="error-message">{{ error }}</div>
 
-    <div v-if="clientes.length > 0" class="clientes-grid">
+    <div v-if="filteredClientes.length > 0" class="clientes-grid">
       <div
         v-for="cliente in filteredClientes"
         :key="cliente.id"
@@ -55,6 +121,7 @@ interface Cliente {
   tipo_pessoa: 'PF' | 'PJ';
   email?: string;
   telefone?: string;
+  documento?: string; // Assumindo que este campo existe para pesquisa
   foto_perfil?: string;
   tipo: 'PROPRIETARIO' | 'INTERESSADO' | 'AMBOS';
   ativo: boolean;
@@ -66,12 +133,25 @@ const error = ref<string | null>(null);
 const searchTerm = ref('');
 const router = useRouter();
 
+// Variável para armazenar os dados do sumário
+const sumarioClientes = ref<any>(null);
+
+// NOVO: Estrutura explícita para os filtros de dropdown
+const filters = ref({
+    tipo: '', // PROPRIETARIO, INTERESSADO, AMBOS, PROPRIETARIO_OU_AMBOS, INTERESSADO_OU_AMBOS
+    status: 'ATIVO', // ATIVO | INATIVO | TODOS
+    tipo_pessoa: '', // PF | PJ
+});
+// FIM NOVO
+
 async function fetchClientes() {
   isLoading.value = true;
   error.value = null;
   try {
     const response = await apiClient.get<Cliente[]>('/v1/clientes/');
     clientes.value = response.data;
+    // Calcular sumário após buscar clientes
+    calculateSummary(clientes.value);
   } catch (err: any) {
     console.error("Erro ao buscar clientes:", err);
     error.value = err.response?.data?.detail || 'Não foi possível carregar os clientes.';
@@ -80,22 +160,114 @@ async function fetchClientes() {
   }
 }
 
+// Função para calcular o sumário (MANTIDA)
+function calculateSummary(list: Cliente[]) {
+    const ativos = list.filter(c => c.ativo).length;
+    const proprietarios = list.filter(c => c.tipo === 'PROPRIETARIO' || c.tipo === 'AMBOS').length;
+    const interessados = list.filter(c => c.tipo === 'INTERESSADO' || c.tipo === 'AMBOS').length;
+    const pj = list.filter(c => c.tipo_pessoa === 'PJ').length;
+
+    sumarioClientes.value = {
+        ativos,
+        proprietarios,
+        interessados,
+        pj,
+        total: list.length
+    };
+}
+
+// NOVO: Função para definir o filtro através do clique nos cards
+function setFilter(key: 'tipo' | 'status' | 'tipo_pessoa', value: any) {
+    
+    let targetKey = key;
+    let targetValue = value;
+
+    // Se o filtro vier do card e for Proprietário/Interessado, ajusta o valor do filtro
+    if (key === 'tipo' && (value === 'PROPRIETARIO_OU_AMBOS' || value === 'INTERESSADO_OU_AMBOS')) {
+        // Se o valor atual do filtro já for esse, zera o filtro, senão aplica
+        if (filters.value.tipo === targetValue) {
+            filters.value.tipo = '';
+        } else {
+            filters.value.tipo = targetValue as string;
+        }
+        // Limpar outros filtros que não são de Tipo
+        filters.value.status = 'ATIVO';
+        filters.value.tipo_pessoa = '';
+
+    } else if (key === 'status') {
+        if (filters.value.status === targetValue) {
+             filters.value.status = '';
+        } else {
+             filters.value.status = targetValue as string;
+        }
+        // Limpar outros filtros
+        filters.value.tipo = '';
+        filters.value.tipo_pessoa = '';
+    } else if (key === 'tipo_pessoa') {
+         if (filters.value.tipo_pessoa === targetValue) {
+             filters.value.tipo_pessoa = '';
+        } else {
+             filters.value.tipo_pessoa = targetValue as string;
+        }
+        // Limpar outros filtros
+        filters.value.tipo = '';
+        filters.value.status = 'ATIVO';
+    }
+}
+// FIM NOVO
+
+
 const filteredClientes = computed(() => {
-  if (!searchTerm.value) {
-    return clientes.value;
-  }
+  let list = clientes.value;
   const lowerSearch = searchTerm.value.toLowerCase();
-  return clientes.value.filter(cliente =>
-    (cliente.nome_completo?.toLowerCase().includes(lowerSearch)) ||
-    (cliente.razao_social?.toLowerCase().includes(lowerSearch)) ||
-    (cliente.email?.toLowerCase().includes(lowerSearch)) ||
-    (cliente.telefone?.includes(searchTerm.value)) // Telefone geralmente não precisa de lowercase
-    // Adicionar busca por CPF/CNPJ se o campo existir na interface Cliente
-  );
+  
+  // 1. Filtrar por termo de busca
+  if (lowerSearch) {
+      list = list.filter(cliente =>
+        (cliente.nome_completo?.toLowerCase().includes(lowerSearch)) ||
+        (cliente.razao_social?.toLowerCase().includes(lowerSearch)) ||
+        (cliente.email?.toLowerCase().includes(lowerSearch)) ||
+        (cliente.telefone?.includes(searchTerm.value)) ||
+        (cliente.documento?.includes(searchTerm.value)) // Assumindo campo documento existe
+      );
+  }
+
+  // 2. Filtrar por Status (Dropdown/Card)
+  if (filters.value.status === 'ATIVO') {
+      list = list.filter(c => c.ativo === true);
+  } else if (filters.value.status === 'INATIVO') {
+      list = list.filter(c => c.ativo === false);
+  }
+  
+  // 3. Filtrar por Tipo de Pessoa (Dropdown/Card)
+  if (filters.value.tipo_pessoa === 'PJ') {
+      list = list.filter(c => c.tipo_pessoa === 'PJ');
+  } else if (filters.value.tipo_pessoa === 'PF') {
+      list = list.filter(c => c.tipo_pessoa === 'PF');
+  }
+
+  // 4. Filtrar por Tipo de Cliente (Dropdown/Card)
+  if (filters.value.tipo === 'PROPRIETARIO') {
+      list = list.filter(c => c.tipo === 'PROPRIETARIO');
+  } else if (filters.value.tipo === 'INTERESSADO') {
+      list = list.filter(c => c.tipo === 'INTERESSADO');
+  } else if (filters.value.tipo === 'AMBOS') {
+      list = list.filter(c => c.tipo === 'AMBOS');
+  } else if (filters.value.tipo === 'PROPRIETARIO_OU_AMBOS') {
+      list = list.filter(c => c.tipo === 'PROPRIETARIO' || c.tipo === 'AMBOS');
+  } else if (filters.value.tipo === 'INTERESSADO_OU_AMBOS') {
+      list = list.filter(c => c.tipo === 'INTERESSADO' || c.tipo === 'AMBOS');
+  }
+  
+  return list;
 });
 
 function editCliente(id: number) {
   router.push({ name: 'cliente-editar', params: { id } });
+}
+
+function goToCreateCliente() { 
+    router.push({ name: 'cliente-novo' });
 }
 
 onMounted(fetchClientes);
@@ -103,15 +275,56 @@ onMounted(fetchClientes);
 
 <style scoped>
 .clientes-container {
-  padding: 0; /* Espaçamento removido */
+  padding: 0;
 }
 
-/* Regras .view-header, .header-actions removidas */
+/* ESTILOS DO DASHBOARD (REUTILIZADOS DE IMOVEISVIEW) */
+.summary-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1.5rem;
+  margin-bottom: 2rem;
+}
+.card {
+  background-color: #fff;
+  padding: 1.5rem;
+  border-radius: 8px;
+  box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+  text-align: center;
+  cursor: pointer;
+  border: 2px solid transparent;
+  transition: all 0.2s;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+.card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 8px 12px rgba(0,0,0,0.1);
+}
+.card.active {
+    border-color: #007bff;
+    box-shadow: 0 6px 10px rgba(0, 123, 255, 0.2);
+}
+.card-value {
+  font-size: 2.5rem;
+  font-weight: bold;
+  margin: 0;
+  color: #007bff;
+}
+.card-label {
+  margin: 0.5rem 0 0 0;
+  color: #6c757d;
+  font-size: 0.9rem;
+}
+/* FIM ESTILOS DO DASHBOARD */
 
 .search-and-filter-bar {
   display: flex;
-  justify-content: space-between;
+  flex-wrap: wrap; 
+  justify-content: flex-start;
   align-items: center;
+  gap: 1rem;
   margin-bottom: 1.5rem;
   background-color: transparent;
   padding: 0;
@@ -129,6 +342,54 @@ onMounted(fetchClientes);
   font-size: 1rem;
   font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif;
 }
+
+/* NOVOS ESTILOS PARA FILTROS DE DROPDOWN */
+.filter-group {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.filter-group label {
+  font-weight: 500;
+  color: #555;
+  white-space: nowrap;
+}
+
+.filter-group select {
+  padding: 8px 12px;
+  border: 1px solid #ccc;
+  border-radius: 5px;
+  font-size: 0.95rem;
+  background-color: #f8f9fa;
+  min-width: 120px;
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif;
+}
+/* FIM NOVOS ESTILOS */
+
+/* Estilo do botão Adicionar Cliente (MANTIDO) */
+.btn-add {
+  background-color: #007bff;
+  color: white;
+  padding: 10px 15px;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+  font-weight: bold;
+  transition: background-color 0.3s ease;
+  font-size: 0.95rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-left: auto; 
+  width: auto;
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif;
+}
+
+.btn-add:hover {
+  background-color: #0056b3;
+}
+
 
 .loading-message, .error-message, .empty-message {
   text-align: center;
@@ -155,7 +416,6 @@ onMounted(fetchClientes);
 
 .clientes-grid {
   display: grid;
-  /* CORREÇÃO APLICADA AQUI */
   grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
   gap: 1.5rem;
 }
@@ -247,7 +507,7 @@ onMounted(fetchClientes);
 .tag.ambos { background-color: #6f42c1; }
 .tag.inativo { background-color: #6c757d; }
 
-.btn-primary { /* Estilo do botão que foi removido do header */
+.btn-primary { 
   background-color: #007bff;
   color: white;
   padding: 10px 20px;

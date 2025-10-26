@@ -1,5 +1,24 @@
 <template>
   <div class="imoveis-container">
+
+    <div v-if="sumarioImoveis" class="summary-cards">
+      <div class="card" @click="setFilter('status', 'A_VENDA')" :class="{ active: filters.status === 'A_VENDA' }">
+        <p class="card-value">{{ sumarioImoveis.a_venda }}</p>
+        <p class="card-label">Imóveis à Venda</p>
+      </div>
+      <div class="card" @click="setFilter('status', 'PARA_ALUGAR')" :class="{ active: filters.status === 'PARA_ALUGAR' }">
+        <p class="card-value">{{ sumarioImoveis.para_alugar }}</p>
+        <p class="card-label">Imóveis para Alugar</p>
+      </div>
+      <div class="card" @click="setFilter('status', 'VENDIDO_OU_ALUGADO')" :class="{ active: filters.status === 'VENDIDO_OU_ALUGADO' }">
+        <p class="card-value">{{ sumarioImoveis.vendidos_e_alugados }}</p>
+        <p class="card-label">Vendidos/Alugados (Mês)</p>
+      </div>
+      <div class="card" @click="setFilter('status', '')" :class="{ active: filters.status === '' && !searchQuery }">
+        <p class="card-value">{{ imoveis.length }}</p>
+        <p class="card-label">Total de Imóveis</p>
+      </div>
+    </div>
     <div class="search-and-filter-bar">
       <input 
         type="text" 
@@ -42,13 +61,16 @@
           <option value="DESATIVADO">Desativado</option>
         </select>
       </div>
-    </div>
+      <button @click="goToCreateImovel" class="btn-add">
+        <i class="fas fa-plus"></i> Adicionar Imóvel
+      </button>
+      </div>
 
     <div v-if="isLoading" class="loading-message">
       A carregar imóveis...
     </div>
-    <div v-else-if="imoveis.length === 0" class="empty-message">
-      Nenhum imóvel encontrado.
+    <div v-else-if="filteredImoveis.length === 0" class="empty-message">
+      Nenhum imóvel encontrado para os filtros e pesquisa aplicados.
     </div>
     <div v-else class="imoveis-grid">
       <div v-for="imovel in filteredImoveis" :key="imovel.id" class="imovel-card">
@@ -106,6 +128,10 @@ const filters = ref({
   status: '',
 });
 
+// VARIÁVEL PARA O SUMÁRIO MANTIDA
+const sumarioImoveis = ref<any>(null); 
+// FIM
+
 const defaultImage = 'https://via.placeholder.com/400x300.png?text=Sem+imagem';
 let debounceTimeout: number | undefined = undefined;
 
@@ -114,12 +140,47 @@ async function fetchImoveis() {
   try {
     const response = await apiClient.get('/v1/imoveis/');
     imoveis.value = response.data;
+    
+    // CÁLCULO DO SUMÁRIO MANTIDO
+    calculateSummary(imoveis.value);
+
   } catch (error) {
     console.error("Erro ao carregar imóveis:", error);
   } finally {
     isLoading.value = false;
   }
 }
+
+// FUNÇÃO DE CÁLCULO DO SUMÁRIO MANTIDA
+function calculateSummary(list: any[]) {
+    const a_venda = list.filter(i => i.status === 'A_VENDA').length;
+    const para_alugar = list.filter(i => i.status === 'PARA_ALUGAR').length;
+    const vendidos_e_alugados = list.filter(i => i.status === 'VENDIDO' || i.status === 'ALUGADO').length; 
+
+    sumarioImoveis.value = {
+        a_venda,
+        para_alugar,
+        vendidos_e_alugados
+    };
+}
+
+// FUNÇÃO DE FILTRO PELO CARD MANTIDA
+function setFilter(key: 'tipo' | 'finalidade' | 'status', value: string) {
+    if (key === 'status' && value === 'VENDIDO_OU_ALUGADO') {
+        if (filters.value.status === 'VENDIDO_OU_ALUGADO') {
+            filters.value.status = '';
+        } else {
+            filters.value.status = 'VENDIDO_OU_ALUGADO';
+        }
+    } else {
+        if (filters.value[key] === value) {
+            filters.value[key] = ''; // Limpa o filtro se clicar novamente
+        } else {
+            filters.value[key] = value;
+        }
+    }
+}
+
 
 function getPrincipalImage(imagens: any[]): string {
   if (!imagens || imagens.length === 0) {
@@ -148,27 +209,35 @@ function getStatusClass(status: string) {
 
 const filteredImoveis = computed(() => {
   return imoveis.value.filter(imovel => {
+    const searchLower = searchQuery.value.toLowerCase();
+    
     const matchesSearch = searchQuery.value
-      ? (imovel.codigo_referencia?.toLowerCase().includes(searchQuery.value.toLowerCase()) ||
-         imovel.titulo_anuncio?.toLowerCase().includes(searchQuery.value.toLowerCase()) ||
-         imovel.cidade?.toLowerCase().includes(searchQuery.value.toLowerCase()))
+      ? (imovel.codigo_referencia?.toLowerCase().includes(searchLower) ||
+         imovel.titulo_anuncio?.toLowerCase().includes(searchLower) ||
+         imovel.cidade?.toLowerCase().includes(searchLower))
       : true;
     
+    let matchesStatus = true;
+    if (filters.value.status !== '') {
+        if (filters.value.status === 'VENDIDO_OU_ALUGADO') {
+            matchesStatus = (imovel.status === 'VENDIDO' || imovel.status === 'ALUGADO');
+        } else {
+            matchesStatus = imovel.status === filters.value.status;
+        }
+    }
+
     const matchesFilters = 
       (filters.value.tipo === '' || imovel.tipo === filters.value.tipo) &&
       (filters.value.finalidade === '' || imovel.finalidade === filters.value.finalidade) &&
-      (filters.value.status === '' || imovel.status === filters.value.status);
+      matchesStatus; 
       
     return matchesSearch && matchesFilters;
   });
 });
 
-/*
-  // A função goToCreateImovel foi REMOVIDA por não ser mais necessária
-  function goToCreateImovel() {
-    router.push({ name: 'imovel-novo' });
-  }
-*/
+function goToCreateImovel() {
+  router.push({ name: 'imovel-novo' });
+}
 
 function editImovel(id: number) {
   router.push({ name: 'imovel-editar', params: { id } });
@@ -182,14 +251,15 @@ function confirmInativar(id: number) {
 
 async function inativarImovel(id: number) {
   try {
-    // Altera a chamada para uma requisição PATCH
     await apiClient.patch(`/v1/imoveis/${id}/`, { status: 'DESATIVADO' });
     
-    // Atualiza a lista localmente para refletir a mudança de status
     const index = imoveis.value.findIndex(imovel => imovel.id === id);
     if (index !== -1) {
       imoveis.value[index].status = 'DESATIVADO';
     }
+
+    // Reacalcula o sumário após a alteração
+    calculateSummary(imoveis.value);
 
     alert('Imóvel inativado com sucesso!');
   } catch (error) {
@@ -207,7 +277,7 @@ watch([filters.value, searchQuery], () => {
         clearTimeout(debounceTimeout);
     }
     debounceTimeout = setTimeout(() => {
-        fetchImoveis();
+         // Apenas para que o watch seja executado e reaja a mudanças, o computed já filtra
     }, 500);
 }, { deep: true });
 
@@ -219,9 +289,46 @@ watch([filters.value, searchQuery], () => {
   background-color: transparent;
 }
 
-/* Os estilos .view-header, .header-actions e .btn-primary 
-  foram REMOVIDOS pois o header não existe mais.
-*/
+/* ESTILOS DO DASHBOARD (MANTIDOS) */
+.summary-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1.5rem;
+  margin-bottom: 2rem;
+}
+.card {
+  background-color: #fff;
+  padding: 1.5rem;
+  border-radius: 8px;
+  box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+  text-align: center;
+  cursor: pointer;
+  border: 2px solid transparent;
+  transition: all 0.2s;
+  display: flex; 
+  flex-direction: column;
+  justify-content: center;
+}
+.card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 8px 12px rgba(0,0,0,0.1);
+}
+.card.active {
+    border-color: #007bff;
+    box-shadow: 0 6px 10px rgba(0, 123, 255, 0.2);
+}
+.card-value {
+  font-size: 2.5rem;
+  font-weight: bold;
+  margin: 0;
+  color: #007bff;
+}
+.card-label {
+  margin: 0.5rem 0 0 0;
+  color: #6c757d;
+  font-size: 0.9rem;
+}
+/* FIM ESTILOS DO DASHBOARD */
 
 .search-and-filter-bar {
   display: flex;
@@ -229,13 +336,6 @@ watch([filters.value, searchQuery], () => {
   gap: 1rem;
   margin-bottom: 1.5rem; 
   align-items: center;
-  
-  /* CORREÇÕES APLICADAS AQUI (remoção da "caixa"):
-    - background-color: #ffffff; (REMOVIDO)
-    - padding: 1.5rem; (ALTERADO PARA 0)
-    - border-radius: 8px; (REMOVIDO)
-    - box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05); (REMOVIDO)
-  */
   background-color: transparent;
   padding: 0;
   border-radius: 0;
@@ -273,6 +373,30 @@ watch([filters.value, searchQuery], () => {
   min-width: 120px;
   font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif;
 }
+
+/* CORREÇÃO: Estilo do botão para alinhar no far-right da barra de filtros */
+.btn-add {
+  background-color: #007bff; /* Cor primária padrão */
+  color: white;
+  padding: 10px 15px;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+  font-weight: bold;
+  transition: background-color 0.3s ease;
+  font-size: 0.95rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-left: auto; /* IMPORTANTE: Empurra o botão para a direita */
+  width: auto;
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif;
+}
+
+.btn-add:hover {
+  background-color: #0056b3;
+}
+/* FIM CORREÇÃO */
 
 .imoveis-grid {
   display: grid;

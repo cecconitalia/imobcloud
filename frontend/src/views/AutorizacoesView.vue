@@ -4,6 +4,7 @@
     <div v-if="error" class="error-message">{{ error }}</div>
 
     <div v-if="data" class="content-area">
+      
       <div class="summary-cards">
         <div class="card" @click="setFilter('expirando_em_30_dias')" :class="{ active: activeFilter === 'expirando_em_30_dias' }">
           <p class="card-value">{{ data.sumario.expirando_em_30_dias }}</p>
@@ -24,6 +25,12 @@
       </div>
 
       <div class="imoveis-table-container">
+        <div class="table-header-actions">
+            <h2 class="table-title">Imóveis com Autorização</h2>
+            <button @click="goToCreateAutorizacao" class="btn-add">
+                <i class="fas fa-plus"></i> Adicionar Autorização
+            </button>
+        </div>
         <table>
           <thead>
             <tr>
@@ -67,23 +74,25 @@ import { ref, onMounted, computed } from 'vue';
 import apiClient from '@/services/api';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import { useRouter } from 'vue-router'; 
+
+const router = useRouter(); 
 
 // Interfaces adaptadas para a estrutura esperada (baseada no código anterior)
 interface ImovelAutorizacao {
     id: number;
     codigo_referencia: string;
     titulo_anuncio: string;
-    proprietario__nome_completo: string | null; // Note a mudança no nome da chave
+    proprietario__nome_completo: string | null; 
     data_fim_autorizacao: string | null;
-    status_autorizacao: 'Ativo' | 'Expirando' | 'Expirado' | 'Incompleto'; // Note a mudança no nome da chave e valores
+    status_autorizacao: 'Ativo' | 'Expirando' | 'Expirado' | 'Incompleto'; 
 }
 
 interface SumarioAutorizacoes {
     expirando_em_30_dias: number;
     expiradas_recentemente: number;
     ativas: number;
-    sem_data: number; // Adicionado de volta
-    // total: number; // Removido se não vier da API '/v1/autorizacao-status/'
+    sem_data: number; 
 }
 
 interface AutorizacoesData {
@@ -95,22 +104,20 @@ interface AutorizacoesData {
 const data = ref<AutorizacoesData | null>(null);
 const isLoading = ref(true);
 const error = ref<string | null>(null);
-// Tipo do filtro ajustado para incluir 'sem_data' e permitir null
 const activeFilter = ref<string | null>(null);
 
-// Lógica de filtro ajustada para usar 'status_autorizacao'
+
 const filteredImoveis = computed(() => {
   if (!data.value || !data.value.imoveis) return [];
-  if (!activeFilter.value) return data.value.imoveis; // Retorna todos se nenhum filtro ativo
+  if (!activeFilter.value) return data.value.imoveis; 
 
   switch (activeFilter.value) {
     case 'expirando_em_30_dias':
       return data.value.imoveis.filter((i: ImovelAutorizacao) => i.status_autorizacao === 'Expirando');
     case 'expiradas_recentemente':
-      // Mantendo a lógica de filtro por data que estava no código anterior para este caso específico
       {
         const hoje = new Date();
-        hoje.setHours(0, 0, 0, 0); // Zera hora para comparar só a data
+        hoje.setHours(0, 0, 0, 0); 
         const limitePassado = new Date();
         limitePassado.setDate(hoje.getDate() - 30);
         limitePassado.setHours(0, 0, 0, 0);
@@ -118,10 +125,10 @@ const filteredImoveis = computed(() => {
         return data.value.imoveis.filter((i: ImovelAutorizacao) => {
             if (i.status_autorizacao !== 'Expirado' || !i.data_fim_autorizacao) return false;
             try {
-                const dataFim = new Date(i.data_fim_autorizacao + 'T00:00:00'); // Trata como data local
+                const dataFim = new Date(i.data_fim_autorizacao + 'T00:00:00'); 
                 return dataFim >= limitePassado && dataFim < hoje;
             } catch {
-                return false; // Ignora datas inválidas
+                return false; 
             }
         });
       }
@@ -134,10 +141,15 @@ const filteredImoveis = computed(() => {
   }
 });
 
+// FUNÇÃO DE NAVEGAÇÃO ADICIONADA
+function goToCreateAutorizacao() {
+    router.push({ name: 'autorizacao-nova' });
+}
+
 
 function setFilter(filter: string) {
     if (activeFilter.value === filter) {
-        activeFilter.value = null; // Clicar novamente para limpar o filtro
+        activeFilter.value = null; 
     } else {
         activeFilter.value = filter;
     }
@@ -145,7 +157,7 @@ function setFilter(filter: string) {
 
 async function fetchData() {
   isLoading.value = true;
-  error.value = null; // Limpa erros anteriores
+  error.value = null; 
   try {
     // URL CORRIGIDA para /v1/autorizacao-status/
     const response = await apiClient.get<AutorizacoesData>('/v1/autorizacao-status/');
@@ -193,10 +205,8 @@ onMounted(() => {
 
 <style scoped>
 .autorizacoes-container {
-  padding: 0; /* Espaço em branco removido */
+  padding: 0; 
 }
-
-/* Regra .view-header removida */
 
 .loading-message, .error-message, .no-results {
   text-align: center;
@@ -255,13 +265,52 @@ onMounted(() => {
     box-shadow: 0 4px 6px rgba(0,0,0,0.05);
     overflow-x: auto;
 }
+
+/* NOVO ESTILO: Garante que o título e o botão fiquem na mesma linha, alinhados. */
+.table-header-actions {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1rem;
+    /* Adicionamos padding/margin interno para não afetar o padding do container pai */
+    padding: 0 0.5rem; 
+}
+
+.table-title {
+    font-size: 1.3rem;
+    margin: 0;
+    color: #333;
+}
+
+.btn-add {
+  background-color: #007bff; 
+  color: white;
+  padding: 10px 15px;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+  font-weight: bold;
+  transition: background-color 0.3s ease;
+  font-size: 0.95rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  /* Removido margin-left: auto para usar o justify-content: space-between */
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif;
+}
+
+.btn-add:hover {
+  background-color: #0056b3;
+}
+/* FIM CORREÇÕES DE ESTILO */
+
 table {
   width: 100%;
   border-collapse: collapse;
 }
 th, td {
   border-bottom: 1px solid #ddd;
-  padding: 12px 15px; /* Aumentado padding para melhor espaçamento */
+  padding: 12px 15px; 
   text-align: left;
   white-space: nowrap;
 }
@@ -282,17 +331,17 @@ tr:hover {
   font-weight: bold;
   color: white;
   text-align: center;
-  display: inline-block; /* Garante que o padding seja aplicado corretamente */
+  display: inline-block; 
 }
-.status-ativo { background-color: #28a745; } /* Verde */
-.status-expirando { background-color: #ffc107; color: #333; } /* Amarelo */
-.status-expirado { background-color: #dc3545; } /* Vermelho */
-.status-incompleto { background-color: #6c757d; } /* Cinza */
+.status-ativo { background-color: #28a745; } 
+.status-expirando { background-color: #ffc107; color: #333; } 
+.status-expirado { background-color: #dc3545; } 
+.status-incompleto { background-color: #6c757d; } 
 
 .actions-cell {
-    text-align: center; /* Centraliza o botão */
+    text-align: center; 
 }
-.btn-sm { /* Estilo base para botões pequenos */
+.btn-sm { 
   padding: 5px 10px;
   font-size: 0.8rem;
   border-radius: 4px;
@@ -300,15 +349,15 @@ tr:hover {
   border: none;
   font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif;
   font-weight: 500;
-  text-decoration: none; /* Remove sublinhado do router-link */
-  display: inline-block; /* Necessário para aplicar padding corretamente */
+  text-decoration: none; 
+  display: inline-block; 
 }
-.btn-edit { /* Estilo específico do botão editar */
-  background-color: #17a2b8; /* Azul claro */
+.btn-edit { 
+  background-color: #17a2b8; 
   color: white;
 }
 .btn-edit:hover {
-  background-color: #138496; /* Azul claro mais escuro */
+  background-color: #138496; 
 }
 
 .no-results {

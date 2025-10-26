@@ -148,7 +148,7 @@ const router = createRouter({
                     name: 'imoveis',
                     component: ImoveisView,
                     meta: {
-                        title: 'Gerir Imóveis'
+                        title: 'Gerenciar Imóveis'
                     }
                 },
                 {
@@ -175,7 +175,7 @@ const router = createRouter({
                     component: ImovelImagensView,
                     props: (route) => ({ imovelId: route.params.id }),
                     meta: {
-                        title: 'Gerir Imagens do Imóvel',
+                        title: 'Gerenciar Imagens do Imóvel',
                         requiresAuth: true,
                         isAdmin: true
                     }
@@ -185,7 +185,7 @@ const router = createRouter({
                     name: 'clientes',
                     component: ClientesView,
                     meta: {
-                        title: 'Gerir Clientes'
+                        title: 'Gerenciar Clientes'
                     }
                 },
                 {
@@ -211,7 +211,7 @@ const router = createRouter({
                     name: 'contratos',
                     component: ContratosView,
                     meta: {
-                        title: 'Gerir Contratos'
+                        title: 'Gerenciar Contratos'
                     }
                 },
                 {
@@ -237,7 +237,7 @@ const router = createRouter({
                     name: 'visitas',
                     component: VisitasView,
                     meta: {
-                        title: 'Gerir Visitas'
+                        title: 'Gerenciar Visitas'
                     }
                 },
                 {
@@ -263,7 +263,7 @@ const router = createRouter({
                     name: 'contatos',
                     component: ContatosView,
                     meta: {
-                        title: 'Gerir Contatos',
+                        title: 'Gerenciar Contatos',
                         requiresAuth: true,
                         isAdmin: true
                     }
@@ -273,7 +273,7 @@ const router = createRouter({
                     name: 'corretores',
                     component: CorretoresView,
                     meta: {
-                        title: 'Gerir Utilizadores',
+                        title: 'Gerenciar Utilizadores',
                         requiresAuth: true,
                         isAdmin: true
                     }
@@ -446,7 +446,7 @@ const router = createRouter({
                     name: 'lista-contas',
                     component: ListaContasView,
                     meta: {
-                        title: 'Gerir Contas Bancárias',
+                        title: 'Gerenciar Contas Bancárias',
                         requiresAuth: true,
                         isAdmin: true
                     }
@@ -476,7 +476,7 @@ const router = createRouter({
                     name: 'lista-categorias',
                     component: ListaCategoriasView,
                     meta: {
-                        title: 'Gerir Categorias Financeiras',
+                        title: 'Gerenciar Categorias Financeiras',
                         requiresAuth: true,
                         isAdmin: true
                     }
@@ -506,7 +506,7 @@ const router = createRouter({
                     name: 'lista-formas-pagamento',
                     component: ListaFormasPagamentoView,
                     meta: {
-                        title: 'Gerir Formas de Pagamento',
+                        title: 'Gerenciar Formas de Pagamento',
                         requiresAuth: true,
                         isAdmin: true
                     }
