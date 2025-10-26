@@ -7,19 +7,98 @@
           <span class="brand-text">ImobCloud</span>
         </div>
       </div>
+      
       <ul class="sidebar-nav">
-        <li><router-link to="/dashboard" active-class="active" title="Dashboard"><i class="fas fa-tachometer-alt fa-fw"></i> <span class="nav-text">Dashboard</span></router-link></li>
-        <li><router-link to="/imoveis" active-class="active" title="Imóveis"><i class="fas fa-home fa-fw"></i> <span class="nav-text">Imóveis</span></router-link></li>
-        <li><router-link to="/clientes" active-class="active" title="Clientes"><i class="fas fa-users fa-fw"></i> <span class="nav-text">Clientes</span></router-link></li>
-        <li><router-link to="/contratos" active-class="active" title="Contratos"><i class="fas fa-file-signature fa-fw"></i> <span class="nav-text">Contratos</span></router-link></li>
-        <li><router-link to="/alugueis/dashboard" active-class="active" title="Aluguéis"><i class="fas fa-cash-register fa-fw"></i> <span class="nav-text">Aluguéis</span></router-link></li>
-        <li><router-link to="/financeiro/dashboard" active-class="active" title="Financeiro"><i class="fas fa-wallet fa-fw"></i> <span class="nav-text">Financeiro</span></router-link></li>
-        <li><router-link to="/funil-vendas" active-class="active" title="Funil de Vendas"><i class="fas fa-filter fa-fw"></i> <span class="nav-text">Funil de Vendas</span></router-link></li>
-        <li><router-link to="/calendario" active-class="active" title="Calendário"><i class="fas fa-calendar-alt fa-fw"></i> <span class="nav-text">Calendário</span></router-link></li>
-        <li><router-link to="/publicacoes" active-class="active" title="Publicações"><i class="fas fa-share-square fa-fw"></i> <span class="nav-text">Publicações</span></router-link></li>
+        <li>
+          <router-link to="/dashboard" active-class="active" title="Dashboard">
+            <i class="fas fa-tachometer-alt fa-fw"></i> <span class="nav-text">Dashboard</span>
+          </router-link>
+        </li>
+
+        <li class="nav-item-dropdown" :class="{ open: isMenuOpen('imoveis') }">
+          <a @click.prevent="toggleMenu('imoveis')" href="#">
+            <i class="fas fa-home fa-fw"></i> <span class="nav-text">Imóveis</span>
+            <i class="fas fa-chevron-right dropdown-caret"></i>
+          </a>
+          <ul class="submenu">
+            <li><router-link to="/imoveis" active-class="active" exact-active-class="active">Listar Imóveis</router-link></li>
+            <li><router-link to="/imoveis/novo" active-class="active">Adicionar Imóvel</router-link></li>
+            <li><router-link to="/autorizacoes" active-class="active">Autorizações</router-link></li>
+            <li><router-link to="/contatos" active-class="active">Contatos do Site</router-link></li>
+          </ul>
+        </li>
+
+        <li class="nav-item-dropdown" :class="{ open: isMenuOpen('clientes') }">
+          <a @click.prevent="toggleMenu('clientes')" href="#">
+            <i class="fas fa-users fa-fw"></i> <span class="nav-text">Clientes & CRM</span>
+            <i class="fas fa-chevron-right dropdown-caret"></i>
+          </a>
+          <ul class="submenu">
+            <li><router-link to="/clientes" active-class="active" exact-active-class="active">Listar Clientes</router-link></li>
+            <li><router-link to="/clientes/novo" active-class="active">Adicionar Cliente</router-link></li>
+            <li><router-link to="/funil-vendas" active-class="active">Funil de Vendas</router-link></li>
+          </ul>
+        </li>
+
+        <li class="nav-item-dropdown" :class="{ open: isMenuOpen('admin') }">
+          <a @click.prevent="toggleMenu('admin')" href="#">
+            <i class="fas fa-file-invoice-dollar fa-fw"></i> <span class="nav-text">Administrativo</span>
+            <i class="fas fa-chevron-right dropdown-caret"></i>
+          </a>
+          <ul class="submenu">
+            <li><router-link to="/financeiro/dashboard" active-class="active">Dashboard Financeiro</router-link></li>
+            <li><router-link to="/financeiro/pagar" active-class="active">Contas a Pagar</router-link></li>
+            <li><router-link to="/financeiro/receber" active-class="active">Contas a Receber</router-link></li>
+            <li><router-link to="/financeiro/transacoes" active-class="active">Extrato (Transações)</router-link></li>
+            <li><router-link to="/financeiro/dre" active-class="active">Relatório DRE</router-link></li>
+            <li><router-link to="/contratos" active-class="active">Contratos</router-link></li>
+            <li><router-link to="/alugueis/dashboard" active-class="active">Gerenciar Aluguéis</router-link></li>
+          </ul>
+        </li>
+        
+        <li class="nav-item-dropdown" :class="{ open: isMenuOpen('marketing') }">
+          <a @click.prevent="toggleMenu('marketing')" href="#">
+            <i class="fas fa-share-square fa-fw"></i> <span class="nav-text">Marketing</span>
+            <i class="fas fa-chevron-right dropdown-caret"></i>
+          </a>
+          <ul class="submenu">
+            <li><router-link to="/publicacoes" active-class="active">Gerenciar Publicações</router-link></li>
+            <li><router-link to="/publicacoes/calendario" active-class="active">Calendário de Posts</router-link></li>
+          </ul>
+        </li>
+
+        <li>
+          <router-link to="/calendario" active-class="active" title="Calendário">
+            <i class="fas fa-calendar-alt fa-fw"></i> <span class="nav-text">Agenda / Tarefas</span>
+          </router-link>
+        </li>
+
         <li class="nav-section-title"><span class="nav-text">Configurações</span></li>
-        <li><router-link to="/integracoes" active-class="active" title="Integrações"><i class="fas fa-cogs fa-fw"></i> <span class="nav-text">Integrações</span></router-link></li>
-        <li><router-link to="/corretores" active-class="active" title="Utilizadores"><i class="fas fa-user-tie fa-fw"></i> <span class="nav-text">Utilizadores</span></router-link></li>
+        
+        <li class="nav-item-dropdown" :class="{ open: isMenuOpen('config_geral') }">
+          <a @click.prevent="toggleMenu('config_geral')" href="#">
+            <i class="fas fa-cogs fa-fw"></i> <span class="nav-text">Geral</span>
+            <i class="fas fa-chevron-right dropdown-caret"></i>
+          </a>
+          <ul class="submenu">
+            <li><router-link to="/corretores" active-class="active">Utilizadores</router-link></li>
+            <li><router-link to="/integracoes" active-class="active">Integrações</router-link></li>
+            <li><router-link to="/configuracao-ia" active-class="active">Configurações da IA</router-link></li>
+          </ul>
+        </li>
+
+        <li class="nav-item-dropdown" :class="{ open: isMenuOpen('config_financeiro') }">
+          <a @click.prevent="toggleMenu('config_financeiro')" href="#">
+            <i class="fas fa-wallet fa-fw"></i> <span class="nav-text">Financeiro</span>
+            <i class="fas fa-chevron-right dropdown-caret"></i>
+          </a>
+          <ul class="submenu">
+            <li><router-link to="/financeiro/categorias" active-class="active">Categorias</router-link></li>
+            <li><router-link to="/financeiro/contas" active-class="active">Contas Bancárias</router-link></li>
+            <li><router-link to="/financeiro/formas-pagamento" active-class="active">Formas de Pagamento</router-link></li>
+            <li><router-link to="/financeiro/config-boleto" active-class="active">Configuração Boleto</router-link></li>
+          </ul>
+        </li>
       </ul>
       <div class="sidebar-footer">
         <button @click="logout" class="logout-button" title="Sair">
@@ -28,7 +107,7 @@
       </div>
     </nav>
     
-    <div v-if="isSidebarOpen" class="sidebar-overlay" @click="isSidebarOpen = false"></div>
+    <div v-if="isSidebarOpen" class="sidebar-overlay" @click="toggleSidebar"></div>
 
     <div class="content-wrapper">
       <header class="content-header">
@@ -63,15 +142,36 @@ const router = useRouter();
 const route = useRoute();
 
 const isSidebarOpen = ref(false);
+const openMenu = ref<string | null>(null); // ESTADO PARA O MENU ABERTO
 
+// Função para alternar a sidebar
 const toggleSidebar = () => {
   isSidebarOpen.value = !isSidebarOpen.value;
+  if (!isSidebarOpen.value) {
+    openMenu.value = null; // Fecha submenus ao fechar a sidebar
+  }
 };
 
+// Função para alternar os submenus
+const toggleMenu = (menuName: string) => {
+  if (openMenu.value === menuName) {
+    openMenu.value = null; // Fecha o menu se já estiver aberto
+  } else {
+    openMenu.value = menuName; // Abre o novo menu
+  }
+};
+
+// Função para verificar se o menu está aberto
+const isMenuOpen = (menuName: string) => {
+  return openMenu.value === menuName;
+};
+
+// Observador para fechar sidebar e menus ao navegar
 watch(route, () => {
   if (isSidebarOpen.value) {
     isSidebarOpen.value = false;
   }
+  openMenu.value = null; // Fecha submenus ao navegar
 });
 
 const logout = () => {
@@ -97,6 +197,8 @@ const logout = () => {
   background-color: #f8f9fa;
   position: relative;
   overflow: hidden;
+  /* FONTE MODERNA */
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
 }
 
 /* --- SIDEBAR --- */
@@ -145,30 +247,31 @@ const logout = () => {
   flex-grow: 1;
 }
 
-/* --- LÓGICA DA ANIMAÇÃO EM CASCATA --- */
-.sidebar-nav li {
+/* --- LÓGICA DA ANIMAÇÃO EM CASCATA (MODIFICADO) --- */
+/* Aplica animação apenas aos LIs de nível superior (filhos diretos) */
+.sidebar-nav > li {
   opacity: 0;
   transform: translateX(-15px);
   transition: opacity 0.3s var(--transition-easing), transform 0.3s var(--transition-easing);
 }
-.dashboard-layout.sidebar-open .sidebar-nav li {
+.dashboard-layout.sidebar-open .sidebar-nav > li {
   opacity: 1;
   transform: translateX(0);
 }
 
 /* Atraso para cada item da lista */
-.dashboard-layout.sidebar-open .sidebar-nav li:nth-child(1) { transition-delay: 0.08s; }
-.dashboard-layout.sidebar-open .sidebar-nav li:nth-child(2) { transition-delay: 0.10s; }
-.dashboard-layout.sidebar-open .sidebar-nav li:nth-child(3) { transition-delay: 0.12s; }
-.dashboard-layout.sidebar-open .sidebar-nav li:nth-child(4) { transition-delay: 0.14s; }
-.dashboard-layout.sidebar-open .sidebar-nav li:nth-child(5) { transition-delay: 0.16s; }
-.dashboard-layout.sidebar-open .sidebar-nav li:nth-child(6) { transition-delay: 0.18s; }
-.dashboard-layout.sidebar-open .sidebar-nav li:nth-child(7) { transition-delay: 0.20s; }
-.dashboard-layout.sidebar-open .sidebar-nav li:nth-child(8) { transition-delay: 0.22s; }
-.dashboard-layout.sidebar-open .sidebar-nav li:nth-child(9) { transition-delay: 0.24s; }
-.dashboard-layout.sidebar-open .sidebar-nav li:nth-child(10) { transition-delay: 0.26s; }
-.dashboard-layout.sidebar-open .sidebar-nav li:nth-child(11) { transition-delay: 0.28s; }
-.dashboard-layout.sidebar-open .sidebar-nav li:nth-child(12) { transition-delay: 0.30s; }
+.dashboard-layout.sidebar-open .sidebar-nav > li:nth-child(1) { transition-delay: 0.08s; }
+.dashboard-layout.sidebar-open .sidebar-nav > li:nth-child(2) { transition-delay: 0.10s; }
+.dashboard-layout.sidebar-open .sidebar-nav > li:nth-child(3) { transition-delay: 0.12s; }
+.dashboard-layout.sidebar-open .sidebar-nav > li:nth-child(4) { transition-delay: 0.14s; }
+.dashboard-layout.sidebar-open .sidebar-nav > li:nth-child(5) { transition-delay: 0.16s; }
+.dashboard-layout.sidebar-open .sidebar-nav > li:nth-child(6) { transition-delay: 0.18s; }
+.dashboard-layout.sidebar-open .sidebar-nav > li:nth-child(7) { transition-delay: 0.20s; }
+.dashboard-layout.sidebar-open .sidebar-nav > li:nth-child(8) { transition-delay: 0.22s; }
+.dashboard-layout.sidebar-open .sidebar-nav > li:nth-child(9) { transition-delay: 0.24s; }
+.dashboard-layout.sidebar-open .sidebar-nav > li:nth-child(10) { transition-delay: 0.26s; }
+.dashboard-layout.sidebar-open .sidebar-nav > li:nth-child(11) { transition-delay: 0.28s; }
+.dashboard-layout.sidebar-open .sidebar-nav > li:nth-child(12) { transition-delay: 0.30s; }
 
 
 .sidebar-nav a {
@@ -182,9 +285,10 @@ const logout = () => {
   font-size: 0.95rem;
   white-space: nowrap;
   transition: background-color 0.2s, color 0.2s;
+  position: relative; /* Adicionado para o caret */
 }
 .sidebar-nav a:hover { background-color: #f8f9fa; }
-.sidebar-nav a.active {
+.sidebar-nav > li > a.active {
   background-color: #e9ecef;
   color: #0056b3;
   font-weight: 600;
@@ -196,7 +300,7 @@ const logout = () => {
   margin-right: 1rem;
   color: #718096;
 }
-.sidebar-nav a.active i { color: #007bff; }
+.sidebar-nav > li > a.active i { color: #007bff; }
 
 .nav-section-title {
   padding: 1.5rem 24px 0.5rem;
@@ -217,6 +321,72 @@ const logout = () => {
 }
 .logout-button:hover { background-color: #f1f3f5; }
 .logout-button i { font-size: 1.1rem; width: 25px; text-align: center; margin-right: 1rem; }
+
+
+/* --- NOVOS ESTILOS DE SUBMENU --- */
+.nav-item-dropdown > a {
+  cursor: pointer;
+}
+.dropdown-caret {
+  position: absolute;
+  right: 24px;
+  top: 50%;
+  transform: translateY(-50%) rotate(0deg);
+  font-size: 0.8rem;
+  color: #a0aec0;
+  transition: transform 0.3s ease-in-out;
+}
+.nav-item-dropdown.open > a {
+  background-color: #f8f9fa;
+  color: #0056b3;
+  font-weight: 600;
+}
+.nav-item-dropdown.open > a .nav-text {
+  color: #0056b3;
+}
+.nav-item-dropdown.open > a i {
+  color: #007bff;
+}
+.nav-item-dropdown.open .dropdown-caret {
+  transform: translateY(-50%) rotate(90deg);
+  color: #007bff;
+}
+.submenu {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  background-color: #f8f9fa; /* Fundo ligeiramente diferente */
+  max-height: 0;
+  overflow: hidden;
+  opacity: 0;
+  visibility: hidden;
+  transition: max-height 0.4s ease-in-out, opacity 0.3s ease-in-out, visibility 0.4s, padding 0.4s ease-in-out;
+}
+.nav-item-dropdown.open .submenu {
+  max-height: 500px; /* Altura máxima para animação */
+  opacity: 1;
+  visibility: visible;
+  padding: 0.5rem 0;
+}
+/* Estilo dos links do submenu */
+.submenu a {
+  height: 44px;
+  /* (Padding Pai) + (Largura Icone Pai) + (Margem Icone Pai) */
+  padding-left: calc(24px + 25px + 1rem); 
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: #4a5568;
+}
+.submenu a:hover {
+  background-color: #f1f3f5;
+}
+.submenu a.active {
+  background-color: transparent;
+  color: #0056b3;
+  font-weight: 600;
+}
+/* --- FIM DOS NOVOS ESTILOS DE SUBMENU --- */
+
 
 /* --- OVERLAY --- */
 .sidebar-overlay {
@@ -282,7 +452,10 @@ const logout = () => {
 
 
 .page-title {
-  font-size: 1.5rem; margin: 0; font-weight: 600; color: #2d3748;
+  font-size: 1.25rem; 
+  margin: 0; 
+  font-weight: 600; 
+  color: #2d3748;
 }
 .header-actions {
   display: flex; align-items: center; gap: 1rem;

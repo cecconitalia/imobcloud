@@ -1,14 +1,5 @@
 <template>
   <div class="imoveis-container">
-    <header class="view-header">
-      <h1>Gerir Imóveis</h1>
-      <div class="header-actions">
-        <button class="btn-primary" @click="goToCreateImovel">
-          <i class="fas fa-plus"></i> Novo Imóvel
-        </button>
-      </div>
-    </header>
-    
     <div class="search-and-filter-bar">
       <input 
         type="text" 
@@ -172,9 +163,12 @@ const filteredImoveis = computed(() => {
   });
 });
 
-function goToCreateImovel() {
-  router.push({ name: 'imovel-novo' });
-}
+/*
+  // A função goToCreateImovel foi REMOVIDA por não ser mais necessária
+  function goToCreateImovel() {
+    router.push({ name: 'imovel-novo' });
+  }
+*/
 
 function editImovel(id: number) {
   router.push({ name: 'imovel-editar', params: { id } });
@@ -221,61 +215,31 @@ watch([filters.value, searchQuery], () => {
 
 <style scoped>
 .imoveis-container {
-  padding: 2rem;
-  background-color: #f4f7f9;
-  min-height: calc(100vh - 80px);
+  padding: 0;
+  background-color: transparent;
 }
 
-.view-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding-bottom: 1.5rem;
-  border-bottom: 1px solid #e0e0e0;
-  margin-bottom: 1.5rem;
-}
-
-.view-header h1 {
-  font-size: 1.8rem;
-  font-weight: 600;
-  color: #333;
-  margin: 0;
-}
-
-.header-actions {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-}
-
-.btn-primary {
-  background-color: #007bff;
-  color: white;
-  padding: 10px 20px;
-  border: none;
-  border-radius: 5px;
-  cursor: pointer;
-  transition: background-color 0.3s ease;
-}
-
-.btn-primary i {
-  margin-right: 8px;
-}
-
-.btn-primary:hover {
-  background-color: #0056b3;
-}
+/* Os estilos .view-header, .header-actions e .btn-primary 
+  foram REMOVIDOS pois o header não existe mais.
+*/
 
 .search-and-filter-bar {
   display: flex;
   flex-wrap: wrap;
   gap: 1rem;
-  margin-bottom: 2rem;
-  background-color: #ffffff;
-  padding: 1.5rem;
-  border-radius: 8px;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+  margin-bottom: 1.5rem; 
   align-items: center;
+  
+  /* CORREÇÕES APLICADAS AQUI (remoção da "caixa"):
+    - background-color: #ffffff; (REMOVIDO)
+    - padding: 1.5rem; (ALTERADO PARA 0)
+    - border-radius: 8px; (REMOVIDO)
+    - box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05); (REMOVIDO)
+  */
+  background-color: transparent;
+  padding: 0;
+  border-radius: 0;
+  box-shadow: none;
 }
 
 .search-input {
@@ -285,6 +249,7 @@ watch([filters.value, searchQuery], () => {
   width: 100%;
   max-width: 350px;
   box-sizing: border-box;
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif;
 }
 
 .filter-group {
@@ -294,7 +259,7 @@ watch([filters.value, searchQuery], () => {
 }
 
 .filter-group label {
-  font-weight: bold;
+  font-weight: 500;
   color: #555;
   white-space: nowrap;
 }
@@ -303,9 +268,10 @@ watch([filters.value, searchQuery], () => {
   padding: 8px 12px;
   border: 1px solid #ccc;
   border-radius: 5px;
-  font-size: 1rem;
+  font-size: 0.95rem;
   background-color: #f8f9fa;
   min-width: 120px;
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif;
 }
 
 .imoveis-grid {
@@ -317,7 +283,7 @@ watch([filters.value, searchQuery], () => {
 .imovel-card {
   background-color: #ffffff;
   border-radius: 8px;
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.07);
   transition: transform 0.3s ease, box-shadow 0.3s ease;
   overflow: hidden;
   display: flex;
@@ -326,7 +292,7 @@ watch([filters.value, searchQuery], () => {
 
 .imovel-card:hover {
   transform: translateY(-5px);
-  box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
+  box-shadow: 0 6px 12px rgba(0, 0, 0, 0.1);
 }
 
 .card-image-container {
@@ -375,6 +341,7 @@ watch([filters.value, searchQuery], () => {
   font-size: 1.1rem;
   margin: 0;
   color: #333;
+  font-weight: 600;
 }
 
 .card-codigo {
@@ -410,6 +377,7 @@ watch([filters.value, searchQuery], () => {
   font-weight: bold;
   transition: background-color 0.3s ease;
   font-size: 0.9rem;
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif;
 }
 
 .btn-edit {

@@ -1,12 +1,5 @@
 <template>
   <div class="form-container">
-    <header class="view-header">
-      <h1>{{ isEditing ? `Editar Imóvel #${imovel.codigo_referencia}` : 'Adicionar Novo Imóvel' }}</h1>
-      <div class="header-actions">
-        <router-link to="/imoveis" class="btn-secondary">Voltar à Lista</router-link>
-      </div>
-    </header>
-
     <div v-if="isLoadingData" class="loading-message">
       A carregar dados do imóvel...
     </div>
@@ -641,9 +634,12 @@ function handleCancel() {
 </script>
 
 <style scoped>
-/* Estilos existentes */
-.form-container { padding: 2rem; }
-.view-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; }
+.form-container { 
+  padding: 0; 
+}
+
+/* Os estilos .view-header e .header-actions foram REMOVIDOS */
+
 .tabs { display: flex; flex-wrap: wrap; border-bottom: 2px solid #ccc; margin-bottom: 1.5rem; width: 100%; }
 .tabs button { padding: 10px 20px; border: none; background: none; cursor: pointer; font-size: 1rem; font-weight: 500; color: #6c757d; border-bottom: 2px solid transparent; margin-bottom: -2px; }
 .tabs button:disabled { color: #ccc; cursor: not-allowed; }
@@ -653,14 +649,20 @@ function handleCancel() {
 .form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 1.5rem; width: 100%; }
 .form-group { display: flex; flex-direction: column; }
 .form-group.full-width { grid-column: 1 / -1; }
-label { margin-bottom: 0.5rem; font-weight: bold; }
-input, select, textarea { padding: 10px; border: 1px solid #ccc; border-radius: 4px; font-size: 1rem; }
+label { margin-bottom: 0.5rem; font-weight: 500; }
+input, select, textarea { 
+  padding: 10px; 
+  border: 1px solid #ccc; 
+  border-radius: 4px; 
+  font-size: 1rem; 
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif;
+}
 .checkbox-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1rem; }
 .checkbox-group { display: flex; align-items: center; gap: 0.5rem; }
 .checkbox-group input[type="checkbox"] { width: auto; }
 .checkbox-group label { margin-bottom: 0; font-weight: normal; }
 .form-actions { display: flex; justify-content: flex-end; gap: 1rem; width: 100%; margin-top: 1rem; }
-.btn-primary, .btn-secondary, .btn-info, .btn-info-outline { padding: 10px 20px; border: none; border-radius: 5px; cursor: pointer; text-decoration: none; font-weight: bold; }
+.btn-primary, .btn-secondary, .btn-info, .btn-info-outline { padding: 10px 20px; border: none; border-radius: 5px; cursor: pointer; text-decoration: none; font-weight: 500; font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif; }
 .btn-primary { background-color: #007bff; color: white; }
 .btn-secondary { background-color: #6c757d; color: white; }
 .btn-info { background-color: #17a2b8; color: white; }
@@ -683,11 +685,6 @@ input, select, textarea { padding: 10px; border: 1px solid #ccc; border-radius: 
     display: flex;
     flex-direction: column;
     gap: 0.5rem;
-}
-
-.header-actions {
-  display: flex;
-  gap: 1rem;
 }
 
 /* NOVOS ESTILOS PARA O LAYOUT DA ABA DE VISIBILIDADE */
