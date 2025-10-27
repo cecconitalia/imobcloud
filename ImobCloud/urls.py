@@ -21,8 +21,8 @@ urlpatterns = [
     path('public/imoveis/', ImovelPublicListView.as_view(), name='imovel-public-list'),
     path('public/imoveis/<int:pk>/', ImovelPublicDetailView.as_view(), name='imovel-public-detail'),
     
-    # CORREÇÃO CRÍTICA DO 404: Garante que esta rota existe
-    path('public/imobiliaria/<str:subdominio>/', ImobiliariaPublicDetailView.as_view(), name='imobiliaria-public-detail'),
+    # CORREÇÃO: Usa 'pk' no path para sincronizar com lookup_url_kwarg='pk' na view
+    path('public/imobiliaria/<str:pk>/', ImobiliariaPublicDetailView.as_view(), name='imobiliaria-public-detail'),
     
     # Rota de busca por IA (também é pública)
     path('public/imoveis/busca-ia/', ImovelIAView.as_view(), name='imovel-busca-ia'),

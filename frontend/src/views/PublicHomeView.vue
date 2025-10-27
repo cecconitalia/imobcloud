@@ -64,7 +64,7 @@ async function fetchImoveis() {
     }
     
     const params: { [key: string]: any } = { subdomain };
-    // CORRIGIDO: O caminho agora é apenas '/public/imoveis/' porque '/api/v1' está na baseURL.
+    // O caminho é apenas '/public/imoveis/' porque o publicApiClient.ts foi corrigido para a raiz.
     const response = await publicApiClient.get('/public/imoveis/', { params });
     imoveis.value = response.data;
   } catch (err) {

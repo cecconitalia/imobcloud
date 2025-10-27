@@ -15,48 +15,70 @@ class ImagemImovelSerializer(serializers.ModelSerializer):
 
 class ImovelSerializer(serializers.ModelSerializer):
     # Campo para LEITURA (read-only): Retorna o objeto completo do cliente.
-    # O 'source' aponta para o campo 'proprietario' do modelo Imovel.
     proprietario_detalhes = ClienteSerializer(source='proprietario', read_only=True)
-    
+
     # Campo para ESCRITA (write-only): Aceita apenas o ID de um cliente.
-    # O nome 'proprietario' corresponde diretamente ao campo do modelo.
-    # A redundância 'source="proprietario"' foi removida.
     proprietario = serializers.PrimaryKeyRelatedField(
         queryset=Cliente.objects.all(),
-        required=False,
-        allow_null=True,
+        required=False, # Não obrigatório ao criar/atualizar imóvel
+        allow_null=True, # Permite que seja nulo
         write_only=True # Garante que este campo não será mostrado na resposta GET
     )
 
-    # Campo somente leitura para as imagens
-    imagens = ImagemImovelSerializer(many=True, read_only=True)
+    # Campo somente leitura para as imagens, ordenadas pela 'ordem'
+    imagens = serializers.SerializerMethodField()
 
     class Meta:
         model = Imovel
-        # Lista explícita de campos para maior clareza.
-        # Incluímos todos os campos do modelo, mais os campos customizados do serializador.
+        # Lista explícita de campos para maior clareza para o Serializer base.
         fields = [field.name for field in Imovel._meta.fields] + [
-            'imagens', 
+            'imagens',
             'proprietario_detalhes'
         ]
         # O campo 'proprietario' (ID) é automaticamente incluído para escrita por ser 'write_only=True'
         read_only_fields = ('codigo_referencia', 'data_cadastro', 'data_atualizacao', 'imobiliaria')
+
+    def get_imagens(self, obj):
+        """
+        Retorna as imagens ordenadas corretamente.
+        """
+        # Acessa o related manager 'imagens' e ordena
+        imagens_ordenadas = obj.imagens.order_by('ordem')
+        # Serializa a queryset ordenada
+        return ImagemImovelSerializer(imagens_ordenadas, many=True).data
 
 
 class ImovelPublicSerializer(ImovelSerializer):
     """
     Serializer para a visualização pública, omitindo campos sensíveis.
     """
-    class Meta(ImovelSerializer.Meta):
-        # Excluímos os campos que não devem aparecer no site público.
+    # Desativa os campos herdados explicitamente
+    proprietario = None
+    proprietario_detalhes = None
+
+    class Meta:
+        model = Imovel
+        # CORREÇÃO: Removemos 'ativo' do exclude, pois não existe no modelo Imovel.
         exclude = [
-            'proprietario', 'numero_matricula', 'data_captacao', 'data_fim_autorizacao',
-            'possui_exclusividade', 'comissao_percentual', 'documento_autorizacao',
-            'informacoes_adicionais_autorizacao', 'proprietario_detalhes'
+            # 'proprietario', # Desativado acima
+            'numero_matricula',
+            'data_captacao',
+            'data_fim_autorizacao',
+            'possui_exclusividade',
+            'comissao_percentual',
+            'documento_autorizacao',
+            'informacoes_adicionais_autorizacao',
+            # 'proprietario_detalhes', # Desativado acima
+            'imobiliaria',
+            # 'ativo', # REMOVIDO - Este campo não existe no modelo Imovel
+            'posicao_chave',
+            'configuracao_publica',
         ]
+        # read_only_fields são herdados implicitamente
 
 
 class ContatoImovelSerializer(serializers.ModelSerializer):
     class Meta:
         model = ContatoImovel
         fields = '__all__'
+        read_only_fields = ('data_criacao',) # Garante que a data não pode ser alterada via API

@@ -173,6 +173,11 @@ async function fetchImovelDetail() {
     if (parts.length > 1 && parts[0] !== 'www' && parts[0] !== 'localhost') {
       subdomain = parts[0];
     }
+    // CORRIGIDO: Fallback robusto para subdomínio em ambiente de desenvolvimento
+    if (subdomain === 'localhost' || !subdomain) {
+        subdomain = 'estilomusical';
+    }
+
     if (!subdomain) {
       error.value = "Site não encontrado. Aceda através de um endereço de imobiliária válido.";
       isLoading.value = false;
@@ -180,7 +185,8 @@ async function fetchImovelDetail() {
     }
 
     const params = { subdomain };
-    const response = await publicApiClient.get(`/v1/public/imoveis/${route.params.id}/`, { params });
+    // CORREÇÃO: Removido o prefixo '/v1/' que estava duplicando o path.
+    const response = await publicApiClient.get(`/public/imoveis/${route.params.id}/`, { params });
 
     imovel.value = response.data;
 
@@ -201,7 +207,9 @@ async function fetchImovelDetail() {
 async function handleContatoSubmit() {
     isSubmittingContato.value = true;
     try {
-        await publicApiClient.post('/v1/imoveis/contatos/', contatoForm.value);
+        // CORREÇÃO: Adicionado o prefixo completo '/api/v1/' para o ContatoImovelViewSet, 
+        // pois ele está mapeado como rota interna no Django.
+        await publicApiClient.post('/api/v1/imoveis/contatos/', contatoForm.value);
         contatoSuccess.value = true;
         contatoForm.value.nome = '';
         contatoForm.value.email = '';

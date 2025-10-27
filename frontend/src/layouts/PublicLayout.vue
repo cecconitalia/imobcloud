@@ -88,7 +88,7 @@ function darkenColor(hex: string, amount: number) {
 // FUNÇÃO PARA BUSCAR O NOME E A COR DA IMOBILIÁRIA VIA API
 async function fetchImobiliariaData(subdomain: string) {
   try {
-    // CORREÇÃO: A chamada usa o caminho que está mapeado na raiz do Django (sem prefixo /api/v1/)
+    // A chamada usa o caminho que está mapeado na raiz do Django (sem prefixo /api/v1/)
     const response = await publicApiClient.get(`/public/imobiliaria/${subdomain}/`);
     imobiliariaNome.value = response.data.nome;
     const primaryColor = response.data.cor_primaria || '#007bff';
@@ -110,10 +110,25 @@ onMounted(() => {
   const hostname = window.location.hostname;
   const parts = hostname.split('.');
   
-  if (parts.length > 1 && parts[0] !== 'www' && parts[0] !== 'localhost') {
-    const subdomain = parts[0];
+  let subdomain = null;
+
+  // Lógica para extração do subdomínio
+  if (parts.length > 1 && parts[0] !== 'www') {
+    // Se o hostname for algo como 'estilo.localhost' ou 'estilo.imobcloud.com'
+    subdomain = parts[0];
+  }
+  
+  // CORREÇÃO: Fallback seguro para ambientes de desenvolvimento (resolve o 404)
+  if (subdomain === 'localhost' || !subdomain) {
+      subdomain = 'estilomusical'; // Subdomínio padrão para teste
+  }
+
+  // Se for um ambiente de desenvolvimento e o subdomínio não for um valor real,
+  // podemos forçar a busca para o subdomínio de teste.
+  if (subdomain) {
     fetchImobiliariaData(subdomain);
   } else {
+    // Configurações padrão se não houver subdomínio válido
     document.documentElement.style.setProperty('--primary-color', '#007bff');
     document.documentElement.style.setProperty('--footer-color', '#34495e');
     document.documentElement.style.setProperty('--body-bg-color', '#f4f7f6');

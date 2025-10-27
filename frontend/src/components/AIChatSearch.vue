@@ -1,243 +1,164 @@
 <template>
-  <div class="ai-chat-widget">
-    <div class="chat-header">
-      <i class="fas fa-microchip animated-robot"></i>
-      <div class="header-text-container">
-        <h3 class="animated-text">{{ dynamicHeaderText }}</h3>
-        <div class="animated-tips-wrapper">
-          <transition-group name="fade" mode="out-in" tag="div" class="animated-tips-container">
-            <p v-for="tip in visibleTips" :key="tip" class="search-tip">{{ tip }}</p>
-          </transition-group>
-        </div>
-      </div>
-    </div>
-    
-    <div class="chat-input-form">
-      <input type="text" v-model="currentMessage" placeholder="Descreva o imóvel que procura..." :disabled="isWaitingForAI" @keyup.enter="sendMessage" />
-      <button type="button" @click="sendMessage" :disabled="!currentMessage || isWaitingForAI">
-        <i v-if="isWaitingForAI" class="fas fa-spinner fa-spin"></i>
-        <i v-else class="fas fa-paper-plane"></i>
+  <div class="ai-chat-search">
+    <form @submit.prevent="submitSearch" class="search-form">
+      <input
+        type="text"
+        v-model="searchQuery"
+        placeholder="Descreva o imóvel que procura..."
+        class="search-input"
+        :disabled="isLoading"
+      />
+      <button type="submit" class="search-button" :disabled="isLoading">
+        <span v-if="!isLoading">Buscar</span>
+        <span v-else class="spinner"></span>
       </button>
-    </div>
+    </form>
+    <p v-if="errorMessage" class="error-message">{{ errorMessage }}</p>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue';
-import publicApiClient from '@/services/publicApiClient';
+import { ref, defineEmits } from 'vue';
+import publicApiClient from '@/services/publicApiClient'; // Usa o cliente público
 
-const emit = defineEmits(['searchResults']);
+const searchQuery = ref('');
+const isLoading = ref(false);
+const errorMessage = ref<string | null>(null);
 
-const currentMessage = ref('');
-const isWaitingForAI = ref(false);
+// Define os eventos que este componente pode emitir
+const emit = defineEmits(['search-results', 'search-error']);
 
-const headerTexts = [
-  "Agente ImobBot", 
-  "Como posso ajudar?", 
-  "Qual imóvel você busca?", 
-  "Agente ImobBot está online"
-];
-const dynamicHeaderText = ref(headerTexts[0]);
-let textIndex = 0;
-
-const searchTips = [
-  "Ex: 'Apartamento com 2 quartos e piscina'.",
-  "Refine: '3 quartos e aceita pet'.",
-  "Termos: 'móveis planejados' ou 'financiável'."
-];
-const visibleTips = ref([searchTips[0]]);
-let tipIndex = 0;
-
-function animateHeaderText() {
-  setInterval(() => {
-    textIndex = (textIndex + 1) % headerTexts.length;
-    dynamicHeaderText.value = headerTexts[textIndex];
-  }, 4000);
-}
-
-function animateTips() {
-  setInterval(() => {
-    tipIndex = (tipIndex + 1) % searchTips.length;
-    visibleTips.value = [searchTips[tipIndex]];
-  }, 5000);
-}
-
-onMounted(() => {
-  animateHeaderText();
-  animateTips();
-});
-
-async function sendMessage() {
-  if (!currentMessage.value) return;
-
-  const userText = currentMessage.value;
-  currentMessage.value = '';
-  isWaitingForAI.value = true;
-  
-  const hostname = window.location.hostname;
-  const parts = hostname.split('.');
-  let subdomain = null;
-  if (parts.length > 1 && parts[0] !== 'www' && parts[0] !== 'localhost') {
-    subdomain = parts[0];
-  } else {
-    subdomain = 'estilomusical'; 
+async function submitSearch() {
+  if (!searchQuery.value.trim()) {
+    errorMessage.value = 'Por favor, descreva o imóvel que procura.';
+    return;
   }
 
-  try {
-    const response = await publicApiClient.post(`/v1/public/imoveis/busca-ia/?subdomain=${subdomain}`, { query: userText });
-    
-    // CORREÇÃO: Emite a resposta completa, incluindo a mensagem da IA
-    emit('searchResults', response.data);
+  isLoading.value = true;
+  errorMessage.value = null;
 
-  } catch (error: any) {
-    console.error("Erro na busca por IA:", error.response?.data || error);
+  try {
+    // 1. Obter o subdomínio (mesma lógica usada em PublicHomeView e PublicLayout)
+    const hostname = window.location.hostname;
+    const parts = hostname.split('.');
+    let subdomain = null;
+    if (parts.length > 1 && parts[0] !== 'www') {
+      subdomain = parts[0];
+    }
+    if (subdomain === 'localhost' || !subdomain) {
+        subdomain = 'estilomusical'; // Fallback para desenvolvimento
+    }
+
+    if (!subdomain) {
+        throw new Error("Não foi possível identificar a imobiliária (subdomínio).");
+    }
+
+    // 2. Montar os parâmetros da query string
+    const params = { subdomain };
+
+    // 3. Fazer a requisição POST para a URL CORRETA
+    // CORREÇÃO: Removido o prefixo '/v1/' da URL.
+    // O publicApiClient já tem a baseURL 'http://localhost:8000'.
+    const response = await publicApiClient.post(
+        '/public/imoveis/busca-ia/', // URL CORRETA, sem /v1/
+        { query: searchQuery.value }, // Corpo da requisição (payload)
+        { params } // Query parameters (para o subdomínio)
+    );
+
+    // 4. Emitir o evento com os resultados
+    emit('search-results', response.data); // Emite { mensagem: '...', imoveis: [...] }
+
+  } catch (err: any) {
+    console.error("Erro na busca por IA:", err);
+    let errorMsg = 'Ocorreu um erro ao processar a sua busca. Tente novamente.';
+    if (err.response && err.response.data && err.response.data.error) {
+        errorMsg = err.response.data.error; // Mostra a mensagem de erro específica da API (Gemini ou validação)
+    } else if (err.message) {
+        errorMsg = err.message;
+    }
+    errorMessage.value = errorMsg;
+    emit('search-error', errorMsg); // Emite evento de erro
   } finally {
-    isWaitingForAI.value = false;
+    isLoading.value = false;
   }
 }
 </script>
 
 <style scoped>
-@import url('https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css');
-
-@keyframes pulse {
-  0% {
-    transform: scale(1);
-    opacity: 1;
-  }
-  50% {
-    transform: scale(1.1);
-    opacity: 0.8;
-  }
-  100% {
-    transform: scale(1);
-    opacity: 1;
-  }
-}
-
-/* Transição de fade para as dicas */
-.fade-enter-active, .fade-leave-active {
-  transition: opacity 0.5s ease;
-}
-.fade-enter-from, .fade-leave-to {
-  opacity: 0;
-}
-.fade-leave-active {
-  position: absolute;
-}
-
-.ai-chat-widget {
-  width: 100%;
-  max-width: 600px;
+.ai-chat-search {
+  margin: 1.5rem 0; /* Adicionado margem superior/inferior */
+  padding: 1.5rem;
   background-color: #fff;
-  border-radius: 12px;
-  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.15);
-  display: flex;
-  flex-direction: column;
-  z-index: 1000;
-  margin: 0 auto;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  border: 1px solid #e9ecef;
 }
 
-.chat-header {
+.search-form {
   display: flex;
-  align-items: center;
-  padding: 1rem;
-  min-height: 60px;
-  border-radius: 12px 12px 0 0;
-  gap: 1rem;
-  background-color: transparent;
-  color: #343a40;
+  gap: 0.5rem; /* Reduzido o espaço */
+  align-items: center; /* Alinha verticalmente */
 }
 
-.header-text-container {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start; /* Alinha o texto à esquerda */
+.search-input {
   flex-grow: 1;
-  position: relative;
-  min-height: 40px; /* Garante que o container não encolha */
-}
-
-.chat-header h3 {
-  margin: 0;
-  font-size: 1.2rem;
-  white-space: nowrap;
-}
-
-.animated-tips-wrapper {
-  position: relative;
-  overflow: hidden;
-  width: 100%;
-  min-height: 20px;
-}
-
-.animated-tips-container {
-  display: flex;
-}
-
-.search-tip {
-  margin: 0;
-  font-size: 0.9rem;
-  color: #6c757d;
-  white-space: nowrap;
-}
-
-.animated-robot {
-  font-size: 1.8rem;
-  color: #007bff;
-  animation: pulse 2s infinite ease-in-out;
-}
-
-.chat-input-form {
-  display: flex;
-  border-top: 1px solid #e9ecef;
-  padding: 1rem;
-  gap: 0.5rem;
-  background-color: #fff;
-  border-radius: 0 0 12px 12px;
-}
-
-.chat-input-form input {
-  flex-grow: 1;
+  padding: 0.8rem 1rem; /* Aumentado o padding */
   border: 1px solid #ced4da;
-  border-radius: 20px;
-  padding: 0.75rem 1.5rem;
+  border-radius: 4px;
   font-size: 1rem;
-  transition: border-color 0.2s;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
 }
 
-.chat-input-form input:focus {
+.search-input:focus {
+  border-color: var(--primary-color, #007bff);
+  box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
   outline: none;
-  border-color: #007bff;
 }
 
-.chat-input-form button {
-  background-color: #007bff;
+.search-button {
+  padding: 0.8rem 1.5rem; /* Aumentado o padding */
+  background-color: var(--primary-color, #007bff);
   color: white;
   border: none;
-  border-radius: 50%;
-  width: 45px;
-  height: 45px;
-  display: flex;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 1rem;
+  font-weight: 500;
+  transition: background-color 0.2s ease, opacity 0.2s ease;
+  display: flex; /* Para centralizar o spinner */
   align-items: center;
   justify-content: center;
-  font-size: 1.1rem;
-  cursor: pointer;
-  transition: background-color 0.2s;
+  min-width: 80px; /* Largura mínima para evitar encolhimento com spinner */
+  height: 44px; /* Altura fixa igual ao input */
 }
 
-.chat-input-form button:hover {
-  background-color: #0056b3;
+.search-button:hover:not(:disabled) {
+  background-color: #0056b3; /* Cor um pouco mais escura no hover */
 }
 
-.chat-input-form button:disabled {
-  background-color: #a0cfff;
+.search-button:disabled {
+  opacity: 0.65;
   cursor: not-allowed;
 }
 
-@media (max-width: 768px) {
-  .ai-chat-widget {
-    width: 90vw;
-  }
+.error-message {
+  color: #dc3545;
+  margin-top: 0.75rem;
+  font-size: 0.9rem;
+  text-align: center;
+}
+
+/* Spinner animation */
+.spinner {
+  border: 3px solid rgba(255, 255, 255, 0.3);
+  border-left-color: #fff;
+  border-radius: 50%;
+  width: 20px;
+  height: 20px;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
 }
 </style>
