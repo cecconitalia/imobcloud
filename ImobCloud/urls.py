@@ -10,25 +10,31 @@ from rest_framework_simplejwt.views import TokenRefreshView
 # Importações principais do seu app 'core'
 from core.views import MyTokenObtainPairView, LogoutView
 
-# Views públicas que não precisam de autenticação de tenant no mesmo nível da API
-from app_imoveis.views import ImovelPublicListView, ImovelPublicDetailView
+# Views públicas (IMÓVEIS, DETALHE DE IMÓVEL, DETALHE DE IMOBILIÁRIA, BUSCA IA)
+from app_imoveis.views import ImovelPublicListView, ImovelPublicDetailView, ImobiliariaPublicDetailView, ImovelIAView 
 
 urlpatterns = [
     # Rota de administração do Django
     path('admin/', admin.site.urls),
 
-    # --- ROTAS PÚBLICAS (para o site de cada imobiliária) ---
+    # --- ROTAS PÚBLICAS (Sem Prefixos API) ---
     path('public/imoveis/', ImovelPublicListView.as_view(), name='imovel-public-list'),
     path('public/imoveis/<int:pk>/', ImovelPublicDetailView.as_view(), name='imovel-public-detail'),
     
-    # --- ROTAS DA API (para o painel de gestão) ---
+    # CORREÇÃO CRÍTICA DO 404: Garante que esta rota existe
+    path('public/imobiliaria/<str:subdominio>/', ImobiliariaPublicDetailView.as_view(), name='imobiliaria-public-detail'),
+    
+    # Rota de busca por IA (também é pública)
+    path('public/imoveis/busca-ia/', ImovelIAView.as_view(), name='imovel-busca-ia'),
+
+    # --- ROTAS DA API (Para o painel de gestão) ---
     path('api/v1/token/', MyTokenObtainPairView.as_view(), name='token_obtain_pair'),
     path('api/v1/token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
     path('api/v1/logout/', LogoutView.as_view(), name='auth_logout'),
     
     # --- Inclusão das rotas de cada app da API (MÉTODO CORRIGIDO) ---
     path('api/v1/', include('core.urls')),
-    path('api/v1/', include('app_imoveis.urls')),
+    path('api/v1/', include('app_imoveis.urls')), # Esta inclusão agora só tem rotas internas
     path('api/v1/', include('app_clientes.urls')),
     path('api/v1/', include('app_contratos.urls')),
     path('api/v1/financeiro/', include('app_financeiro.urls')),
@@ -49,4 +55,3 @@ urlpatterns = [
 # Ele serve os arquivos de mídia (uploads) apenas em modo de desenvolvimento
 if settings.DEBUG:
     urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
-

@@ -80,6 +80,7 @@ class ImovelPublicListView(ListAPIView):
         else:
             base_queryset = base_queryset.filter(status=status_param)
         
+        # FILTRAGEM DE SEGURANÇA para rotas públicas
         if not self.request.user.is_authenticated or not self.request.tenant:
             base_queryset = base_queryset.filter(publicado_no_site=True)
 
@@ -99,20 +100,26 @@ class ImovelPublicListView(ListAPIView):
         if mobiliado: base_queryset = base_queryset.filter(mobiliado=True)
         if piscina: base_queryset = base_queryset.filter(Q(piscina_privativa=True) | Q(piscina_condominio=True))
 
-        if self.request.user.is_authenticated:
-            if self.request.user.is_superuser:
-                return base_queryset.all()
-            elif self.request.tenant:
-                return base_queryset.filter(imobiliaria=self.request.tenant)
-
+        # INÍCIO DA LÓGICA DE TENANT/SUBDOMAIN CORRIGIDA
+        
+        # 1. Se autenticado, usa o tenant do request (para o painel interno)
+        if self.request.user.is_authenticated and self.request.tenant:
+            # Usuário autenticado e tenant definido pelo middleware
+            return base_queryset.filter(imobiliaria=self.request.tenant)
+        
+        # 2. Para requisições públicas, usa o parâmetro 'subdomain'
         subdomain_param = self.request.query_params.get('subdomain', None)
+        
         if subdomain_param:
             try:
                 imobiliaria_por_param = Imobiliaria.objects.get(subdominio=subdomain_param)
+                # Filtra pelo ID da imobiliária extraída do parâmetro
                 return base_queryset.filter(imobiliaria=imobiliaria_por_param)
             except Imobiliaria.DoesNotExist:
+                # Se o subdomínio não for encontrado (ou for inválido), retorna um queryset vazio (200 OK)
                 return Imovel.objects.none()
-
+        
+        # 3. Se nenhuma das condições acima for atendida, retorna vazio
         return Imovel.objects.none()
 
 

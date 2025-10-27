@@ -87,15 +87,11 @@ class TenantIdentificationMiddleware(MiddlewareMixin):
 
         # --- CORREÇÃO: LÓGICA DE SAÍDA (EARLY EXIT) ---
 
-        # ----------------------------------------------------------------
-        # INÍCIO DA CORREÇÃO (ADICIONAR /media/)
-        # 
-        # Adicionado '/media/' à lista de caminhos públicos.
-        # ----------------------------------------------------------------
         public_paths = [
             '/api/v1/public/',
+            '/public/', # <<< CAMINHO PÚBLICO CORRETO ADICIONADO PARA EVITAR 403
             '/admin/',
-            '/media/', # <<< ADICIONADO AQUI
+            '/media/', 
             
             # Rotas do Simple JWT 
             '/api/v1/token/', 
@@ -106,18 +102,15 @@ class TenantIdentificationMiddleware(MiddlewareMixin):
             '/api/v1/core/refresh/',
             '/api/v1/core/register/',
         ]
-        # ----------------------------------------------------------------
-        # FIM DA CORREÇÃO
-        # ----------------------------------------------------------------
 
         is_public_path = any(request.path.startswith(p) for p in public_paths)
         if is_public_path:
             print(f"DEBUG MW Path: Path é PÚBLICO ou MÍDIA. Exiting early from middleware.")
-            return None # Continua para a view ou para servir o arquivo estático/mídia
+            return None 
 
         # Se NÃO for público E NÃO for autenticado, bloqueia
         if not is_public_path and not identified_by_user_or_jwt:
-            print(f"ERRO MW: Usuário anônimo tentando acessar path privado ({request.path}). Bloqueando.") # Adicionado path ao log
+            print(f"ERRO MW: Usuário anônimo tentando acessar path privado ({request.path}). Bloqueando.")
             return HttpResponseForbidden("Autenticação necessária.")
 
         # Se for Superuser, a view decide sobre o tenant (pode ser None)
@@ -127,10 +120,10 @@ class TenantIdentificationMiddleware(MiddlewareMixin):
 
         # Se for usuário normal, verifica consistência de subdomínio (se aplicável)
         if user_identified_tenant: 
+            host = request.get_host().split(':')[0]
             subdomain_from_host = None
             if '.' in host:
                 parts = host.split('.')
-                # Adapte essa lógica se seu domínio de produção for diferente
                 if parts[-1] == 'localhost': 
                     if len(parts) > 1: subdomain_from_host = parts[0]
                 elif parts[-2:] == ['imobcloud', 'com']: 
@@ -140,21 +133,11 @@ class TenantIdentificationMiddleware(MiddlewareMixin):
                 print(f"ALERTA: Usuário '{request.user.username}' (tenant '{user_identified_tenant.subdominio}') tentou acessar o subdomínio '{subdomain_from_host}'. BLOQUEANDO API.")
                 if request.path.startswith('/api/'):
                     return HttpResponseForbidden("Acesso negado. O subdomínio não corresponde à sua imobiliária logada.")
-                # Se não for API, talvez não precise bloquear, dependendo da sua lógica
-                # else:
-                #    correct_url = f"http://{user_identified_tenant.subdominio}.localhost:5173{request.path}"
-                #    return redirect(correct_url) # Redirecionamento pode não ser ideal aqui
-            
-            print(f"DEBUG MW Final Check: Tenant '{request.tenant.nome}' verificado para usuário normal. Exiting early.")
-            return None # Sai aqui para usuários logados normais
-        
-        # --- FIM DA CORREÇÃO 2 ---
 
+            print(f"DEBUG MW Final Check: Tenant '{request.tenant.nome}' verificado para usuário normal. Exiting early.")
+            return None
+        
         # === Lógica de Fallback (Subdomínio/Query Param para Anônimos) ===
-        # Esta parte só é alcançada se:
-        # 1. O path NÃO for público (não está em public_paths)
-        # 2. O usuário for ANÔNIMO (identified_by_user_or_jwt é False)
-        # Exemplo: Acessar diretamente uma URL de site público como sol.localhost:8000/alguma-pagina
         
         print(f"DEBUG MW Path: Falling back to Subdomain/QueryParam logic for Anonymous user on non-public path.")
         
@@ -188,17 +171,12 @@ class TenantIdentificationMiddleware(MiddlewareMixin):
                  except Exception as e:
                      print(f"ERRO Fallback (Query Param): {e}.")
              else:
-                # Se chegou aqui como anônimo, em path não público, sem subdomínio/param, 
-                # Provavelmente é um acesso inválido.
                 print("ERRO MW Fallback: Anônimo em path privado sem identificação de tenant. Bloqueando.")
-                # Retornar erro aqui pode ser mais seguro do que deixar passar com tenant=None
                 return HttpResponseForbidden("Acesso não autorizado ou imobiliária não identificada.") 
 
-        # Se um tenant foi encontrado pelo fallback, permite continuar (ex: para views públicas baseadas em subdomínio)
         if request.tenant:
              print(f"DEBUG MW End (Fallback): Final request.tenant: {request.tenant.nome}. Permitting.")
-             return None # Permite que a view pública (que usa subdomínio/param) funcione
+             return None
         else:
-             # Se mesmo após o fallback, não há tenant, bloqueia definitivamente.
              print(f"ERRO MW End (Fallback): Nenhum tenant identificado. Bloqueando path {request.path}.")
              return HttpResponseForbidden("Imobiliária não identificada.")

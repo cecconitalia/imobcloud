@@ -69,7 +69,6 @@ function handleFileChange(event: Event) {
   }
 }
 
-// CORREÇÃO: Lógica de upload ajustada
 async function uploadFiles() {
   if (!uploadQueue.value.length || isUploading.value) return;
 
@@ -83,14 +82,15 @@ async function uploadFiles() {
   });
 
   try {
-    await apiClient.post('/v1/imagens-imovel/', formData, {
+    // CORREÇÃO: Endpoint alterado de 'imagens-imovel/' para 'imagens/'
+    await apiClient.post('/v1/imagens/', formData, {
       headers: { 'Content-Type': 'multipart/form-data' }
     });
     uploadQueue.value = [];
     await fetchImages(); // Recarrega a lista após o sucesso
   } catch (error: any) {
     console.error("Erro ao fazer upload:", error.response?.data || error);
-    alert(`Falha no upload. Erro: ${JSON.stringify(error.response?.data)}`);
+    alert(`Falha no upload. Erro: ${JSON.stringify(error.response?.data || error.message)}`);
   } finally {
     isUploading.value = false;
   }
@@ -103,6 +103,7 @@ async function fetchImages() {
   }
   isLoading.value = true;
   try {
+    // Busca os dados do imóvel, que inclui a lista de imagens
     const response = await apiClient.get(`/v1/imoveis/${props.imovelId}/`);
     // Ordena as imagens pela ordem definida no backend
     images.value = (response.data.imagens || []).sort((a: any, b: any) => a.ordem - b.ordem);
@@ -116,7 +117,8 @@ async function fetchImages() {
 async function deleteImage(imageId: number) {
   if (confirm('Tem a certeza que deseja excluir esta imagem?')) {
     try {
-      await apiClient.delete(`/v1/imagens-imovel/${imageId}/`);
+      // CORREÇÃO: Endpoint alterado de 'imagens-imovel/' para 'imagens/'
+      await apiClient.delete(`/v1/imagens/${imageId}/`);
       await fetchImages(); // Recarrega para refletir a exclusão e a nova imagem principal
     } catch (error) {
       console.error("Erro ao excluir imagem:", error);
@@ -135,7 +137,8 @@ async function saveOrder() {
   const orderedIds = images.value.map(img => img.id);
   
   try {
-    await apiClient.post(`/v1/imagens-imovel/reordenar/`, { ordem_ids: orderedIds });
+    // CORREÇÃO: Endpoint alterado de 'imagens-imovel/reordenar/' para 'imagens/reordenar/'
+    await apiClient.post(`/v1/imagens/reordenar/`, { ordem_ids: orderedIds });
   } catch (error) {
     console.error("Erro ao salvar a nova ordem:", error);
     alert('Não foi possível salvar a nova ordem das imagens. A página será recarregada.');

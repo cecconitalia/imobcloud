@@ -37,7 +37,7 @@ function handleScroll() {
   isScrolled.value = window.scrollY > 0;
 }
 
-// Funções para manipular a cor
+// Funções para manipular a cor (mantidas)
 function hexToRgb(hex: string) {
   const shorthandRegex = /^#?([a-f\d])([a-f\d])([a-f\d])$/i;
   hex = hex.replace(shorthandRegex, function(m, r, g, b) {
@@ -88,11 +88,12 @@ function darkenColor(hex: string, amount: number) {
 // FUNÇÃO PARA BUSCAR O NOME E A COR DA IMOBILIÁRIA VIA API
 async function fetchImobiliariaData(subdomain: string) {
   try {
-    const response = await publicApiClient.get(`/v1/public/imobiliaria/${subdomain}/`);
+    // CORREÇÃO: A chamada usa o caminho que está mapeado na raiz do Django (sem prefixo /api/v1/)
+    const response = await publicApiClient.get(`/public/imobiliaria/${subdomain}/`);
     imobiliariaNome.value = response.data.nome;
     const primaryColor = response.data.cor_primaria || '#007bff';
     const footerColor = darkenColor(primaryColor, -20);
-    const bodyBgColor = lightenColor(primaryColor, 230); // Adiciona 230 para obter um tom muito claro
+    const bodyBgColor = lightenColor(primaryColor, 230);
     document.documentElement.style.setProperty('--primary-color', primaryColor);
     document.documentElement.style.setProperty('--footer-color', footerColor);
     document.documentElement.style.setProperty('--body-bg-color', bodyBgColor);
@@ -113,7 +114,6 @@ onMounted(() => {
     const subdomain = parts[0];
     fetchImobiliariaData(subdomain);
   } else {
-    // Caso não tenha subdomínio, define cores padrão
     document.documentElement.style.setProperty('--primary-color', '#007bff');
     document.documentElement.style.setProperty('--footer-color', '#34495e');
     document.documentElement.style.setProperty('--body-bg-color', '#f4f7f6');

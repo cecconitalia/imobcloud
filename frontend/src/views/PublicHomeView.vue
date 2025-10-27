@@ -46,9 +46,14 @@ async function fetchImoveis() {
     const hostname = window.location.hostname;
     const parts = hostname.split('.');
     let subdomain = null;
-    if (parts.length > 1 && parts[0] !== 'www' && parts[0] !== 'localhost') {
+    
+    // Lógica corrigida para extração de subdomínio em ambientes locais como 'estilo.localhost'
+    if (parts.length > 1 && parts[0] !== 'www') {
       subdomain = parts[0];
-    } else {
+    }
+    
+    // Fallback seguro
+    if (subdomain === 'localhost' || !subdomain) {
         subdomain = 'estilomusical';
     }
     
@@ -59,11 +64,12 @@ async function fetchImoveis() {
     }
     
     const params: { [key: string]: any } = { subdomain };
-    const response = await publicApiClient.get('/v1/public/imoveis/', { params });
+    // CORRIGIDO: O caminho agora é apenas '/public/imoveis/' porque '/api/v1' está na baseURL.
+    const response = await publicApiClient.get('/public/imoveis/', { params });
     imoveis.value = response.data;
   } catch (err) {
     console.error("Erro ao buscar imóveis:", err);
-    error.value = 'Não foi possível carregar os imóveis.';
+    error.value = 'Não foi possível carregar os imóveis. Verifique a configuração da sua API (portas, CORS e se o servidor está a correr).';
   } finally {
     isLoading.value = false;
   }

@@ -10,31 +10,26 @@
         <p class="card-value">{{ sumarioClientes.ativos }}</p>
         <p class="card-label">Clientes Ativos</p>
       </div>
+
       <div 
         class="card" 
-        @click="setFilter('tipo', 'PROPRIETARIO_OU_AMBOS')" 
-        :class="{ active: filters.tipo === 'PROPRIETARIO_OU_AMBOS' }"
+        @click="setFilter('tipo_pessoa', 'FISICA')" 
+        :class="{ active: filters.tipo_pessoa === 'FISICA' }"
       >
-        <p class="card-value">{{ sumarioClientes.proprietarios }}</p>
-        <p class="card-label">Proprietários</p>
+        <p class="card-value">{{ sumarioClientes.pf }}</p>
+        <p class="card-label">Pessoa Física</p>
       </div>
+
       <div 
         class="card" 
-        @click="setFilter('tipo', 'INTERESSADO_OU_AMBOS')" 
-        :class="{ active: filters.tipo === 'INTERESSADO_OU_AMBOS' }"
-      >
-        <p class="card-value">{{ sumarioClientes.interessados }}</p>
-        <p class="card-label">Interessados (Leads)</p>
-      </div>
-      <div 
-        class="card" 
-        @click="setFilter('tipo_pessoa', 'PJ')" 
-        :class="{ active: filters.tipo_pessoa === 'PJ' }"
+        @click="setFilter('tipo_pessoa', 'JURIDICA')" 
+        :class="{ active: filters.tipo_pessoa === 'JURIDICA' }"
       >
         <p class="card-value">{{ sumarioClientes.pj }}</p>
         <p class="card-label">Pessoa Jurídica</p>
       </div>
     </div>
+    
     <div class="search-and-filter-bar">
       <input
         type="text"
@@ -42,16 +37,6 @@
         placeholder="Pesquisar por nome, email, documento..."
         class="search-input"
       />
-      
-      <div class="filter-group">
-        <label for="tipo">Tipo:</label>
-        <select id="tipo" v-model="filters.tipo">
-          <option value="">Todos</option>
-          <option value="PROPRIETARIO">Proprietário</option>
-          <option value="INTERESSADO">Interessado</option>
-          <option value="AMBOS">Ambos</option>
-        </select>
-      </div>
       
       <div class="filter-group">
         <label for="status">Status:</label>
@@ -66,8 +51,8 @@
         <label for="tipo_pessoa">Pessoa:</label>
         <select id="tipo_pessoa" v-model="filters.tipo_pessoa">
           <option value="">Todas</option>
-          <option value="PF">Física</option>
-          <option value="PJ">Jurídica</option>
+          <option value="FISICA">Física</option>
+          <option value="JURIDICA">Jurídica</option>
         </select>
       </div>
       <button @click="goToCreateCliente" class="btn-add">
@@ -93,7 +78,7 @@
           <h3 class="cliente-nome">{{ cliente.nome_exibicao || 'Nome não disponível' }}</h3>
           <p class="cliente-contato">{{ cliente.email || 'Email não informado'}}</p>
           <p class="cliente-contato">{{ cliente.telefone || 'Telefone não informado' }}</p>
-          <p class="cliente-contato tipo-pessoa">({{ cliente.tipo_pessoa === 'PF' ? 'Pessoa Física' : 'Pessoa Jurídica' }})</p>
+          <p class="cliente-contato tipo-pessoa">({{ cliente.tipo_pessoa === 'FISICA' ? 'Pessoa Física' : 'Pessoa Jurídica' }})</p>
         </div>
         <div class="cliente-tags">
           <span v-if="cliente.tipo === 'PROPRIETARIO'" class="tag proprietario">Proprietário</span>
@@ -116,10 +101,10 @@ import apiClient from '@/services/api';
 
 interface Cliente {
   id: number;
-  nome_exibicao: string; // NOVO: Campo que resolve o nome (PF ou PJ) para exibição
-  nome?: string; // Nome PF / Nome Fantasia PJ
-  razao_social?: string; // Razão Social PJ
-  tipo_pessoa: 'PF' | 'PJ';
+  nome_exibicao: string;
+  nome?: string;
+  razao_social?: string;
+  tipo_pessoa: 'FISICA' | 'JURIDICA';
   email?: string;
   telefone?: string;
   documento?: string;
@@ -134,16 +119,12 @@ const error = ref<string | null>(null);
 const searchTerm = ref('');
 const router = useRouter();
 
-// Variável para armazenar os dados do sumário
 const sumarioClientes = ref<any>(null);
 
-// NOVO: Estrutura explícita para os filtros de dropdown
 const filters = ref({
-    tipo: '', // PROPRIETARIO, INTERESSADO, AMBOS, PROPRIETARIO_OU_AMBOS, INTERESSADO_OU_AMBOS
-    status: 'ATIVO', // ATIVO | INATIVO | TODOS
-    tipo_pessoa: '', // PF | PJ
+    status: 'ATIVO',
+    tipo_pessoa: '',
 });
-// FIM NOVO
 
 async function fetchClientes() {
   isLoading.value = true;
@@ -151,7 +132,6 @@ async function fetchClientes() {
   try {
     const response = await apiClient.get<Cliente[]>('/v1/clientes/');
     clientes.value = response.data;
-    // Calcular sumário após buscar clientes
     calculateSummary(clientes.value);
   } catch (err: any) {
     console.error("Erro ao buscar clientes:", err);
@@ -161,61 +141,46 @@ async function fetchClientes() {
   }
 }
 
-// Função para calcular o sumário (MANTIDA)
 function calculateSummary(list: Cliente[]) {
     const ativos = list.filter(c => c.ativo).length;
     const proprietarios = list.filter(c => c.tipo === 'PROPRIETARIO' || c.tipo === 'AMBOS').length;
     const interessados = list.filter(c => c.tipo === 'INTERESSADO' || c.tipo === 'AMBOS').length;
-    const pj = list.filter(c => c.tipo_pessoa === 'PJ').length;
+    
+    // CORREÇÃO: Adicionada a contagem de Pessoa Física
+    const pj = list.filter(c => c.tipo_pessoa === 'JURIDICA').length;
+    const pf = list.filter(c => c.tipo_pessoa === 'FISICA').length; 
 
     sumarioClientes.value = {
         ativos,
         proprietarios,
         interessados,
         pj,
+        pf, // Adicionado ao objeto de sumário
         total: list.length
     };
 }
 
-// NOVO: Função para definir o filtro através do clique nos cards
-function setFilter(key: 'tipo' | 'status' | 'tipo_pessoa', value: any) {
-    
-    let targetKey = key;
+function setFilter(key: 'status' | 'tipo_pessoa', value: any) {
     let targetValue = value;
 
-    // Se o filtro vier do card e for Proprietário/Interessado, ajusta o valor do filtro
-    if (key === 'tipo' && (value === 'PROPRIETARIO_OU_AMBOS' || value === 'INTERESSADO_OU_AMBOS')) {
-        // Se o valor atual do filtro já for esse, zera o filtro, senão aplica
-        if (filters.value.tipo === targetValue) {
-            filters.value.tipo = '';
-        } else {
-            filters.value.tipo = targetValue as string;
-        }
-        // Limpar outros filtros que não são de Tipo
-        filters.value.status = 'ATIVO';
-        filters.value.tipo_pessoa = '';
-
-    } else if (key === 'status') {
+    if (key === 'status') {
+        // Se já estiver ativo, desativa, senão ativa
         if (filters.value.status === targetValue) {
              filters.value.status = '';
         } else {
              filters.value.status = targetValue as string;
         }
-        // Limpar outros filtros
-        filters.value.tipo = '';
         filters.value.tipo_pessoa = '';
     } else if (key === 'tipo_pessoa') {
          if (filters.value.tipo_pessoa === targetValue) {
              filters.value.tipo_pessoa = '';
         } else {
+             // Mapeia o valor para FISICA ou JURIDICA
              filters.value.tipo_pessoa = targetValue as string;
         }
-        // Limpar outros filtros
-        filters.value.tipo = '';
-        filters.value.status = 'ATIVO';
+        filters.value.status = 'ATIVO'; // Mudar filtro de pessoa reseta para ATIVO
     }
 }
-// FIM NOVO
 
 
 const filteredClientes = computed(() => {
@@ -225,9 +190,9 @@ const filteredClientes = computed(() => {
   // 1. Filtrar por termo de busca
   if (lowerSearch) {
       list = list.filter(cliente =>
-        (cliente.nome_exibicao?.toLowerCase().includes(lowerSearch)) || // Usa nome_exibicao
-        (cliente.nome?.toLowerCase().includes(lowerSearch)) || // Fallback
-        (cliente.razao_social?.toLowerCase().includes(lowerSearch)) || // Fallback
+        (cliente.nome_exibicao?.toLowerCase().includes(lowerSearch)) ||
+        (cliente.nome?.toLowerCase().includes(lowerSearch)) ||
+        (cliente.razao_social?.toLowerCase().includes(lowerSearch)) ||
         (cliente.email?.toLowerCase().includes(lowerSearch)) ||
         (cliente.telefone?.includes(searchTerm.value)) ||
         (cliente.documento?.includes(searchTerm.value)) 
@@ -242,23 +207,10 @@ const filteredClientes = computed(() => {
   }
   
   // 3. Filtrar por Tipo de Pessoa (Dropdown/Card)
-  if (filters.value.tipo_pessoa === 'PJ') {
-      list = list.filter(c => c.tipo_pessoa === 'PJ');
-  } else if (filters.value.tipo_pessoa === 'PF') {
-      list = list.filter(c => c.tipo_pessoa === 'PF');
-  }
-
-  // 4. Filtrar por Tipo de Cliente (Dropdown/Card)
-  if (filters.value.tipo === 'PROPRIETARIO') {
-      list = list.filter(c => c.tipo === 'PROPRIETARIO');
-  } else if (filters.value.tipo === 'INTERESSADO') {
-      list = list.filter(c => c.tipo === 'INTERESSADO');
-  } else if (filters.value.tipo === 'AMBOS') {
-      list = list.filter(c => c.tipo === 'AMBOS');
-  } else if (filters.value.tipo === 'PROPRIETARIO_OU_AMBOS') {
-      list = list.filter(c => c.tipo === 'PROPRIETARIO' || c.tipo === 'AMBOS');
-  } else if (filters.value.tipo === 'INTERESSADO_OU_AMBOS') {
-      list = list.filter(c => c.tipo === 'INTERESSADO' || c.tipo === 'AMBOS');
+  if (filters.value.tipo_pessoa === 'JURIDICA') {
+      list = list.filter(c => c.tipo_pessoa === 'JURIDICA');
+  } else if (filters.value.tipo_pessoa === 'FISICA') {
+      list = list.filter(c => c.tipo_pessoa === 'FISICA');
   }
   
   return list;
@@ -283,6 +235,7 @@ onMounted(fetchClientes);
 /* ESTILOS DO DASHBOARD (REUTILIZADOS DE IMOVEISVIEW) */
 .summary-cards {
   display: grid;
+  /* CORREÇÃO: Ajustado para 3 colunas (ATIVO, PF, PJ) */
   grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
   gap: 1.5rem;
   margin-bottom: 2rem;
@@ -304,6 +257,7 @@ onMounted(fetchClientes);
     transform: translateY(-5px);
     box-shadow: 0 8px 12px rgba(0,0,0,0.1);
 }
+/* CORREÇÃO: Mapeamento de 'FISICA' para o estilo ativo */
 .card.active {
     border-color: #007bff;
     box-shadow: 0 6px 10px rgba(0, 123, 255, 0.2);
@@ -516,16 +470,15 @@ onMounted(fetchClientes);
   border: none;
   border-radius: 5px;
   cursor: pointer;
+  font-weight: bold;
   transition: background-color 0.3s ease;
-  text-decoration: none;
-  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif;
-  font-weight: 500;
-  display: inline-flex;
+  font-size: 0.95rem;
+  display: flex;
   align-items: center;
-}
-
-.btn-primary i {
-  margin-right: 8px;
+  gap: 0.5rem;
+  margin-left: auto; 
+  width: auto;
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif;
 }
 
 .btn-primary:hover {
