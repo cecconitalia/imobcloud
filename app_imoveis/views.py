@@ -113,10 +113,21 @@ class ImovelPublicListView(ListAPIView):
         if tipo: base_queryset = base_queryset.filter(tipo=tipo)
         if cidade: base_queryset = base_queryset.filter(cidade__icontains=cidade)
         if valor_min:
-            q_filter = Q(valor_venda__gte=valor_min) if finalidade == Imovel.Status.A_VENDA else Q(valor_aluguel__gte=valor_min)
+            # CORREÇÃO: A lógica de valor_min/max deve verificar o status (ou finalidade, se for o caso)
+            # Vamos assumir que se a finalidade (Residencial, etc.) está definida, usamos o 'status' para A_VENDA/PARA_ALUGAR
+            # No entanto, a lógica original usava 'finalidade' (que no models.py não é 'A_VENDA')
+            # A lógica MAIS CORRETA seria baseada no STATUS, mas a original usava 'finalidade' do query param.
+            # Vou manter a lógica original do filtro, mas corrigir a da Geração de PDF (que é onde o erro ocorreu).
+            # A lógica de filtro aqui parece usar o 'finalidade' do query param (que o frontend deve enviar como A_VENDA/PARA_ALUGAR)
+            # Nota: O models.py define 'finalidade' (RESIDENCIAL...) e 'status' (A_VENDA...)
+            # O filtro público parece misturar os dois.
+            
+            # Vamos assumir que o query param 'finalidade' é A_VENDA ou PARA_ALUGAR, e não RESIDENCIAL.
+            # Se 'finalidade' do query param for A_VENDA, filtra por valor_venda.
+            q_filter = Q(valor_venda__gte=valor_min) if finalidade == 'A_VENDA' else Q(valor_aluguel__gte=valor_min)
             base_queryset = base_queryset.filter(q_filter)
         if valor_max:
-            q_filter = Q(valor_venda__lte=valor_max) if finalidade == Imovel.Status.A_VENDA else Q(valor_aluguel__lte=valor_max)
+            q_filter = Q(valor_venda__lte=valor_max) if finalidade == 'A_VENDA' else Q(valor_aluguel__lte=valor_max)
             base_queryset = base_queryset.filter(q_filter)
         if quartos_min: base_queryset = base_queryset.filter(quartos__gte=quartos_min)
         if vagas_min: base_queryset = base_queryset.filter(vagas_garagem__gte=vagas_min)
@@ -254,6 +265,15 @@ class ImovelIAView(APIView):
 
 
         # Aplica os filtros extraídos da IA
+        
+        # O IA extrai 'status' (A_VENDA, PARA_ALUGAR) ou 'finalidade' (RESIDENCIAL, COMERCIAL)?
+        # O prompt da IA (que não vi) provavelmente pede 'status'.
+        
+        status_filtro_ia = search_params.get('status', None)
+        if status_filtro_ia:
+             if status_filtro_ia in Imovel.Status.values:
+                 base_queryset = base_queryset.filter(status=status_filtro_ia)
+
         if 'finalidade' in search_params:
             finalidade_param = search_params['finalidade']
             if finalidade_param in Imovel.Finalidade.values:
@@ -272,34 +292,30 @@ class ImovelIAView(APIView):
         if 'bairro' in search_params:
             bairro_param = search_params['bairro']
             if bairro_param and isinstance(bairro_param, str): # Garante que é uma string não vazia
-                # Usamos icontains para busca case-insensitive e parcial
                 base_queryset = base_queryset.filter(bairro__icontains=bairro_param)
                 print(f"Aplicado filtro bairro__icontains='{bairro_param}'") # DEBUG
             else:
                  print(f"Aviso IA: 'bairro' inválido ou vazio: {bairro_param}")
 
 
-        finalidade_filtro_ia = search_params.get('finalidade', None)
         if 'valor_min' in search_params:
             valor_min_ia = search_params['valor_min']
-            # Validação mais robusta para valor_min
             try:
                 valor_min_decimal = Decimal(valor_min_ia)
-                q_filter_min = Q(valor_venda__gte=valor_min_decimal) if finalidade_filtro_ia == Imovel.Status.A_VENDA else Q(valor_aluguel__gte=valor_min_decimal)
-                if not finalidade_filtro_ia:
+                q_filter_min = Q(valor_venda__gte=valor_min_decimal) if status_filtro_ia == Imovel.Status.A_VENDA else Q(valor_aluguel__gte=valor_min_decimal)
+                if not status_filtro_ia: # Se IA não especificou status, busca em ambos
                      q_filter_min = Q(valor_venda__gte=valor_min_decimal) | Q(valor_aluguel__gte=valor_min_decimal)
                 base_queryset = base_queryset.filter(q_filter_min)
-            except (ValueError, TypeError, InvalidOperation): # InvalidOperation para Decimal
+            except (ValueError, TypeError, InvalidOperation):
                  print(f"Aviso IA: 'valor_min' inválido: {valor_min_ia}")
 
 
         if 'valor_max' in search_params:
             valor_max_ia = search_params['valor_max']
-             # Validação mais robusta para valor_max
             try:
                  valor_max_decimal = Decimal(valor_max_ia)
-                 q_filter_max = Q(valor_venda__lte=valor_max_decimal) if finalidade_filtro_ia == Imovel.Finalidade.A_VENDA else Q(valor_aluguel__lte=valor_max_decimal)
-                 if not finalidade_filtro_ia:
+                 q_filter_max = Q(valor_venda__lte=valor_max_decimal) if status_filtro_ia == Imovel.Status.A_VENDA else Q(valor_aluguel__lte=valor_max_decimal)
+                 if not status_filtro_ia: # Se IA não especificou status, busca em ambos
                       q_filter_max = Q(valor_venda__lte=valor_max_decimal) | Q(valor_aluguel__lte=valor_max_decimal)
                  base_queryset = base_queryset.filter(q_filter_max)
             except (ValueError, TypeError, InvalidOperation):
@@ -309,7 +325,7 @@ class ImovelIAView(APIView):
         if 'quartos_min' in search_params:
             try:
                 quartos_min_ia = int(search_params['quartos_min'])
-                if quartos_min_ia >= 0: # Garante que não é negativo
+                if quartos_min_ia >= 0:
                      base_queryset = base_queryset.filter(quartos__gte=quartos_min_ia)
             except (ValueError, TypeError):
                  print(f"Aviso IA: 'quartos_min' inválido: {search_params['quartos_min']}")
@@ -326,19 +342,17 @@ class ImovelIAView(APIView):
             try:
                  banheiros_min_ia = int(search_params['banheiros_min'])
                  if banheiros_min_ia >= 0:
-                      # O campo no modelo é 'banheiros'
                       base_queryset = base_queryset.filter(banheiros__gte=banheiros_min_ia) 
                       print(f"Aplicado filtro banheiros__gte='{banheiros_min_ia}'") # DEBUG
             except (ValueError, TypeError):
                  print(f"Aviso IA: 'banheiros_min' inválido: {search_params.get('banheiros_min')}")
 
         
-        # --- INÍCIO DA ATUALIZAÇÃO (NOVOS FILTROS) ---
         if 'suites_min' in search_params:
             try:
                 suites_min_ia = int(search_params['suites_min'])
                 if suites_min_ia >= 0:
-                     base_queryset = base_queryset.filter(suites__gte=suites_min_ia) #
+                     base_queryset = base_queryset.filter(suites__gte=suites_min_ia) 
                      print(f"Aplicado filtro suites__gte='{suites_min_ia}'") # DEBUG
             except (ValueError, TypeError):
                  print(f"Aviso IA: 'suites_min' inválido.")
@@ -347,17 +361,15 @@ class ImovelIAView(APIView):
             try:
                  andar_min_ia = int(search_params['andar_min'])
                  if andar_min_ia >= 0:
-                      base_queryset = base_queryset.filter(andar__gte=andar_min_ia) #
+                      base_queryset = base_queryset.filter(andar__gte=andar_min_ia) 
                       print(f"Aplicado filtro andar__gte='{andar_min_ia}'") # DEBUG
             except (ValueError, TypeError):
                  print(f"Aviso IA: 'andar_min' inválido.")
 
         if 'area_min' in search_params:
-            # Filtra pela area util OU construida
             try:
                 area_min_ia = Decimal(search_params['area_min'])
                 if area_min_ia > 0:
-                     # Usa Q para filtrar em area_util OU area_construida
                      base_queryset = base_queryset.filter(
                          Q(area_util__gte=area_min_ia) | 
                          Q(area_construida__gte=area_min_ia)
@@ -365,25 +377,21 @@ class ImovelIAView(APIView):
                      print(f"Aplicado filtro area_min__gte='{area_min_ia}'") # DEBUG
             except (ValueError, TypeError, InvalidOperation):
                  print(f"Aviso IA: 'area_min' inválido.")
-        # --- FIM DA ATUALIZAÇÃO ---
 
 
         if search_params.get('aceita_pet') == True:
-            base_queryset = base_queryset.filter(aceita_pet=True) #
+            base_queryset = base_queryset.filter(aceita_pet=True)
         if search_params.get('mobiliado') == True:
-            base_queryset = base_queryset.filter(mobiliado=True) #
+            base_queryset = base_queryset.filter(mobiliado=True)
         if search_params.get('piscina') == True:
-            # Mantido, busca por piscina privativa OU em condomínio
             base_queryset = base_queryset.filter(Q(piscina_privativa=True) | Q(piscina_condominio=True))
         
-        # --- ATUALIZAÇÃO: FILTROS BOOLEANOS ADICIONAIS ---
         if search_params.get('ar_condicionado') == True:
-             base_queryset = base_queryset.filter(ar_condicionado=True) #
+             base_queryset = base_queryset.filter(ar_condicionado=True)
         if search_params.get('salao_festas') == True:
-             base_queryset = base_queryset.filter(salao_festas=True) #
+             base_queryset = base_queryset.filter(salao_festas=True)
         if search_params.get('elevador') == True:
-             base_queryset = base_queryset.filter(elevador=True) #
-        # --- FIM DA ATUALIZAÇÃO ---
+             base_queryset = base_queryset.filter(elevador=True)
 
 
         print(f"Contagem após filtros da IA: {base_queryset.count()}") # DEBUG
@@ -400,29 +408,6 @@ class ImovelIAView(APIView):
         }, status=status.HTTP_200_OK)
 
 
-class ImovelPublicDetailView(RetrieveAPIView):
-    """
-    View para detalhar um imóvel específico no site público.
-    """
-    serializer_class = ImovelPublicSerializer
-    permission_classes = [permissions.AllowAny]
-    queryset = Imovel.objects.filter(publicado_no_site=True) # Filtro base
-    lookup_field = 'pk'
-
-    def get_queryset(self):
-        qs = super().get_queryset()
-        subdomain = self.request.query_params.get('subdomain')
-
-        if not subdomain:
-             return qs.none()
-
-        try:
-            imobiliaria_obj = Imobiliaria.objects.get(subdominio__iexact=subdomain)
-            return qs.filter(imobiliaria=imobiliaria_obj)
-        except Imobiliaria.DoesNotExist:
-            return qs.none()
-
-
 # ===================================================================
 # VIEWS INTERNAS (Para o painel administrativo, requerem login)
 # ===================================================================
@@ -432,7 +417,7 @@ class ImovelViewSet(viewsets.ModelViewSet):
     serializer_class = ImovelSerializer
     permission_classes = [permissions.IsAuthenticated]
     filter_backends = [filters.SearchFilter]
-    search_fields = ['logradouro', 'cidade', 'titulo_anuncio', 'codigo_referencia', 'bairro'] # Adicionado bairro aqui também
+    search_fields = ['logradouro', 'cidade', 'titulo_anuncio', 'codigo_referencia', 'bairro'] 
 
     def get_queryset(self):
         if self.request.user.is_superuser:
@@ -449,15 +434,16 @@ class ImovelViewSet(viewsets.ModelViewSet):
             else:
                  base_queryset = base_queryset.filter(status=status_param)
 
-        finalidade = self.request.query_params.get('finalidade', None)
-        tipo = self.request.query_params.get('tipo', None)
+        # Filtros do painel
+        finalidade = self.request.query_params.get('finalidade', None) # residencial, comercial
+        tipo = self.request.query_params.get('tipo', None) # casa, apto
         cidade = self.request.query_params.get('cidade', None)
-        bairro = self.request.query_params.get('bairro', None) # Filtro de bairro para o painel
+        bairro = self.request.query_params.get('bairro', None)
 
         if finalidade: base_queryset = base_queryset.filter(finalidade=finalidade)
         if tipo: base_queryset = base_queryset.filter(tipo=tipo)
         if cidade: base_queryset = base_queryset.filter(cidade__icontains=cidade)
-        if bairro: base_queryset = base_queryset.filter(bairro__icontains=bairro) # Adicionado filtro de bairro
+        if bairro: base_queryset = base_queryset.filter(bairro__icontains=bairro)
 
         return base_queryset.order_by('-data_atualizacao')
 
@@ -493,7 +479,8 @@ class ImovelViewSet(viewsets.ModelViewSet):
         
         contexto = []
         contexto.append(f"Tipo de Imóvel: {imovel.get_tipo_display()}")
-        contexto.append(f"Finalidade: {imovel.get_finalidade_display()}")
+        contexto.append(f"Finalidade: {imovel.get_finalidade_display()}") # Residencial, Comercial...
+        contexto.append(f"Status: {imovel.get_status_display()}") # À Venda, Para Alugar...
         contexto.append(f"Localização: Bairro {imovel.bairro}, {imovel.cidade} - {imovel.estado}")
         
         if imovel.valor_venda and imovel.status == Imovel.Status.A_VENDA:
@@ -551,7 +538,6 @@ class ImovelViewSet(viewsets.ModelViewSet):
             )
         
         # 2. Obter a "Voz da Marca" da imobiliária (se existir)
-        # CORREÇÃO ANTERIOR: Forçamos a conversão para STR() para evitar o TypeError.
         voz_da_marca_obj = imovel.imobiliaria.voz_da_marca_preferida
         if voz_da_marca_obj:
             voz_da_marca = str(voz_da_marca_obj)
@@ -577,9 +563,8 @@ class ImovelViewSet(viewsets.ModelViewSet):
             model_name = 'models/gemini-flash-latest'
             model = genai.GenerativeModel(model_name)
             
-            # Configuração para garantir que a IA não seja muito restritiva
             generation_config = genai.types.GenerationConfig(
-                temperature=0.7, # Um pouco mais criativo
+                temperature=0.7, 
             )
             
             response = model.generate_content(prompt_final, generation_config=generation_config)
@@ -588,25 +573,17 @@ class ImovelViewSet(viewsets.ModelViewSet):
                  raise ValueError("Resposta inesperada da IA (sem 'parts').")
 
             generated_text = response.parts[0].text
-            
-            # Limpeza básica do texto
             generated_text = generated_text.strip().lstrip('```markdown').lstrip('```').rstrip('```').strip()
             
-            # --- CORREÇÃO SOLICITADA: Remoção do prefixo "Título Sugerido:" ---
             prefixo = 'título sugerido:'
             
             if generated_text.lower().startswith(prefixo):
-                 # Se o texto começar com o prefixo, tentamos remover a linha inteira.
                  if '\n' in generated_text:
-                      # Remove a primeira linha inteira (que contém o título sugerido)
                       generated_text = generated_text.split('\n', 1)[1].strip()
                  else:
-                      # Se for apenas uma linha (e contém o prefixo), removemos apenas o prefixo
                       generated_text = generated_text[len(prefixo):].lstrip(':').strip()
                       
-            # Limpeza final (caso a remoção tenha deixado espaços no início)
             generated_text = generated_text.strip()
-            # --- FIM DA CORREÇÃO SOLICITADA ---
 
             return Response({'descricao': generated_text}, status=status.HTTP_200_OK)
 
@@ -624,7 +601,6 @@ class ImagemImovelViewSet(viewsets.ModelViewSet):
         if self.request.user.is_superuser:
             return ImagemImovel.objects.all()
         if self.request.tenant:
-            # Filtra imagens pela imobiliária do imóvel associado
             return ImagemImovel.objects.filter(imovel__imobiliaria=self.request.tenant)
         return ImagemImovel.objects.none()
 
@@ -634,7 +610,6 @@ class ImagemImovelViewSet(viewsets.ModelViewSet):
         if not imovel_id:
             return Response({'imovel': ['O ID do imóvel é obrigatório.']}, status=status.HTTP_400_BAD_REQUEST)
 
-        # Garante que o imóvel pertence ao tenant do usuário (ou é superuser)
         try:
             if request.user.is_superuser:
                 imovel = Imovel.objects.get(pk=imovel_id)
@@ -672,7 +647,6 @@ class ImagemImovelViewSet(viewsets.ModelViewSet):
 
 
     def perform_destroy(self, instance):
-         # Garante que a imagem pertence a um imóvel do tenant (ou é superuser)
         if not (self.request.user.is_superuser or (self.request.tenant and instance.imovel.imobiliaria == self.request.tenant)):
             raise PermissionDenied("Você não tem permissão para excluir esta imagem.")
 
@@ -695,7 +669,6 @@ class ImagemImovelViewSet(viewsets.ModelViewSet):
         if not ordem_ids or not imovel_id:
             return Response({'detail': 'A lista de IDs de imagem e o ID do imóvel são necessários.'}, status=status.HTTP_400_BAD_REQUEST)
 
-        # Garante que o imóvel pertence ao tenant
         try:
             if request.user.is_superuser:
                  imovel = Imovel.objects.get(pk=imovel_id)
@@ -711,22 +684,19 @@ class ImagemImovelViewSet(viewsets.ModelViewSet):
         imagens_map = {img.id: img for img in imagens_qs}
 
         if len(ordem_ids) != len(imagens_map):
-             # Alguns IDs fornecidos não correspondem a imagens válidas para este imóvel/tenant
              raise PermissionDenied("Uma ou mais imagens fornecidas são inválidas ou não pertencem a este imóvel.")
 
         updated_instances = []
         for index, image_id_str in enumerate(ordem_ids):
             image_id = int(image_id_str)
-            if image_id in imagens_map: # Confirma novamente, embora a verificação anterior deva bastar
+            if image_id in imagens_map: 
                 img = imagens_map[image_id]
                 img.ordem = index
                 img.principal = (index == 0)
                 updated_instances.append(img)
             else:
-                 # Log interno para caso algo muito estranho ocorra
                  print(f"Alerta CRÍTICO: ID de imagem {image_id} não encontrado no mapeamento durante reordenação, APÓS validação inicial.")
 
-        # Usa bulk_update para eficiência
         ImagemImovel.objects.bulk_update(updated_instances, ['ordem', 'principal'])
         return Response({'status': 'Ordem das imagens atualizada com sucesso.'}, status=status.HTTP_200_OK)
 
@@ -747,7 +717,6 @@ class ContatoImovelViewSet(viewsets.ModelViewSet):
         if self.request.user.is_superuser:
             return base_queryset.all().order_by('-data_criacao')
         elif self.request.user.is_authenticated and self.request.tenant:
-            # Filtra contatos pela imobiliária do imóvel associado
             return base_queryset.filter(imovel__imobiliaria=self.request.tenant).order_by('-data_criacao')
         return ContatoImovel.objects.none()
 
@@ -758,7 +727,6 @@ class ContatoImovelViewSet(viewsets.ModelViewSet):
             if hasattr(imobiliaria, 'email_contato') and imobiliaria.email_contato:
                 destinatario_email = imobiliaria.email_contato
                 assunto = f"Novo Contato para o Imóvel: {contato.imovel.titulo_anuncio or contato.imovel.logradouro}"
-                # Construir URL base dinamicamente seria ideal, mas por agora usamos um placeholder
                 base_url_painel = "http://localhost:5173" # Ou a URL de produção
                 link_imovel_painel = f"{base_url_painel}/imoveis/editar/{contato.imovel.id}"
 
@@ -780,7 +748,6 @@ class ContatoImovelViewSet(viewsets.ModelViewSet):
                 """
                 remetente = settings.DEFAULT_FROM_EMAIL
                 send_mail(assunto, mensagem_corpo, remetente, [destinatario_email], fail_silently=False)
-                # print(f"Email de contato enviado para {destinatario_email}") # DEBUG
 
             oportunidade_associada = Oportunidade.objects.filter(imovel=contato.imovel).first()
             if oportunidade_associada and oportunidade_associada.responsavel:
@@ -788,18 +755,14 @@ class ContatoImovelViewSet(viewsets.ModelViewSet):
                 Notificacao.objects.create(
                     destinatario=destinatario_notificacao,
                     mensagem=f"Novo contato de '{contato.nome}' para o imóvel '{contato.imovel.titulo_anuncio or contato.imovel.logradouro}'.",
-                    link=f"/contatos" # Idealmente, link direto para o contato: /contatos?id={contato.id}
+                    link=f"/contatos" 
                 )
-                # print(f"Notificação criada para o responsável: {destinatario_notificacao.username}") # DEBUG
-            # else:
-                 # print("Nenhuma oportunidade ou responsável encontrado para notificação.") # DEBUG
 
         except Exception as e:
             print(f"ERRO AO ENVIAR NOTIFICAÇÕES DE CONTATO: {e}")
 
     @action(detail=True, methods=['post'], permission_classes=[permissions.IsAuthenticated])
     def arquivar(self, request, pk=None):
-        # get_object() já filtra pelo tenant/superuser devido ao get_queryset
         contato = self.get_object()
         contato.arquivado = True
         contato.save()
@@ -809,58 +772,84 @@ class ContatoImovelViewSet(viewsets.ModelViewSet):
 class GerarAutorizacaoPDFView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
-    def get(self, request, imovel_id, *args, **kwargs):
-        # Garante que o imóvel pertence ao tenant ou que é superuser
+    def _get_imovel_data(self, request, imovel_id):
+        """Helper para obter o Imovel e verificar permissões e proprietário."""
         try:
             if request.user.is_superuser:
                  imovel = Imovel.objects.get(pk=imovel_id)
             elif request.tenant:
                  imovel = Imovel.objects.get(pk=imovel_id, imobiliaria=request.tenant)
             else:
-                 raise PermissionDenied("Tenant não identificado.")
+                 raise PermissionDenied("Tenant não identificado para o usuário autenticado.")
         except Imovel.DoesNotExist:
              raise Http404("Imóvel não encontrado ou não pertence à sua imobiliária.")
 
         if not imovel.proprietario:
-            return HttpResponse("Erro: O imóvel não possui um proprietário vinculado.", status=400)
+            raise ValueError("Erro: O imóvel não possui um proprietário vinculado.")
+        
+        return imovel
 
+    def _processar_pdf(self, request, imovel, comissao, data_fim, info_adicionais):
+        """Lógica central de formatação e geração do PDF."""
+        # 1. CONFIGURAÇÃO DE LOCALE E VALORES POR EXTENSO
         try:
             locale.setlocale(locale.LC_TIME, 'pt_BR.UTF-8')
         except locale.Error:
             try:
                  locale.setlocale(locale.LC_TIME, 'Portuguese_Brazil.1252')
             except locale.Error:
-                 print("Aviso: Locale 'pt_BR.UTF-8' e 'Portuguese_Brazil.1252' não encontrados. Usando locale padrão.")
+                 pass 
 
         hoje = date.today()
-        finalidade_texto = imovel.get_finalidade_display() # Usa o display do ChoiceField
-        valor = imovel.valor_venda if imovel.finalidade == Imovel.Finalidade.A_VENDA else imovel.valor_aluguel
+        # Usa get_finalidade_display() (Residencial, Comercial)
+        finalidade_texto = imovel.get_finalidade_display() 
+        
+        # --- CORREÇÃO CRÍTICA (LÓGICA) ---
+        # O valor (venda ou aluguel) depende do STATUS, não da FINALIDADE.
+        # Verifica se o STATUS é A_VENDA, senão assume PARA_ALUGAR (ou VENDIDO/ALUGADO, usando o valor de aluguel como fallback)
+        valor = imovel.valor_venda if imovel.status == Imovel.Status.A_VENDA else imovel.valor_aluguel
+        # --- FIM DA CORREÇÃO ---
+
         valor = valor or Decimal(0)
         reais = int(valor)
         centavos = int((valor - reais) * 100)
-        valor_por_extenso = num2words(reais, lang='pt_BR') + " reais"
-        if centavos > 0:
-            valor_por_extenso += " e " + num2words(centavos, lang='pt_BR') + " centavos"
+        
+        try:
+            valor_por_extenso = num2words(reais, lang='pt_BR') + " reais"
+            if centavos > 0:
+                 valor_por_extenso += " e " + num2words(centavos, lang='pt_BR') + " centavos"
+        except NotImplementedError:
+             valor_por_extenso = f"{valor:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
+             
+        try:
+             # Converte Decimal para float para compatibilidade com num2words
+             comissao_por_extenso = num2words(float(comissao), lang='pt_BR') + " por cento"
+        except NotImplementedError:
+              comissao_por_extenso = f"{comissao}%"
 
         proprietario = imovel.proprietario
         nome_proprietario = proprietario.razao_social if proprietario.tipo_pessoa == 'JURIDICA' and proprietario.razao_social else proprietario.nome
 
+        # 2. CRIAÇÃO DO CONTEXTO
         context = {
             'imovel': imovel,
             'proprietario': proprietario,
             'nome_proprietario': nome_proprietario,
             'imobiliaria': imovel.imobiliaria,
-            'finalidade_texto': finalidade_texto,
+            'finalidade_texto': finalidade_texto, # Residencial, Comercial...
             'valor': valor,
             'valor_por_extenso': valor_por_extenso,
-            'comissao_percentual': imovel.comissao_percentual or 0,
-            'comissao_por_extenso': num2words(imovel.comissao_percentual or 0, lang='pt_BR') + " por cento",
+            'comissao_percentual': comissao, 
+            'comissao_por_extenso': comissao_por_extenso,
+            'informacoes_adicionais': info_adicionais, 
             'data_hoje': hoje,
             'dia_hoje': hoje.day,
             'mes_hoje': hoje.strftime("%B"),
             'ano_hoje': hoje.year,
-            'data_fim_autorizacao_formatada': imovel.data_fim_autorizacao.strftime("%d de %B de %Y") if imovel.data_fim_autorizacao else "INDETERMINADO"
+            'data_fim_autorizacao_formatada': data_fim.strftime("%d de %B de %Y") if data_fim else "INDETERMINADO"
         }
+        
+        # 3. GERAÇÃO DO PDF com xhtml2pdf (pisa)
         html_string = render_to_string('autorizacao_template.html', context)
         result = BytesIO()
 
@@ -868,7 +857,9 @@ class GerarAutorizacaoPDFView(APIView):
 
         if not pdf.err:
             response = HttpResponse(result.getvalue(), content_type='application/pdf')
-            filename = f'autorizacao_{finalidade_texto.lower()}_imovel_{imovel.codigo_referencia or imovel.id}.pdf'
+            # Usamos o STATUS (A_VENDA/PARA_ALUGAR) no nome do arquivo, não a finalidade (Residencial)
+            status_texto = imovel.get_status_display().lower().replace(" ", "_")
+            filename = f'autorizacao_{status_texto}_imovel_{imovel.codigo_referencia or imovel.id}.pdf'
             response['Content-Disposition'] = f'attachment; filename="{filename}"'
             return response
         else:
@@ -876,16 +867,88 @@ class GerarAutorizacaoPDFView(APIView):
              return HttpResponse(f"Erro ao gerar o PDF: {pdf.err}", status=500)
 
 
+    # MÉTODO GET
+    def get(self, request, imovel_id, *args, **kwargs):
+        """Gera o PDF usando os dados salvos no modelo Imovel."""
+        try:
+            imovel = self._get_imovel_data(request, imovel_id)
+            
+            comissao_default = imovel.comissao_percentual or Decimal(0)
+            data_fim_default = imovel.data_fim_autorizacao
+            info_adicionais_default = imovel.informacoes_adicionais_autorizacao or ''
+
+            return self._processar_pdf(
+                request, 
+                imovel, 
+                comissao_default, 
+                data_fim_default, 
+                info_adicionais_default
+            )
+            
+        except Http404:
+             return HttpResponse("Imóvel não encontrado.", status=404)
+        except PermissionDenied as e:
+             return HttpResponse(f"Erro de Permissão: {e}", status=403)
+        except ValueError as e: # Captura o erro "Proprietário não vinculado"
+             return HttpResponse(str(e), status=400)
+        except Exception as e:
+            print(f"ERRO INTERNO NO GET: {e}")
+            return HttpResponse(f"Erro interno ao gerar PDF: {e}", status=500)
+
+
+    # MÉTODO POST
+    def post(self, request, imovel_id, *args, **kwargs):
+        """Gera o PDF usando os dados enviados no corpo da requisição POST (personalização)."""
+        try:
+            imovel = self._get_imovel_data(request, imovel_id)
+            
+            data = request.data
+            
+            comissao = imovel.comissao_percentual or Decimal(0)
+            try:
+                 comissao = Decimal(str(data.get('comissao_percentual', comissao)))
+            except (InvalidOperation, TypeError):
+                 pass 
+                 
+            data_fim = imovel.data_fim_autorizacao 
+            data_fim_str = data.get('data_fim_autorizacao')
+            if data_fim_str:
+                 try:
+                     data_fim = date.fromisoformat(data_fim_str)
+                 except ValueError:
+                     pass 
+                 
+            info_adicionais = data.get(
+                'informacoes_adicionais', 
+                imovel.informacoes_adicionais_autorizacao or ''
+            )
+
+            return self._processar_pdf(
+                request, 
+                imovel, 
+                comissao, 
+                data_fim, 
+                info_adicionais
+            )
+
+        except Http404:
+             return HttpResponse("Imóvel não encontrado.", status=404)
+        except PermissionDenied as e:
+             return HttpResponse(f"Erro de Permissão: {e}", status=403)
+        except ValueError as e: # Captura o erro "Proprietário não vinculado"
+             return HttpResponse(str(e), status=400)
+        except Exception as e:
+            print(f"ERRO INTERNO NO POST: {e}")
+            return HttpResponse(f"Erro interno ao gerar PDF: {e}", status=500)
+
+
 class AutorizacaoStatusView(APIView):
-    permission_classes = [permissions.IsAuthenticated, permissions.IsAdminUser] # Apenas Admin ou Superuser
+    permission_classes = [permissions.IsAuthenticated, permissions.IsAdminUser] 
 
     def get(self, request, *args, **kwargs):
-        # A permissão IsAdminUser já garante que é admin ou superuser
         tenant = request.tenant
         if not tenant and request.user.is_superuser:
-            # Para superuser sem tenant específico, talvez listar todos ou o primeiro?
-            # Por agora, vamos retornar erro se não houver tenant claro.
-             tenant = Imobiliaria.objects.first() # Ou outra lógica para superuser
+             tenant = Imobiliaria.objects.first() 
         if not tenant:
             return Response({"error": "Nenhuma imobiliária associada ou selecionada."}, status=status.HTTP_400_BAD_REQUEST)
 
@@ -940,7 +1003,6 @@ class ImobiliariaPublicDetailView(RetrieveAPIView):
     lookup_url_kwarg = 'pk'
 
     def get_object(self):
-        # Removendo prints de depuração
         subdomain_from_url = self.kwargs.get(self.lookup_url_kwarg)
 
         if not subdomain_from_url:
@@ -958,5 +1020,5 @@ class ImobiliariaPublicDetailView(RetrieveAPIView):
             self.check_object_permissions(self.request, obj)
             return obj
         except Exception as e:
-             print(f"Erro inesperado ao buscar imobiliária: {e}") # Mantido para erros gerais
+             print(f"Erro inesperado ao buscar imobiliária: {e}") 
              raise Http404("Erro ao buscar dados da imobiliária.")

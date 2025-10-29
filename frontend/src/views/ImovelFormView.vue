@@ -108,23 +108,23 @@
                 <div class="form-grid">
                     <div class="form-group">
                         <label for="valor_venda">Valor de Venda (R$)</label>
-                        <input type="number" step="0.01" id="valor_venda" v-model.number="imovel.valor_venda" />
+                        <input type="text" id="valor_venda" v-model="imovel.valor_venda" v-money="moneyConfig" />
                     </div>
                     <div class="form-group">
                         <label for="valor_aluguel">Valor de Aluguel (R$)</label>
-                        <input type="number" step="0.01" id="valor_aluguel" v-model.number="imovel.valor_aluguel" />
+                        <input type="text" id="valor_aluguel" v-model="imovel.valor_aluguel" v-money="moneyConfig" />
                     </div>
                     <div class="form-group">
                         <label for="valor_condominio">Valor do Condomínio (R$)</label>
-                        <input type="number" step="0.01" id="valor_condominio" v-model.number="imovel.valor_condominio" />
+                        <input type="text" id="valor_condominio" v-model="imovel.valor_condominio" v-money="moneyConfig" />
                     </div>
                     <div class="form-group">
                         <label for="valor_iptu">Valor do IPTU (Anual, R$)</label>
-                        <input type="number" step="0.01" id="valor_iptu" v-model.number="imovel.valor_iptu" />
+                        <input type="text" id="valor_iptu" v-model="imovel.valor_iptu" v-money="moneyConfig" />
                     </div>
                 </div>
             </div>
-            <div class="form-section">
+        <div class="form-section">
                 <div class="section-title">Dimensões e Divisões</div>
                 <div class="form-grid">
                     <div class="form-group">
@@ -317,7 +317,7 @@
                     </div>
                     <div class="form-group">
                         <label for="comissao_percentual">Comissão (%)</label>
-                        <input type="number" step="0.01" id="comissao_percentual" v-model.number="imovel.comissao_percentual" />
+                        <input type="text" id="comissao_percentual" v-model="imovel.comissao_percentual" v-money="percentConfig" />
                     </div>
                 </div>
             </div>
@@ -398,10 +398,45 @@ import { ref, onMounted, computed, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import apiClient from '@/services/api'; 
 import ImovelImagensView from './ImovelImagensView.vue';
-import { debounce } from 'lodash'; // Necessário: npm install lodash @types/lodash
-
-// --- ADICIONADO FontAwesome ---
+import { debounce } from 'lodash'; 
 import '@fortawesome/fontawesome-free/css/all.css';
+
+// --- CORREÇÃO: ADIÇÃO DAS CONFIGURAÇÕES V-MONEY ---
+// Configuração da máscara de moeda R$
+const moneyConfig = {
+  debug: false,
+  masked: false,
+  prefix: 'R$ ',
+  suffix: '',
+  thousands: '.',
+  decimal: ',',
+  precision: 2,
+  disableNegative: true,
+  disabled: false,
+  min: 0.0,
+  max: 999999999999.99,
+  allowBlank: true,
+  minimumNumberOfCharacters: 0,
+};
+
+// Configuração para percentual (usado na comissão)
+const percentConfig = {
+  debug: false,
+  masked: false,
+  prefix: '',
+  suffix: ' %',
+  thousands: '.',
+  decimal: ',',
+  precision: 2,
+  disableNegative: true,
+  disabled: false,
+  min: 0.0,
+  max: 100.0,
+  allowBlank: true,
+  minimumNumberOfCharacters: 0,
+};
+// --- FIM DA CORREÇÃO ---
+
 
 const route = useRoute();
 const router = useRouter();
@@ -415,21 +450,17 @@ const isSubmitting = ref(false);
 const isGerandoDescricao = ref(false); 
 
 
-// --- ESTADOS DA BUSCA ASSÍNCRONA ---
 const proprietarioSearchResults = ref<any[]>([]);
 const searchQuery = ref('');
 const isSearchingProprietario = ref(false);
 
-// Campo computado para exibir o nome selecionado
 const proprietarioNomeSelecionado = computed(() => {
     if (imovel.value && imovel.value.proprietario_detalhes) {
         return imovel.value.proprietario_detalhes.nome || imovel.value.proprietario_detalhes.razao_social;
     }
     return null;
 });
-// --- FIM ESTADOS DA BUSCA ASSÍNCRONA ---
 
-// Campos que podem ter a visibilidade controlada no site público, separados por categoria
 const camposVisiveis = {
     'Informações Gerais': {
         'titulo_anuncio': 'Título do Anúncio',
@@ -549,7 +580,6 @@ const createEmptyImovel = () => {
         outras_caracteristicas: '',
         descricao_completa: '', 
         configuracao_publica: defaultConfig,
-        // Adicionado para armazenar os detalhes do proprietário para exibição no frontend
         proprietario_detalhes: null as any 
     };
 };
@@ -563,13 +593,10 @@ async function fetchImovelData(id: string) {
   try {
     const { data } = await apiClient.get(`/v1/imoveis/${id}/`);
     const emptyImovel = createEmptyImovel();
-    // Mescla os dados para garantir que todos os campos reativos existam
     imovel.value = { 
       ...emptyImovel,
       ...data,
-      // Garante que o ID do proprietário seja usado para o v-model
       proprietario: data.proprietario_detalhes?.id || null,
-      // Mantém os detalhes do proprietário para a tag de exibição
       proprietario_detalhes: data.proprietario_detalhes || null, 
       configuracao_publica: { ...emptyImovel.configuracao_publica, ...data.configuracao_publica }
     };
@@ -581,11 +608,7 @@ async function fetchImovelData(id: string) {
   }
 }
 
-// ------------------------------------
-// LÓGICA DE PESQUISA DE PROPRIETÁRIOS
-// ------------------------------------
 const searchProprietarios = async (query: string) => {
-    // CORREÇÃO: Usamos 'query' como string, que é o que recebemos do @input corrigido
     if (!query || query.length < 3) {
         proprietarioSearchResults.value = [];
         return;
@@ -593,12 +616,11 @@ const searchProprietarios = async (query: string) => {
 
     isSearchingProprietario.value = true;
     try {
-        // Envia o termo de busca via parâmetro 'search' (DRF) e filtra pelo perfil 'PROPRIETARIO'
         const response = await apiClient.get('/v1/clientes/', { 
             params: { 
                 tipo: 'PROPRIETARIO',
                 search: query,
-                status: 'ativo' // Buscar apenas clientes ativos
+                status: 'ativo'
             } 
         });
         proprietarioSearchResults.value = response.data;
@@ -610,50 +632,77 @@ const searchProprietarios = async (query: string) => {
     }
 };
 
-// Usa debounce para não inundar o servidor a cada tecla (300ms de espera)
 const debouncedSearch = debounce(searchProprietarios, 300); 
 
 function selectProprietario(cliente: any) {
-    imovel.value.proprietario = cliente.id; // Define o ID para o campo de escrita do serializer
-    
-    // Atualiza o objeto de detalhes para exibição
+    imovel.value.proprietario = cliente.id; 
     imovel.value.proprietario_detalhes = cliente; 
-    
-    proprietarioSearchResults.value = []; // Limpa a lista de resultados
-    searchQuery.value = ''; // Limpa a query de busca
+    proprietarioSearchResults.value = []; 
+    searchQuery.value = ''; 
 }
 
 function clearProprietarioSelection() {
     imovel.value.proprietario = null;
     imovel.value.proprietario_detalhes = null;
 }
-// ------------------------------------
-
 
 async function gerarContratoPDF() {
     if (!imovel.value.id) return;
-    if (!imovel.value.proprietario || !imovel.value.data_captacao || !imovel.value.data_fim_autorizacao) {
-        alert("Para gerar o contrato, preencha os campos: Proprietário, Data de Captação e Data de Fim da Autorização.");
-        return;
+    if (!imovel.value.proprietario) {
+         alert("Para gerar o contrato, selecione um 'Proprietário'.");
+         activeTab.value = 'autorizacao'; // Muda para a aba de autorização
+         return;
     }
+    
+    // CORREÇÃO: Usar POST para enviar dados customizados do formulário
     try {
-        const response = await apiClient.get(`/v1/imoveis/${imovel.value.id}/gerar-autorizacao-pdf/`, { responseType: 'blob' });
+        const payload = {
+            comissao_percentual: imovel.value.comissao_percentual,
+            data_fim_autorizacao: imovel.value.data_fim_autorizacao,
+            informacoes_adicionais: imovel.value.informacoes_adicionais_autorizacao,
+        };
+        
+        const response = await apiClient.post(`/v1/imoveis/${imovel.value.id}/gerar-autorizacao-pdf/`, payload, { 
+            responseType: 'blob' 
+        });
+        
         const url = window.URL.createObjectURL(new Blob([response.data]));
         const link = document.createElement('a');
         link.href = url;
+        
         const contentDisposition = response.headers['content-disposition'];
         let fileName = `autorizacao_imovel_${imovel.value.codigo_referencia}.pdf`;
         if (contentDisposition) {
             const fileNameMatch = contentDisposition.match(/filename="(.+)"/);
             if (fileNameMatch && fileNameMatch.length === 2) fileName = fileNameMatch[1];
         }
+        
         link.setAttribute('download', fileName);
         document.body.appendChild(link);
         link.click();
         link.remove();
         window.URL.revokeObjectURL(url);
+        
     } catch (error: any) {
         console.error("Erro ao gerar PDF:", error);
+        
+        if (error.response && error.response.data && error.response.data.type === 'application/json') {
+             const reader = new FileReader();
+             reader.onload = () => {
+                 try {
+                     const errorJson = JSON.parse(reader.result as string);
+                     alert(`Erro ao gerar PDF: ${errorJson.error || 'Erro desconhecido.'}`);
+                 } catch (e) {
+                      alert(`Erro ao gerar PDF: ${reader.result}`);
+                 }
+             };
+             reader.readAsText(error.response.data);
+        } else if (error.response && error.response.data) {
+             const errorMessage = await error.response.data.text();
+             alert(`Erro ao gerar PDF: ${errorMessage}`);
+        } else {
+             alert('Erro desconhecido ao gerar o PDF.');
+        }
     }
 }
 
@@ -665,7 +714,6 @@ async function handleGerarDescricaoIA() {
 
     isGerandoDescricao.value = true;
     try {
-        // A action 'gerar-descricao-ia' foi definida no ImovelViewSet como POST
         const response = await apiClient.post(`/v1/imoveis/${imovel.value.id}/gerar-descricao-ia/`);
         
         if (response.data && response.data.descricao) {
@@ -693,7 +741,7 @@ watch(() => route.query.tab, (newTab) => {
 });
 
 onMounted(() => {
-  // fetchClientes não é mais necessário aqui
+  // onMounted
 });
 
 async function saveImovel() {
@@ -701,11 +749,9 @@ async function saveImovel() {
   const payload = { ...imovel.value };
   
   delete payload.id;
-  // Remove o objeto de detalhes para garantir que não seja enviado ao Django
   delete payload.proprietario_detalhes; 
 
   Object.keys(payload).forEach(key => {
-    // Mantém o 'proprietario' como null se for o caso, não remove
     if (key !== 'proprietario' && payload[key] === null) delete payload[key];
   });
   
@@ -727,7 +773,6 @@ async function saveImovel() {
 async function handleSaveAndExit() {
   const response = await saveImovel();
   if (response && response.data) {
-    // Atualiza o estado local com a resposta antes de sair
     imovel.value = { ...imovel.value, ...response.data };
     alert('Imóvel guardado com sucesso!');
     router.push({ name: 'imoveis' });
@@ -739,12 +784,10 @@ async function handleSaveAndContinue() {
   if (response && response.data) {
     const wasCreating = !isEditing.value;
     
-    // ATUALIZAÇÃO CRÍTICA: Mescla a resposta da API com o estado local
     const emptyImovel = createEmptyImovel();
     imovel.value = {
         ...emptyImovel,
         ...response.data,
-        // Mantém os detalhes do proprietário que vieram da API
         proprietario_detalhes: response.data.proprietario_detalhes || null,
         configuracao_publica: { ...emptyImovel.configuracao_publica, ...response.data.configuracao_publica }
     };
@@ -752,11 +795,9 @@ async function handleSaveAndContinue() {
     alert('Imóvel guardado com sucesso!');
 
     if (wasCreating && response.data.id) {
-        // Se estava a criar, navega para a nova rota de edição
         await router.push({ name: 'imovel-editar', params: { id: response.data.id } });
     }
     
-    // Muda para a aba de imagens após salvar
     activeTab.value = 'imagens';
   }
 }
@@ -770,8 +811,6 @@ function handleCancel() {
 .form-container { 
   padding: 0; 
 }
-
-/* Os estilos .view-header e .header-actions foram REMOVIDOS */
 
 .tabs { display: flex; flex-wrap: wrap; border-bottom: 2px solid #ccc; margin-bottom: 1.5rem; width: 100%; }
 .tabs button { padding: 10px 20px; border: none; background: none; cursor: pointer; font-size: 1rem; font-weight: 500; color: #6c757d; border-bottom: 2px solid transparent; margin-bottom: -2px; }
@@ -789,6 +828,10 @@ input, select, textarea {
   border-radius: 4px; 
   font-size: 1rem; 
   font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif;
+}
+/* Alinha inputs de máscara de dinheiro à direita */
+input[v-money] {
+  text-align: right;
 }
 .checkbox-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1rem; }
 .checkbox-group { display: flex; align-items: center; gap: 0.5rem; }
@@ -820,7 +863,6 @@ input, select, textarea {
     gap: 0.5rem;
 }
 
-/* NOVOS ESTILOS PARA O LAYOUT DA ABA DE VISIBILIDADE */
 .section-group {
     border: 1px solid #e9ecef;
     border-radius: 6px;
@@ -838,7 +880,6 @@ input, select, textarea {
     border-bottom: 1px solid #e0e0e0;
 }
 
-/* NOVO ESTILO PARA AS SEÇÕES DO FORMULÁRIO */
 .form-section {
     background-color: #f9fafb;
     border: 1px solid #e2e8f0;
@@ -847,7 +888,6 @@ input, select, textarea {
     margin-bottom: 2rem;
 }
 
-/* --- ESTILOS DE BUSCA DE PROPRIETÁRIO --- */
 .proprietario-search-container {
     position: relative;
     display: flex;
@@ -856,12 +896,12 @@ input, select, textarea {
 
 .proprietario-search-container input[type="text"] {
     position: relative;
-    z-index: 11; /* Acima da lista de resultados */
+    z-index: 11; 
 }
 
 .search-results-list {
     position: absolute;
-    top: 100%; /* Posiciona abaixo do input */
+    top: 100%; 
     left: 0;
     right: 0;
     z-index: 10;
@@ -933,17 +973,15 @@ input, select, textarea {
     color: #6c757d;
     margin-top: 5px;
 }
-/* --- FIM DOS ESTILOS DE BUSCA --- */
 
-/* --- NOVOS ESTILOS PARA O BOTÃO DE IA --- */
 .form-group-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 0.5rem; /* Matches the original label margin */
+    margin-bottom: 0.5rem; 
 }
 .form-group-header label {
-    margin-bottom: 0; /* Handled by the parent */
+    margin-bottom: 0; 
 }
 .btn-ai-generate {
     padding: 5px 10px;
@@ -967,5 +1005,4 @@ input, select, textarea {
 .btn-ai-generate .fa-magic {
     color: #0056b3;
 }
-/* --- FIM DOS NOVOS ESTILOS --- */
 </style>

@@ -11,7 +11,9 @@
         .clausula { margin-bottom: 20px; }
         .clausula strong { display: block; margin-bottom: 5px; }
         .assinaturas { margin-top: 80px; }
-        .assinatura { display: inline-block; width: 45%; text-align: center; }
+        /* Correção para alinhar assinaturas lado a lado */
+        .assinatura-bloco { width: 100%; }
+        .assinatura { display: inline-block; width: 48%; text-align: center; vertical-align: top; }
         .assinatura p { margin: 0; }
         .linha-assinatura { border-bottom: 1px solid #000; margin-top: 60px; }
         table { width: 100%; border-collapse: collapse; margin: 20px 0; }
@@ -20,17 +22,27 @@
     </style>
 </head>
 <body>
-    <h1>Contrato de Autorização para Intermediação de {{ finalidade_texto|capfirst }} de Imóvel</h1>
+    <h1>Contrato de Autorização para Intermediação de {{ imovel.get_status_display }} de Imóvel</h1>
 
     <p>
-        <strong>CONTRATANTE (PROPRIETÁRIO):</strong> {{ proprietario.nome_completo|upper }}, CPF/CNPJ nº {{ proprietario.cpf_cnpj }}, residente e domiciliado em {{ proprietario_endereco }}.
+        <strong>CONTRATANTE (PROPRIETÁRIO):</strong> 
+        {{ nome_proprietario|upper|default:"(Nome não informado)" }}, 
+        CPF/CNPJ nº {{ proprietario.documento|default:"(Documento não informado)" }}, 
+        residente e domiciliado em 
+        {{ proprietario.logradouro|default:'' }}, {{ proprietario.numero|default:'' }} 
+        {{ proprietario.complemento|default:'' }} - {{ proprietario.bairro|default:'' }}, 
+        {{ proprietario.cidade|default:'' }} - {{ proprietario.estado|default:'' }}.
     </p>
     <p>
-        <strong>CONTRATADA (IMOBILIÁRIA):</strong> {{ imobiliaria.nome|upper }}, com sede em [Endereço da Imobiliária], inscrita no CNPJ sob o nº [CNPJ da Imobiliária] e CRECI nº [CRECI da Imobiliária].
+        <strong>CONTRATADA (IMOBILIÁRIA):</strong> 
+        {{ imobiliaria.nome|upper }}, 
+        com sede em {{ imobiliaria.endereco_logradouro|default:'(Endereço não informado)' }}, {{ imobiliaria.endereco_numero|default:'' }}, 
+        inscrita no CNPJ sob o nº {{ imobiliaria.cnpj|default:'(CNPJ não informado)' }} 
+        e CRECI nº {{ imobiliaria.creci|default:'(CRECI não informado)' }}.
     </p>
 
     <p>
-        Pelo presente instrumento, o CONTRATANTE autoriza a CONTRATADA a promover a intermediação da {{ finalidade_texto }} do imóvel de sua propriedade, descrito abaixo:
+        Pelo presente instrumento, o CONTRATANTE autoriza a CONTRATADA a promover a intermediação da {{ imovel.get_status_display }} do imóvel de sua propriedade, descrito abaixo:
     </p>
 
     <table>
@@ -43,11 +55,11 @@
         </tr>
         <tr>
             <td><strong>Endereço:</strong></td>
-            <td>{{ imovel.endereco }}, {{ imovel.bairro }}, {{ imovel.cidade }} - {{ imovel.estado }}</td>
+            <td>{{ imovel.logradouro }}, {{ imovel.numero|default:'' }}, {{ imovel.bairro }}, {{ imovel.cidade }} - {{ imovel.estado }}</td>
         </tr>
         <tr>
             <td><strong>Tipo de Imóvel:</strong></td>
-            <td>{{ imovel.get_tipo_display }}</td>
+            <td>{{ imovel.get_tipo_display }} (Finalidade: {{ imovel.get_finalidade_display }})</td>
         </tr>
         <tr>
             <td><strong>Matrícula do Imóvel:</strong></td>
@@ -58,21 +70,21 @@
     <div class="clausula">
         <strong>CLÁUSULA PRIMEIRA - DO OBJETO</strong>
         <p>
-            A CONTRATADA compromete-se a envidar seus melhores esforços na promoção e divulgação do imóvel supracitado, visando a sua {{ finalidade_texto }}, conforme as condições de preço e pagamento estabelecidas pelo CONTRATANTE.
+            A CONTRATADA compromete-se a envidar seus melhores esforços na promoção e divulgação do imóvel supracitado, visando a sua {{ imovel.get_status_display }}, conforme as condições de preço e pagamento estabelecidas pelo CONTRATANTE.
         </p>
     </div>
 
     <div class="clausula">
         <strong>CLÁUSULA SEGUNDA - DO PREÇO E CONDIÇÕES</strong>
         <p>
-            O valor estipulado para a {{ finalidade_texto }} do imóvel é de <strong>R$ {{ valor|floatformat:2 }}</strong> ({{ valor_por_extenso }}). Quaisquer alterações neste valor deverão ser comunicadas por escrito à CONTRATADA.
+            O valor estipulado para a {{ imovel.get_status_display }} do imóvel é de <strong>R$ {{ valor|floatformat:2 }}</strong> ({{ valor_por_extenso }}). Quaisquer alterações neste valor deverão ser comunicadas por escrito à CONTRATADA.
         </p>
     </div>
 
     <div class="clausula">
         <strong>CLÁUSULA TERCEIRA - DO PRAZO E DA EXCLUSIVIDADE</strong>
         <p>
-            A presente autorização é válida a partir de {{ imovel.data_captacao|date:"d/m/Y" }} até {{ imovel.data_fim_autorizacao|date:"d/m/Y" }}.
+            A presente autorização é válida a partir de {{ imovel.data_captacao|date:"d/m/Y"|default:"(Data de início não informada)" }} até {{ data_fim_autorizacao_formatada }}.
             {% if imovel.possui_exclusividade %}
             Durante este período, a CONTRATADA atuará com <strong>EXCLUSIVIDADE</strong> na intermediação do negócio, ficando o CONTRATANTE impedido de tratar diretamente ou por intermédio de outrem a negociação do imóvel.
             {% else %}
@@ -84,15 +96,15 @@
     <div class="clausula">
         <strong>CLÁUSULA QUARTA - DA REMUNERAÇÃO</strong>
         <p>
-            Em caso de concretização do negócio durante o prazo de vigência desta autorização, mesmo que a negociação tenha sido iniciada pela CONTRATADA e concluída posteriormente pelo CONTRATANTE, será devida à CONTRATADA a comissão de <strong>{{ imovel.comissao_percentual }}%</strong> ({{ comissao_por_extenso }}) sobre o valor total da transação, a ser paga no ato do recebimento do sinal ou da assinatura do contrato definitivo.
+            Em caso de concretização do negócio durante o prazo de vigência desta autorização, mesmo que a negociação tenha sido iniciada pela CONTRATADA e concluída posteriormente pelo CONTRATANTE, será devida à CONTRATADA a comissão de <strong>{{ comissao_percentual|floatformat:2 }}%</strong> ({{ comissao_por_extenso }}) sobre o valor total da transação, a ser paga no ato do recebimento do sinal ou da assinatura do contrato definitivo.
         </p>
     </div>
     
-    {% if imovel.informacoes_adicionais_autorizacao %}
+    {% if informacoes_adicionais %}
     <div class="clausula">
         <strong>CLÁUSULA QUINTA - DISPOSIÇÕES ADICIONAIS</strong>
         <p>
-            {{ imovel.informacoes_adicionais_autorizacao|linebreaksbr }}
+            {{ informacoes_adicionais|linebreaksbr }}
         </p>
     </div>
     {% endif %}
@@ -102,19 +114,21 @@
     </p>
 
     <p style="text-align: center;">
-        {{ imovel.cidade }}, {{ data_hoje|date:"d" }} de {{ mes_hoje }} de {{ data_hoje|date:"Y" }}.
+        {{ imovel.cidade }}, {{ dia_hoje }} de {{ mes_hoje }} de {{ ano_hoje }}.
     </p>
 
     <div class="assinaturas">
-        <div class="assinatura">
-            <div class="linha-assinatura"></div>
-            <p><strong>{{ imobiliaria.nome|upper }}</strong></p>
-            <p>(Contratada)</p>
-        </div>
-        <div class="assinatura">
-            <div class="linha-assinatura"></div>
-            <p><strong>{{ proprietario.nome_completo|upper }}</strong></p>
-            <p>(Contratante)</p>
+        <div class="assinatura-bloco">
+            <div class="assinatura">
+                <div class="linha-assinatura"></div>
+                <p><strong>{{ imobiliaria.nome|upper }}</strong></p>
+                <p>(Contratada)</p>
+            </div>
+            <div class="assinatura">
+                <div class="linha-assinatura"></div>
+                <p><strong>{{ nome_proprietario|upper }}</strong></p>
+                <p>(Contratante)</p>
+            </div>
         </div>
     </div>
 </body>

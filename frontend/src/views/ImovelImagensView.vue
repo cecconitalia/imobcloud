@@ -44,6 +44,7 @@
 import { ref, onMounted, watch } from 'vue';
 import apiClient from '@/services/api';
 import draggable from 'vuedraggable'; // Importa o componente draggable
+import '@fortawesome/fontawesome-free/css/all.css'; // Importa FontAwesome
 
 const props = defineProps({
   imovelId: {
@@ -76,14 +77,13 @@ async function uploadFiles() {
   const formData = new FormData();
   formData.append('imovel', props.imovelId.toString());
   
-  // Adiciona cada arquivo ao mesmo campo 'imagem'
   uploadQueue.value.forEach(file => {
     formData.append('imagem', file);
   });
 
   try {
-    // CORREÇÃO: Endpoint alterado de 'imagens-imovel/' para 'imagens/'
-    await apiClient.post('/v1/imagens/', formData, {
+    // CORREÇÃO: O endpoint correto (baseado nos seus urls.py) é /imoveis/imagens/
+    await apiClient.post('/v1/imoveis/imagens/', formData, {
       headers: { 'Content-Type': 'multipart/form-data' }
     });
     uploadQueue.value = [];
@@ -103,9 +103,7 @@ async function fetchImages() {
   }
   isLoading.value = true;
   try {
-    // Busca os dados do imóvel, que inclui a lista de imagens
     const response = await apiClient.get(`/v1/imoveis/${props.imovelId}/`);
-    // Ordena as imagens pela ordem definida no backend
     images.value = (response.data.imagens || []).sort((a: any, b: any) => a.ordem - b.ordem);
   } catch (error) {
     console.error("Erro ao carregar imagens:", error);
@@ -117,8 +115,8 @@ async function fetchImages() {
 async function deleteImage(imageId: number) {
   if (confirm('Tem a certeza que deseja excluir esta imagem?')) {
     try {
-      // CORREÇÃO: Endpoint alterado de 'imagens-imovel/' para 'imagens/'
-      await apiClient.delete(`/v1/imagens/${imageId}/`);
+      // CORREÇÃO: O endpoint correto (baseado nos seus urls.py) é /imoveis/imagens/
+      await apiClient.delete(`/v1/imoveis/imagens/${imageId}/`);
       await fetchImages(); // Recarrega para refletir a exclusão e a nova imagem principal
     } catch (error) {
       console.error("Erro ao excluir imagem:", error);
@@ -128,7 +126,6 @@ async function deleteImage(imageId: number) {
 }
 
 async function saveOrder() {
-  // A primeira imagem na lista é sempre a principal
   images.value.forEach((img, index) => {
     img.ordem = index;
     img.principal = index === 0;
@@ -137,8 +134,11 @@ async function saveOrder() {
   const orderedIds = images.value.map(img => img.id);
   
   try {
-    // CORREÇÃO: Endpoint alterado de 'imagens-imovel/reordenar/' para 'imagens/reordenar/'
-    await apiClient.post(`/v1/imagens/reordenar/`, { ordem_ids: orderedIds });
+    // CORREÇÃO: O endpoint correto (baseado nos seus urls.py) é /imoveis/imagens/reordenar/
+    await apiClient.post(`/v1/imoveis/imagens/reordenar/`, { 
+        ordem_ids: orderedIds,
+        imovel_id: props.imovelId // Adiciona o imovel_id, como esperado pela view
+    });
   } catch (error) {
     console.error("Erro ao salvar a nova ordem:", error);
     alert('Não foi possível salvar a nova ordem das imagens. A página será recarregada.');
@@ -156,14 +156,15 @@ onMounted(() => {
 </script>
 
 <style scoped>
-/* Estilos permanecem os mesmos, mas adicionamos o cursor para o drag-and-drop */
 .image-container {
     cursor: grab;
 }
 .image-manager { display: flex; flex-direction: column; gap: 1.5rem; }
 .upload-area { display: flex; flex-direction: column; gap: 1rem; }
 .upload-prompt { border: 2px dashed #ccc; border-radius: 8px; padding: 2rem; text-align: center; cursor: pointer; background-color: #fafafa; }
+.upload-prompt i { font-size: 2rem; color: #6c757d; }
 .btn-upload { background-color: #28a745; color: white; padding: 10px 15px; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; }
+.btn-upload:disabled { background-color: #ccc; }
 .info-drag { text-align: center; margin-bottom: 0.5rem; color: #6c757d; font-size: 0.9rem; }
 .image-preview-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 1rem; }
 .image-container { position: relative; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 4px rgba(0,0,0,0.1); border: 3px solid transparent; }
