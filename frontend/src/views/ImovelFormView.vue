@@ -192,6 +192,21 @@
                         <label for="churrasqueira_privativa">Churrasqueira Privativa</label>
                     </div>
                 </div>
+                
+                <div class="form-group full-width" style="margin-top: 1.5rem;">
+                    <div class="form-group-header">
+                        <label for="descricao_completa">Descrição Detalhada (para o site)</label>
+                        <button type="button" @click.prevent="handleGerarDescricaoIA" 
+                                :disabled="isGerandoDescricao || !isEditing" 
+                                class="btn-ai-generate"
+                                title="Gerar descrição com Inteligência Artificial (necessário salvar o imóvel primeiro)">
+                            <i :class="isGerandoDescricao ? 'fas fa-spinner fa-spin' : 'fas fa-magic'"></i>
+                            {{ isGerandoDescricao ? 'A gerar...' : 'Gerar com IA' }}
+                        </button>
+                    </div>
+                    <textarea id="descricao_completa" v-model="imovel.descricao_completa" rows="8"></textarea>
+                </div>
+
                 <div class="form-group full-width">
                     <label for="outras_caracteristicas">Outras Características (Opcional)</label>
                     <textarea id="outras_caracteristicas" v-model="imovel.outras_caracteristicas" rows="4"></textarea>
@@ -241,14 +256,14 @@
 
         <div v-show="activeTab === 'imagens'">
             <div v-if="isEditing && imovel.id" class="card">
-              <div class="card-header">Gestor de Imagens</div>
-              <div class="card-body">
-                <ImovelImagensView :imovel-id="Number(imovel.id)" />
-              </div>
+                <div class="card-header">Gestor de Imagens</div>
+                <div class="card-body">
+                    <ImovelImagensView :imovel-id="Number(imovel.id)" />
+                </div>
             </div>
             <div v-else class="info-message">
-              <p>Para adicionar imagens, primeiro guarde o imóvel.</p>
-              <p>Preencha as informações nas outras abas e clique em "Salvar e Continuar".</p>
+                <p>Para adicionar imagens, primeiro guarde o imóvel.</p>
+                <p>Preencha as informações nas outras abas e clique em "Salvar e Continuar".</p>
             </div>
         </div>
 
@@ -256,14 +271,37 @@
             <div class="form-section">
                 <div class="section-title">Documentação e Venda</div>
                 <div class="form-grid">
-                    <div class="form-group">
-                        <label for="proprietario">Proprietário (Cliente)</label>
-                        <select id="proprietario" v-model="imovel.proprietario">
-                            <option :value="null">-- Selecione um Cliente --</option>
-                            <option v-for="cliente in clientes" :key="cliente.id" :value="cliente.id">
-                                {{ cliente.nome_completo }}
-                            </option>
-                        </select>
+                    
+                    <div class="form-group full-width">
+                        <label for="proprietario_search">Proprietário (Buscar Cliente)</label>
+                        <div class="proprietario-search-container">
+                            <input 
+                                type="text" 
+                                id="proprietario_search" 
+                                v-model="searchQuery" 
+                                @input="debouncedSearch($event.target.value)"
+                                placeholder="Digite nome, e-mail ou documento..."
+                                :disabled="isLoadingData || isSearchingProprietario"
+                                autocomplete="off"
+                            />
+                            
+                            <p v-if="proprietarioNomeSelecionado" class="selected-proprietario-tag">
+                                <i class="fas fa-user-check"></i> {{ proprietarioNomeSelecionado }} 
+                                <span @click="clearProprietarioSelection" class="clear-selection-btn">&times;</span>
+                            </p>
+                            <p v-else-if="!searchQuery" class="info-message-small">Nenhum proprietário selecionado. Comece a digitar para buscar.</p>
+
+                            <ul v-if="searchQuery && proprietarioSearchResults.length" class="search-results-list">
+                                <li v-for="cliente in proprietarioSearchResults" 
+                                    :key="cliente.id"
+                                    @click="selectProprietario(cliente)">
+                                    {{ cliente.nome || cliente.razao_social }} ({{ cliente.tipo_pessoa }})
+                                </li>
+                            </ul>
+                            <div v-else-if="searchQuery && !proprietarioSearchResults.length && !isSearchingProprietario" class="search-empty-message">
+                                Nenhum cliente encontrado com perfil "Proprietário".
+                            </div>
+                        </div>
                     </div>
                     <div class="form-group">
                         <label for="numero_matricula">Número da Matrícula</label>
@@ -307,21 +345,21 @@
             <div class="form-section">
                  <div class="section-title">Observações e Ações</div>
                  <div class="form-group full-width">
-                      <label for="informacoes_adicionais_autorizacao">Informações Adicionais (para o contrato)</label>
-                      <textarea id="informacoes_adicionais_autorizacao" v-model="imovel.informacoes_adicionais_autorizacao" rows="4"></textarea>
+                        <label for="informacoes_adicionais_autorizacao">Informações Adicionais (para o contrato)</label>
+                        <textarea id="informacoes_adicionais_autorizacao" v-model="imovel.informacoes_adicionais_autorizacao" rows="4"></textarea>
                  </div>
                  <div class="form-group full-width" v-if="isEditing && imovel.id">
-                      <button type="button" @click="gerarContratoPDF" class="btn-info">
-                          Gerar Contrato de Autorização (PDF)
-                      </button>
+                        <button type="button" @click="gerarContratoPDF" class="btn-info">
+                             Gerar Contrato de Autorização (PDF)
+                        </button>
                  </div>
             </div>
         </div>
 
         <div v-show="activeTab === 'publico'" class="form-section">
             <div class="info-message">
-              <p>Controle a visibilidade de cada campo deste imóvel no site público da imobiliária.</p>
-              <p>Campos não selecionados não serão exibidos, mesmo que preenchidos.</p>
+                <p>Controle a visibilidade de cada campo deste imóvel no site público da imobiliária.</p>
+                <p>Campos não selecionados não serão exibidos, mesmo que preenchidos.</p>
             </div>
              <div class="section-group">
                 <div class="section-title">Opções de Ativação</div>
@@ -360,6 +398,10 @@ import { ref, onMounted, computed, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import apiClient from '@/services/api'; 
 import ImovelImagensView from './ImovelImagensView.vue';
+import { debounce } from 'lodash'; // Necessário: npm install lodash @types/lodash
+
+// --- ADICIONADO FontAwesome ---
+import '@fortawesome/fontawesome-free/css/all.css';
 
 const route = useRoute();
 const router = useRouter();
@@ -367,7 +409,25 @@ const router = useRouter();
 const imovelId = computed(() => route.params.id as string | undefined);
 const isEditing = computed(() => !!imovelId.value);
 const activeTab = ref('geral');
-const clientes = ref<any[]>([]);
+
+const isLoadingData = ref(false);
+const isSubmitting = ref(false);
+const isGerandoDescricao = ref(false); 
+
+
+// --- ESTADOS DA BUSCA ASSÍNCRONA ---
+const proprietarioSearchResults = ref<any[]>([]);
+const searchQuery = ref('');
+const isSearchingProprietario = ref(false);
+
+// Campo computado para exibir o nome selecionado
+const proprietarioNomeSelecionado = computed(() => {
+    if (imovel.value && imovel.value.proprietario_detalhes) {
+        return imovel.value.proprietario_detalhes.nome || imovel.value.proprietario_detalhes.razao_social;
+    }
+    return null;
+});
+// --- FIM ESTADOS DA BUSCA ASSÍNCRONA ---
 
 // Campos que podem ter a visibilidade controlada no site público, separados por categoria
 const camposVisiveis = {
@@ -487,47 +547,88 @@ const createEmptyImovel = () => {
         informacoes_adicionais_autorizacao: '',
         posicao_chave: '',
         outras_caracteristicas: '',
+        descricao_completa: '', 
         configuracao_publica: defaultConfig,
+        // Adicionado para armazenar os detalhes do proprietário para exibição no frontend
+        proprietario_detalhes: null as any 
     };
 };
 
 const imovel = ref(createEmptyImovel());
-const isLoadingData = ref(false);
-const isSubmitting = ref(false);
 
-async function fetchClientes() {
-    try {
-        const response = await apiClient.get('/v1/clientes/');
-        clientes.value = response.data;
-    } catch (error) {
-        console.error("Erro ao carregar clientes:", error);
-    }
-}
+async function fetchImovelData(id: string) {
+  if (!id) return; 
 
-async function fetchImovelData() {
-  if (isEditing.value && imovelId.value) {
-    isLoadingData.value = true;
-    try {
-      const { data } = await apiClient.get(`/v1/imoveis/${imovelId.value}/`);
-      const emptyImovel = createEmptyImovel();
-      // Mescla os dados para garantir que todos os campos reativos existam
-      imovel.value = { 
-        ...emptyImovel,
-        ...data,
-        // Garante que o ID do proprietário seja usado para o v-model
-        proprietario: data.proprietario_detalhes?.id || null,
-        configuracao_publica: { ...emptyImovel.configuracao_publica, ...data.configuracao_publica }
-      };
-    } catch (error) {
-      console.error('Erro ao carregar dados do imóvel:', error);
-      alert('Não foi possível carregar os dados do imóvel.');
-    } finally {
-      isLoadingData.value = false;
-    }
-  } else {
-    imovel.value = createEmptyImovel();
+  isLoadingData.value = true;
+  try {
+    const { data } = await apiClient.get(`/v1/imoveis/${id}/`);
+    const emptyImovel = createEmptyImovel();
+    // Mescla os dados para garantir que todos os campos reativos existam
+    imovel.value = { 
+      ...emptyImovel,
+      ...data,
+      // Garante que o ID do proprietário seja usado para o v-model
+      proprietario: data.proprietario_detalhes?.id || null,
+      // Mantém os detalhes do proprietário para a tag de exibição
+      proprietario_detalhes: data.proprietario_detalhes || null, 
+      configuracao_publica: { ...emptyImovel.configuracao_publica, ...data.configuracao_publica }
+    };
+  } catch (error) {
+    console.error('Erro ao carregar dados do imóvel:', error);
+    alert('Não foi possível carregar os dados do imóvel.');
+  } finally {
+    isLoadingData.value = false;
   }
 }
+
+// ------------------------------------
+// LÓGICA DE PESQUISA DE PROPRIETÁRIOS
+// ------------------------------------
+const searchProprietarios = async (query: string) => {
+    // CORREÇÃO: Usamos 'query' como string, que é o que recebemos do @input corrigido
+    if (!query || query.length < 3) {
+        proprietarioSearchResults.value = [];
+        return;
+    }
+
+    isSearchingProprietario.value = true;
+    try {
+        // Envia o termo de busca via parâmetro 'search' (DRF) e filtra pelo perfil 'PROPRIETARIO'
+        const response = await apiClient.get('/v1/clientes/', { 
+            params: { 
+                tipo: 'PROPRIETARIO',
+                search: query,
+                status: 'ativo' // Buscar apenas clientes ativos
+            } 
+        });
+        proprietarioSearchResults.value = response.data;
+    } catch (error) {
+        console.error("Erro ao buscar clientes:", error);
+        proprietarioSearchResults.value = [];
+    } finally {
+        isSearchingProprietario.value = false;
+    }
+};
+
+// Usa debounce para não inundar o servidor a cada tecla (300ms de espera)
+const debouncedSearch = debounce(searchProprietarios, 300); 
+
+function selectProprietario(cliente: any) {
+    imovel.value.proprietario = cliente.id; // Define o ID para o campo de escrita do serializer
+    
+    // Atualiza o objeto de detalhes para exibição
+    imovel.value.proprietario_detalhes = cliente; 
+    
+    proprietarioSearchResults.value = []; // Limpa a lista de resultados
+    searchQuery.value = ''; // Limpa a query de busca
+}
+
+function clearProprietarioSelection() {
+    imovel.value.proprietario = null;
+    imovel.value.proprietario_detalhes = null;
+}
+// ------------------------------------
+
 
 async function gerarContratoPDF() {
     if (!imovel.value.id) return;
@@ -556,8 +657,35 @@ async function gerarContratoPDF() {
     }
 }
 
+async function handleGerarDescricaoIA() {
+    if (!isEditing.value || !imovel.value.id) {
+        alert("Por favor, salve o imóvel antes de gerar uma descrição com IA.");
+        return;
+    }
+
+    isGerandoDescricao.value = true;
+    try {
+        // A action 'gerar-descricao-ia' foi definida no ImovelViewSet como POST
+        const response = await apiClient.post(`/v1/imoveis/${imovel.value.id}/gerar-descricao-ia/`);
+        
+        if (response.data && response.data.descricao) {
+            imovel.value.descricao_completa = response.data.descricao;
+            alert("Descrição gerada com sucesso!");
+        } else {
+            throw new Error("A resposta da API não continha uma descrição.");
+        }
+
+    } catch (error: any) {
+        console.error("Erro ao gerar descrição com IA:", error);
+        const errorMsg = error.response?.data?.error || "Não foi possível gerar a descrição. Verifique o console.";
+        alert(`Erro: ${errorMsg}`);
+    } finally {
+        isGerandoDescricao.value = false;
+    }
+}
+
 watch(imovelId, () => {
-  fetchImovelData();
+  fetchImovelData(imovelId.value || '');
 }, { immediate: true }); 
 
 watch(() => route.query.tab, (newTab) => {
@@ -565,7 +693,7 @@ watch(() => route.query.tab, (newTab) => {
 });
 
 onMounted(() => {
-  fetchClientes();
+  // fetchClientes não é mais necessário aqui
 });
 
 async function saveImovel() {
@@ -573,6 +701,9 @@ async function saveImovel() {
   const payload = { ...imovel.value };
   
   delete payload.id;
+  // Remove o objeto de detalhes para garantir que não seja enviado ao Django
+  delete payload.proprietario_detalhes; 
+
   Object.keys(payload).forEach(key => {
     // Mantém o 'proprietario' como null se for o caso, não remove
     if (key !== 'proprietario' && payload[key] === null) delete payload[key];
@@ -613,6 +744,8 @@ async function handleSaveAndContinue() {
     imovel.value = {
         ...emptyImovel,
         ...response.data,
+        // Mantém os detalhes do proprietário que vieram da API
+        proprietario_detalhes: response.data.proprietario_detalhes || null,
         configuracao_publica: { ...emptyImovel.configuracao_publica, ...response.data.configuracao_publica }
     };
     
@@ -713,4 +846,126 @@ input, select, textarea {
     padding: 1.5rem;
     margin-bottom: 2rem;
 }
+
+/* --- ESTILOS DE BUSCA DE PROPRIETÁRIO --- */
+.proprietario-search-container {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+}
+
+.proprietario-search-container input[type="text"] {
+    position: relative;
+    z-index: 11; /* Acima da lista de resultados */
+}
+
+.search-results-list {
+    position: absolute;
+    top: 100%; /* Posiciona abaixo do input */
+    left: 0;
+    right: 0;
+    z-index: 10;
+    background: white;
+    border: 1px solid #007bff;
+    border-top: none;
+    max-height: 200px;
+    overflow-y: auto;
+    list-style: none;
+    padding: 0;
+    margin-top: 0;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    border-radius: 0 0 4px 4px;
+}
+
+.search-results-list li {
+    padding: 10px;
+    cursor: pointer;
+    border-bottom: 1px solid #f0f0f0;
+    font-size: 0.95rem;
+}
+
+.search-results-list li:hover {
+    background-color: #e6f7ff;
+    color: #007bff;
+}
+
+.selected-proprietario-tag {
+    background-color: #d4edda;
+    color: #155724;
+    padding: 8px 12px;
+    border-radius: 4px;
+    font-weight: 500;
+    margin-top: 10px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 1rem;
+}
+.selected-proprietario-tag i {
+    margin-right: 8px;
+}
+
+.clear-selection-btn {
+    cursor: pointer;
+    font-size: 1.2rem;
+    font-weight: bold;
+    padding: 0 5px;
+    margin-left: 10px;
+}
+
+.search-empty-message {
+    padding: 10px;
+    text-align: center;
+    color: #888;
+    background-color: #fff;
+    border: 1px solid #ccc;
+    border-top: none;
+    border-radius: 0 0 4px 4px;
+    position: absolute;
+    width: 100%;
+    top: 100%;
+    z-index: 9;
+    font-size: 0.9rem;
+}
+
+.info-message-small {
+    font-size: 0.8rem;
+    color: #6c757d;
+    margin-top: 5px;
+}
+/* --- FIM DOS ESTILOS DE BUSCA --- */
+
+/* --- NOVOS ESTILOS PARA O BOTÃO DE IA --- */
+.form-group-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.5rem; /* Matches the original label margin */
+}
+.form-group-header label {
+    margin-bottom: 0; /* Handled by the parent */
+}
+.btn-ai-generate {
+    padding: 5px 10px;
+    font-size: 0.8rem;
+    background-color: #e6f7ff;
+    color: #0056b3;
+    border: 1px solid #0056b3;
+    border-radius: 4px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    font-weight: 500;
+}
+.btn-ai-generate:disabled {
+    background-color: #eee;
+    color: #999;
+    border-color: #ccc;
+    cursor: not-allowed;
+}
+.btn-ai-generate .fa-magic {
+    color: #0056b3;
+}
+/* --- FIM DOS NOVOS ESTILOS --- */
 </style>

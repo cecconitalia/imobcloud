@@ -10,11 +10,11 @@ A carregar dados do cliente...
 <label class="tipo-pessoa-label">Tipo de Pessoa</label>
 <div class="tipo-pessoa-options">
 <label class="radio-option">
-<input type="radio" value="FISICA" :checked="cliente.tipo_pessoa === 'FISICA'" @change="onTipoPessoaChange">
+<input type="radio" value="FISICA" v-model="cliente.tipo_pessoa">
 <span>Pessoa Física</span>
 </label>
 <label class="radio-option">
-<input type="radio" value="JURIDICA" :checked="cliente.tipo_pessoa === 'JURIDICA'" @change="onTipoPessoaChange">
+<input type="radio" value="JURIDICA" v-model="cliente.tipo_pessoa">
 <span>Pessoa Jurídica</span>
 </label>
 </div>
@@ -140,18 +140,57 @@ A carregar dados do cliente...
 <div class="form-card">
 <h3 class="card-title">Outras Informações</h3>
 <div class="card-content">
-<div class="form-group">
-<label for="preferencias_imovel">Preferências de Imóvel</label>
-<textarea id="preferencias_imovel" v-model="cliente.preferencias_imovel" rows="4"></textarea>
-</div>
-<div class="form-group">
-<label for="observacoes">Observações</label>
-<textarea id="observacoes" v-model="cliente.observacoes" rows="4"></textarea>
-</div>
-<div class="checkbox-group">
-<input type="checkbox" id="ativo" v-model="cliente.ativo">
-<label for="ativo">Cliente Ativo</label>
-</div>
+    
+    <div class="form-group full-width">
+        <label>Perfil do Cliente (Funções/Permissões)</label>
+        <div class="checkbox-grid">
+            <div class="checkbox-group">
+                <input 
+                    type="checkbox" 
+                    id="perfil_interessado" 
+                    :checked="isPerfilChecked('INTERESSADO')"
+                    @change="updatePerfilCliente('INTERESSADO', $event.target.checked)">
+                <label for="perfil_interessado">Interessado (Busca Imóveis)</label>
+            </div>
+            <div class="checkbox-group">
+                <input 
+                    type="checkbox" 
+                    id="perfil_proprietario" 
+                    :checked="isPerfilChecked('PROPRIETARIO')"
+                    @change="updatePerfilCliente('PROPRIETARIO', $event.target.checked)">
+                <label for="perfil_proprietario">Proprietário (Vende/Aluga)</label>
+            </div>
+            <div class="checkbox-group">
+                <input 
+                    type="checkbox" 
+                    id="perfil_comprador" 
+                    :checked="isPerfilChecked('COMPRADOR')"
+                    @change="updatePerfilCliente('COMPRADOR', $event.target.checked)">
+                <label for="perfil_comprador">Comprador</label>
+            </div>
+            <div class="checkbox-group">
+                <input 
+                    type="checkbox" 
+                    id="perfil_locador" 
+                    :checked="isPerfilChecked('LOCADOR')"
+                    @change="updatePerfilCliente('LOCADOR', $event.target.checked)">
+                <label for="perfil_locador">Locador (Aluga Imóveis)</label>
+            </div>
+        </div>
+        <small class="info-message-small" style="margin-top: 10px;">O perfil é usado para filtros e permissões de acesso ao sistema (se aplicável).</small>
+    </div>
+    <div class="form-group">
+        <label for="preferencias_imovel">Preferências de Imóvel</label>
+        <textarea id="preferencias_imovel" v-model="cliente.preferencias_imovel" rows="4"></textarea>
+    </div>
+    <div class="form-group">
+        <label for="observacoes">Observações</label>
+        <textarea id="observacoes" v-model="cliente.observacoes" rows="4"></textarea>
+    </div>
+    <div class="checkbox-group">
+        <input type="checkbox" id="ativo" v-model="cliente.ativo">
+        <label for="ativo">Cliente Ativo</label>
+    </div>
 </div>
 </div>
 </div> 
@@ -180,6 +219,7 @@ const isSubmitting = ref(false);
 
 const profilePicFile = ref<File | null>(null);
 const profilePicPreview = ref<string | null>(null);
+const documentoError = ref(''); // Estado para erros de documento (CPF/CNPJ)
 
 // Definição completa do estado do cliente
 const createEmptyCliente = () => ({
@@ -196,7 +236,9 @@ const createEmptyCliente = () => ({
   email: null as string | null,
   telefone: '', // MANTÉM APENAS NÚMEROS
   foto_perfil: null as string | null,
-  tipo: 'INTERESSADO',
+  // --- CORREÇÃO: Usamos perfil_cliente como o campo para os perfis/funções ---
+  perfil_cliente: ['INTERESSADO'] as string[], // Inicializa com 'INTERESSADO' por padrão
+  // --- FIM CORREÇÃO ---
   observacoes: null as string | null, 
   preferencias_imovel: null as string | null, 
   cep: null as string | null, // MANTÉM APENAS NÚMEROS
@@ -212,15 +254,29 @@ const createEmptyCliente = () => ({
 const cliente = ref(createEmptyCliente());
 
 // =========================================================================
-// LÓGICA DE MÁSCARAS
-// Nota: Em um projeto real, use uma biblioteca como 'vue-the-mask' ou 'v-mask'.
-// Esta lógica é um exemplo funcional de como controlar o v-model.
+// LÓGICA DE MANIPULAÇÃO DE PERFIL E MÁSCARAS
 // =========================================================================
 
 /**
  * Retorna uma string contendo apenas números.
  */
 const clean = (value: string | null | undefined): string => String(value || '').replace(/\D/g, '');
+
+// --- LÓGICA DE PERFIL (CHECKBOXES) ---
+function isPerfilChecked(perfil: string): boolean {
+    return cliente.value.perfil_cliente.includes(perfil);
+}
+
+function updatePerfilCliente(perfil: string, isChecked: boolean) {
+    if (isChecked) {
+        if (!cliente.value.perfil_cliente.includes(perfil)) {
+            cliente.value.perfil_cliente.push(perfil);
+        }
+    } else {
+        cliente.value.perfil_cliente = cliente.value.perfil_cliente.filter(p => p !== perfil);
+    }
+}
+// --- FIM LÓGICA DE PERFIL ---
 
 
 // --- 1. MÁSCARA CPF/CNPJ ---
@@ -242,6 +298,8 @@ const maskedDocument = computed({
   set(newValue) {
     // Atualiza o valor cru no objeto cliente
     cliente.value.documento = clean(newValue);
+    // Remove o erro ao digitar
+    documentoError.value = '';
   },
 });
 
@@ -281,12 +339,12 @@ const maskedCEP = computed({
 // =========================================================================
 
 
-function onTipoPessoaChange(event: Event) {
-    const target = event.target as HTMLInputElement;
-    cliente.value.tipo_pessoa = target.value as 'FISICA' | 'JURIDICA';
-    
-    // Limpeza de campos dependentes
-    if (cliente.value.tipo_pessoa === 'FISICA') {
+// --- LÓGICA DE MUDANÇA DE TIPO DE PESSOA (USANDO WATCH NO V-MODEL) ---
+watch(() => cliente.value.tipo_pessoa, (newTipo, oldTipo) => {
+    // Esta lógica é executada automaticamente quando o v-model (radio button) muda
+
+    // 1. Limpeza de campos dependentes (para evitar erros de validação no save)
+    if (newTipo === 'FISICA') {
         cliente.value.razao_social = null;
         cliente.value.inscricao_estadual = null;
     } else {
@@ -295,9 +353,18 @@ function onTipoPessoaChange(event: Event) {
         cliente.value.estado_civil = null;
         cliente.value.profissao = null;
     }
-    cliente.value.nome = ''; 
-    cliente.value.documento = ''; 
-}
+    
+    // 2. Limpeza dos campos principais APENAS SE O TIPO MUDOU DE FATO
+    if (oldTipo && newTipo !== oldTipo) { 
+        cliente.value.nome = ''; 
+        cliente.value.documento = ''; 
+    }
+    
+    // 3. Limpeza de erros visuais
+    documentoError.value = '';
+
+}, { immediate: true }); 
+// --- FIM DA LÓGICA DE MUDANÇA DE TIPO DE PESSOA ---
 
 
 watch(clienteId, (newId) => {
@@ -329,11 +396,16 @@ async function fetchClienteData(id: string) {
         data.data_nascimento = data.data_nascimento.split('T')[0];
     }
     
+    // CORREÇÃO: Garantir que perfil_cliente é um array, mesmo que o backend retorne nulo.
+    // O backend agora deve enviar este campo.
+    const perfilClienteData = Array.isArray(data.perfil_cliente) ? data.perfil_cliente : ['INTERESSADO'];
+    
     cliente.value = { 
         ...createEmptyCliente(), 
         ...data, 
         id: data.id,
         tipo_pessoa: tipoPessoaCorreta,
+        perfil_cliente: perfilClienteData,
     }; 
     profilePicPreview.value = cliente.value.foto_perfil || null; 
   } catch (error) {
@@ -386,6 +458,7 @@ function removeProfilePic() {
 
 async function handleSubmit() {
   isSubmitting.value = true;
+  documentoError.value = '';
   
   // --- VALIDAÇÃO MANUAL DEFENSIVA ---
   if (!cliente.value.nome || !cliente.value.documento || !cliente.value.telefone) {
@@ -399,6 +472,19 @@ async function handleSubmit() {
       alert("Atenção: A Razão Social é obrigatória para Pessoa Jurídica.");
       return;
   }
+  
+  // Validação do tamanho do documento
+  const docLen = cliente.value.documento.length;
+  if (cliente.value.tipo_pessoa === 'FISICA' && docLen !== 11) {
+      documentoError.value = 'CPF deve conter 11 dígitos.';
+      isSubmitting.value = false;
+      return;
+  }
+  if (cliente.value.tipo_pessoa === 'JURIDICA' && docLen !== 14) {
+      documentoError.value = 'CNPJ deve conter 14 dígitos.';
+      isSubmitting.value = false;
+      return;
+  }
   // --- FIM VALIDAÇÃO MANUAL DEFENSIVA ---
 
 
@@ -409,6 +495,12 @@ async function handleSubmit() {
     if (key === 'id' || key === 'foto_perfil') continue;
 
     const value = cliente.value[key as keyof typeof cliente.value];
+    
+    // CORREÇÃO: Para Array de strings (perfil_cliente), envia como JSON string
+    if (key === 'perfil_cliente' && Array.isArray(value)) {
+         formData.append(key, JSON.stringify(value));
+         continue;
+    }
     
     // CORREÇÃO: Envia string vazia para garantir que a chave vá para o Serializer.
     if (value === null || value === undefined || value === '') {
@@ -423,7 +515,7 @@ async function handleSubmit() {
 
   // Anexa a foto de perfil
   if (profilePicFile.value) {
-    formData.append('foto_perfil', profilePicPicFile.value);
+    formData.append('foto_perfil', profilePicFile.value);
   } else if (cliente.value.foto_perfil === null && isEditing.value) {
     formData.append('foto_perfil', '');
   }
@@ -477,9 +569,7 @@ function handleCancel() {
 }
 
 onMounted(() => {
-    if (!clienteId.value || clienteId.value === 'novo') {
-        cliente.value.tipo_pessoa = 'FISICA';
-    }
+    // O watcher é responsável pela lógica de inicialização de tipo_pessoa.
     fetchClienteData(clienteId.value || '');
 });
 </script>
@@ -549,7 +639,6 @@ onMounted(() => {
 @media (max-width: 768px) {
     .card-content-grid {
         grid-template-columns: 1fr;
-        gap: 1.5rem;
     }
     .fields-area {
         grid-column: 1 / -1;
@@ -759,5 +848,20 @@ input[type="file"] {
     .profile-pic-area {
         grid-column: 1; 
     }
+}
+
+/* Estilos para o bloco de Perfil do Cliente */
+.checkbox-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 0.5rem 1rem;
+}
+.checkbox-group {
+    display: flex;
+    align-items: center;
+}
+.checkbox-group label {
+    font-weight: normal;
+    margin-bottom: 0;
 }
 </style>

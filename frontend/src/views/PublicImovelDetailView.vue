@@ -6,7 +6,7 @@
     <div v-if="imovel" class="imovel-content">
       <div class="main-column">
         <h1 class="imovel-title">{{ imovel.titulo_anuncio }}</h1>
-        <p class="imovel-location">{{ imovel.endereco }}, {{ imovel.bairro }}, {{ imovel.cidade }} - {{ imovel.estado }}</p>
+        <p class="imovel-location">{{ imovel.logradouro }}, {{ imovel.numero }}, {{ imovel.bairro }}, {{ imovel.cidade }} - {{ imovel.estado }}</p>
 
         <div class="gallery">
           <img :src="principalImage" alt="Imagem principal do imóvel" class="main-image" @click="openImageModal(principalImage)">
@@ -272,7 +272,8 @@ function formatarPreco(imovel: any) {
     overflow: hidden;
 }
 .imovel-title {
-  font-size: 2.2rem;
+  /* ATUALIZADO: Reduzido de 2.0rem para 1.8rem */
+  font-size: 1.8rem; 
   font-weight: bold;
   margin-top: 0;
   margin-bottom: 0.25rem;
@@ -281,7 +282,8 @@ function formatarPreco(imovel: any) {
 .imovel-location {
   color: #6c757d;
   margin-bottom: 1.5rem;
-  font-size: 1.1rem;
+  /* ATUALIZADO: Reduzido de 1.1rem para 1.0rem */
+  font-size: 1.0rem; 
 }
 .gallery {
   margin-bottom: 2rem;
@@ -289,8 +291,11 @@ function formatarPreco(imovel: any) {
 .main-image {
   width: 100%;
   height: auto;
-  max-height: 500px;
-  object-fit: cover;
+  /* ATUALIZADO: Reduzido de 450px para 400px para torná-la menor */
+  max-height: 400px; 
+  /* ATUALIZADO: Usar 'contain' para garantir que a imagem inteira seja visível */
+  object-fit: contain; 
+  background-color: #e9ecef; /* Adicionado um fundo para o espaço vazio do 'contain' */
   border-radius: 8px;
   margin-bottom: 1rem;
   cursor: pointer;
@@ -329,7 +334,8 @@ function formatarPreco(imovel: any) {
     margin-top: 0;
 }
 .imovel-price {
-  font-size: 2.2rem;
+  /* ATUALIZADO: Reduzido de 2.2rem para 2.0rem */
+  font-size: 2.0rem; 
   font-weight: bold;
   color: #007bff;
   margin: 0;
@@ -358,11 +364,12 @@ function formatarPreco(imovel: any) {
   border-bottom: 2px solid var(--primary-color);
   padding-bottom: 0.5rem;
   margin-bottom: 1.5rem;
-  font-size: 1.5rem;
+  /* ATUALIZADO: Reduzido de 1.5rem para 1.4rem */
+  font-size: 1.4rem; 
 }
 .description-text {
     line-height: 1.7;
-    white-space: pre-wrap; /* Garante a quebra de linha do texto */
+    white-space: pre-wrap; /* GARANTIA: Renderiza as quebras de linha e parágrafos do texto da IA */
 }
 .highlights-grid {
     display: grid;
@@ -377,7 +384,8 @@ function formatarPreco(imovel: any) {
     gap: 0.5rem;
 }
 .highlight-item i {
-    font-size: 1.8rem;
+    /* ATUALIZADO: Reduzido de 1.8rem para 1.6rem */
+    font-size: 1.6rem; 
     color: var(--primary-color);
 }
 .features-list {
@@ -467,8 +475,9 @@ function formatarPreco(imovel: any) {
 }
 
 @media (max-width: 576px) {
+    /* ATUALIZADO: Reduzido de 1.8rem para 1.6rem */
     .imovel-title {
-        font-size: 1.8rem;
+        font-size: 1.6rem; 
     }
     .imovel-price {
         font-size: 1.8rem;

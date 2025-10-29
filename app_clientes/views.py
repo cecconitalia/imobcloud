@@ -117,7 +117,9 @@ class GoogleCalendarAuthCallbackView(APIView):
 # ====================================================================
 
 class ClienteViewSet(viewsets.ModelViewSet):
-    queryset = Cliente.objects.all().order_by('-data_cadastro')
+    # CORREÇÃO: Removida a ordenação padrão (.order_by('-data_cadastro'))
+    # que conflita com o SearchFilter.
+    queryset = Cliente.objects.all()
     serializer_class = ClienteSerializer
     permission_classes = [permissions.IsAuthenticated]
     filter_backends = [filters.SearchFilter]
@@ -128,12 +130,28 @@ class ClienteViewSet(viewsets.ModelViewSet):
     parser_classes = (MultiPartParser, FormParser)
 
     def get_queryset(self):
+        # 1. Filtro base de ativo (do código original)
         base_queryset = Cliente.objects.filter(ativo=True)
+        
+        # 2. Filtro por Tenant/Superuser (do código original)
         if self.request.user.is_superuser:
-            return base_queryset.all()
+            queryset = base_queryset.all()
         elif self.request.tenant:
-            return base_queryset.filter(imobiliaria=self.request.tenant)
-        return Cliente.objects.none()
+            queryset = base_queryset.filter(imobiliaria=self.request.tenant)
+        else:
+            return Cliente.objects.none()
+
+        # --- CORREÇÃO: Filtro por Perfil do Cliente (para Proprietário) ---
+        # O ImovelFormView.vue (Solução 2) envia ?tipo=PROPRIETARIO
+        tipo = self.request.query_params.get('tipo', None)
+        if tipo:
+            # Filtra clientes onde o JSONField 'perfil_cliente' contém a string 'tipo'
+            # (assumindo que 'perfil_cliente' é um ArrayField/JSONField no models.py)
+            queryset = queryset.filter(perfil_cliente__contains=[tipo])
+        # --- FIM DA CORREÇÃO ---
+            
+        # Adiciona ordenação aqui para não conflitar com SearchFilter
+        return queryset.order_by('nome')
 
     def perform_create(self, serializer):
         if self.request.user.is_superuser:

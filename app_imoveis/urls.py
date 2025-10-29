@@ -1,36 +1,38 @@
-# app_imoveis/urls.py
+# C:\wamp64\www\ImobCloud\app_imoveis\urls.py
 
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
 from .views import (
-    ImovelViewSet,
-    ImagemImovelViewSet,
-    ContatoImovelViewSet,
-    GerarAutorizacaoPDFView,
-    AutorizacaoStatusView,
+    ImovelViewSet, 
+    ImagemImovelViewSet, 
+    ContatoImovelViewSet, 
+    GerarAutorizacaoPDFView, # Importado para mapeamento
     ImovelPublicListView,
     ImovelPublicDetailView,
     ImovelIAView,
-    ImobiliariaPublicDetailView,
 )
 
+# Cria um router para ViewSets
 router = DefaultRouter()
-router.register(r'imoveis', ImovelViewSet, basename='imoveis')
-router.register(r'imagens', ImagemImovelViewSet, basename='imagens')
-router.register(r'contatos', ContatoImovelViewSet, basename='contatos')
+router.register(r'imoveis', ImovelViewSet)
+router.register(r'imoveis/imagens', ImagemImovelViewSet)
+router.register(r'imoveis/contatos', ContatoImovelViewSet)
 
+# Padrões de URL da API Interna (Prefixados com /api/v1/ no urls.py principal)
 urlpatterns = [
-    # Rotas da API Interna
+    # 1. Rota Explícita para a Geração de PDF (Deve vir antes do include do router)
+    # Mapeia o URL exato que falhou (GET /api/v1/imoveis/5/gerar-autorizacao-pdf/)
+    path(
+        'imoveis/<int:imovel_id>/gerar-autorizacao-pdf/', 
+        GerarAutorizacaoPDFView.as_view(), 
+        name='gerar-autorizacao-pdf'
+    ),
+    
+    # 2. Rotas automáticas do ViewSet (Cria, Lista, Detalhe, Update, IA Action)
     path('', include(router.urls)),
-    path('imoveis/<int:imovel_id>/gerar-pdf-autorizacao/', GerarAutorizacaoPDFView.as_view(), name='gerar-pdf-autorizacao'),
-    path('autorizacao-status/', AutorizacaoStatusView.as_view(), name='autorizacao-status'),
-
-    # Rotas da API Pública (Sem Autenticação)
-    # A ROTA MAIS ESPECÍFICA (busca-ia) DEVE VIR ANTES DA ROTA GENÉRICA (<int:pk>)
-    path('public/imoveis/busca-ia/', ImovelIAView.as_view(), name='imovel-busca-ia'),
+    
+    # --- Rotas Públicas (Se necessário, você as mapeia separadamente) ---
     path('public/imoveis/', ImovelPublicListView.as_view(), name='imovel-public-list'),
     path('public/imoveis/<int:pk>/', ImovelPublicDetailView.as_view(), name='imovel-public-detail'),
-    
-    # Rota para obter detalhes da imobiliária pelo subdomínio (ADICIONADO)
-    path('public/imobiliaria/<str:subdominio>/', ImobiliariaPublicDetailView.as_view(), name='imobiliaria-public-detail'),
+    path('public/imoveis/busca-ia/', ImovelIAView.as_view(), name='imovel-ia-search'),
 ]

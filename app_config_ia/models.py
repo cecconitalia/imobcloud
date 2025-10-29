@@ -28,47 +28,43 @@ class OpcaoVozDaMarca(models.Model):
 
 
 class ModeloDePrompt(models.Model):
-    """
-    Armazena os templates dos prompts que serão enviados para a IA.
-    Permite que o superusuário edite e alterne os prompts sem alterar o código.
-    """
-    nome_referencia = models.CharField(
-        max_length=100,
-        unique=True,
-        help_text="Um nome interno para identificar este prompt. Ex: 'Post Instagram - Padrão V2'"
-    )
+    nome_do_modelo = models.CharField(max_length=100, unique=True, verbose_name="Nome de Identificação")
     template_do_prompt = models.TextField(
-        help_text="O texto do prompt. Use chaves como {{caracteristicas}} para inserir os dados do imóvel."
+        help_text="O texto do prompt. Use {{user_query}} para busca ou {{imovel_data}} para descrição."
     )
-    em_uso = models.BooleanField(
-        default=False,
-        help_text="Marque esta opção para que este seja o prompt ativo usado por todo o sistema."
-    )
-    notas = models.TextField(
-        blank=True,
-        null=True,
-        help_text="Notas internas para o superusuário sobre este prompt."
+    em_uso_busca = models.BooleanField(
+        default=False, 
+        verbose_name="Em uso para Busca por IA",
+        help_text="Marca este prompt como o principal para as buscas no site público."
     )
     
-    # NOVO CAMPO: Adicionamos um campo para prompts específicos de busca com IA
-    em_uso_busca = models.BooleanField(
+    # --- NOVO CAMPO ADICIONADO ---
+    em_uso_descricao = models.BooleanField(
         default=False,
-        help_text="Marque esta opção para que este seja o prompt ativo para a busca com IA."
+        verbose_name="Em uso para Gerar Descrição de Imóvel",
+        help_text="Marca este prompt como o principal para gerar descrições no painel."
     )
-
-    class Meta:
-        verbose_name = "Modelo de Prompt da IA"
-        verbose_name_plural = "Modelos de Prompt da IA"
+    # --- FIM DA ADIÇÃO ---
+    
+    data_criacao = models.DateTimeField(auto_now_add=True)
+    data_atualizacao = models.DateTimeField(auto_now=True)
 
     def __str__(self):
-        return self.nome_referencia
+        return self.nome_do_modelo
+
+    class Meta:
+        verbose_name = "Modelo de Prompt de IA"
+        verbose_name_plural = "Modelos de Prompt de IA"
+        ordering = ['-data_atualizacao']
 
     def save(self, *args, **kwargs):
-        """
-        Garante que apenas um prompt possa estar 'em_uso' ou 'em_uso_busca' de cada vez.
-        """
-        if self.em_uso:
-            ModeloDePrompt.objects.filter(em_uso=True).exclude(pk=self.pk).update(em_uso=False)
+        # Garante que apenas um prompt de CADA tipo esteja ativo
         if self.em_uso_busca:
             ModeloDePrompt.objects.filter(em_uso_busca=True).exclude(pk=self.pk).update(em_uso_busca=False)
+        
+        # --- LÓGICA ADICIONADA ---
+        if self.em_uso_descricao:
+            ModeloDePrompt.objects.filter(em_uso_descricao=True).exclude(pk=self.pk).update(em_uso_descricao=False)
+        # --- FIM DA ADIÇÃO ---
+
         super(ModeloDePrompt, self).save(*args, **kwargs)

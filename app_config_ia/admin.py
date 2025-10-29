@@ -1,23 +1,39 @@
+# app_config_ia/admin.py
 from django.contrib import admin
-from .models import ModeloDePrompt, OpcaoVozDaMarca
+from .models import ModeloDePrompt
 
 @admin.register(ModeloDePrompt)
 class ModeloDePromptAdmin(admin.ModelAdmin):
     """
-    Configura a exibição dos Modelos de Prompt no Django Admin.
+    Configuração do Admin para os Modelos de Prompt de IA.
     """
-    list_display = ('nome_referencia', 'em_uso', 'notas')
-    list_filter = ('em_uso',)
-    search_fields = ('nome_referencia', 'template_do_prompt')
-    list_editable = ('em_uso',)
-    ordering = ('-em_uso', 'nome_referencia')
+    
+    # CORRIGIDO: Usa os nomes de campos corretos do models.py
+    list_display = (
+        'nome_do_modelo', 
+        'em_uso_busca',        # Corrigido de 'em_uso'
+        'em_uso_descricao',    # Novo campo adicionado
+        'data_atualizacao'
+    )
+    
+    # CORRIGIDO: Filtra pelos novos campos booleanos
+    list_filter = ('em_uso_busca', 'em_uso_descricao')
+    
+    # CORRIGIDO: Permite editar os novos campos na lista
+    list_editable = ('em_uso_busca', 'em_uso_descricao')
+    
+    # CORRIGIDO: Procura pelo nome de campo correto
+    search_fields = ('nome_do_modelo', 'template_do_prompt') # Corrigido de 'nome_referencia'
+    
+    # CORRIGIDO: Ordena pelos novos campos
+    ordering = ('-em_uso_busca', '-em_uso_descricao', 'nome_do_modelo')
 
-
-@admin.register(OpcaoVozDaMarca)
-class OpcaoVozDaMarcaAdmin(admin.ModelAdmin):
-    """
-    Configura a exibição das Opções de Voz da Marca no Django Admin.
-    """
-    list_display = ('nome', 'descricao')
-    search_fields = ('nome', 'descricao')
-    ordering = ('nome',)
+    # Adiciona fieldsets para organizar o formulário de edição
+    fieldsets = (
+        (None, {
+            'fields': ('nome_do_modelo', 'template_do_prompt')
+        }),
+        ('Configuração de Uso (Ative apenas um de cada tipo)', {
+            'fields': ('em_uso_busca', 'em_uso_descricao')
+        }),
+    )

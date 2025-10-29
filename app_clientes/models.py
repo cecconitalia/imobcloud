@@ -85,6 +85,15 @@ class Cliente(models.Model):
     preferencias_imovel = models.TextField(blank=True, null=True, verbose_name="Preferências de Imóvel")
     observacoes = models.TextField(blank=True, null=True, verbose_name="Observações")
     
+    # --- NOVO CAMPO ADICIONADO PARA OS PERFIS ---
+    perfil_cliente = models.JSONField(
+        default=list, 
+        blank=True, 
+        verbose_name="Perfis do Cliente (Interessado, Proprietário, etc.)",
+        help_text="Lista de perfis/funções do cliente."
+    )
+    # --- FIM NOVO CAMPO ADICIONADO ---
+    
     # Controle
     ativo = models.BooleanField(default=True, verbose_name="Ativo")
     data_cadastro = models.DateTimeField(auto_now_add=True, verbose_name="Data de Cadastro")
@@ -122,7 +131,6 @@ class Cliente(models.Model):
         if self.tipo_pessoa == 'JURIDICA' and self.razao_social:
             nome_display = self.razao_social
         return f"{nome_display} ({self.imobiliaria.nome})"
-
 # --------------------------------------------------------------------
 # DEMAIS MODELOS (Mantidos como originais)
 # --------------------------------------------------------------------

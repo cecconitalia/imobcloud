@@ -19,7 +19,7 @@ from xhtml2pdf import pisa
 import locale
 from num2words import num2words
 from datetime import date, timedelta
-from decimal import Decimal
+from decimal import Decimal, InvalidOperation
 import json
 import requests
 import google.generativeai as genai
@@ -244,6 +244,14 @@ class ImovelIAView(APIView):
         ).exclude(status=Imovel.Status.DESATIVADO)
         print(f"Contagem inicial (IA) para {imobiliaria_obj}: {base_queryset.count()}") # DEBUG
 
+        # --- Verificação de Busca Válida ---
+        if search_params.get('busca_valida') == False:
+            mensagem_vaga = search_params.get('mensagem_resposta', "Não consegui identificar parâmetros de busca válidos. Por favor, especifique o que você procura.")
+            return Response({
+                    "mensagem": mensagem_vaga,
+                    "imoveis": []
+                 }, status=status.HTTP_200_OK)
+
 
         # Aplica os filtros extraídos da IA
         if 'finalidade' in search_params:
@@ -261,7 +269,6 @@ class ImovelIAView(APIView):
         if 'cidade' in search_params:
             base_queryset = base_queryset.filter(cidade__icontains=search_params['cidade'])
 
-        # ---> ADICIONADO FILTRO POR BAIRRO <---
         if 'bairro' in search_params:
             bairro_param = search_params['bairro']
             if bairro_param and isinstance(bairro_param, str): # Garante que é uma string não vazia
@@ -271,7 +278,6 @@ class ImovelIAView(APIView):
             else:
                  print(f"Aviso IA: 'bairro' inválido ou vazio: {bairro_param}")
 
-        # --- FIM DA ADIÇÃO ---
 
         finalidade_filtro_ia = search_params.get('finalidade', None)
         if 'valor_min' in search_params:
@@ -279,7 +285,7 @@ class ImovelIAView(APIView):
             # Validação mais robusta para valor_min
             try:
                 valor_min_decimal = Decimal(valor_min_ia)
-                q_filter_min = Q(valor_venda__gte=valor_min_decimal) if finalidade_filtro_ia == Imovel.Finalidade.A_VENDA else Q(valor_aluguel__gte=valor_min_decimal)
+                q_filter_min = Q(valor_venda__gte=valor_min_decimal) if finalidade_filtro_ia == Imovel.Status.A_VENDA else Q(valor_aluguel__gte=valor_min_decimal)
                 if not finalidade_filtro_ia:
                      q_filter_min = Q(valor_venda__gte=valor_min_decimal) | Q(valor_aluguel__gte=valor_min_decimal)
                 base_queryset = base_queryset.filter(q_filter_min)
@@ -315,13 +321,70 @@ class ImovelIAView(APIView):
                       base_queryset = base_queryset.filter(vagas_garagem__gte=vagas_min_ia)
             except (ValueError, TypeError):
                  print(f"Aviso IA: 'vagas_min' inválido: {search_params['vagas_min']}")
+        
+        if 'banheiros_min' in search_params:
+            try:
+                 banheiros_min_ia = int(search_params['banheiros_min'])
+                 if banheiros_min_ia >= 0:
+                      # O campo no modelo é 'banheiros'
+                      base_queryset = base_queryset.filter(banheiros__gte=banheiros_min_ia) 
+                      print(f"Aplicado filtro banheiros__gte='{banheiros_min_ia}'") # DEBUG
+            except (ValueError, TypeError):
+                 print(f"Aviso IA: 'banheiros_min' inválido: {search_params.get('banheiros_min')}")
+
+        
+        # --- INÍCIO DA ATUALIZAÇÃO (NOVOS FILTROS) ---
+        if 'suites_min' in search_params:
+            try:
+                suites_min_ia = int(search_params['suites_min'])
+                if suites_min_ia >= 0:
+                     base_queryset = base_queryset.filter(suites__gte=suites_min_ia) #
+                     print(f"Aplicado filtro suites__gte='{suites_min_ia}'") # DEBUG
+            except (ValueError, TypeError):
+                 print(f"Aviso IA: 'suites_min' inválido.")
+
+        if 'andar_min' in search_params:
+            try:
+                 andar_min_ia = int(search_params['andar_min'])
+                 if andar_min_ia >= 0:
+                      base_queryset = base_queryset.filter(andar__gte=andar_min_ia) #
+                      print(f"Aplicado filtro andar__gte='{andar_min_ia}'") # DEBUG
+            except (ValueError, TypeError):
+                 print(f"Aviso IA: 'andar_min' inválido.")
+
+        if 'area_min' in search_params:
+            # Filtra pela area util OU construida
+            try:
+                area_min_ia = Decimal(search_params['area_min'])
+                if area_min_ia > 0:
+                     # Usa Q para filtrar em area_util OU area_construida
+                     base_queryset = base_queryset.filter(
+                         Q(area_util__gte=area_min_ia) | 
+                         Q(area_construida__gte=area_min_ia)
+                    )
+                     print(f"Aplicado filtro area_min__gte='{area_min_ia}'") # DEBUG
+            except (ValueError, TypeError, InvalidOperation):
+                 print(f"Aviso IA: 'area_min' inválido.")
+        # --- FIM DA ATUALIZAÇÃO ---
+
 
         if search_params.get('aceita_pet') == True:
-            base_queryset = base_queryset.filter(aceita_pet=True)
+            base_queryset = base_queryset.filter(aceita_pet=True) #
         if search_params.get('mobiliado') == True:
-            base_queryset = base_queryset.filter(mobiliado=True)
+            base_queryset = base_queryset.filter(mobiliado=True) #
         if search_params.get('piscina') == True:
+            # Mantido, busca por piscina privativa OU em condomínio
             base_queryset = base_queryset.filter(Q(piscina_privativa=True) | Q(piscina_condominio=True))
+        
+        # --- ATUALIZAÇÃO: FILTROS BOOLEANOS ADICIONAIS ---
+        if search_params.get('ar_condicionado') == True:
+             base_queryset = base_queryset.filter(ar_condicionado=True) #
+        if search_params.get('salao_festas') == True:
+             base_queryset = base_queryset.filter(salao_festas=True) #
+        if search_params.get('elevador') == True:
+             base_queryset = base_queryset.filter(elevador=True) #
+        # --- FIM DA ATUALIZAÇÃO ---
+
 
         print(f"Contagem após filtros da IA: {base_queryset.count()}") # DEBUG
 
@@ -335,6 +398,29 @@ class ImovelIAView(APIView):
             "mensagem": mensagem_resposta,
             "imoveis": serializer.data
         }, status=status.HTTP_200_OK)
+
+
+class ImovelPublicDetailView(RetrieveAPIView):
+    """
+    View para detalhar um imóvel específico no site público.
+    """
+    serializer_class = ImovelPublicSerializer
+    permission_classes = [permissions.AllowAny]
+    queryset = Imovel.objects.filter(publicado_no_site=True) # Filtro base
+    lookup_field = 'pk'
+
+    def get_queryset(self):
+        qs = super().get_queryset()
+        subdomain = self.request.query_params.get('subdomain')
+
+        if not subdomain:
+             return qs.none()
+
+        try:
+            imobiliaria_obj = Imobiliaria.objects.get(subdominio__iexact=subdomain)
+            return qs.filter(imobiliaria=imobiliaria_obj)
+        except Imobiliaria.DoesNotExist:
+            return qs.none()
 
 
 # ===================================================================
@@ -400,6 +486,133 @@ class ImovelViewSet(viewsets.ModelViewSet):
              return Response(status=status.HTTP_200_OK)
         else:
              raise PermissionDenied("Você não tem permissão para inativar este imóvel.")
+
+
+    def _get_imovel_contexto_para_ia(self, imovel):
+        """Helper para formatar os dados do imóvel para a IA."""
+        
+        contexto = []
+        contexto.append(f"Tipo de Imóvel: {imovel.get_tipo_display()}")
+        contexto.append(f"Finalidade: {imovel.get_finalidade_display()}")
+        contexto.append(f"Localização: Bairro {imovel.bairro}, {imovel.cidade} - {imovel.estado}")
+        
+        if imovel.valor_venda and imovel.status == Imovel.Status.A_VENDA:
+            contexto.append(f"Valor de Venda: R$ {imovel.valor_venda:,.2f}".replace(",", "X").replace(".", ",").replace("X", "."))
+        if imovel.valor_aluguel and imovel.status == Imovel.Status.PARA_ALUGAR:
+            contexto.append(f"Valor de Aluguel: R$ {imovel.valor_aluguel:,.2f}".replace(",", "X").replace(".", ",").replace("X", "."))
+        if imovel.valor_condominio:
+            contexto.append(f"Condomínio: R$ {imovel.valor_condominio:,.2f}".replace(",", "X").replace(".", ",").replace("X", "."))
+
+        contexto.append(f"Área Útil: {imovel.area_util or imovel.area_construida or 'Não informado'} m²")
+        
+        divisoes = []
+        if imovel.quartos: divisoes.append(f"{imovel.quartos} quarto(s)")
+        if imovel.suites: divisoes.append(f"{imovel.suites} suíte(s)")
+        if imovel.banheiros: divisoes.append(f"{imovel.banheiros} banheiro(s)")
+        if imovel.vagas_garagem: divisoes.append(f"{imovel.vagas_garagem} vaga(s) de garagem")
+        if divisoes:
+            contexto.append(f"Divisões: {', '.join(divisoes)}.")
+
+        caracteristicas = []
+        if imovel.mobiliado: caracteristicas.append("Mobiliado")
+        if imovel.moveis_planejados: caracteristicas.append("Móveis Planejados")
+        if imovel.piscina_privativa: caracteristicas.append("Piscina Privativa")
+        if imovel.churrasqueira_privativa: caracteristicas.append("Churrasqueira Privativa")
+        if imovel.ar_condicionado: caracteristicas.append("Ar Condicionado")
+        if imovel.varanda: caracteristicas.append("Varanda/Sacada")
+        
+        if imovel.piscina_condominio: caracteristicas.append("Piscina no Condomínio")
+        if imovel.academia: caracteristicas.append("Academia no Condomínio")
+        if imovel.salao_festas: caracteristicas.append("Salão de Festas")
+        if imovel.playground: caracteristicas.append("Playground")
+        if imovel.portaria_24h: caracteristicas.append("Portaria 24h")
+        if imovel.elevador: caracteristicas.append("Elevador")
+
+        if caracteristicas:
+            contexto.append(f"Destaques: {', '.join(caracteristicas)}.")
+
+        return "\n".join(contexto)
+
+    @action(detail=True, methods=['post'], url_path='gerar-descricao-ia')
+    def gerar_descricao_ia(self, request, pk=None):
+        try:
+            imovel = self.get_object()
+        except Exception as e:
+             return Response({"error": f"Imóvel não encontrado: {e}"}, status=status.HTTP_404_NOT_FOUND)
+
+        # 1. Obter o prompt de DESCRIÇÃO da base de dados
+        try:
+            prompt_config = ModeloDePrompt.objects.get(em_uso_descricao=True)
+            template_prompt = prompt_config.template_do_prompt
+        except ModeloDePrompt.DoesNotExist:
+            return Response(
+                {"error": "Nenhum modelo de prompt para 'Geração de Descrição' está ativo no sistema."},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+        
+        # 2. Obter a "Voz da Marca" da imobiliária (se existir)
+        # CORREÇÃO ANTERIOR: Forçamos a conversão para STR() para evitar o TypeError.
+        voz_da_marca_obj = imovel.imobiliaria.voz_da_marca_preferida
+        if voz_da_marca_obj:
+            voz_da_marca = str(voz_da_marca_obj)
+        else:
+            voz_da_marca = "um tom profissional e convidativo"
+        
+        # 3. Formatar os dados do imóvel
+        imovel_data = self._get_imovel_contexto_para_ia(imovel)
+        
+        # 4. Substituir os placeholders no prompt
+        prompt_final = template_prompt.replace('{{imovel_data}}', imovel_data)
+        prompt_final = prompt_final.replace('{{voz_da_marca}}', voz_da_marca)
+
+        print(f"--- Gerando Descrição IA para Imóvel {imovel.id} ---")
+        print(f"Prompt Final:\n{prompt_final}")
+        print("-------------------------------------------------")
+
+        # 5. Enviar para a API da IA
+        try:
+            if not api_key:
+                 raise ValueError("GOOGLE_API_KEY não está configurada no servidor.")
+
+            model_name = 'models/gemini-flash-latest'
+            model = genai.GenerativeModel(model_name)
+            
+            # Configuração para garantir que a IA não seja muito restritiva
+            generation_config = genai.types.GenerationConfig(
+                temperature=0.7, # Um pouco mais criativo
+            )
+            
+            response = model.generate_content(prompt_final, generation_config=generation_config)
+
+            if not response.parts:
+                 raise ValueError("Resposta inesperada da IA (sem 'parts').")
+
+            generated_text = response.parts[0].text
+            
+            # Limpeza básica do texto
+            generated_text = generated_text.strip().lstrip('```markdown').lstrip('```').rstrip('```').strip()
+            
+            # --- CORREÇÃO SOLICITADA: Remoção do prefixo "Título Sugerido:" ---
+            prefixo = 'título sugerido:'
+            
+            if generated_text.lower().startswith(prefixo):
+                 # Se o texto começar com o prefixo, tentamos remover a linha inteira.
+                 if '\n' in generated_text:
+                      # Remove a primeira linha inteira (que contém o título sugerido)
+                      generated_text = generated_text.split('\n', 1)[1].strip()
+                 else:
+                      # Se for apenas uma linha (e contém o prefixo), removemos apenas o prefixo
+                      generated_text = generated_text[len(prefixo):].lstrip(':').strip()
+                      
+            # Limpeza final (caso a remoção tenha deixado espaços no início)
+            generated_text = generated_text.strip()
+            # --- FIM DA CORREÇÃO SOLICITADA ---
+
+            return Response({'descricao': generated_text}, status=status.HTTP_200_OK)
+
+        except Exception as e:
+            print(f"DEBUG: Erro na API do Google Gemini durante a geração de descrição: {e}")
+            return Response({"error": f"Erro ao comunicar com a IA: {e}"}, status=status.HTTP_503_SERVICE_UNAVAILABLE)
 
 
 class ImagemImovelViewSet(viewsets.ModelViewSet):

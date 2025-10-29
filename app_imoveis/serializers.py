@@ -40,12 +40,17 @@ class ImovelSerializer(serializers.ModelSerializer):
 
     def get_imagens(self, obj):
         """
-        Retorna as imagens ordenadas corretamente.
+        Retorna as imagens ordenadas corretamente, com URLs absolutas.
         """
         # Acessa o related manager 'imagens' e ordena
         imagens_ordenadas = obj.imagens.order_by('ordem')
-        # Serializa a queryset ordenada
-        return ImagemImovelSerializer(imagens_ordenadas, many=True).data
+        
+        # Pega o 'request' do contexto do serializer principal
+        request = self.context.get('request')
+        
+        # Serializa a queryset, passando o 'request' no contexto
+        # Isso garante que o ImagemImovelSerializer gere URLs absolutas
+        return ImagemImovelSerializer(imagens_ordenadas, many=True, context={'request': request}).data
 
 
 class ImovelPublicSerializer(ImovelSerializer):

@@ -27,7 +27,7 @@ class VisitaSerializer(serializers.ModelSerializer):
         model = Visita
         fields = '__all__'
 
-# --- INÍCIO DA CORREÇÃO ---
+# --- INÍCIO DA CORREÇÃO ---\
 class UsuarioSimplesSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
@@ -113,6 +113,10 @@ class ClienteSerializer(serializers.ModelSerializer):
     # NOVO: Campo de leitura para garantir que o frontend tenha um nome para exibir
     nome_exibicao = serializers.SerializerMethodField()
     
+    # --- NOVO CAMPO ADICIONADO ---
+    perfil_cliente = serializers.JSONField(required=False)
+    # --- FIM NOVO CAMPO ADICIONADO ---
+    
     class Meta:
         model = Cliente
         fields = [
@@ -121,7 +125,7 @@ class ClienteSerializer(serializers.ModelSerializer):
             'email', 'telefone', 'cep', 'logradouro', 'numero', 'complemento',
             'bairro', 'cidade', 'estado', 'ativo', 'observacoes', 'foto_perfil',
             'preferencias_imovel', 'imobiliaria', 'data_cadastro', 'data_atualizacao',
-            'nome_exibicao' # Inclui o novo campo
+            'nome_exibicao', 'perfil_cliente' # Inclui os novos campos
         ]
         
         extra_kwargs = {
@@ -138,7 +142,6 @@ class ClienteSerializer(serializers.ModelSerializer):
         """Limpa e valida o documento."""
         return apenas_numeros(value)
 
-    # ... (validate method permanece inalterado)
     def validate(self, data):
         """
         Validação customizada baseada no tipo de pessoa.
