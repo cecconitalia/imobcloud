@@ -108,21 +108,21 @@
                 <div class="form-grid">
                     <div class="form-group">
                         <label for="valor_venda">Valor de Venda (R$)</label>
-                        <input type="text" id="valor_venda" v-model="imovel.valor_venda" v-money="moneyConfig" />
+                        <Money3Component id="valor_venda" v-model="imovel.valor_venda" :options="moneyConfig" />
                     </div>
                     <div class="form-group">
                         <label for="valor_aluguel">Valor de Aluguel (R$)</label>
-                        <input type="text" id="valor_aluguel" v-model="imovel.valor_aluguel" v-money="moneyConfig" />
+                        <Money3Component id="valor_aluguel" v-model="imovel.valor_aluguel" :options="moneyConfig" />
                     </div>
                     <div class="form-group">
                         <label for="valor_condominio">Valor do Condomínio (R$)</label>
-                        <input type="text" id="valor_condominio" v-model="imovel.valor_condominio" v-money="moneyConfig" />
+                        <Money3Component id="valor_condominio" v-model="imovel.valor_condominio" :options="moneyConfig" />
                     </div>
                     <div class="form-group">
                         <label for="valor_iptu">Valor do IPTU (Anual, R$)</label>
-                        <input type="text" id="valor_iptu" v-model="imovel.valor_iptu" v-money="moneyConfig" />
+                        <Money3Component id="valor_iptu" v-model="imovel.valor_iptu" :options="moneyConfig" />
                     </div>
-                </div>
+                    </div>
             </div>
         <div class="form-section">
                 <div class="section-title">Dimensões e Divisões</div>
@@ -317,9 +317,9 @@
                     </div>
                     <div class="form-group">
                         <label for="comissao_percentual">Comissão (%)</label>
-                        <input type="text" id="comissao_percentual" v-model="imovel.comissao_percentual" v-money="percentConfig" />
+                        <Money3Component id="comissao_percentual" v-model="imovel.comissao_percentual" :options="percentConfig" />
                     </div>
-                </div>
+                    </div>
             </div>
             <div class="form-section">
                 <div class="section-title">Status da Documentação</div>
@@ -401,11 +401,18 @@ import ImovelImagensView from './ImovelImagensView.vue';
 import { debounce } from 'lodash'; 
 import '@fortawesome/fontawesome-free/css/all.css';
 
-// --- CORREÇÃO: ADIÇÃO DAS CONFIGURAÇÕES V-MONEY ---
+// --- CORREÇÃO PROFISSIONAL: USAR O COMPONENTE EM VEZ DA DIRETIVA ---
+// Isto resolve a tela branca (removendo a importação com erro) e 
+// resolve o problema da máscara (usando o componente de forma explícita).
+import { Money3Component } from 'v-money3';
+// --- FIM DA CORREÇÃO ---
+
+
+// --- CONFIGURAÇÕES V-MONEY ---
 // Configuração da máscara de moeda R$
 const moneyConfig = {
   debug: false,
-  masked: false,
+  masked: false, // <-- Importante: 'false' armazena o número puro (1234.50) no v-model.
   prefix: 'R$ ',
   suffix: '',
   thousands: '.',
@@ -435,7 +442,7 @@ const percentConfig = {
   allowBlank: true,
   minimumNumberOfCharacters: 0,
 };
-// --- FIM DA CORREÇÃO ---
+// --- FIM DAS CONFIGURAÇÕES ---
 
 
 const route = useRoute();
@@ -744,6 +751,9 @@ onMounted(() => {
   // onMounted
 });
 
+// --- CORREÇÃO DE SINTAXE ---
+// A função saveImovel estava truncada na resposta anterior. 
+// Esta é a versão completa e correta.
 async function saveImovel() {
   isSubmitting.value = true;
   const payload = { ...imovel.value };
@@ -752,7 +762,10 @@ async function saveImovel() {
   delete payload.proprietario_detalhes; 
 
   Object.keys(payload).forEach(key => {
-    if (key !== 'proprietario' && payload[key] === null) delete payload[key];
+    // Não remover o 'proprietario' se for null (para desassociar)
+    if (key !== 'proprietario' && payload[key] === null) {
+        delete payload[key];
+    }
   });
   
   try {
@@ -763,17 +776,39 @@ async function saveImovel() {
     }
   } catch (error: any) {
     console.error("Erro ao guardar o imóvel:", error.response?.data || error);
-    alert('Ocorreu um erro ao guardar o imóvel.');
+    
+    // Tenta extrair mensagens de erro da API do Django REST Framework
+    if (error.response && error.response.data) {
+        let errorMessages = [];
+        const data = error.response.data;
+        if (typeof data === 'object') {
+            for (const key in data) {
+                if (Array.isArray(data[key])) {
+                    errorMessages.push(`${key}: ${data[key].join(', ')}`);
+                } else {
+                    errorMessages.push(`${key}: ${data[key]}`);
+                }
+            }
+        }
+        if (errorMessages.length > 0) {
+            alert(`Ocorreu um erro ao guardar:\n${errorMessages.join('\n')}`);
+        } else {
+             alert('Ocorreu um erro desconhecido ao guardar o imóvel.');
+        }
+    } else {
+        alert('Ocorreu um erro ao guardar o imóvel.');
+    }
     return null;
   } finally {
     isSubmitting.value = false;
   }
 }
+// --- FIM DA CORREÇÃO DE SINTAXE ---
 
 async function handleSaveAndExit() {
   const response = await saveImovel();
   if (response && response.data) {
-    imovel.value = { ...imovel.value, ...response.data };
+    // Não precisamos atualizar o imovel.value aqui, pois estamos a sair
     alert('Imóvel guardado com sucesso!');
     router.push({ name: 'imoveis' });
   }
@@ -788,6 +823,7 @@ async function handleSaveAndContinue() {
     imovel.value = {
         ...emptyImovel,
         ...response.data,
+        proprietario: response.data.proprietario_detalhes?.id || null, // Garante que o ID está no proprietario
         proprietario_detalhes: response.data.proprietario_detalhes || null,
         configuracao_publica: { ...emptyImovel.configuracao_publica, ...response.data.configuracao_publica }
     };
@@ -795,10 +831,14 @@ async function handleSaveAndContinue() {
     alert('Imóvel guardado com sucesso!');
 
     if (wasCreating && response.data.id) {
-        await router.push({ name: 'imovel-editar', params: { id: response.data.id } });
+        // Atualiza a URL para o modo de edição
+        await router.push({ name: 'imovel-editar', params: { id: response.data.id }, query: { tab: 'geral' } });
     }
     
-    activeTab.value = 'imagens';
+    // Sugere a próxima aba mais lógica após guardar
+    if (wasCreating) {
+      activeTab.value = 'imagens';
+    }
   }
 }
 
@@ -822,17 +862,46 @@ function handleCancel() {
 .form-group { display: flex; flex-direction: column; }
 .form-group.full-width { grid-column: 1 / -1; }
 label { margin-bottom: 0.5rem; font-weight: 500; }
+
+/* Estilo base para inputs, selects e textareas */
 input, select, textarea { 
   padding: 10px; 
   border: 1px solid #ccc; 
   border-radius: 4px; 
   font-size: 1rem; 
   font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif;
+  width: 100%; /* Garante que todos ocupem o espaço do form-group */
+  box-sizing: border-box; /* Garante que o padding não quebre o layout */
 }
-/* Alinha inputs de máscara de dinheiro à direita */
-input[v-money] {
+
+/* CORREÇÃO DE ESTILO: 
+   O <Money3Component> renderiza um <input> dentro de uma <span>.
+   Usamos :deep() para forçar o estilo no input interno do componente, 
+   fazendo com que ele se pareça exatamente com os outros inputs.
+*/
+:deep(.v-money3 input) {
+  padding: 10px; 
+  border: 1px solid #ccc; 
+  border-radius: 4px; 
+  font-size: 1rem; 
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif;
+  width: 100%;
+  box-sizing: border-box;
+  text-align: right; /* Aplica o alinhamento à direita */
+}
+
+/* Remove a borda da <span> externa do componente v-money3 */
+:deep(.v-money3 span) {
+  border: none !important;
+  display: block; /* Faz a span ocupar a largura total */
+}
+
+/* Remove o estilo antigo que não funciona mais */
+/* input[v-money] {
   text-align: right;
-}
+} */
+
+
 .checkbox-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1rem; }
 .checkbox-group { display: flex; align-items: center; gap: 0.5rem; }
 .checkbox-group input[type="checkbox"] { width: auto; }
