@@ -1,3 +1,5 @@
+// frontend/src/router/index.ts
+
 import { createRouter, createWebHistory } from 'vue-router'
 
 // Importações dos layouts
@@ -25,6 +27,10 @@ import CalendarioTarefas from '@/views/CalendarioTarefas.vue'
 import RelatoriosView from '@/views/RelatoriosView.vue'
 import AutorizacoesView from '@/views/AutorizacoesView.vue'
 import AlugueisDashboardView from '@/views/AlugueisDashboardView.vue'
+
+// --- NOVA IMPORTAÇÃO DO RELATÓRIO ---
+import AutorizacoesReportView from '@/views/AutorizacoesReportView.vue';
+// --- FIM DA IMPORTAÇÃO ---
 
 // Importações das views do módulo financeiro
 import FinanceiroDashboardView from '@/views/FinanceiroDashboard.vue'
@@ -335,8 +341,20 @@ const router = createRouter({
                         isAdmin: true
                     }
                 },
+                // --- NOVA ROTA DE RELATÓRIO DE AUTORIZAÇÕES ---
                 {
-                    path: 'autorizacoes',
+                    path: 'relatorios/autorizacoes',
+                    name: 'relatorio-autorizacoes',
+                    component: AutorizacoesReportView,
+                    meta: { 
+                        title: 'Relatório de Autorizações',
+                        requiresAuth: true,
+                        isAdmin: true 
+                    }
+                },
+                // --- FIM DA NOVA ROTA ---
+                {
+                    path: 'autorizacoes', // Rota antiga (se existir)
                     name: 'autorizacoes',
                     component: AutorizacoesView,
                     meta: {

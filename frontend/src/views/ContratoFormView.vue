@@ -3,7 +3,6 @@
     <header class="view-header">
       <h1>{{ isEditing ? 'Editar Contrato' : 'Novo Contrato' }}</h1>
       <div class="header-actions">
-        <!-- NOVO BOTÃO: Visualizar PDF -->
         <button
           v-if="isEditing"
           @click="visualizarContrato"
@@ -132,7 +131,6 @@
     </form>
   </div>
 
-  <!-- Modal de Edição de Contrato -->
   <div v-if="showModal" class="modal-overlay">
     <div class="modal">
       <div class="modal-header">
@@ -143,7 +141,6 @@
         <div class="info-message">
           <p>Edite o conteúdo do contrato conforme necessário. A formatação será mantida na geração do PDF.</p>
         </div>
-        <!-- Container para o editor Quill -->
         <div ref="editorContainer"></div>
       </div>
       <div class="modal-footer">
@@ -156,7 +153,6 @@
     </div>
   </div>
 
-  <!-- Modal de Visualização de Contrato -->
   <div v-if="showVisualizarModal" class="modal-overlay">
     <div class="modal-container">
       <div class="modal-header">
@@ -180,6 +176,7 @@ import { ref, onMounted, computed, watch, nextTick } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import apiClient from '@/services/api';
 import '@fortawesome/fontawesome-free/css/all.css';
+// Importação de biblioteca de terceiros para edição WYSIWYG
 import Quill from 'quill';
 import 'quill/dist/quill.snow.css';
 import { useToast } from 'vue-toast-notification';
@@ -189,7 +186,7 @@ const router = useRouter();
 const toast = useToast();
 
 const contrato = ref({
-  id: null,
+  id: null as number | null,
   tipo_contrato: '',
   status_contrato: 'Pendente',
   valor_total: 0,
@@ -261,62 +258,77 @@ watch(() => contrato.value.imovel, (newImovelId) => {
   }
 });
 
+/**
+ * Prepara e abre o modal de edição, buscando o HTML atual do contrato.
+ */
 async function prepararContrato() {
     if (!contrato.value.id) {
         toast.error('Por favor, salve o contrato antes de gerar o PDF.');
         return;
     }
+    showModal.value = true;
+    
+    // Garantir que o DOM foi renderizado antes de inicializar o Quill
+    await nextTick();
+    
+    // 1. Obter o HTML do backend
     try {
         const response = await apiClient.get(`/v1/contratos/${contrato.value.id}/get-html/`);
         htmlContent.value = response.data;
-        showModal.value = true;
-        
-        await nextTick();
-        
-        if (editorContainer.value) {
-            if (!quillEditor) {
-              quillEditor = new Quill(editorContainer.value, {
-                  theme: 'snow',
-                  modules: {
-                    toolbar: [
-                      [{ 'header': [1, 2, 3, false] }],
-                      ['bold', 'italic', 'underline', 'strike'],
-                      [{ 'list': 'ordered'}, { 'list': 'bullet' }],
-                      [{ 'script': 'sub'}, { 'script': 'super' }],
-                      [{ 'indent': '-1'}, { 'indent': '+1' }],
-                      [{ 'direction': 'rtl' }],
-                      [{ 'align': [] }],
-                      ['link'],
-                      ['clean']
-                    ]
-                  }
-              });
-              quillEditor.on('text-change', () => {
-                  if (quillEditor) {
-                      htmlContent.value = quillEditor.root.innerHTML;
-                  }
-              });
-            }
-            quillEditor.clipboard.dangerouslyPasteHTML(0, htmlContent.value);
-        }
     } catch (error) {
         console.error("Erro ao preparar HTML do contrato:", error);
-        toast.error('Ocorreu um erro ao preparar o contrato para edição.');
+        toast.error('Ocorreu um erro ao buscar o template do contrato.');
+        showModal.value = false;
+        return;
+    }
+    
+    // 2. Inicializar ou re-utilizar o Quill
+    if (editorContainer.value) {
+        if (!quillEditor) {
+          quillEditor = new Quill(editorContainer.value, {
+              theme: 'snow',
+              modules: {
+                toolbar: [
+                  [{ 'header': [1, 2, 3, false] }],
+                  ['bold', 'italic', 'underline', 'strike'],
+                  [{ 'list': 'ordered'}, { 'list': 'bullet' }],
+                  [{ 'script': 'sub'}, { 'script': 'super' }],
+                  [{ 'indent': '-1'}, { 'indent': '+1' }],
+                  [{ 'direction': 'rtl' }],
+                  [{ 'align': [] }],
+                  ['link'],
+                  ['clean']
+                ]
+              }
+          });
+          quillEditor.on('text-change', () => {
+              if (quillEditor) {
+                  htmlContent.value = quillEditor.root.innerHTML;
+              }
+          });
+        }
+        // Coloca o HTML vindo do backend no editor
+        quillEditor.clipboard.dangerouslyPasteHTML(0, htmlContent.value);
     }
 }
 
+/**
+ * Salva o conteúdo HTML editado no banco de dados e gera o PDF final.
+ */
 async function salvarEGerarPDF() {
     if (!contrato.value.id || !quillEditor) return;
     isGenerating.value = true;
     try {
         const htmlParaSalvar = quillEditor.root.innerHTML;
-        // Passo 1: Salvar o conteúdo HTML no banco de dados
+        
+        // Passo 1: Salvar o conteúdo HTML no banco de dados (endpoint salvar-html-editado)
         await apiClient.post(
             `/v1/contratos/${contrato.value.id}/salvar-html-editado/`,
             { html_content: htmlParaSalvar }
         );
         
-        // Passo 2: Gerar o PDF a partir do conteúdo salvo
+        // Passo 2: Gerar o PDF a partir do conteúdo salvo (endpoint gerar-pdf-editado)
+        // O backend usará a função gerar_contrato_pdf_editado
         const response = await apiClient.post(
             `/v1/contratos/${contrato.value.id}/gerar-pdf-editado/`,
             { html_content: htmlParaSalvar },
@@ -335,12 +347,15 @@ async function salvarEGerarPDF() {
         toast.success('Contrato salvo e PDF gerado com sucesso!');
     } catch (error) {
         console.error("Erro ao salvar ou gerar PDF:", error);
-        toast.error('Ocorreu um erro ao salvar o conteúdo ou gerar o PDF.');
+        toast.error('Ocorreu um erro ao salvar o conteúdo ou gerar o PDF. Verifique o console.');
     } finally {
         isGenerating.value = false;
     }
 }
 
+/**
+ * Visualiza o HTML atual (salvo ou template) em um iframe/modal.
+ */
 async function visualizarContrato() {
   if (!contrato.value.id) {
     toast.error('Por favor, salve o contrato antes de visualizá-lo.');
@@ -350,6 +365,7 @@ async function visualizarContrato() {
   loadingModal.value = true;
   modalError.value = '';
   try {
+    // Chama o endpoint que retorna o HTML (salvo ou template)
     const response = await apiClient.get(`/v1/contratos/${contrato.value.id}/get-html/`);
     contratoHtml.value = response.data;
   } catch (err) {
@@ -365,19 +381,23 @@ async function handleSubmit() {
   
   const payload = { ...contrato.value };
 
+  // Lógica de negócio: se for venda, a duração é irrelevante/padrão
   if (payload.tipo_contrato === 'Venda') {
     payload.duracao_meses = 1;
   }
 
   try {
     if (isEditing.value) {
+      // Nota: Não redirecionamos ao salvar na edição, apenas atualizamos
       await apiClient.put(`/v1/contratos/${contratoId.value}/`, payload);
       toast.success('Contrato atualizado com sucesso!');
     } else {
       const createRes = await apiClient.post('/v1/contratos/', payload);
       toast.success('Contrato criado com sucesso!');
+      // Redireciona para a tela de edição após a criação
       router.push(`/contratos/editar/${createRes.data.id}`);
     }
+    // Redireciona para a lista após a edição (ou após o redirecionamento pós-criação)
     router.push('/contratos');
   } catch (error: any) {
     console.error("Erro ao salvar contrato:", error.response?.data || error);
@@ -440,6 +460,10 @@ h1 {
   font-weight: 600;
   border: none;
   cursor: pointer;
+}
+.btn-primary:disabled {
+  background-color: #adb5bd;
+  cursor: not-allowed;
 }
 .btn-info {
   display: inline-flex;

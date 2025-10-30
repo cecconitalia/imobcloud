@@ -23,7 +23,8 @@
           <ul class="submenu">
             <li><router-link to="/imoveis" active-class="active" exact-active-class="active">Listar Imóveis</router-link></li>
             <li><router-link to="/imoveis/novo" active-class="active">Adicionar Imóvel</router-link></li>
-            <li><router-link to="/autorizacoes" active-class="active">Autorizações</router-link></li>
+            
+            <li><router-link to="/relatorios/autorizacoes" active-class="active">Relatório de Autorizações</router-link></li>
             <li><router-link to="/contatos" active-class="active">Contatos do Site</router-link></li>
           </ul>
         </li>

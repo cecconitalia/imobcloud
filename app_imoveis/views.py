@@ -13,12 +13,14 @@ from django.shortcuts import get_object_or_404
 from django.http import HttpResponse, QueryDict, Http404 # ADICIONADO Http404
 from django.template.loader import render_to_string
 from django.utils import timezone
-from django.db.models import Count, Q, Case, When, Value, CharField, Max
+# --- IMPORTS ADICIONADAS PARA O RELATÓRIO E PDF ---
+from django.db.models import Count, Q, Case, When, Value, CharField, Max, F, ExpressionWrapper, fields
+from datetime import date, timedelta
 from io import BytesIO
 from xhtml2pdf import pisa
+# --- FIM DAS IMPORTS ADICIONADAS ---
 import locale
 from num2words import num2words
-from datetime import date, timedelta
 from decimal import Decimal, InvalidOperation
 import json
 import requests
@@ -117,10 +119,6 @@ class ImovelPublicListView(ListAPIView):
             # Vamos assumir que se a finalidade (Residencial, etc.) está definida, usamos o 'status' para A_VENDA/PARA_ALUGAR
             # No entanto, a lógica original usava 'finalidade' (que no models.py não é 'A_VENDA')
             # A lógica MAIS CORRETA seria baseada no STATUS, mas a original usava 'finalidade' do query param.
-            # Vou manter a lógica original do filtro, mas corrigir a da Geração de PDF (que é onde o erro ocorreu).
-            # A lógica de filtro aqui parece usar o 'finalidade' do query param (que o frontend deve enviar como A_VENDA/PARA_ALUGAR)
-            # Nota: O models.py define 'finalidade' (RESIDENCIAL...) e 'status' (A_VENDA...)
-            # O filtro público parece misturar os dois.
             
             # Vamos assumir que o query param 'finalidade' é A_VENDA ou PARA_ALUGAR, e não RESIDENCIAL.
             # Se 'finalidade' do query param for A_VENDA, filtra por valor_venda.
@@ -1022,3 +1020,145 @@ class ImobiliariaPublicDetailView(RetrieveAPIView):
         except Exception as e:
              print(f"Erro inesperado ao buscar imobiliária: {e}") 
              raise Http404("Erro ao buscar dados da imobiliária.")
+
+# --- INÍCIO DA IMPLEMENTAÇÃO DO RELATÓRIO DE AUTORIZAÇÕES (JSON + PDF) ---
+
+def _get_autorizacao_queryset(query_params):
+    """
+    Helper reutilizável para buscar e filtrar o queryset de autorizações.
+    Usado tanto pela API JSON quanto pela geração de PDF.
+    """
+    # 1. Filtros de base: apenas imóveis com data de fim de autorização definida
+    queryset = Imovel.objects.filter(
+        data_fim_autorizacao__isnull=False
+    ).select_related('proprietario')
+
+    # 2. Anotação para calcular os dias restantes
+    today = date.today()
+    
+    # Expressão para calcular a diferença em dias (timedelta)
+    dias_timedelta = ExpressionWrapper(
+        F('data_fim_autorizacao') - today, 
+        output_field=fields.DurationField()
+    )
+
+    queryset = queryset.annotate(
+        dias_restantes=dias_timedelta
+    )
+
+    # 3. Aplicação de filtros via query params
+    exclusividade = query_params.get('exclusividade')
+    validade_dias = query_params.get('validade_dias')
+    
+    if exclusividade in ['true', 'false']:
+        queryset = queryset.filter(possui_exclusividade=(exclusividade == 'true'))
+
+    if validade_dias and validade_dias.isdigit():
+        dias = int(validade_dias)
+        
+        if dias > 0:
+            # Filtra por imóveis que expiram nos próximos 'validade_dias'
+            data_limite = today + timedelta(days=dias)
+            # Filtra contratos que vencem entre hoje e o limite (e não os já expirados)
+            queryset = queryset.filter(data_fim_autorizacao__lte=data_limite, data_fim_autorizacao__gte=today)
+        elif dias == 0:
+             # Filtra apenas contratos expirados (data_fim_autorizacao anterior a hoje)
+             queryset = queryset.filter(data_fim_autorizacao__lt=today)
+    else:
+        # Se nenhum filtro de validade for aplicado, retorna apenas os ativos (não expirados)
+        queryset = queryset.filter(data_fim_autorizacao__gte=today)
+
+
+    # 4. Ordenação: por data de fim (os que expiram primeiro vêm ao topo)
+    queryset = queryset.order_by('data_fim_autorizacao')
+
+    # 5. Estruturação dos dados de saída (Serialização manual para relatórios)
+    data_list = []
+    for imovel in queryset:
+        # Obtém os dias restantes como integer
+        dias_restantes = imovel.dias_restantes.days
+        
+        # Determina o status de risco
+        status_risco = 'Ativo'
+        if dias_restantes < 0:
+             status_risco = 'Expirado'
+        elif dias_restantes <= 30:
+            status_risco = 'Risco (30 dias)'
+        elif dias_restantes <= 90:
+            status_risco = 'Atenção (90 dias)'
+
+        data_list.append({
+            'id': imovel.id,
+            'codigo_referencia': imovel.codigo_referencia,
+            'titulo_anuncio': imovel.titulo_anuncio,
+            'proprietario': imovel.proprietario.nome if imovel.proprietario else 'N/A',
+            'data_captacao': imovel.data_captacao,
+            'data_fim_autorizacao': imovel.data_fim_autorizacao,
+            'dias_restantes': dias_restantes,
+            'status_risco': status_risco,
+            'exclusividade': "Sim" if imovel.possui_exclusividade else "Não",
+            'comissao': imovel.comissao_percentual,
+            'valor_venda': imovel.valor_venda or imovel.valor_aluguel,
+        })
+    return data_list
+
+
+class AutorizacaoReportView(APIView):
+    """
+    API View (JSON) para o relatório de autorizações.
+    """
+    permission_classes = [permissions.IsAuthenticated] 
+
+    def get(self, request, *args, **kwargs):
+        # A view JSON agora apenas chama o helper com os query params
+        data = _get_autorizacao_queryset(request.query_params)
+        return Response(data, status=status.HTTP_200_OK)
+
+
+class AutorizacaoReportPDFView(APIView):
+    """
+    API View (PDF) para o relatório de autorizações.
+    """
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request, *args, **kwargs):
+        # 1. Obter dados filtrados usando o mesmo helper
+        data = _get_autorizacao_queryset(request.query_params)
+        
+        # 2. Obter filtros para o título do PDF
+        validade_dias_param = request.query_params.get('validade_dias')
+        exclusividade_param = request.query_params.get('exclusividade')
+        
+        titulo_relatorio = "Relatório de Autorizações"
+        if validade_dias_param == '0':
+            titulo_relatorio = "Relatório de Autorizações Expiradas"
+        elif validade_dias_param:
+            titulo_relatorio = f"Relatório de Autorizações Vencendo em {validade_dias_param} Dias"
+        else:
+            titulo_relatorio = "Relatório de Autorizações Ativas"
+            
+        if exclusividade_param == 'true':
+            titulo_relatorio += " (Apenas Exclusivos)"
+        elif exclusividade_param == 'false':
+             titulo_relatorio += " (Apenas Não Exclusivos)"
+
+        context = {
+            'data': data,
+            'titulo_relatorio': titulo_relatorio,
+            'data_geracao': date.today(),
+            'imobiliaria': request.tenant, # Passa a imobiliária para o template (para o logo, etc.)
+        }
+
+        # 3. Renderizar PDF
+        html_string = render_to_string('relatorio_autorizacoes_template.html', context)
+        result = BytesIO()
+        pdf = pisa.pisaDocument(BytesIO(html_string.encode("UTF-8")), result, encoding='UTF-8')
+
+        if not pdf.err:
+            response = HttpResponse(result.getvalue(), content_type='application/pdf')
+            filename = f'relatorio_autorizacoes_{date.today().isoformat()}.pdf'
+            response['Content-Disposition'] = f'attachment; filename="{filename}"'
+            return response
+        else:
+            print(f"Erro ao gerar PDF do relatório: {pdf.err}")
+            return HttpResponse(f"Erro ao gerar o PDF: {pdf.err}", status=500)

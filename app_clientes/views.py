@@ -142,7 +142,7 @@ class ClienteViewSet(viewsets.ModelViewSet):
             return Cliente.objects.none()
 
         # --- CORREÇÃO: Filtro por Perfil do Cliente (para Proprietário) ---
-        # O ImovelFormView.vue (Solução 2) envia ?tipo=PROPRIETARIO
+        # O ImovelFormView.vue envia ?tipo=PROPRIETARIO
         tipo = self.request.query_params.get('tipo', None)
         if tipo:
             # Filtra clientes onde o JSONField 'perfil_cliente' contém a string 'tipo'
@@ -260,28 +260,53 @@ class AtividadeViewSet(viewsets.ModelViewSet):
         serializer.save(registrado_por=self.request.user)
 
 # ====================================================================
-# VIEWS DE OPORTUNIDADE E OUTRAS
+# VIEWS DE OPORTUNIDADE E OUTRAS (Melhoria do Filtro)
 # ====================================================================
 
 class OportunidadeViewSet(viewsets.ModelViewSet):
     queryset = Oportunidade.objects.all().select_related('cliente', 'imovel', 'responsavel')
     serializer_class = OportunidadeSerializer
     permission_classes = [permissions.IsAuthenticated]
+    
+    # --- MELHORIA DO FILTRO 1: DEFINIR search_fields no Backend ---
+    filter_backends = [filters.SearchFilter]
+    search_fields = [
+        'titulo', 
+        'cliente__nome', 
+        'cliente__razao_social', # Para PJ
+        'imovel__logradouro', 
+        'imovel__bairro'
+    ]
+    # --- FIM DA MELHORIA 1 ---
 
     def get_queryset(self):
         user = self.request.user
         base_queryset = Oportunidade.objects.all()
 
         if user.is_superuser:
-            return base_queryset
+            queryset = base_queryset
         
-        if self.request.tenant:
+        elif self.request.tenant:
             queryset = base_queryset.filter(imobiliaria=self.request.tenant)
             if hasattr(user, 'perfil') and user.perfil.cargo == PerfilUsuario.Cargo.CORRETOR:
                 queryset = queryset.filter(responsavel=user)
-            return queryset
+        
+        else:
+            return Oportunidade.objects.none()
 
-        return Oportunidade.objects.none()
+        # --- MELHORIA DO FILTRO 2: Filtrar por Responsável ID ---
+        # Este filtro é usado pela combo box de Corretor no FunilVendasView.vue
+        responsavel_id = self.request.query_params.get('responsavel')
+        if responsavel_id:
+             try:
+                 # Garante que o ID é válido e filtra
+                 queryset = queryset.filter(responsavel__id=int(responsavel_id))
+             except ValueError:
+                 pass # Ignora se o ID for inválido
+        # --- FIM DA MELHORIA 2 ---
+
+        # O DRF SearchFilter já aplica o filtro de texto 'search' automaticamente.
+        return queryset.order_by('data_criacao') # Ordena por data de criação
 
     def perform_create(self, serializer):
         if not self.request.tenant:
@@ -323,9 +348,10 @@ class OportunidadeViewSet(viewsets.ModelViewSet):
         
         response = super().partial_update(request, *args, **kwargs)
 
-        fase_nova_key = request.data.get('fase')
-        if fase_nova_key and fase_nova_key != oportunidade.fase:
-            oportunidade.refresh_from_db()
+        oportunidade.refresh_from_db() # Recarrega a oportunidade após a atualização
+        fase_nova_key = oportunidade.fase # Usa o campo do objeto recarregado
+        
+        if fase_nova_key != fase_anterior:
             fase_nova = oportunidade.get_fase_display()
             
             descricao = f"Oportunidade '{oportunidade.titulo}' movida da fase '{fase_anterior}' para '{fase_nova}'."

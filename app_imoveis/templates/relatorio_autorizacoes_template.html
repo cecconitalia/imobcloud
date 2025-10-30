@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <title>{{ titulo_relatorio }}</title>
+    <style>
+        @page {
+            size: A4 landscape; /* Página deitada para caber mais colunas */
+            margin: 2cm;
+        }
+        body {
+            font-family: 'Helvetica', 'Arial', sans-serif;
+            font-size: 9pt;
+            color: #333;
+        }
+        .header {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        .header .logo {
+            max-width: 150px;
+            max-height: 70px;
+            margin-bottom: 10px;
+        }
+        h1 {
+            font-size: 16pt;
+            margin: 0;
+            color: #000;
+        }
+        .subheader {
+            font-size: 10pt;
+            color: #555;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+        th, td {
+            border: 1px solid #ccc;
+            padding: 6px;
+            text-align: left;
+            word-wrap: break-word; /* Quebra de linha */
+        }
+        th {
+            background-color: #f2f2f2;
+            font-size: 10pt;
+            padding: 8px 6px;
+        }
+        tbody tr:nth-child(even) {
+            background-color: #f9f9f9;
+        }
+        .footer {
+            text-align: center;
+            position: fixed;
+            bottom: 0;
+            width: 100%;
+            font-size: 8pt;
+            color: #777;
+        }
+        /* Classes de Risco */
+        .risco-expirado { color: #D8000C; font-weight: bold; }
+        .risco-risco { color: #E67E22; font-weight: bold; }
+        .risco-atencao { color: #0056b3; }
+        
+        .col-ref { width: 8%; }
+        .col-imovel { width: 25%; }
+        .col-prop { width: 20%; }
+        .col-status { width: 10%; }
+        .col-data { width: 12%; }
+        .col-dias { width: 10%; }
+        .col-ex { width: 8%; }
+        .col-comissao { width: 7%; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        {% if imobiliaria.logo %}
+            <img src="{{ imobiliaria.logo.path }}" class="logo" alt="Logo">
+        {% endif %}
+        <h1>{{ imobiliaria.nome|default:"Relatório" }}</h1>
+        <div class="subheader">{{ titulo_relatorio }}</div>
+        <div class="subheader">Gerado em: {{ data_geracao|date:"d/m/Y" }}</div>
+    </div>
+
+    {% if data %}
+    <table>
+        <thead>
+            <tr>
+                <th class="col-ref">Ref.</th>
+                <th class="col-imovel">Imóvel</th>
+                <th class="col-prop">Proprietário</th>
+                <th class="col-ex">Exclusivo</th>
+                <th class="col-data">Vencimento</th>
+                <th class="col-dias">Dias Restantes</th>
+                <th class="col-status">Status Risco</th>
+                <th class="col-comissao">Comissão</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for item in data %}
+            <tr>
+                <td>{{ item.codigo_referencia }}</td>
+                <td>{{ item.titulo_anuncio }}</td>
+                <td>{{ item.proprietario }}</td>
+                <td>{{ item.exclusividade }}</td>
+                <td>{{ item.data_fim_autorizacao|date:"d/m/Y" }}</td>
+                <td class="{% if item.dias_restantes < 0 %}risco-expirado{% endif %}">
+                    {{ item.dias_restantes }}
+                </td>
+                <td class="
+                    {% if item.status_risco == 'Expirado' %}risco-expirado{% endif %}
+                    {% if item.status_risco == 'Risco (30 dias)' %}risco-risco{% endif %}
+                    {% if item.status_risco == 'Atenção (90 dias)' %}risco-atencao{% endif %}
+                ">
+                    {{ item.status_risco }}
+                </td>
+                <td>{{ item.comissao|floatformat:2 }}%</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <p style="text-align: center; margin-top: 50px;">Nenhum imóvel encontrado para os filtros selecionados.</p>
+    {% endif %}
+
+    <div class="footer">
+        ImobCloud - Relatório de Autorizações
+    </div>
+</body>
+</html>

@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="pt-BR">
+{% load custom_filters %} <html lang="pt-BR">
 <head>
     <meta charset="UTF-8">
     <title>Autorização de Intermediação Imobiliária</title>
@@ -22,7 +22,7 @@
     </style>
 </head>
 <body>
-    <h1>Contrato de Autorização para Intermediação de {{ imovel.get_status_display }} de Imóvel</h1>
+    <h1>Contrato de Autorização para Intermediação de {{ imovel.status|get_tipo_negocio }} de Imóvel</h1>
 
     <p>
         <strong>CONTRATANTE (PROPRIETÁRIO):</strong> 
@@ -42,7 +42,7 @@
     </p>
 
     <p>
-        Pelo presente instrumento, o CONTRATANTE autoriza a CONTRATADA a promover a intermediação da {{ imovel.get_status_display }} do imóvel de sua propriedade, descrito abaixo:
+        Pelo presente instrumento, o CONTRATANTE autoriza a CONTRATADA a promover a intermediação da {{ imovel.status|get_tipo_negocio }} do imóvel de sua propriedade, descrito abaixo:
     </p>
 
     <table>
@@ -70,14 +70,14 @@
     <div class="clausula">
         <strong>CLÁUSULA PRIMEIRA - DO OBJETO</strong>
         <p>
-            A CONTRATADA compromete-se a envidar seus melhores esforços na promoção e divulgação do imóvel supracitado, visando a sua {{ imovel.get_status_display }}, conforme as condições de preço e pagamento estabelecidas pelo CONTRATANTE.
+            A CONTRATADA compromete-se a envidar seus melhores esforços na promoção e divulgação do imóvel supracitado, visando a sua {{ imovel.status|get_tipo_negocio }}, conforme as condições de preço e pagamento estabelecidas pelo CONTRATANTE.
         </p>
     </div>
 
     <div class="clausula">
         <strong>CLÁUSULA SEGUNDA - DO PREÇO E CONDIÇÕES</strong>
         <p>
-            O valor estipulado para a {{ imovel.get_status_display }} do imóvel é de <strong>R$ {{ valor|floatformat:2 }}</strong> ({{ valor_por_extenso }}). Quaisquer alterações neste valor deverão ser comunicadas por escrito à CONTRATADA.
+            O valor estipulado para a {{ imovel.status|get_tipo_negocio }} do imóvel é de <strong>R$ {{ valor|format_currency_brl }}</strong> ({{ valor_por_extenso }}). Quaisquer alterações neste valor deverão ser comunicadas por escrito à CONTRATADA.
         </p>
     </div>
 
@@ -96,7 +96,7 @@
     <div class="clausula">
         <strong>CLÁUSULA QUARTA - DA REMUNERAÇÃO</strong>
         <p>
-            Em caso de concretização do negócio durante o prazo de vigência desta autorização, mesmo que a negociação tenha sido iniciada pela CONTRATADA e concluída posteriormente pelo CONTRATANTE, será devida à CONTRATADA a comissão de <strong>{{ comissao_percentual|floatformat:2 }}%</strong> ({{ comissao_por_extenso }}) sobre o valor total da transação, a ser paga no ato do recebimento do sinal ou da assinatura do contrato definitivo.
+            Em caso de concretização do negócio durante o prazo de vigência desta autorização, mesmo que a negociação tenha sido iniciada pela CONTRATADA e concluída posteriormente pelo CONTRATANTE, será devida à CONTRATADA a comissão de <strong>{{ comissao_percentual|format_currency_brl }}%</strong> ({{ comissao_por_extenso }}) sobre o valor total da transação, a ser paga no ato do recebimento do sinal ou da assinatura do contrato definitivo.
         </p>
     </div>
     

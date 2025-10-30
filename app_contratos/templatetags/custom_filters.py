@@ -3,7 +3,8 @@
 from django import template
 from django.utils.safestring import mark_safe
 from num2words import num2words
-from unidecode import unidecode # Adicionada a importação de 'unidecode'
+from unidecode import unidecode
+from django.utils.formats import number_format # Importação necessária para formatação BRL
 
 register = template.Library()
 
@@ -29,3 +30,40 @@ def capfirst_filter(value):
         # Garante que a primeira letra seja maiúscula, mesmo após a normalização
         return value[0].upper() + value[1:]
     return ""
+
+# --- INÍCIO DA CORREÇÃO ---
+
+@register.filter(name='format_currency_brl')
+def format_currency_brl(value):
+    """
+    Formata um valor numérico para o padrão BRL (ex: 890000 -> 890.000,00).
+    Usa o sistema de localização do Django para garantir os separadores corretos.
+    """
+    try:
+        if value is None:
+            value = 0
+        
+        # number_format força a localização (L10N) do Django.
+        # Garante USE_THOUSAND_SEPARATOR = True e DECIMAL_SEPARATOR = ','
+        # (Conforme definido em settings.py para pt-BR)
+        return number_format(value, decimal_pos=2, force_grouping=True)
+    
+    except (ValueError, TypeError):
+        return "Valor inválido"
+
+@register.filter(name='get_tipo_negocio')
+def get_tipo_negocio(status_imovel):
+    """
+    Converte o status do imóvel (ex: 'A_VENDA') no tipo de negócio
+    correto para o contrato (ex: 'Venda').
+    """
+    if status_imovel in ['A_VENDA', 'VENDIDO']:
+        return "Venda"
+    if status_imovel in ['PARA_ALUGAR', 'ALUGADO']:
+        return "Locação" # "Locação" é mais formal para contratos
+    
+    # Fallback para outros status (ex: Em Construção)
+    return "Negociação" 
+
+# --- FIM DA CORREÇÃO ---
+# (O '}' que estava aqui foi removido pois era um erro de sintaxe)

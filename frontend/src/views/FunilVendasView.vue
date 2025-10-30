@@ -9,6 +9,7 @@
           type="text"
           placeholder="Título, cliente ou endereço"
           class="filter-input"
+          @input="debouncedFetchOportunidades" 
         />
       </div>
       <div class="filter-group">
@@ -17,6 +18,7 @@
           id="responsavel-filter"
           v-model="filtro.responsavel"
           class="filter-input"
+          @change="fetchOportunidades"
         >
           <option value="">Todos</option>
           <option v-for="resp in corretores" :key="resp.id" :value="resp.id">
@@ -101,6 +103,7 @@ import { ref, onMounted, computed, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import api from '@/services/api';
 import draggable from 'vuedraggable';
+import { debounce } from 'lodash'; 
 import '@fortawesome/fontawesome-free/css/all.css';
 
 const router = useRouter();
@@ -114,12 +117,13 @@ const funilFases = ref<any[]>([]);
 
 const cardsRecolhidos = ref(false);
 
+// Restaura o estado do filtro
 const filtro = ref({
   search: '',
   responsavel: ''
 });
 
-const fasesDeFunilCores: { [key: string]: string } = { // Definido como objeto diretamente
+const fasesDeFunilCores: { [key: string]: string } = { 
   'LEAD': '#4DA3FF',
   'CONTATO': '#00C8A0',
   'VISITA': '#FFD93D',
@@ -130,24 +134,9 @@ const fasesDeFunilCores: { [key: string]: string } = { // Definido como objeto d
 };
 
 
+// A lista bruta da API (sem filtro de frontend)
 const oportunidadesFiltradas = computed(() => {
-  let lista = oportunidades.value;
-
-  if (filtro.value.search) {
-    const termo = filtro.value.search.toLowerCase();
-    lista = lista.filter(op => {
-      const titulo = op.titulo?.toLowerCase().includes(termo);
-      const clienteNome = op.cliente?.nome_completo?.toLowerCase().includes(termo);
-      const imovelEndereco = op.imovel?.endereco?.toLowerCase().includes(termo);
-      return titulo || clienteNome || imovelEndereco;
-    });
-  }
-
-  if (filtro.value.responsavel) {
-    lista = lista.filter(op => op.responsavel?.id === parseInt(filtro.value.responsavel));
-  }
-
-  return lista;
+  return oportunidades.value;
 });
 
 const totalOportunidades = computed(() => oportunidades.value.length);
@@ -177,17 +166,15 @@ const onFaseChange = async (event: any, novaFaseId: string) => {
         if (!fase) return;
 
         try {
-            // Ajuste a URL para o endpoint correto de oportunidades
-            await api.patch(`/v1/clientes/oportunidades/${oportunidadeId}/`, { fase_funil: fase.id });
+            await api.patch(`/v1/clientes/oportunidades/${oportunidadeId}/`, { fase: fase.id }); 
             console.log(`Oportunidade ${oportunidadeId} movida para ${fase.titulo}`);
-            // Opcional: Atualizar apenas a oportunidade movida localmente em vez de refazer o fetch
+            
             const index = oportunidades.value.findIndex(op => op.id === oportunidadeId);
             if(index !== -1) {
-                oportunidades.value[index].fase = fase.id; // Ou fase_funil dependendo do nome do campo
+                oportunidades.value[index].fase = fase.id; 
             }
         } catch (error) {
             console.error('Erro ao mover a oportunidade:', error);
-            // Reverter a mudança visual ou refazer o fetch para garantir consistência
             fetchOportunidades();
         }
     }
@@ -198,22 +185,19 @@ function toggleCardsRecolhidos() {
     cardsRecolhidos.value = !cardsRecolhidos.value;
 }
 
+
+// --- LÓGICA DE AGRUPAMENTO DE DADOS (Mantida no watch para reatividade) ---
 watch(oportunidadesFiltradas, (novaLista) => {
   const agrupado: { [key: string]: any[] } = {};
   funilFases.value.forEach(fase => {
     agrupado[fase.id] = []; // Inicializa com ID da fase
   });
   novaLista.forEach(oportunidade => {
-    // A chave para agrupar deve ser o ID da fase da oportunidade
-    const faseIdDaOportunidade = oportunidade.fase; // Ou oportunidade.fase_funil, dependendo do nome do campo
+    const faseIdDaOportunidade = oportunidade.fase; 
     if (agrupado[faseIdDaOportunidade]) {
         agrupado[faseIdDaOportunidade].push(oportunidade);
     } else {
-        // Se a fase da oportunidade não existir no funilFases (caso raro), agrupa separadamente ou loga um aviso
         console.warn(`Fase ${faseIdDaOportunidade} da oportunidade ${oportunidade.id} não encontrada nas fases definidas.`);
-        // Poderia criar um grupo 'Outros' se necessário:
-        // if (!agrupado['Outros']) agrupado['Outros'] = [];
-        // agrupado['Outros'].push(oportunidade);
     }
   });
   funilData.value = agrupado;
@@ -222,12 +206,9 @@ watch(oportunidadesFiltradas, (novaLista) => {
 
 async function fetchFunilEtapas() {
     try {
-        // Busca as fases da API
         const response = await api.get('/v1/clientes/fases-funil/');
-        // Ordena as fases pela ordem definida no backend
         funilFases.value = response.data.sort((a: any, b: any) => a.ordem - b.ordem);
 
-        // Inicializa funilData com todas as fases vazias após buscar as fases
         const agrupadoInicial: { [key: string]: any[] } = {};
         funilFases.value.forEach(fase => {
             agrupadoInicial[fase.id] = [];
@@ -236,9 +217,8 @@ async function fetchFunilEtapas() {
 
     } catch (err) {
         console.error("Erro ao buscar as etapas do funil:", err);
-        // Define fases padrão como fallback em caso de erro
         funilFases.value = [
-             { id: 'LEAD', titulo: 'Novo Lead', ordem: 1 }, // Adiciona ordem para consistência
+             { id: 'LEAD', titulo: 'Novo Lead', ordem: 1 }, 
              { id: 'CONTATO', titulo: 'Primeiro Contato', ordem: 2 },
              { id: 'VISITA', titulo: 'Visitação', ordem: 3 },
              { id: 'PROPOSTA', titulo: 'Proposta', ordem: 4 },
@@ -246,7 +226,6 @@ async function fetchFunilEtapas() {
              { id: 'GANHO', titulo: 'Negócio Ganho', ordem: 6 },
              { id: 'PERDIDO', titulo: 'Negócio Perdido', ordem: 7 }
         ].sort((a,b) => a.ordem - b.ordem);
-         // Inicializa funilData com fases padrão
          const agrupadoInicial: { [key: string]: any[] } = {};
          funilFases.value.forEach(fase => {
              agrupadoInicial[fase.id] = [];
@@ -255,17 +234,24 @@ async function fetchFunilEtapas() {
     }
 }
 
-
+/**
+ * Função central para buscar oportunidades na API com base nos filtros.
+ */
 async function fetchOportunidades() {
   isLoading.value = true;
   try {
-    // Primeiro busca as etapas/fases do funil
     await fetchFunilEtapas();
-    // Depois busca as oportunidades
-    const response = await api.get('/v1/clientes/oportunidades/'); // Endpoint ajustado
+    
+    // Passa os parâmetros para a API, que fará a filtragem no backend
+    const params = {
+        search: filtro.value.search || undefined,
+        responsavel: filtro.value.responsavel || undefined,
+    };
+    
+    const response = await api.get('/v1/clientes/oportunidades/', { params }); 
     oportunidades.value = response.data;
 
-    // Processa a lista de corretores unicos (responsáveis)
+    // Apenas extrai a lista de corretores ativos para o select (não o filtro)
     const responsaveisMap = new Map();
     oportunidades.value.forEach(op => {
         if (op.responsavel && !responsaveisMap.has(op.responsavel.id)) {
@@ -273,8 +259,6 @@ async function fetchOportunidades() {
         }
     });
     corretores.value = Array.from(responsaveisMap.values());
-
-    // O watch(oportunidadesFiltradas) já vai reagrupar os dados
 
   } catch (err) {
     console.error("Erro ao buscar oportunidades:", err);
@@ -284,10 +268,16 @@ async function fetchOportunidades() {
   }
 }
 
+// --- MELHORIA DE PERFORMANCE: Debounce para a busca por texto ---
+// Cria uma versão de `fetchOportunidades` que só roda 300ms após a última chamada.
+const debouncedFetchOportunidades = debounce(fetchOportunidades, 300);
+// --- FIM DA MELHORIA ---
+
+
 function formatarValor(valor: number | string | null | undefined): string {
     if (valor === null || valor === undefined) return 'R$ -';
     const num = typeof valor === 'string' ? parseFloat(valor) : valor;
-    if (isNaN(num)) return 'R$ -'; // Retorna se não for um número válido
+    if (isNaN(num)) return 'R$ -'; 
     return num.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 }
 
@@ -295,6 +285,8 @@ function formatarValor(valor: number | string | null | undefined): string {
 function limparFiltros() {
   filtro.value.search = '';
   filtro.value.responsavel = '';
+  // Chamada de busca após a limpeza para atualizar a lista
+  fetchOportunidades();
 }
 
 onMounted(() => {
@@ -305,35 +297,45 @@ onMounted(() => {
 <style scoped>
 /* Estilos gerais */
 .funil-view-container {
-  /* padding: 2rem; */ /* Removido */
-  padding: 0; /* Adicionado */
+  padding: 0; 
   background-color: #f4f7f6;
   min-height: 100vh;
 }
 
-/* Header Removido */
-/* .funil-header { ... } */
-/* .page-title { ... } */
-/* .btn-novo-funil { ... } */
-
-
-/* Controles de filtro */
+/* Controles de filtro (Layout Profissional com Grid) */
 .filter-controls {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: flex-end;
-  gap: 1rem;
+  /* MUDANÇA CRÍTICA: GRID de 3 colunas */
+  /* Colunas: 0.8fr (Pesquisar, ~30%) 1fr (Corretor, ~40%) auto (Botão, ~30%) */
+  grid-template-columns: 0.8fr 1fr auto;
+  display: grid; 
+  /* Aumentando o gap para garantir que não encoste */
+  gap: 20px; 
   background-color: #fff;
   padding: 1rem 1.5rem;
   border-radius: 12px;
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.05);
   margin-bottom: 2rem;
+  align-items: flex-end; 
 }
+
+/* Regra para o campo de pesquisa (Ocupa a primeira coluna) */
+.filter-controls > .filter-group:nth-child(1) {
+    grid-column: 1 / 2;
+}
+/* Regra para o campo Corretor (Ocupa a segunda coluna) */
+.filter-controls > .filter-group:nth-child(2) {
+    grid-column: 2 / 3;
+}
+/* Regra para o botão (Ocupa a terceira coluna) */
+.filter-controls > .btn-limpar-filtros {
+    grid-column: 3 / 4;
+}
+
 
 .filter-group {
   display: flex;
   flex-direction: column;
-  flex-grow: 1;
+  width: 100%;
 }
 
 .filter-group label {
@@ -368,7 +370,8 @@ onMounted(() => {
   font-weight: bold;
   font-size: 0.9rem;
   transition: background-color 0.2s;
-  align-self: flex-end; /* Mantém alinhado em baixo */
+  width: 100%;
+  min-width: 120px;
 }
 
 .btn-limpar-filtros:hover {
@@ -681,25 +684,33 @@ onMounted(() => {
 
 
 @media (max-width: 768px) {
-  /* Header já removido, não precisa de ajuste */
+  /* Força o layout a ser uma única coluna, garantindo que tudo se encaixe */
   .filter-controls {
-    flex-direction: column;
-    align-items: stretch;
+    grid-template-columns: 1fr;
+    gap: 1rem;
+  }
+  /* Remove o layout de 3 colunas e alinha todos em uma coluna única */
+  .filter-controls > .filter-group:nth-child(1),
+  .filter-controls > .filter-group:nth-child(2),
+  .filter-controls > .btn-limpar-filtros {
+      grid-column: 1 / 2;
+  }
+  .filter-group {
+    width: 100%;
   }
   .btn-limpar-filtros {
     width: 100%;
-    margin-top: 0.5rem; /* Adiciona espaço acima */
+    margin-top: 0;
   }
   .funil-board-container {
-     /* Garante que o scroll funcione bem no mobile */
      -webkit-overflow-scrolling: touch;
   }
    .funil-coluna {
-        min-width: 220px; /* Colunas um pouco menores no mobile */
+        min-width: 220px; 
         flex-basis: 220px;
    }
    .btn-recolher-cards {
-       margin-right: 1rem; /* Afasta da borda direita no mobile */
+       margin-right: 1rem; 
    }
 }
 </style>

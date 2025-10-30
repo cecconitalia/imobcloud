@@ -10,6 +10,8 @@ from .views import (
     ImovelPublicListView,
     ImovelPublicDetailView,
     ImovelIAView,
+    AutorizacaoReportView, # <-- IMPORTAÇÃO ADICIONADA
+    AutorizacaoReportPDFView, # <-- IMPORTAÇÃO ADICIONADA
 )
 
 # Cria um router para ViewSets
@@ -20,15 +22,28 @@ router.register(r'imoveis/contatos', ContatoImovelViewSet)
 
 # Padrões de URL da API Interna (Prefixados com /api/v1/ no urls.py principal)
 urlpatterns = [
-    # 1. Rota Explícita para a Geração de PDF (Deve vir antes do include do router)
-    # Mapeia o URL exato que falhou (GET /api/v1/imoveis/5/gerar-autorizacao-pdf/)
+    # 1. Rota Explícita para a Geração de PDF (Contrato individual)
     path(
         'imoveis/<int:imovel_id>/gerar-autorizacao-pdf/', 
         GerarAutorizacaoPDFView.as_view(), 
         name='gerar-autorizacao-pdf'
     ),
     
-    # 2. Rotas automáticas do ViewSet (Cria, Lista, Detalhe, Update, IA Action)
+    # 2. Rota do Relatório de Autorizações (JSON)
+    path(
+        'imoveis/relatorio/autorizacoes/', 
+        AutorizacaoReportView.as_view(), 
+        name='relatorio-autorizacoes'
+    ),
+    
+    # 3. Rota do Relatório de Autorizações (PDF)
+    path(
+        'imoveis/relatorio/autorizacoes/pdf/', 
+        AutorizacaoReportPDFView.as_view(), 
+        name='relatorio-autorizacoes-pdf'
+    ),
+    
+    # 4. Rotas automáticas do ViewSet (Cria, Lista, Detalhe, Update, IA Action)
     path('', include(router.urls)),
     
     # --- Rotas Públicas (Se necessário, você as mapeia separadamente) ---
