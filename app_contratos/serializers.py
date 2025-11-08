@@ -79,7 +79,7 @@ class ContratoSerializer(serializers.ModelSerializer):
         model = Contrato
         fields = [
             'id', 'imobiliaria', 'tipo_contrato', 
-            'valor_total', 'aluguel', 
+            'valor_total', 'aluguel', # 'aluguel' mantido aqui para o get_valor_display
             'informacoes_adicionais', 'duracao_meses', 'status_contrato',
             'data_inicio', 'data_fim', 'data_assinatura', 'data_cadastro',
             'conteudo_personalizado',
@@ -101,15 +101,18 @@ class ContratoSerializer(serializers.ModelSerializer):
 
     def get_parte_principal_label(self, obj):
         """ Retorna o rótulo correto para a "outra parte" do contrato. """
-        return "Comprador" if obj.tipo_contrato == 'VENDA' else "Inquilino"
+        # CORREÇÃO: Comparando com o valor UPPERCASE do TextChoice
+        return "Comprador" if obj.tipo_contrato == Contrato.TipoContrato.VENDA else "Inquilino"
 
     def get_valor_display(self, obj):
         """ Retorna o valor formatado correto (mensal ou total). """
         try:
-            if obj.tipo_contrato == 'VENDA' and obj.valor_total is not None:
+            # CORREÇÃO: Comparando com o valor UPPERCASE do TextChoice
+            if obj.tipo_contrato == Contrato.TipoContrato.VENDA and obj.valor_total is not None:
                 valor_formatado = f"R$ {obj.valor_total:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
                 return valor_formatado
-            if obj.tipo_contrato == 'ALUGUEL' and obj.aluguel is not None:
+            # CORREÇÃO: Comparando com o valor UPPERCASE do TextChoice e usando o campo 'aluguel'
+            if obj.tipo_contrato == Contrato.TipoContrato.ALUGUEL and obj.aluguel is not None:
                 valor_formatado = f"R$ {obj.aluguel:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
                 return f"{valor_formatado} /mês"
         except Exception:
@@ -121,21 +124,17 @@ class ContratoCriacaoSerializer(serializers.ModelSerializer):
     """
     Serializer para criação/atualização. Implementa validação customizada para os valores.
     """
-    # ==================================================================
-    # CORREÇÃO (AttributeError): 
-    # A linha 'tipo_contrato = ...' foi REMOVIDA. 
-    # O ModelSerializer irá lidar com o campo, e o 'validate' irá limpá-lo.
-    # ==================================================================
     
     # Definimos os campos de valor explicitamente como NÃO obrigatórios na serialização
+    # (A validação 'validate' abaixo os tornará obrigatórios condicionalmente)
     valor_total = serializers.DecimalField(max_digits=15, decimal_places=2, required=False, allow_null=True)
     aluguel = serializers.DecimalField(max_digits=15, decimal_places=2, required=False, allow_null=True)
-    duracao_meses = serializers.IntegerField(required=False, allow_null=True)
+    duracao_meses = serializers.IntegerField(required=False, allow_null=True, default=12)
     
     class Meta:
         model = Contrato
         fields = '__all__'
-        # Campos preenchidos pelo código devem ser read-only
+        # Campos preenchidos pelo código (na view) devem ser read-only
         read_only_fields = ('imobiliaria', 'status_contrato', 'data_cadastro')
         
     def validate(self, data):
@@ -147,24 +146,30 @@ class ContratoCriacaoSerializer(serializers.ModelSerializer):
         valor_aluguel = data.get('aluguel')
         valor_venda = data.get('valor_total')
         
-        # 2. Sanitização e Validação do tipo_contrato (Resolve o erro '"ALUGUEL" não é um escolha válido.')
+        tipo_limpo = None
+        
+        # 2. Sanitização e Validação do tipo_contrato
         if tipo:
-             # Limpa aspas, espaços e força o UPPERCASE (garantindo que o valor seja o esperado pelo Model)
+             # Limpa aspas, espaços e força o UPPERCASE
              tipo_limpo = tipo.strip().upper().replace('"', '').replace("'", "")
+             # Compara com os valores definidos nos TextChoices do modelo
              if tipo_limpo not in [Contrato.TipoContrato.ALUGUEL, Contrato.TipoContrato.VENDA]:
                  raise serializers.ValidationError({"tipo_contrato": f"O tipo de contrato '{tipo}' é inválido."})
-             data['tipo_contrato'] = tipo_limpo # Salva o valor limpo
+             data['tipo_contrato'] = tipo_limpo # Salva o valor limpo (UPPERCASE)
         
-        # 3. Validação Condicional de Valores (Resolve o erro valor_total nulo)
-        if tipo == 'ALUGUEL':
+        # 3. Validação Condicional de Valores
+        
+        # CORREÇÃO: Usando 'tipo_limpo' (UPPERCASE) na verificação
+        if tipo_limpo == Contrato.TipoContrato.ALUGUEL:
             if not valor_aluguel:
                 raise serializers.ValidationError({"aluguel": "Este campo é obrigatório para contratos de Aluguel."})
-            data['valor_total'] = None 
+            data['valor_total'] = None # Zera o valor_total em aluguel
 
-        elif tipo == 'VENDA':
+        # CORREÇÃO: Usando 'tipo_limpo' (UPPERCASE) na verificação
+        elif tipo_limpo == Contrato.TipoContrato.VENDA:
             if not valor_venda:
                 raise serializers.ValidationError({"valor_total": "Este campo é obrigatório para contratos de Venda."})
-            data['aluguel'] = None
+            data['aluguel'] = None # Zera o aluguel em venda
             data['duracao_meses'] = None # Venda não tem duração
             
         return data

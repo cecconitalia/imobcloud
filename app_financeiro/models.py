@@ -81,9 +81,25 @@ class Transacao(models.Model):
         Retorna o nome do cliente associado a esta transação,
         seja através do campo cliente ou do contrato.
         """
-        # CORREÇÃO: Trocado '.nome' para '.nome_completo'
+        # CORREÇÃO: A lógica que usava 'nome_completo' estava errada.
+        # Esta lógica verifica se o cliente é PF ou PJ.
+        cliente_obj = None
         if self.cliente:
-            return self.cliente.nome_completo
-        if self.contrato and self.contrato.inquilino:
-            return self.contrato.inquilino.nome_completo
+            cliente_obj = self.cliente
+        elif self.contrato and self.contrato.inquilino:
+            cliente_obj = self.contrato.inquilino
+
+        if cliente_obj:
+            try:
+                # Verifica se é PJ e tem razao_social
+                if cliente_obj.tipo_pessoa == 'JURIDICA' and cliente_obj.razao_social:
+                    return cliente_obj.razao_social
+            except AttributeError:
+                # Caso o modelo Cliente não tenha 'tipo_pessoa' ou 'razao_social', 
+                # apenas retorna o 'nome'
+                pass
+            
+            # Retorna 'nome' para PF ou como fallback
+            return cliente_obj.nome 
+            
         return "Cliente não informado"

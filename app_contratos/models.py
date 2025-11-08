@@ -8,32 +8,32 @@ from django.utils import timezone
 from app_financeiro.models import FormaPagamento
 
 class Contrato(models.Model):
-    TIPO_CONTRATO_CHOICES = [
-        ('Venda', 'Venda'),
-        ('Aluguel', 'Aluguel')
-    ]
     
-    STATUS_CONTRATO_CHOICES = [
-        ('Pendente', 'Pendente'),
-        ('Ativo', 'Ativo'),
-        ('Concluído', 'Concluído'),
-        ('Rescindido', 'Rescindido'),
-        ('Inativo', 'Inativo')
-    ]
+    # CORREÇÃO: Uso de TextChoices para padronizar valores (UPPERCASE)
+    class TipoContrato(models.TextChoices):
+        VENDA = 'VENDA', 'Venda'
+        ALUGUEL = 'ALUGUEL', 'Aluguel'
+
+    class Status(models.TextChoices):
+        PENDENTE = 'PENDENTE', 'Pendente'
+        ATIVO = 'ATIVO', 'Ativo'
+        CONCLUIDO = 'CONCLUIDO', 'Concluído'
+        RESCINDIDO = 'RESCINDIDO', 'Rescindido'
+        INATIVO = 'INATIVO', 'Inativo'
     
     imobiliaria = models.ForeignKey(Imobiliaria, on_delete=models.CASCADE, verbose_name="Imobiliária")
     
     tipo_contrato = models.CharField(
         max_length=50, 
         verbose_name="Tipo de Contrato", 
-        choices=TIPO_CONTRATO_CHOICES
+        choices=TipoContrato.choices # CORREÇÃO: Usando TextChoices
     )
     imovel = models.ForeignKey(Imovel, on_delete=models.CASCADE, verbose_name="Imóvel")
     inquilino = models.ForeignKey(
         Cliente, 
         on_delete=models.CASCADE, 
         related_name="contratos_aluguel", 
-        verbose_name="Inquilino"
+        verbose_name="Inquilino" # Rótulo mantido, mas se aplica a Comprador também
     )
     proprietario = models.ForeignKey(
         Cliente,
@@ -42,10 +42,22 @@ class Contrato(models.Model):
         verbose_name="Proprietário"
     )
 
+    # NOVO CAMPO (Faltante)
+    aluguel = models.DecimalField(
+        max_digits=15, 
+        decimal_places=2, 
+        verbose_name="Valor do Aluguel (Mensal)",
+        null=True, 
+        blank=True,
+        help_text="Usado para gerar parcelas de aluguel."
+    )
+    
     valor_total = models.DecimalField(
         max_digits=15, 
         decimal_places=2, 
-        verbose_name="Valor Total do Contrato"
+        verbose_name="Valor Total do Contrato (Venda)",
+        null=True, # Permitir nulo para aluguel
+        blank=True
     )
     informacoes_adicionais = models.TextField(
         blank=True, null=True, verbose_name="Informações Adicionais"
@@ -53,13 +65,15 @@ class Contrato(models.Model):
     duracao_meses = models.PositiveIntegerField(
         default=12,
         verbose_name="Duração do Contrato (em meses)",
-        help_text="Usado para gerar as parcelas de aluguel."
+        help_text="Usado para gerar as parcelas de aluguel.",
+        null=True, # Permitir nulo para venda
+        blank=True
     )
     status_contrato = models.CharField(
         max_length=50, 
-        default='Pendente',
+        default=Status.PENDENTE, # CORREÇÃO: Usando TextChoices
         verbose_name="Status do Contrato", 
-        choices=STATUS_CONTRATO_CHOICES
+        choices=Status.choices # CORREÇÃO: Usando TextChoices
     )
     
     data_inicio = models.DateField(verbose_name="Data de Início")
@@ -73,7 +87,6 @@ class Contrato(models.Model):
         verbose_name="Formas de Pagamento Aceitas"
     )
     
-    # NOVO CAMPO: Para armazenar o conteúdo HTML editado pelo usuário
     conteudo_personalizado = models.TextField(
         blank=True, 
         null=True, 
@@ -87,10 +100,12 @@ class Contrato(models.Model):
         ordering = ['-data_cadastro']
 
     def __str__(self):
-        return f"Contrato de {self.tipo_contrato} - {self.imovel.logradouro} ({self.imobiliaria.nome})"
+        # CORREÇÃO: Usando .label para exibir o texto amigável (ex: 'Aluguel' em vez de 'ALUGUEL')
+        return f"Contrato de {self.get_tipo_contrato_display()} - {self.imovel.logradouro} ({self.imobiliaria.nome})"
 
 
 class Pagamento(models.Model):
+    # CORREÇÃO: Padronizando Status para UPPERCASE
     STATUS_PAGAMENTO_CHOICES = [
         ('PENDENTE', 'Pendente'),
         ('PAGO', 'Pago'),

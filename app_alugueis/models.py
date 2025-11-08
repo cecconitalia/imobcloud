@@ -6,7 +6,10 @@ from app_contratos.models import Contrato
 
 class Aluguel(models.Model):
     imovel = models.ForeignKey(Imovel, on_delete=models.CASCADE, related_name='alugueis')
-    contrato = models.OneToOneField(Contrato, on_delete=models.CASCADE, related_name='aluguel')
+    
+    # CORREÇÃO: Renomeado o related_name para evitar conflito com o campo 'aluguel' do modelo Contrato
+    contrato = models.OneToOneField(Contrato, on_delete=models.CASCADE, related_name='registro_aluguel')
+    
     data_inicio = models.DateField()
     data_fim = models.DateField()
     valor_mensal = models.DecimalField(max_digits=10, decimal_places=2)
