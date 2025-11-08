@@ -1,622 +1,647 @@
 <template>
-  <div class="page-container">
-    <header class="view-header">
-      <h1>{{ isEditing ? 'Editar Contrato' : 'Novo Contrato' }}</h1>
-      <div class="header-actions">
-        <button
-          v-if="isEditing"
-          @click="visualizarContrato"
-          class="btn-info"
-          type="button"
-        >
-          <i class="fas fa-eye"></i> Visualizar
-        </button>
-        <button
-          v-if="isEditing"
-          @click="prepararContrato"
-          class="btn-info"
-          type="button"
-        >
-          <i class="fas fa-file-pdf"></i> Gerar/Editar Contrato
-        </button>
-        <router-link to="/contratos" class="btn-secondary">
-          <i class="fas fa-arrow-left"></i> Voltar à Lista
+  <div class="page-container-form">
+    <form @submit.prevent="handleSubmit" class="form-card">
+      <div class="form-header">
+        <h2>{{ isEditing ? 'Editar Contrato' : 'Novo Contrato' }}</h2>
+        <router-link :to="{ name: 'contratos' }" class="btn btn-secondary">
+          <i class="fas fa-arrow-left"></i> Voltar para Lista
         </router-link>
       </div>
-    </header>
 
-    <form @submit.prevent="handleSubmit" class="form-layout">
-      <div class="form-card">
-        <h3 class="card-title">Detalhes do Contrato</h3>
-        <div class="form-grid">
-          
-          <div class="form-group">
-            <label for="tipo_contrato">Tipo de Contrato</label>
-            <select id="tipo_contrato" v-model="contrato.tipo_contrato" required>
-              <option disabled value="">Selecione o tipo</option>
-              <option value="Venda">Venda</option>
-              <option value="Aluguel">Aluguel</option>
-            </select>
-          </div>
-
-          <div class="form-group">
-            <label for="status_contrato">Status do Contrato</label>
-            <select id="status_contrato" v-model="contrato.status_contrato" required>
-              <option disabled value="">Selecione o status</option>
-              <option value="Pendente">Pendente</option>
-              <option value="Ativo">Ativo</option>
-              <option value="Concluído">Concluído</option>
-              <option value="Rescindido">Rescindido</option>
-              <option value="Inativo">Inativo</option>
-            </select>
-          </div>
-
-          <div class="form-group">
-            <label for="valor_total">Valor Total do Contrato (R$)</label>
-            <input type="number" id="valor_total" v-model.number="contrato.valor_total" required step="0.01" />
-          </div>
-
-          <div v-if="contrato.tipo_contrato === 'Aluguel'" class="form-group">
-            <label for="duracao_meses">Duração (meses)</label>
-            <input type="number" id="duracao_meses" v-model.number="contrato.duracao_meses" />
-          </div>
-
-          <div class="form-group">
-            <label for="data_inicio">Data de Início</label>
-            <input type="date" id="data_inicio" v-model="contrato.data_inicio" required />
-          </div>
-
-          <div class="form-group">
-            <label for="data_assinatura">Data de Assinatura</label>
-            <input type="date" id="data_assinatura" v-model="contrato.data_assinatura" required />
-          </div>
-        </div>
+      <div v-if="isLoading" class="loading-message">
+        <div class="spinner"></div>
+        A carregar dados...
       </div>
 
-      <div class="form-card">
-        <h3 class="card-title">Partes Envolvidas</h3>
-        <div class="form-grid">
-          <div class="form-group">
-            <label for="imovel">Imóvel</label>
-            <select id="imovel" v-model="contrato.imovel" required>
-              <option disabled :value="null">Selecione um imóvel</option>
-              <option v-for="imovel in imoveis" :key="imovel.id" :value="imovel.id">
-                {{ imovel.titulo_anuncio || imovel.logradouro }}
-              </option>
-            </select>
-          </div>
+      <div v-if="!isLoading">
+        <fieldset class="form-section">
+          <legend>Partes do Contrato</legend>
+          <div class="form-grid-2col">
+            <div class="form-group">
+              <label for="proprietario">Proprietário / Locador *</label>
+              <v-select
+                id="proprietario"
+                v-model="contrato.proprietario_id"
+                :options="proprietarioOptions" 
+                :reduce="(option) => option.value"
+                label="label"
+                placeholder="Selecione o proprietário (lista filtrada)"
+                :clearable="false"
+              ></v-select>
+            </div>
 
+            <div class="form-group">
+              <label for="inquilino">{{ tipoContratoLabel.outraParte }} *</label>
+              <v-select
+                id="inquilino"
+                v-model="contrato.inquilino_id"
+                :options="clienteOptions"
+                :reduce="(option) => option.value"
+                label="label"
+                placeholder="Selecione o inquilino/comprador (lista completa)"
+                :clearable="false"
+              ></v-select>
+            </div>
+            
+            <div class="form-group" v-if="contrato.tipo_contrato === 'ALUGUEL'">
+              <label for="fiadores">Fiadores</label>
+              <v-select
+                id="fiadores"
+                v-model="contrato.fiadores"
+                :options="clienteOptions"
+                :reduce="(option) => option.value"
+                label="label"
+                placeholder="Selecione um ou mais fiadores (lista completa)"
+                multiple
+              ></v-select>
+            </div>
+          </div>
+        </fieldset>
+
+        <fieldset class="form-section">
+          <legend>Objeto (Imóvel)</legend>
           <div class="form-group">
-            <label for="proprietario">Proprietário</label>
-            <select
-              id="proprietario"
-              v-model="contrato.proprietario"
-              required
-              :disabled="isProprietarioDisabled"
+            <label for="imovel">Imóvel *</label>
+            <v-select
+              id="imovel"
+              v-model="contrato.imovel_id"
+              :options="imovelOptions"
+              :reduce="(option) => option.value"
+              label="label"
+              placeholder="Selecione um proprietário primeiro"
+              :clearable="false"
+              :disabled="!contrato.proprietario_id || isCarregandoImoveis"
             >
-              <option disabled :value="null">Selecione o proprietário</option>
-              <option v-for="cliente in clientes" :key="cliente.id" :value="cliente.id">
-                {{ cliente.nome_completo }}
-              </option>
-            </select>
+              <template #no-options>
+                <span v-if="!contrato.proprietario_id">Selecione um proprietário para carregar os imóveis.</span>
+                <span v-else>Nenhum imóvel encontrado para este proprietário.</span>
+              </template>
+            </v-select>
           </div>
+        </fieldset>
 
-          <div class="form-group">
-            <label for="inquilino">Inquilino / Comprador</label>
-            <select id="inquilino" v-model="contrato.inquilino" required>
-              <option disabled :value="null">Selecione o inquilino/comprador</option>
-              <option v-for="cliente in clientes" :key="cliente.id" :value="cliente.id">
-                {{ cliente.nome_completo }}
-              </option>
-            </select>
+        <fieldset class="form-section">
+          <legend>Termos e Valores</legend>
+          <div class="form-grid-3col">
+            <div class="form-group">
+              <label for="tipo_contrato">Tipo de Contrato *</label>
+              <v-select
+                id="tipo_contrato"
+                v-model="contrato.tipo_contrato"
+                :options="opcoesTipoContrato"
+                :clearable="false"
+              ></v-select>
+            </div>
+            
+            <div class="form-group">
+              <label for="status_contrato">Status do Contrato *</label>
+              <v-select
+                id="status_contrato"
+                v-model="contrato.status_contrato"
+                :options="opcoesStatusContrato"
+                :clearable="false"
+              ></v-select>
+            </div>
+
+            <div class="form-group">
+              <label for="data_assinatura">Data da Assinatura</label>
+              <input type="date" id="data_assinatura" v-model="contrato.data_assinatura" />
+            </div>
+
+            <div class="form-group">
+              <label for="data_inicio">Data de Início *</label>
+              <input type="date" id="data_inicio" v-model="contrato.data_inicio" required />
+            </div>
+
+            <div class="form-group" v-if="contrato.tipo_contrato === 'ALUGUEL'">
+              <label for="duracao_meses">Duração (meses) *</label>
+              <input type="number" id="duracao_meses" v-model.number="contrato.duracao_meses" placeholder="Ex: 30" />
+            </div>
+            
+            <div class="form-group" v-if="contrato.tipo_contrato === 'ALUGUEL'">
+              <label for="data_fim">Data de Fim</label>
+              <input type="date" id="data_fim" v-model="contrato.data_fim" />
+            </div>
+
+            <div class="form-group" v-if="contrato.tipo_contrato === 'ALUGUEL'">
+              <label for="aluguel">Valor do Aluguel (R$) *</label>
+              <input
+                type="text"
+                id="aluguel"
+                v-model.lazy="contrato.aluguel"
+                v-money="moneyConfig"
+                class="form-input-money"
+              />
+            </div>
+            
+            <div class="form-group" v-if="contrato.tipo_contrato === 'VENDA'">
+              <label for="valor_total">Valor Total da Venda (R$) *</label>
+              <input
+                type="text"
+                id="valor_total"
+                v-model.lazy="contrato.valor_total"
+                v-money="moneyConfig"
+                class="form-input-money"
+              />
+            </div>
+            
+            <div class="form-group form-group-span-2" v-if="contrato.tipo_contrato === 'VENDA'">
+              <label for="formas_pagamento">Formas de Pagamento (Venda)</label>
+              <v-select
+                id="formas_pagamento"
+                v-model="contrato.formas_pagamento"
+                :options="formaPagamentoOptions"
+                :reduce="(option) => option.value"
+                label="label"
+                placeholder="Selecione as formas de pagamento"
+                multiple
+              ></v-select>
+            </div>
+            
           </div>
-        </div>
+        </fieldset>
+        
+        <fieldset class="form-section">
+          <legend>Cláusulas Personalizadas e Observações</legend>
+           <div class="form-group">
+              <label for="conteudo_personalizado">Cláusulas Adicionais</label>
+              <QuillEditor
+                theme="snow"
+                v-model:content="contrato.conteudo_personalizado"
+                contentType="html"
+                placeholder="Insira aqui cláusulas extras, observações ou termos que devem constar no PDF do contrato."
+                style="height: 250px; background-color: white;"
+              />
+            </div>
+            
+          <div class="form-group" style="margin-top: 5rem;">
+            <label for="informacoes_adicionais">Observações Internas (Não sai no contrato)</label>
+            <textarea
+              id="informacoes_adicionais"
+              v-model="contrato.informacoes_adicionais"
+              rows="4"
+              placeholder="Anotações para controle interno..."
+            ></textarea>
+          </div>
+        </fieldset>
       </div>
 
-      <div class="form-card">
-        <h3 class="card-title">Informações Adicionais</h3>
-        <div class="form-group full-width">
-          <label for="informacoes_adicionais">Cláusulas e Observações</label>
-          <textarea id="informacoes_adicionais" v-model="contrato.informacoes_adicionais" rows="5"></textarea>
-        </div>
-      </div>
-      
       <div class="form-actions">
-        <button type="button" @click="$router.push('/contratos')" class="btn-secondary">Cancelar</button>
-        <button type="submit" class="btn-primary" :disabled="isSubmitting">
-          <span v-if="isSubmitting" class="spinner-border spinner-border-sm"></span>
-          {{ isSubmitting ? 'Salvando...' : 'Salvar Contrato' }}
+        <button type="submit" class="btn btn-primary" :disabled="isSaving || isLoading">
+          <span v-if="isSaving"><i class="fas fa-spinner fa-spin"></i> Salvando...</span>
+          <span v-else><i class="fas fa-save"></i> Salvar Contrato</span>
         </button>
       </div>
     </form>
   </div>
-
-  <div v-if="showModal" class="modal-overlay">
-    <div class="modal">
-      <div class="modal-header">
-        <h3>Editar Conteúdo do Contrato</h3>
-        <button @click="showModal = false" class="close-btn">&times;</button>
-      </div>
-      <div class="modal-body">
-        <div class="info-message">
-          <p>Edite o conteúdo do contrato conforme necessário. A formatação será mantida na geração do PDF.</p>
-        </div>
-        <div ref="editorContainer"></div>
-      </div>
-      <div class="modal-footer">
-        <button @click="showModal = false" class="btn-secondary">Cancelar</button>
-        <button @click="salvarEGerarPDF" class="btn-primary" :disabled="isGenerating">
-            <span v-if="isGenerating" class="spinner-border spinner-border-sm"></span>
-            {{ isGenerating ? 'Salvando e Gerando...' : 'Salvar e Gerar PDF' }}
-        </button>
-      </div>
-    </div>
-  </div>
-
-  <div v-if="showVisualizarModal" class="modal-overlay">
-    <div class="modal-container">
-      <div class="modal-header">
-        <h3 class="modal-title">Visualização do Contrato (ID: {{ contrato.id }})</h3>
-        <button @click="showVisualizarModal = false" class="modal-close-btn">&times;</button>
-      </div>
-      <div v-if="loadingModal" class="modal-loading-message">
-        <div class="spinner"></div>
-        Carregando conteúdo do contrato...
-      </div>
-      <div v-else-if="modalError" class="modal-error-message">
-        {{ modalError }}
-      </div>
-      <div v-else class="modal-body-visualizar" v-html="contratoHtml"></div>
-    </div>
-  </div>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, computed, watch, nextTick } from 'vue';
-import { useRoute, useRouter } from 'vue-router';
+import { ref, onMounted, computed, watch } from 'vue';
+import { useRouter, useRoute } from 'vue-router';
 import apiClient from '@/services/api';
-import '@fortawesome/fontawesome-free/css/all.css';
-// Importação de biblioteca de terceiros para edição WYSIWYG
-import Quill from 'quill';
-import 'quill/dist/quill.snow.css';
 import { useToast } from 'vue-toast-notification';
+import 'vue-toast-notification/dist/theme-sugar.css';
 
-const route = useRoute();
+// Importação de componentes ricos
+import vSelect from 'vue-select';
+import 'vue-select/dist/vue-select.css';
+import { QuillEditor } from '@vueup/vue-quill';
+import '@vueup/vue-quill/dist/vue-quill.snow.css';
+
+// ==================================================================
+// CORREÇÃO (Tela Branca / Vue Warn): 
+// O 'v-money3' exporta a diretiva como 'default'.
+// Precisamos importá-la e extrair a propriedade '.directive' para o Vue 3.
+import money from 'v-money3';
+const vMoney = money.directive; // Esta é a diretiva que o template usará
+// ==================================================================
+
+
+// Interfaces
+interface ContratoFormData {
+  id?: number;
+  tipo_contrato: 'ALUGUEL' | 'VENDA';
+  status_contrato: 'PENDENTE' | 'ATIVO' | 'CONCLUIDO' | 'RESCINDIDO' | 'INATIVO';
+  imovel_id: number | null;
+  inquilino_id: number | null;
+  proprietario_id: number | null;
+  fiadores: number[]; // M2M
+  formas_pagamento: number[]; // M2M
+  valor_total: number | null;
+  aluguel: number | null;
+  duracao_meses: number | null;
+  data_inicio: string;
+  data_fim: string | null;
+  data_assinatura: string | null;
+  conteudo_personalizado: string;
+  informacoes_adicionais: string;
+}
+
+interface SelectOption {
+  label: string;
+  value: number;
+}
+
+// Configurações e Estado
 const router = useRouter();
+const route = useRoute();
 const toast = useToast();
 
-const contrato = ref({
-  id: null as number | null,
-  tipo_contrato: '',
-  status_contrato: 'Pendente',
-  valor_total: 0,
-  duracao_meses: 12,
-  data_inicio: '',
-  data_assinatura: '',
-  imovel: null as number | null,
-  proprietario: null as number | null,
-  inquilino: null as number | null,
+const contrato = ref<ContratoFormData>({
+  tipo_contrato: 'ALUGUEL',
+  status_contrato: 'PENDENTE',
+  imovel_id: null,
+  inquilino_id: null,
+  proprietario_id: null,
+  fiadores: [],
+  formas_pagamento: [],
+  valor_total: null,
+  aluguel: null,
+  duracao_meses: 30,
+  data_inicio: new Date().toISOString().split('T')[0],
+  data_fim: null,
+  data_assinatura: null,
+  conteudo_personalizado: '',
   informacoes_adicionais: '',
 });
 
-const clientes = ref<any[]>([]);
-const imoveis = ref<any[]>([]);
+// Listas de dados separadas
+const clienteOptions = ref<SelectOption[]>([]); 
+const proprietarioOptions = ref<SelectOption[]>([]); 
+const formaPagamentoOptions = ref<SelectOption[]>([]);
+const imovelOptions = ref<SelectOption[]>([]); 
 
-const isSubmitting = ref(false);
-const contratoId = computed(() => route.params.id as string | undefined);
-const isEditing = computed(() => !!contratoId.value);
-const isProprietarioDisabled = computed(() => !!contrato.value.imovel);
-
-const showModal = ref(false);
-const htmlContent = ref('');
-const isGenerating = ref(false);
-
-const editorContainer = ref(null);
-let quillEditor: Quill | null = null;
-
-// Variáveis para a modal de visualização
-const showVisualizarModal = ref(false);
-const contratoHtml = ref('');
-const loadingModal = ref(false);
-const modalError = ref('');
+const isLoading = ref(true);
+const isSaving = ref(false);
+const isCarregandoImoveis = ref(false); 
+const isEditing = computed(() => !!route.params.id);
 
 
-async function fetchData() {
-  try {
-    const [clientesRes, imoveisRes] = await Promise.all([
-      apiClient.get('/v1/clientes/'),
-      apiClient.get('/v1/imoveis/')
-    ]);
-    clientes.value = clientesRes.data;
-    imoveis.value = imoveisRes.data;
+// Opções Estáticas
+const opcoesTipoContrato = ['ALUGUEL', 'VENDA'];
+const opcoesStatusContrato = ['PENDENTE', 'ATIVO', 'CONCLUIDO', 'RESCINDIDO', 'INATIVO'];
 
-    if (isEditing.value) {
-      const contratoRes = await apiClient.get(`/v1/contratos/${contratoId.value}/`);
-      const data = contratoRes.data;
+// Configuração do v-money3
+const moneyConfig = {
+  decimal: ',',
+  thousands: '.',
+  prefix: 'R$ ',
+  suffix: '',
+  precision: 2,
+  masked: false,
+};
 
-      contrato.value = {
-        ...data,
-        imovel: data.imovel?.id || null,
-        proprietario: data.proprietario?.id || null,
-        inquilino: data.inquilino?.id || null,
-      };
-    }
-  } catch (err) {
-    console.error("Erro ao buscar dados para o formulário:", err);
-    toast.error("Não foi possível carregar os dados necessários.");
+// Labels dinâmicos
+const tipoContratoLabel = computed(() => {
+  if (contrato.value.tipo_contrato === 'VENDA') {
+    return { outraParte: 'Comprador' };
   }
-}
+  return { outraParte: 'Inquilino' };
+});
 
-onMounted(fetchData);
-
-watch(() => contrato.value.imovel, (newImovelId) => {
-  const imovelSelecionado = imoveis.value.find(i => i.id === newImovelId);
-  if (imovelSelecionado && imovelSelecionado.proprietario_detalhes) {
-    contrato.value.proprietario = imovelSelecionado.proprietario_detalhes.id;
+// Limpa campos incompatíveis ao trocar o tipo de contrato
+watch(() => contrato.value.tipo_contrato, (newType) => {
+  if (newType === 'VENDA') {
+    contrato.value.aluguel = null;
+    contrato.value.duracao_meses = null;
+    contrato.value.data_fim = null;
+    contrato.value.fiadores = [];
   } else {
-    contrato.value.proprietario = null;
+    contrato.value.valor_total = null;
+    contrato.value.formas_pagamento = [];
   }
 });
 
-/**
- * Prepara e abre o modal de edição, buscando o HTML atual do contrato.
- */
-async function prepararContrato() {
-    if (!contrato.value.id) {
-        toast.error('Por favor, salve o contrato antes de gerar o PDF.');
-        return;
-    }
-    showModal.value = true;
-    
-    // Garantir que o DOM foi renderizado antes de inicializar o Quill
-    await nextTick();
-    
-    // 1. Obter o HTML do backend
-    try {
-        const response = await apiClient.get(`/v1/contratos/${contrato.value.id}/get-html/`);
-        htmlContent.value = response.data;
-    } catch (error) {
-        console.error("Erro ao preparar HTML do contrato:", error);
-        toast.error('Ocorreu um erro ao buscar o template do contrato.');
-        showModal.value = false;
-        return;
-    }
-    
-    // 2. Inicializar ou re-utilizar o Quill
-    if (editorContainer.value) {
-        if (!quillEditor) {
-          quillEditor = new Quill(editorContainer.value, {
-              theme: 'snow',
-              modules: {
-                toolbar: [
-                  [{ 'header': [1, 2, 3, false] }],
-                  ['bold', 'italic', 'underline', 'strike'],
-                  [{ 'list': 'ordered'}, { 'list': 'bullet' }],
-                  [{ 'script': 'sub'}, { 'script': 'super' }],
-                  [{ 'indent': '-1'}, { 'indent': '+1' }],
-                  [{ 'direction': 'rtl' }],
-                  [{ 'align': [] }],
-                  ['link'],
-                  ['clean']
-                ]
-              }
-          });
-          quillEditor.on('text-change', () => {
-              if (quillEditor) {
-                  htmlContent.value = quillEditor.root.innerHTML;
-              }
-          });
-        }
-        // Coloca o HTML vindo do backend no editor
-        quillEditor.clipboard.dangerouslyPasteHTML(0, htmlContent.value);
-    }
-}
-
-/**
- * Salva o conteúdo HTML editado no banco de dados e gera o PDF final.
- */
-async function salvarEGerarPDF() {
-    if (!contrato.value.id || !quillEditor) return;
-    isGenerating.value = true;
-    try {
-        const htmlParaSalvar = quillEditor.root.innerHTML;
-        
-        // Passo 1: Salvar o conteúdo HTML no banco de dados (endpoint salvar-html-editado)
-        await apiClient.post(
-            `/v1/contratos/${contrato.value.id}/salvar-html-editado/`,
-            { html_content: htmlParaSalvar }
-        );
-        
-        // Passo 2: Gerar o PDF a partir do conteúdo salvo (endpoint gerar-pdf-editado)
-        // O backend usará a função gerar_contrato_pdf_editado
-        const response = await apiClient.post(
-            `/v1/contratos/${contrato.value.id}/gerar-pdf-editado/`,
-            { html_content: htmlParaSalvar },
-            { responseType: 'blob' }
-        );
-
-        const url = window.URL.createObjectURL(new Blob([response.data]));
-        const link = document.createElement('a');
-        link.href = url;
-        link.setAttribute('download', `contrato_${contrato.value.id}.pdf`);
-        document.body.appendChild(link);
-        link.click();
-        link.remove();
-        window.URL.revokeObjectURL(url);
-        showModal.value = false;
-        toast.success('Contrato salvo e PDF gerado com sucesso!');
-    } catch (error) {
-        console.error("Erro ao salvar ou gerar PDF:", error);
-        toast.error('Ocorreu um erro ao salvar o conteúdo ou gerar o PDF. Verifique o console.');
-    } finally {
-        isGenerating.value = false;
-    }
-}
-
-/**
- * Visualiza o HTML atual (salvo ou template) em um iframe/modal.
- */
-async function visualizarContrato() {
-  if (!contrato.value.id) {
-    toast.error('Por favor, salve o contrato antes de visualizá-lo.');
-    return;
-  }
-  showVisualizarModal.value = true;
-  loadingModal.value = true;
-  modalError.value = '';
-  try {
-    // Chama o endpoint que retorna o HTML (salvo ou template)
-    const response = await apiClient.get(`/v1/contratos/${contrato.value.id}/get-html/`);
-    contratoHtml.value = response.data;
-  } catch (err) {
-    modalError.value = 'Não foi possível carregar o conteúdo do contrato.';
-    toast.error(modalError.value);
-  } finally {
-    loadingModal.value = false;
-  }
-}
-
-async function handleSubmit() {
-  isSubmitting.value = true;
+// Lógica de carregamento de Imóveis por Proprietário
+watch(() => contrato.value.proprietario_id, (newPropId) => {
+  // Limpa o imóvel selecionado
+  contrato.value.imovel_id = null;
+  imovelOptions.value = [];
   
-  const payload = { ...contrato.value };
+  if (newPropId) {
+    loadImoveis(newPropId);
+  }
+});
 
-  // Lógica de negócio: se for venda, a duração é irrelevante/padrão
-  if (payload.tipo_contrato === 'Venda') {
-    payload.duracao_meses = 1;
+function loadImoveis(proprietarioId: number) {
+  isCarregandoImoveis.value = true;
+  apiClient.get<SelectOption[]>(`/v1/imoveis/lista-simples/?proprietario_id=${proprietarioId}`)
+    .then(response => {
+      imovelOptions.value = response.data; 
+    })
+    .catch(error => {
+      console.error("Erro ao carregar imóveis do proprietário:", error);
+      toast.error("Não foi possível carregar os imóveis deste proprietário.");
+    })
+    .finally(() => {
+      isCarregandoImoveis.value = false;
+    });
+}
+
+// Carregamento inicial de dados (Clientes, Proprietários, Formas de Pagamento)
+async function loadDropdownData() {
+  try {
+    const [todosClientesRes, proprietariosRes, formasRes] = await Promise.all([
+      apiClient.get('/v1/clientes/lista-simples/'), 
+      apiClient.get('/v1/clientes/lista_proprietarios/'), 
+      apiClient.get('/v1/financeiro/formas-pagamento/')
+    ]);
+    
+    // Mapeia os dados para o formato {label, value}
+    clienteOptions.value = todosClientesRes.data.map((cli: any) => ({
+      label: `${cli.nome_display} (${cli.documento || 'N/D'})`,
+      value: cli.id,
+    }));
+    
+    proprietarioOptions.value = proprietariosRes.data.map((cli: any) => ({
+      label: `${cli.nome_display} (${cli.documento || 'N/D'})`,
+      value: cli.id,
+    }));
+    
+    formaPagamentoOptions.value = formasRes.data.map((fp: any) => ({
+        label: fp.nome,
+        value: fp.id
+    }));
+    
+  } catch (error) { 
+    console.error("Erro ao carregar dados para dropdowns:", error);
+    toast.error("Falha ao carregar opções do formulário.");
+  }
+}
+
+
+async function loadContrato(id: string | string[]) {
+   try {
+    const { data } = await apiClient.get(`/v1/contratos/${id}/`);
+    
+    // Achata os dados para o formulário
+    contrato.value = {
+      ...data,
+      imovel_id: data.imovel_detalhes?.id || data.imovel,
+      inquilino_id: data.inquilino_detalhes?.id || data.inquilino,
+      proprietario_id: data.proprietario_detalhes?.id || data.proprietario,
+      fiadores: data.fiadores || [], 
+      formas_pagamento: data.formas_pagamento || [],
+      data_inicio: data.data_inicio ? data.data_inicio.split('T')[0] : '',
+      data_fim: data.data_fim ? data.data_fim.split('T')[0] : null,
+      data_assinatura: data.data_assinatura ? data.data_assinatura.split('T')[0] : null,
+    };
+    
+    // Se estamos editando, carregar os imóveis do proprietário
+    if (contrato.value.proprietario_id) {
+        await loadImoveis(contrato.value.proprietario_id);
+    }
+    
+  } catch (error) {
+    console.error("Erro ao carregar contrato:", error);
+    toast.error("Não foi possível carregar os dados do contrato.");
+    router.push({ name: 'contratos' });
+  }
+}
+
+onMounted(async () => {
+  isLoading.value = true;
+  await loadDropdownData(); 
+  if (isEditing.value) {
+    await loadContrato(route.params.id as string); 
+  }
+  isLoading.value = false;
+});
+
+// Ação de Salvar
+async function handleSubmit() {
+  if (isSaving.value) return;
+  isSaving.value = true;
+
+  // Garantir que os valores enviados estão em MAIÚSCULAS para o backend
+  const tipoContratoUpper = contrato.value.tipo_contrato ? contrato.value.tipo_contrato.toUpperCase() : null;
+  const statusContratoUpper = contrato.value.status_contrato ? contrato.value.status_contrato.toUpperCase() : null;
+
+  const payload = {
+      tipo_contrato: tipoContratoUpper,
+      status_contrato: statusContratoUpper,
+      // imobiliaria é omitido (definido no backend)
+      imovel: contrato.value.imovel_id,
+      inquilino: contrato.value.inquilino_id,
+      proprietario: contrato.value.proprietario_id,
+      fiadores: contrato.value.fiadores,
+      formas_pagamento: contrato.value.formas_pagamento,
+      valor_total: contrato.value.valor_total,
+      aluguel: contrato.value.aluguel,
+      duracao_meses: contrato.value.duracao_meses,
+      data_inicio: contrato.value.data_inicio,
+      data_fim: contrato.value.data_fim || null,
+      data_assinatura: contrato.value.data_assinatura || null,
+      conteudo_personalizado: contrato.value.conteudo_personalizado,
+      informacoes_adicionais: contrato.value.informacoes_adicionais,
+  };
+  
+  if (!payload.imovel || !payload.inquilino || !payload.proprietario) {
+      toast.error("Proprietário, Inquilino/Comprador e Imóvel são obrigatórios.");
+      isSaving.value = false;
+      return;
   }
 
   try {
     if (isEditing.value) {
-      // Nota: Não redirecionamos ao salvar na edição, apenas atualizamos
-      await apiClient.put(`/v1/contratos/${contratoId.value}/`, payload);
-      toast.success('Contrato atualizado com sucesso!');
+      await apiClient.put(`/v1/contratos/${route.params.id}/`, payload);
+      toast.success("Contrato atualizado com sucesso!");
     } else {
-      const createRes = await apiClient.post('/v1/contratos/', payload);
-      toast.success('Contrato criado com sucesso!');
-      // Redireciona para a tela de edição após a criação
-      router.push(`/contratos/editar/${createRes.data.id}`);
+      await apiClient.post('/v1/contratos/', payload);
+      toast.success("Contrato criado com sucesso! (Pagamentos gerados)");
     }
-    // Redireciona para a lista após a edição (ou após o redirecionamento pós-criação)
-    router.push('/contratos');
+    router.push({ name: 'contratos' });
   } catch (error: any) {
     console.error("Erro ao salvar contrato:", error.response?.data || error);
-    const errorMsg = error.response?.data ? JSON.stringify(error.response.data) : 'Verifique os dados e tente novamente.';
-    toast.error(`Ocorreu um erro ao salvar o contrato: ${errorMsg}`);
+    const errorMsg = JSON.stringify(error.response?.data || error);
+    toast.error(`Falha ao salvar: ${errorMsg}`);
   } finally {
-    isSubmitting.value = false;
+    isSaving.value = false;
   }
 }
 </script>
 
 <style scoped>
-/* Estilos padronizados para o formulário */
-.page-container {
-  padding: 2rem;
-  max-width: 1200px;
-  margin: 0 auto;
+/* Importar CSS do v-select e Quill */
+@import 'vue-select/dist/vue-select.css';
+@import '@vueup/vue-quill/dist/vue-quill.snow.css'; 
+
+/* Estilos Globais da Página */
+.page-container-form {
+  max-width: 1000px;
+  margin: 1rem auto;
+  padding: 0 1rem;
 }
-.view-header {
+
+.form-card {
+  background: #ffffff;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+  padding: 2rem;
+}
+
+.form-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 2rem;
-  padding-bottom: 1rem;
   border-bottom: 1px solid #e9ecef;
+  padding-bottom: 1rem;
+  margin-bottom: 2rem;
 }
-.header-actions {
-  display: flex;
-  gap: 1rem;
+.form-header h2 {
+  font-size: 1.75rem;
+  font-weight: 600;
+  color: #333;
 }
-h1 {
-  font-size: 2rem;
-}
-.btn-secondary {
+
+/* Estilos de Botões */
+.btn {
+  padding: 0.6rem 1.2rem;
+  border-radius: 6px;
+  text-decoration: none;
+  font-weight: 500;
   display: inline-flex;
   align-items: center;
   gap: 0.5rem;
-  background-color: #6c757d;
-  color: white;
-  padding: 12px 20px;
-  border-radius: 8px;
-  text-decoration: none;
-  font-weight: 600;
   border: none;
   cursor: pointer;
-  transition: all 0.2s ease-in-out;
+  transition: all 0.2s ease;
+}
+.btn-primary {
+  background-color: #007bff;
+  color: white;
+}
+.btn-primary:hover {
+  background-color: #0056b3;
+}
+.btn-primary:disabled {
+  background-color: #a0cfff;
+  cursor: not-allowed;
+}
+.btn-secondary {
+  background-color: #6c757d;
+  color: white;
 }
 .btn-secondary:hover {
   background-color: #5a6268;
 }
-.btn-primary {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.5rem;
-  background-color: #007bff;
-  color: white;
-  padding: 12px 20px;
-  border-radius: 8px;
-  text-decoration: none;
-  font-weight: 600;
+
+
+/* Seções do Formulário */
+.form-section {
   border: none;
-  cursor: pointer;
+  padding: 0;
+  margin-bottom: 2rem;
 }
-.btn-primary:disabled {
-  background-color: #adb5bd;
-  cursor: not-allowed;
-}
-.btn-info {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.5rem;
-  background-color: #17a2b8;
-  color: white;
-  padding: 12px 20px;
-  border-radius: 8px;
-  text-decoration: none;
+.form-section legend {
+  font-size: 1.2rem;
   font-weight: 600;
-  border: none;
-  cursor: pointer;
+  color: #0056b3;
+  margin-bottom: 1rem;
+  padding: 0;
 }
 
-.form-layout {
-  display: flex;
-  flex-direction: column;
+/* Grid Layout */
+.form-grid-2col {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
   gap: 1.5rem;
 }
-.form-card {
-  background-color: #fff;
-  border-radius: 8px;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.08);
-  padding: 2rem;
-}
-.card-title {
-  font-size: 1.5rem;
-  font-weight: 600;
-  color: #007bff;
-  margin-bottom: 1.5rem;
-  padding-bottom: 0.5rem;
-  border-bottom: 1px solid #e0e0e0;
-}
-
-.form-grid {
+.form-grid-3col {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
   gap: 1.5rem;
 }
 
+/* Grupos de Formulário */
 .form-group {
   display: flex;
   flex-direction: column;
+  gap: 0.5rem;
 }
-.form-group.full-width {
-  grid-column: 1 / -1;
+.form-group-span-2 {
+  grid-column: span 2;
 }
-label {
-  margin-bottom: 0.5rem;
+
+.form-group label {
   font-weight: 500;
   color: #495057;
 }
-input, select, textarea {
+.form-group input[type="text"],
+.form-group input[type="date"],
+.form-group input[type="number"],
+.form-group textarea,
+.form-group .form-input-money {
   width: 100%;
-  padding: 12px;
+  padding: 10px 12px;
   border: 1px solid #ced4da;
   border-radius: 6px;
-  font-size: 1rem;
-  box-sizing: border-box;
+  font-size: 0.9rem;
+  box-sizing: border-box; 
+  transition: border-color 0.2s, box-shadow 0.2s;
 }
-input:focus, select:focus, textarea:focus {
+.form-group input:focus,
+.form-group textarea:focus {
+  outline: none;
   border-color: #007bff;
-  box-shadow: 0 0 0 0.2rem rgba(0,123,255,.25);
+  box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.25);
+}
+.form-group textarea {
+  resize: vertical;
+  min-height: 80px;
+}
+
+/* Estilização do v-select */
+:deep(.vs__dropdown-toggle) {
+  padding: 6px 8px;
+  border: 1px solid #ced4da;
+  border-radius: 6px;
+  background: white;
+}
+:deep(.vs__search:focus) {
   outline: none;
 }
+:deep(.vs--open .vs__dropdown-toggle) {
+  border-color: #007bff;
+  box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.25);
+}
+:deep(.vs__selected) {
+  padding: 2px 6px;
+  background-color: #e0eafc;
+  border-color: #007bff;
+  color: #004a99;
+}
+:deep(.vs__clear), :deep(.vs__open-indicator) {
+  fill: #6c757d;
+}
+
+/* Ações do Formulário */
 .form-actions {
   display: flex;
   justify-content: flex-end;
-  gap: 1rem;
-  margin-top: 1rem;
+  margin-top: 2rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid #e9ecef;
 }
 
-/* ================== ESTILOS DO MODAL ================== */
-.modal-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background-color: rgba(0, 0, 0, 0.5);
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  z-index: 1000;
+/* Loading */
+.loading-message {
+  text-align: center;
+  padding: 3rem;
+  color: #6c757d;
 }
-
-.modal {
-  background: white;
-  padding: 2rem;
-  border-radius: 8px;
-  width: 90%;
-  max-width: 900px;
-  max-height: 90%;
-  display: flex;
-  flex-direction: column;
+.spinner {
+  border: 4px solid #f3f3f3;
+  border-top: 4px solid #007bff;
+  border-radius: 50%;
+  width: 40px;
+  height: 40px;
+  animation: spin 1s linear infinite;
+  margin: 0 auto 1rem;
 }
-
-.modal-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  border-bottom: 1px solid #e0e0e0;
-  padding-bottom: 1rem;
-  margin-bottom: 1rem;
-}
-
-.modal-header h3 {
-  margin: 0;
-  font-size: 1.5rem;
-  color: #333;
-}
-
-.modal-header .close-btn {
-  background: none;
-  border: none;
-  font-size: 2rem;
-  cursor: pointer;
-  line-height: 1;
-  padding: 0;
-}
-
-.modal-body {
-  flex-grow: 1;
-  overflow-y: auto;
-  margin-bottom: 1rem;
-}
-
-.modal-footer {
-  display: flex;
-  justify-content: flex-end;
-  gap: 1rem;
-  padding-top: 1rem;
-  border-top: 1px solid #e0e0e0;
-}
-
-/* Estilos para a nova modal de visualização */
-.modal-container {
-  background: #fff;
-  padding: 2rem;
-  border-radius: 8px;
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-  width: 90%;
-  max-width: 900px;
-  max-height: 90%;
-  overflow-y: auto;
-  position: relative;
-}
-
-.modal-body-visualizar {
-  white-space: pre-wrap;
-  font-family: 'Inter', sans-serif;
-  color: #333;
-  line-height: 1.6;
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
 }
 </style>

@@ -1,3 +1,5 @@
+# C:\wamp64\www\ImobCloud\app_contratos\views.py
+
 from rest_framework import viewsets, status, permissions
 from rest_framework.response import Response
 from rest_framework.decorators import action, api_view, permission_classes
@@ -9,9 +11,7 @@ from rest_framework.exceptions import ValidationError
 from django.template.loader import render_to_string
 from xhtml2pdf import pisa
 from django.http import HttpResponse
-from reportlab.lib.pagesizes import letter
-from reportlab.pdfgen import canvas
-from reportlab.lib.utils import ImageReader
+# Removidas as imports não utilizadas de reportlab
 from io import BytesIO
 from django.conf import settings
 import os
@@ -36,9 +36,18 @@ class ContratoViewSet(viewsets.ModelViewSet):
         return ContratoSerializer
 
     def perform_create(self, serializer):
-        serializer.save(imobiliaria=self.request.user.perfil.imobiliaria)
+        # ==================================================================
+        # CORREÇÃO CRÍTICA (Erro 400): 
+        # Define 'imobiliaria' e 'status_contrato' no views.py.
+        # Eles foram marcados como read_only no serializer.
+        # ==================================================================
+        serializer.save(
+            imobiliaria=self.request.user.perfil.imobiliaria,
+            status_contrato=Contrato.Status.PENDENTE # Define o status inicial
+        )
 
     def perform_update(self, serializer):
+        # Ao atualizar, a imobiliaria deve ser a mesma
         serializer.save(imobiliaria=self.request.user.perfil.imobiliaria)
 
     @action(detail=True, methods=['get'])
@@ -54,7 +63,8 @@ class ContratoViewSet(viewsets.ModelViewSet):
         if contrato.conteudo_personalizado:
             return HttpResponse(contrato.conteudo_personalizado, content_type='text/html; charset=utf-8')
 
-        template_name = 'contrato_aluguel_template.html' if contrato.tipo_contrato == 'Aluguel' else 'contrato_venda_template.html'
+        # CORREÇÃO: Usar a constante do modelo para consistência
+        template_name = 'contrato_aluguel_template.html' if contrato.tipo_contrato == Contrato.TipoContrato.ALUGUEL else 'contrato_venda_template.html'
         context = {
             'contrato': contrato,
             'imovel': contrato.imovel,
@@ -84,7 +94,8 @@ class ContratoViewSet(viewsets.ModelViewSet):
         if contrato.conteudo_personalizado:
             html_content = contrato.conteudo_personalizado
         else:
-            template_name = 'contrato_aluguel_template.html' if contrato.tipo_contrato == 'Aluguel' else 'contrato_venda_template.html'
+            # CORREÇÃO: Usar a constante do modelo para consistência
+            template_name = 'contrato_aluguel_template.html' if contrato.tipo_contrato == Contrato.TipoContrato.ALUGUEL else 'contrato_venda_template.html'
             context = {
                 'contrato': contrato,
                 'imovel': contrato.imovel,

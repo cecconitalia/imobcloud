@@ -1,5 +1,11 @@
 <template>
   <div class="page-container">
+    <div class="view-header">
+      <h1>Gestão de Contratos</h1>
+      <router-link :to="{ name: 'contrato-novo' }" class="btn btn-primary">
+        <i class="fas fa-plus"></i> Adicionar Contrato
+      </router-link>
+    </div>
     <div class="filters-bar card">
       <div class="search-wrapper">
         <i class="fas fa-search"></i>
@@ -35,18 +41,22 @@
     <div v-if="filteredContratos.length > 0 && !isLoading" class="contratos-grid">
       <div v-for="contrato in filteredContratos" :key="contrato.id" class="contrato-card">
         <div class="card-header">
-           <span :class="['status-badge', getStatusClass(contrato.status)]">{{ formatStatus(contrato.status) }}</span>
-           <span class="tipo-badge">{{ contrato.tipo === 'VENDA' ? 'Venda' : 'Aluguel' }}</span>
+           <span :class="['status-badge', getStatusClass(contrato.status_contrato)]">{{ formatStatus(contrato.status_contrato) }}</span>
+           <span class="tipo-badge">{{ contrato.tipo_contrato === 'VENDA' ? 'Venda' : 'Aluguel' }}</span>
         </div>
+        
         <div class="card-body">
-            <p><strong>Imóvel:</strong> {{ contrato.imovel_detalhes?.titulo_anuncio || contrato.imovel_detalhes?.codigo_referencia || 'N/A' }}</p>
-            <p v-if="contrato.tipo === 'ALUGUEL'"><strong>Inquilino:</strong> {{ contrato.inquilino_detalhes?.nome_completo || contrato.inquilino_detalhes?.razao_social || 'N/A' }}</p>
-            <p v-if="contrato.tipo === 'VENDA'"><strong>Comprador:</strong> {{ contrato.comprador_detalhes?.nome_completo || contrato.comprador_detalhes?.razao_social || 'N/A' }}</p>
-            <p><strong>Proprietário:</strong> {{ contrato.proprietario_detalhes?.nome_completo || contrato.proprietario_detalhes?.razao_social || 'N/A' }}</p>
+            <p><strong>Imóvel:</strong> {{ contrato.imovel_detalhes?.titulo_anuncio || contrato.imovel_detalhes?.logradouro || 'N/A' }}</p>
+            <p>
+              <strong>{{ contrato.parte_principal_label }}:</strong> 
+              {{ contrato.inquilino_detalhes?.nome_display || 'N/A' }}
+            </p>
+            <p><strong>Proprietário:</strong> {{ contrato.proprietario_detalhes?.nome_display || 'N/A' }}</p>
             <p><strong>Data Início:</strong> {{ formatarData(contrato.data_inicio) }}</p>
             <p><strong>Data Fim:</strong> {{ formatarData(contrato.data_fim) || 'Indeterminado' }}</p>
-            <p><strong>Valor:</strong> {{ formatarValor(contrato.valor_total || contrato.valor_mensal) }} {{ contrato.tipo === 'ALUGUEL' ? '/mês' : '' }}</p>
+            <p><strong>Valor:</strong> {{ contrato.valor_display }}</p>
         </div>
+
         <div class="card-actions">
           <button @click="verContrato(contrato.id)" class="btn-action btn-view"><i class="fas fa-eye"></i> Ver</button>
           <button @click="editarContrato(contrato.id)" class="btn-action btn-edit"><i class="fas fa-edit"></i> Editar</button>
@@ -74,29 +84,30 @@ import { useRouter } from 'vue-router';
 import apiClient from '@/services/api';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import ModalFinanceiroContrato from '@/components/ContratoFinanceiro.vue'; // Importa o modal
+import ModalFinanceiroContrato from '@/components/ContratoFinanceiro.vue';
 
-// Interfaces
-interface ClienteDetalhes { id: number; nome_completo?: string; razao_social?: string; }
-interface ImovelDetalhes { id: number; codigo_referencia?: string; titulo_anuncio?: string; }
+// Interface atualizada (da melhoria anterior)
+interface ClienteDetalhes { 
+  id: number; 
+  nome_display: string; 
+}
+interface ImovelDetalhes { 
+  id: number; 
+  logradouro: string; 
+  titulo_anuncio?: string; 
+}
 interface Contrato {
   id: number;
-  tipo: 'VENDA' | 'ALUGUEL';
-  imovel: number;
-  imovel_detalhes?: ImovelDetalhes;
-  proprietario: number;
-  proprietario_detalhes?: ClienteDetalhes;
-  inquilino?: number | null; // Apenas para aluguel
-  inquilino_detalhes?: ClienteDetalhes | null;
-  comprador?: number | null; // Apenas para venda
-  comprador_detalhes?: ClienteDetalhes | null;
+  tipo_contrato: 'VENDA' | 'ALUGUEL';
+  imovel_detalhes: ImovelDetalhes;
+  proprietario_detalhes: ClienteDetalhes;
+  inquilino_detalhes: ClienteDetalhes | null;
   data_inicio: string;
   data_fim?: string | null;
-  valor_total?: number | null; // Venda
-  valor_mensal?: number | null; // Aluguel
-  status: 'ATIVO' | 'PENDENTE' | 'CONCLUIDO' | 'RESCINDIDO' | 'INATIVO'; // Ajuste conforme backend
+  status_contrato: 'ATIVO' | 'PENDENTE' | 'CONCLUIDO' | 'RESCINDIDO' | 'INATIVO';
+  parte_principal_label: string;
+  valor_display: string;
 }
-
 
 const router = useRouter();
 const contratos = ref<Contrato[]>([]);
@@ -113,18 +124,15 @@ const contratoSelecionado = ref<Contrato | null>(null);
 const filteredContratos = computed(() => {
   return contratos.value.filter(contrato => {
     const searchLower = searchTerm.value.toLowerCase();
+    
     const matchSearch = !searchLower ||
       (contrato.imovel_detalhes?.titulo_anuncio?.toLowerCase() || '').includes(searchLower) ||
-      (contrato.imovel_detalhes?.codigo_referencia?.toLowerCase() || '').includes(searchLower) ||
-      (contrato.inquilino_detalhes?.nome_completo?.toLowerCase() || '').includes(searchLower) ||
-      (contrato.inquilino_detalhes?.razao_social?.toLowerCase() || '').includes(searchLower) ||
-      (contrato.comprador_detalhes?.nome_completo?.toLowerCase() || '').includes(searchLower) ||
-      (contrato.comprador_detalhes?.razao_social?.toLowerCase() || '').includes(searchLower) ||
-      (contrato.proprietario_detalhes?.nome_completo?.toLowerCase() || '').includes(searchLower) ||
-      (contrato.proprietario_detalhes?.razao_social?.toLowerCase() || '').includes(searchLower);
+      (contrato.imovel_detalhes?.logradouro?.toLowerCase() || '').includes(searchLower) ||
+      (contrato.inquilino_detalhes?.nome_display?.toLowerCase() || '').includes(searchLower) ||
+      (contrato.proprietario_detalhes?.nome_display?.toLowerCase() || '').includes(searchLower);
 
-    const matchStatus = !filterStatus.value || contrato.status === filterStatus.value;
-    const matchTipo = !filterTipo.value || contrato.tipo === filterTipo.value;
+    const matchStatus = !filterStatus.value || contrato.status_contrato === filterStatus.value;
+    const matchTipo = !filterTipo.value || contrato.tipo_contrato === filterTipo.value;
 
     return matchSearch && matchStatus && matchTipo;
   });
@@ -154,11 +162,6 @@ function formatarData(data: string | null | undefined): string {
   }
 }
 
-function formatarValor(valor: number | null | undefined): string {
-  if (valor === null || valor === undefined) return 'R$ -';
-  return valor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-}
-
 function formatStatus(status: string): string {
     const map: { [key: string]: string } = {
         'ATIVO': 'Ativo', 'PENDENTE': 'Pendente', 'CONCLUIDO': 'Concluído',
@@ -181,17 +184,16 @@ function getStatusClass(status: string): string {
 
 // --- Funções de Ação ---
 function verContrato(id: number) {
-    // Ajuste a rota se o nome for diferente no seu router/index.ts
-    router.push({ name: 'contrato-detalhes', params: { id } });
+    // Rota 'contrato-editar' usada para visualização/edição
+    router.push({ name: 'contrato-editar', params: { id } });
 }
 
 function editarContrato(id: number) {
-  // Ajuste a rota se o nome for diferente no seu router/index.ts
   router.push({ name: 'contrato-editar', params: { id } });
 }
 
 async function excluirContrato(id: number) {
-  if (window.confirm("Tem certeza que deseja excluir este contrato? Esta ação não pode ser desfeita.")) {
+  if (window.confirm("Tem certeza de que deseja excluir este contrato? Esta ação não pode ser desfeita e excluirá os pagamentos associados.")) {
     try {
       await apiClient.delete(`/v1/contratos/${id}/`);
       alert('Contrato excluído com sucesso!');
@@ -207,13 +209,13 @@ async function excluirContrato(id: number) {
 function abrirModalFinanceiro(contrato: Contrato) {
     contratoSelecionado.value = contrato;
     showModalFinanceiro.value = true;
-    document.body.style.overflow = 'hidden'; // Trava scroll do fundo
+    document.body.style.overflow = 'hidden';
 }
 
 function fecharModalFinanceiro() {
     showModalFinanceiro.value = false;
     contratoSelecionado.value = null;
-    document.body.style.overflow = ''; // Libera scroll do fundo
+    document.body.style.overflow = '';
 }
 
 
@@ -222,13 +224,49 @@ onMounted(fetchContratos);
 
 <style scoped>
 .page-container {
-  /* padding: 2rem; */ /* Removido */
-  padding: 0; /* Adicionado */
+  padding: 0; 
 }
 
-/* Regras .view-header e .btn-primary removidas */
+/* ================================================== */
+/* ESTILOS PARA O NOVO CABEÇALHO */
+/* ================================================== */
+.view-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1.5rem;
+  padding: 0 0.5rem; /* Alinhamento leve com os cards */
+}
+.view-header h1 {
+  font-size: 1.75rem;
+  font-weight: 600;
+  color: #333;
+}
 
-.card { /* Estilo base para cards */
+.btn-primary {
+  background-color: #007bff;
+  color: white;
+  padding: 0.6rem 1.2rem;
+  border-radius: 6px;
+  text-decoration: none;
+  font-weight: 500;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  border: none;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+.btn-primary:hover {
+  background-color: #0056b3;
+}
+.btn-primary i {
+  font-size: 0.9rem;
+}
+/* ================================================== */
+
+
+.card {
     background: white;
     padding: 1.5rem;
     border-radius: 8px;
@@ -239,19 +277,16 @@ onMounted(fetchContratos);
     margin-bottom: 0;
 }
 
-
-/* Filtros Melhorados */
 .filters-bar {
   display: flex;
-  flex-wrap: wrap; /* Permite quebrar linha */
-  /* justify-content: space-between; */ /* Removido */
-  align-items: center; /* Alinha verticalmente */
-  gap: 1rem 1.5rem; /* Espaço vertical e horizontal */
+  flex-wrap: wrap; 
+  align-items: center; 
+  gap: 1rem 1.5rem; 
 }
 
 .search-wrapper {
   position: relative;
-  flex: 1 1 300px; /* Cresce, encolhe, base 300px */
+  flex: 1 1 300px; 
   min-width: 250px;
 }
 .search-wrapper i {
@@ -267,14 +302,14 @@ onMounted(fetchContratos);
   border: 1px solid #ced4da;
   border-radius: 6px;
   font-size: 0.9rem;
-  box-sizing: border-box; /* Garante padding correto */
+  box-sizing: border-box; 
 }
 
 .filter-groups {
   display: flex;
   gap: 1rem;
-  flex-wrap: wrap; /* Permite que selects quebrem linha */
-  flex-grow: 1; /* Tenta ocupar espaço */
+  flex-wrap: wrap; 
+  flex-grow: 1; 
 }
 .filter-groups select {
   padding: 10px;
@@ -282,7 +317,7 @@ onMounted(fetchContratos);
   border-radius: 6px;
   font-size: 0.9rem;
   background-color: #fff;
-  flex: 1 1 150px; /* Cresce, encolhe, base 150px */
+  flex: 1 1 150px; 
   min-width: 150px;
 }
 
@@ -315,7 +350,6 @@ onMounted(fetchContratos);
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
   gap: 1.5rem;
-  margin-top: 1.5rem;
 }
 
 .contrato-card {
@@ -395,16 +429,14 @@ onMounted(fetchContratos);
   background: rgba(0, 0, 0, 0.6); display: flex;
   justify-content: center; align-items: center; z-index: 1050;
 }
-:global(.modal-container) { /* Ajuste o seletor se o modal usar outra classe */
+:global(.modal-container) { 
   background: #fff; padding: 2rem; border-radius: 8px;
   box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
-  width: 90%; max-width: 700px; /* Largura do modal financeiro */
+  width: 90%; max-width: 700px; 
   max-height: 90vh; overflow-y: auto; position: relative;
 }
-:global(.modal-close-button) { /* Ajuste o seletor */
+:global(.modal-close-button) { 
     position: absolute; top: 1rem; right: 1rem; background: none; border: none;
     font-size: 1.5rem; cursor: pointer; color: #6c757d; line-height: 1;
 }
-
-
 </style>

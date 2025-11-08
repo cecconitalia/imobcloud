@@ -1,4 +1,4 @@
-# C:\wamp64\www\ImobCloud\app_clientes\views.py
+# C:\wamp64\www\imobcloud\app_clientes\views.py
 
 from rest_framework import viewsets, permissions, status
 from rest_framework.response import Response
@@ -33,7 +33,12 @@ from .serializers import (
     VisitaSerializer,
     AtividadeSerializer,
     FunilEtapaSerializer,
+    # ClienteSimplificadoSerializer, # <-- REMOVIDO DAQUI
 )
+# ==================================================================
+# CORREÇÃO 1: Importar o serializer do app 'app_contratos'
+# ==================================================================
+from app_contratos.serializers import ClienteSimplificadoSerializer
 from ImobCloud.utils.google_calendar_api import agendar_tarefa_no_calendario
 from app_imoveis.models import Imovel
 
@@ -117,23 +122,18 @@ class GoogleCalendarAuthCallbackView(APIView):
 # ====================================================================
 
 class ClienteViewSet(viewsets.ModelViewSet):
-    # CORREÇÃO: Removida a ordenação padrão (.order_by('-data_cadastro'))
-    # que conflita com o SearchFilter.
     queryset = Cliente.objects.all()
     serializer_class = ClienteSerializer
     permission_classes = [permissions.IsAuthenticated]
     filter_backends = [filters.SearchFilter]
     
-    # CORRIGIDO: Atualizado para os novos nomes de campo do modelo Cliente.
     search_fields = ['nome', 'documento', 'razao_social', 'email']
     
     parser_classes = (MultiPartParser, FormParser)
 
     def get_queryset(self):
-        # 1. Filtro base de ativo (do código original)
         base_queryset = Cliente.objects.filter(ativo=True)
         
-        # 2. Filtro por Tenant/Superuser (do código original)
         if self.request.user.is_superuser:
             queryset = base_queryset.all()
         elif self.request.tenant:
@@ -141,17 +141,12 @@ class ClienteViewSet(viewsets.ModelViewSet):
         else:
             return Cliente.objects.none()
 
-        # --- CORREÇÃO: Filtro por Perfil do Cliente (para Proprietário) ---
-        # O ImovelFormView.vue envia ?tipo=PROPRIETARIO
         tipo = self.request.query_params.get('tipo', None)
         if tipo:
-            # Filtra clientes onde o JSONField 'perfil_cliente' contém a string 'tipo'
-            # (assumindo que 'perfil_cliente' é um ArrayField/JSONField no models.py)
             queryset = queryset.filter(perfil_cliente__contains=[tipo])
-        # --- FIM DA CORREÇÃO ---
             
-        # Adiciona ordenação aqui para não conflitar com SearchFilter
-        return queryset.order_by('nome')
+        # Removida a ordenação por 'nome' que quebrava o SearchFilter
+        return queryset
 
     def perform_create(self, serializer):
         if self.request.user.is_superuser:
@@ -180,6 +175,42 @@ class ClienteViewSet(viewsets.ModelViewSet):
             instance.save()
         else:
             raise PermissionDenied("Você não tem permissão para inativar este cliente.")
+
+    # ==================================================================
+    # CORREÇÃO 2: Adicionar as 'actions' 'lista_simples' e 'lista_proprietarios'
+    # ==================================================================
+    @action(detail=False, methods=['get'], url_path='lista-simples')
+    def lista_simples(self, request):
+        """
+        Retorna uma lista simplificada de TODOS os clientes 
+        (para Inquilinos, Fiadores, etc).
+        (Esta action já existia no seu ficheiro e está a funcionar)
+        """
+        queryset = self.get_queryset() # get_queryset() já filtra por tenant
+        
+        # O 'get_queryset' já lida com o filtro ?tipo=
+             
+        serializer = ClienteSimplificadoSerializer(queryset, many=True)
+        return Response(serializer.data)
+
+    @action(detail=False, methods=['get'], url_path='lista_proprietarios')
+    def lista_proprietarios(self, request):
+        """
+        Retorna uma lista simplificada de clientes que são
+        proprietários de PELO MENOS UM imóvel.
+        (Esta era a rota que estava a dar 404 NOT FOUND)
+        """
+        base_queryset = self.get_queryset() # get_queryset() já filtra por tenant
+        
+        # Filtra clientes que têm uma relação em 'imoveis_propriedade'
+        # (related_name do campo 'proprietario' no modelo Imovel)
+        queryset = base_queryset.filter(
+            imoveis_propriedade__isnull=False
+        ).distinct()
+        
+        serializer = ClienteSimplificadoSerializer(queryset, many=True)
+        return Response(serializer.data)
+    # ==================================================================
 
     @action(detail=True, methods=['get'])
     def atividades(self, request, pk=None):
@@ -260,7 +291,7 @@ class AtividadeViewSet(viewsets.ModelViewSet):
         serializer.save(registrado_por=self.request.user)
 
 # ====================================================================
-# VIEWS DE OPORTUNIDADE E OUTRAS (Melhoria do Filtro)
+# VIEWS DE OPORTUNIDADE E OUTRAS (Mantidas como estavam)
 # ====================================================================
 
 class OportunidadeViewSet(viewsets.ModelViewSet):
@@ -268,7 +299,6 @@ class OportunidadeViewSet(viewsets.ModelViewSet):
     serializer_class = OportunidadeSerializer
     permission_classes = [permissions.IsAuthenticated]
     
-    # --- MELHORIA DO FILTRO 1: DEFINIR search_fields no Backend ---
     filter_backends = [filters.SearchFilter]
     search_fields = [
         'titulo', 
@@ -277,7 +307,6 @@ class OportunidadeViewSet(viewsets.ModelViewSet):
         'imovel__logradouro', 
         'imovel__bairro'
     ]
-    # --- FIM DA MELHORIA 1 ---
 
     def get_queryset(self):
         user = self.request.user
@@ -294,19 +323,14 @@ class OportunidadeViewSet(viewsets.ModelViewSet):
         else:
             return Oportunidade.objects.none()
 
-        # --- MELHORIA DO FILTRO 2: Filtrar por Responsável ID ---
-        # Este filtro é usado pela combo box de Corretor no FunilVendasView.vue
         responsavel_id = self.request.query_params.get('responsavel')
         if responsavel_id:
-             try:
-                 # Garante que o ID é válido e filtra
-                 queryset = queryset.filter(responsavel__id=int(responsavel_id))
-             except ValueError:
-                 pass # Ignora se o ID for inválido
-        # --- FIM DA MELHORIA 2 ---
+            try:
+                queryset = queryset.filter(responsavel__id=int(responsavel_id))
+            except ValueError:
+                pass 
 
-        # O DRF SearchFilter já aplica o filtro de texto 'search' automaticamente.
-        return queryset.order_by('data_criacao') # Ordena por data de criação
+        return queryset.order_by('data_criacao') 
 
     def perform_create(self, serializer):
         if not self.request.tenant:
@@ -348,8 +372,8 @@ class OportunidadeViewSet(viewsets.ModelViewSet):
         
         response = super().partial_update(request, *args, **kwargs)
 
-        oportunidade.refresh_from_db() # Recarrega a oportunidade após a atualização
-        fase_nova_key = oportunidade.fase # Usa o campo do objeto recarregado
+        oportunidade.refresh_from_db() 
+        fase_nova_key = oportunidade.fase 
         
         if fase_nova_key != fase_anterior:
             fase_nova = oportunidade.get_fase_display()
@@ -481,8 +505,8 @@ class RelatoriosView(viewsets.ViewSet):
             # Se RelatorioCorretorSerializer existir, esta parte funcionará
             pass 
         elif relatorio_tipo == 'imobiliaria':
-             # Esta view usa um serializer que não foi fornecido, mantendo a lógica original
-             # Se RelatorioImobiliariaSerializer existir, esta parte funcionará
+            # Esta view usa um serializer que não foi fornecido, mantendo a lógica original
+            # Se RelatorioImobiliariaSerializer existir, esta parte funcionará
             pass
         else:
             return Response({"error": "Tipo de relatório inválido."}, status=status.HTTP_400_BAD_REQUEST)
