@@ -450,7 +450,7 @@ async function handleSubmit() {
       toast.success("Contrato atualizado com sucesso!");
     } else {
       await apiClient.post('/v1/contratos/', payload);
-      toast.success("Contrato criado com sucesso! (Pagamentos gerados)");
+      toast.success("Contrato criado com sucesso!");
     }
     router.push({ name: 'contratos' });
   } catch (error: any) {

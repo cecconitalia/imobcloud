@@ -41,8 +41,8 @@
     <div v-if="filteredContratos.length > 0 && !isLoading" class="contratos-grid">
       <div v-for="contrato in filteredContratos" :key="contrato.id" class="contrato-card">
         <div class="card-header">
-           <span :class="['status-badge', getStatusClass(contrato.status_contrato)]">{{ formatStatus(contrato.status_contrato) }}</span>
-           <span class="tipo-badge">{{ contrato.tipo_contrato === 'VENDA' ? 'Venda' : 'Aluguel' }}</span>
+          <span :class="['status-badge', getStatusClass(contrato.status_contrato)]">{{ formatStatus(contrato.status_contrato) }}</span>
+          <span class="tipo-badge">{{ contrato.tipo_contrato === 'VENDA' ? 'Venda' : 'Aluguel' }}</span>
         </div>
         
         <div class="card-body">
@@ -58,9 +58,24 @@
         </div>
 
         <div class="card-actions">
+          <button
+            v-if="contrato.tipo_contrato === 'ALUGUEL'"
+            @click="handleGerarFinanceiro(contrato.id)"
+            :disabled="isGeneratingFinanceiro === contrato.id"
+            class="btn-action btn-warning"
+            title="(Re)Gerar Financeiro (apaga parcelas pendentes e cria novas)"
+          >
+            <i v-if="isGeneratingFinanceiro === contrato.id" class="fas fa-spinner fa-spin"></i>
+            <i v-else class="fas fa-sync-alt"></i>
+            Gerar
+          </button>
+          
+          <button @click="abrirModalFinanceiro(contrato)" class="btn-action btn-financeiro" title="Ver Detalhes Financeiros">
+            <i class="fas fa-dollar-sign"></i> Financeiro
+          </button>
+          
           <button @click="verContrato(contrato.id)" class="btn-action btn-view"><i class="fas fa-eye"></i> Ver</button>
           <button @click="editarContrato(contrato.id)" class="btn-action btn-edit"><i class="fas fa-edit"></i> Editar</button>
-           <button @click="abrirModalFinanceiro(contrato)" class="btn-action btn-financeiro"><i class="fas fa-dollar-sign"></i> Financeiro</button>
           <button @click="excluirContrato(contrato.id)" class="btn-action btn-delete"><i class="fas fa-trash-alt"></i> Excluir</button>
         </div>
       </div>
@@ -69,7 +84,7 @@
       Nenhum contrato encontrado com os filtros selecionados.
     </div>
 
-     <ModalFinanceiroContrato
+    <ModalFinanceiroContrato
         v-if="showModalFinanceiro && contratoSelecionado"
         :contrato="contratoSelecionado"
         @close="fecharModalFinanceiro"
@@ -85,6 +100,9 @@ import apiClient from '@/services/api';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import ModalFinanceiroContrato from '@/components/ContratoFinanceiro.vue';
+import { useToast } from 'vue-toast-notification';
+import 'vue-toast-notification/dist/theme-sugar.css';
+
 
 // Interface atualizada (da melhoria anterior)
 interface ClienteDetalhes { 
@@ -116,6 +134,9 @@ const error = ref<string | null>(null);
 const searchTerm = ref('');
 const filterStatus = ref('');
 const filterTipo = ref('');
+
+const toast = useToast();
+const isGeneratingFinanceiro = ref<number | null>(null);
 
 // Estado do Modal Financeiro
 const showModalFinanceiro = ref(false);
@@ -156,6 +177,7 @@ async function fetchContratos() {
 function formatarData(data: string | null | undefined): string {
   if (!data) return '';
   try {
+    // Adiciona T00:00:00 para garantir que a data seja interpretada em Fuso local
     return format(new Date(data + 'T00:00:00'), 'dd/MM/yyyy', { locale: ptBR });
   } catch {
     return 'Inválida';
@@ -196,17 +218,49 @@ async function excluirContrato(id: number) {
   if (window.confirm("Tem certeza de que deseja excluir este contrato? Esta ação não pode ser desfeita e excluirá os pagamentos associados.")) {
     try {
       await apiClient.delete(`/v1/contratos/${id}/`);
-      alert('Contrato excluído com sucesso!');
+      toast.success('Contrato excluído com sucesso!'); // (Usando toast)
       fetchContratos(); // Recarrega a lista
     } catch (err) {
       console.error("Erro ao excluir contrato:", err);
-      alert('Não foi possível excluir o contrato.');
+      toast.error('Não foi possível excluir o contrato.'); // (Usando toast)
     }
   }
 }
 
+// Geração de Financeiro (NOVO)
+async function handleGerarFinanceiro(contratoId: number) {
+  if (isGeneratingFinanceiro.value !== null) return; // Já está gerando
+
+  const confirmacao = window.confirm(
+    "Atenção!\n\nIsto irá APAGAR todas as parcelas PENDENTES deste contrato e gerar novas parcelas com base nos dados salvos (valor, duração, data de início).\n\nDeseja continuar?"
+  );
+  
+  if (!confirmacao) {
+    return;
+  }
+
+  isGeneratingFinanceiro.value = contratoId;
+  try {
+    const response = await apiClient.post(`/v1/contratos/${contratoId}/gerar-financeiro/`);
+    toast.success(response.data.status || "Financeiro gerado com sucesso!");
+    
+  } catch (error: any) {
+    console.error("Erro ao gerar financeiro:", error.response?.data || error);
+    const errorMsg = error.response?.data?.error || "Falha ao gerar financeiro.";
+    toast.error(errorMsg, { duration: 5000 });
+  } finally {
+    isGeneratingFinanceiro.value = null; // Libera o botão
+  }
+}
+
+
 // Funções do Modal Financeiro
 function abrirModalFinanceiro(contrato: Contrato) {
+    // ==================================================================
+    // CORREÇÃO: Adicionando console.log para debugging
+    // ==================================================================
+    console.log("Abrir Modal Financeiro chamado para o contrato ID:", contrato.id);
+    
     contratoSelecionado.value = contrato;
     showModalFinanceiro.value = true;
     document.body.style.overflow = 'hidden';
@@ -346,11 +400,16 @@ onMounted(fetchContratos);
   100% { transform: rotate(360deg); }
 }
 
+/* ==================================================================
+  Layout de 4 cards por linha
+  ==================================================================
+*/
 .contratos-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
   gap: 1.5rem;
 }
+/* Fim da correção do Grid */
 
 .contrato-card {
   background-color: #fff;
@@ -400,8 +459,12 @@ onMounted(fetchContratos);
 .card-body p strong { color: #212529; margin-right: 5px; }
 
 .card-actions {
-  display: flex; justify-content: flex-end; gap: 0.5rem;
-  padding: 0.8rem 1.2rem; border-top: 1px solid #e9ecef;
+  display: flex; 
+  flex-wrap: wrap; 
+  justify-content: flex-end; 
+  gap: 0.5rem;
+  padding: 0.8rem 1.2rem; 
+  border-top: 1px solid #e9ecef;
   background-color: #f8f9fa;
 }
 
@@ -412,6 +475,31 @@ onMounted(fetchContratos);
     display: inline-flex; align-items: center; gap: 0.4rem;
 }
 .btn-action i { font-size: 0.9em; }
+
+/* ==================================================================
+  Estilo para o botão Warning (Gerar Financeiro)
+  ==================================================================
+*/
+.btn-action:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  background-color: #e9ecef;
+  color: #6c757d;
+  border-color: #ced4da;
+}
+
+.btn-warning { 
+  border: 1px solid #ffc107;
+  background-color: #ffc107; 
+  color: #212529; /* Texto escuro */
+}
+.btn-warning:hover:not(:disabled) { 
+  background-color: #e0a800; /* Tom mais escuro no hover */
+  color: #212529; 
+  border-color: #e0a800;
+}
+/* Fim da Correção do Botão */
+
 
 .btn-view { border-color: #6c757d; color: #6c757d; }
 .btn-view:hover { background-color: #6c757d; color: white; }

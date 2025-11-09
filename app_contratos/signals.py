@@ -7,61 +7,69 @@ from app_financeiro.models import Transacao, Categoria, Conta
 from datetime import date
 from dateutil.relativedelta import relativedelta
 
-@receiver(post_save, sender=Contrato)
-def criar_pagamentos_e_transacoes(sender, instance, created, **kwargs):
+# ==================================================================
+# CORREÇÃO: Lógica de Geração Automática Desativada
+# A função @receiver(post_save, sender=Contrato) foi comentada.
+# Esta lógica foi movida para uma 'action' manual dentro
+# de 'app_contratos/views.py' no ContratoViewSet.
+# Isso dá ao usuário o controle de quando gerar/regerar o financeiro.
+# ==================================================================
+
+# @receiver(post_save, sender=Contrato)
+# def criar_pagamentos_e_transacoes(sender, instance, created, **kwargs):
     
-    # CORREÇÃO: Verificando usando a constante (TextChoice) do modelo
-    if created and instance.tipo_contrato == Contrato.TipoContrato.ALUGUEL:
-        # Garantir que temos os dados necessários para aluguel
-        if not instance.aluguel or not instance.duracao_meses:
-            # Não deve acontecer se o serializer estiver correto, mas é uma segurança.
-            return 
+#     # CORREÇÃO: Verificando usando a constante (TextChoice) do modelo
+#     if created and instance.tipo_contrato == Contrato.TipoContrato.ALUGUEL:
+#         # Garantir que temos os dados necessários para aluguel
+#         if not instance.aluguel or not instance.duracao_meses:
+#             # Não deve acontecer se o serializer estiver correto, mas é uma segurança.
+#             return 
 
-        data_parcela = instance.data_inicio
+#         data_parcela = instance.data_inicio
         
-        # Obter ou criar categorias
-        try:
-            categoria_aluguel = Categoria.objects.get(imobiliaria=instance.imobiliaria, nome='Receita de Aluguel')
-        except Categoria.DoesNotExist:
-            categoria_aluguel = Categoria.objects.create(imobiliaria=instance.imobiliaria, nome='Receita de Aluguel', tipo='RECEITA')
+#         # Obter ou criar categorias
+#         try:
+#             categoria_aluguel = Categoria.objects.get(imobiliaria=instance.imobiliaria, nome='Receita de Aluguel')
+#         except Categoria.DoesNotExist:
+#             categoria_aluguel = Categoria.objects.create(imobiliaria=instance.imobiliaria, nome='Receita de Aluguel', tipo='RECEITA')
             
-        try:
-            # CORREÇÃO: Garantir que a conta exista antes de usar
-            conta_padrao = Conta.objects.filter(imobiliaria=instance.imobiliaria).first()
-        except Conta.DoesNotExist:
-            conta_padrao = None
+#         try:
+#             # CORREÇÃO: Garantir que a conta exista antes de usar
+#             conta_padrao = Conta.objects.filter(imobiliaria=instance.imobiliaria).first()
+#         except Conta.DoesNotExist:
+#             conta_padrao = None
 
-        duracao = instance.duracao_meses # Já validado pelo serializer
+#         duracao = instance.duracao_meses # Já validado pelo serializer
 
-        for i in range(duracao):
-            # Criar Pagamento
-            pagamento = Pagamento.objects.create(
-                contrato=instance,
-                data_vencimento=data_parcela,
-                # CORREÇÃO CRÍTICA: Usando 'instance.aluguel' (valor mensal)
-                valor=instance.aluguel, 
-                status='PENDENTE'
-            )
+#         for i in range(duracao):
+#             # Criar Pagamento
+#             pagamento = Pagamento.objects.create(
+#                 contrato=instance,
+#                 data_vencimento=data_parcela,
+#                 # CORREÇÃO CRÍTICA: Usando 'instance.aluguel' (valor mensal)
+#                 valor=instance.aluguel, 
+#                 status='PENDENTE'
+#             )
             
-            # Criar Transação correspondente
-            Transacao.objects.create(
-                imobiliaria=instance.imobiliaria,
-                descricao=f'Aluguel {i+1}/{duracao} - Imóvel Cód: {instance.imovel.codigo_referencia}',
-                # CORREÇÃO CRÍTICA: Usando 'instance.aluguel' (valor mensal)
-                valor=instance.aluguel,
-                data_transacao=date.today(), 
-                data_vencimento=data_parcela,
-                tipo='RECEITA',
-                status='PENDENTE',
-                categoria=categoria_aluguel,
-                conta=conta_padrao,
-                cliente=instance.inquilino,
-                imovel=instance.imovel,
-                contrato=instance
-            )
+#             # Criar Transação correspondente
+#             Transacao.objects.create(
+#                 imobiliaria=instance.imobiliaria,
+#                 descricao=f'Aluguel {i+1}/{duracao} - Imóvel Cód: {instance.imovel.codigo_referencia}',
+#                 # CORREÇÃO CRÍTICA: Usando 'instance.aluguel' (valor mensal)
+#                 valor=instance.aluguel,
+#                 data_transacao=date.today(), 
+#                 data_vencimento=data_parcela,
+#                 tipo='RECEITA',
+#                 status='PENDENTE',
+#                 categoria=categoria_aluguel,
+#                 conta=conta_padrao,
+#                 cliente=instance.inquilino,
+#                 imovel=instance.imovel,
+#                 contrato=instance
+#             )
             
-            # Adicionar um mês para a próxima parcela
-            data_parcela += relativedelta(months=1)
+#             # Adicionar um mês para a próxima parcela
+#             data_parcela += relativedelta(months=1)
 
 @receiver(post_save, sender=Pagamento)
 def atualizar_status_transacao(sender, instance, **kwargs):
@@ -80,4 +88,5 @@ def atualizar_status_transacao(sender, instance, **kwargs):
 @receiver(pre_delete, sender=Contrato)
 def deletar_transacoes_pendentes(sender, instance, **kwargs):
     # Ao deletar um contrato, remove as transações PENDENTES associadas
+    # (Mantemos esta lógica de limpeza)
     Transacao.objects.filter(contrato=instance, status='PENDENTE').delete()

@@ -16,7 +16,12 @@ from django.conf import settings
 import os
 from django.utils.dateparse import parse_date
 from django.db import transaction
-from app_financeiro.models import Transacao
+# ==================================================================
+# CORREÇÃO: Imports necessários para a nova action
+from app_financeiro.models import Transacao, Categoria, Conta
+from datetime import date
+from dateutil.relativedelta import relativedelta
+# ==================================================================
 from rest_framework.views import APIView
 from django.utils import timezone
 
@@ -31,10 +36,6 @@ class ContratoViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         if hasattr(self.request.user, 'perfil') and self.request.user.perfil.imobiliaria:
-            # ==================================================================
-            # OTIMIZAÇÃO: Adicionado 'prefetch_related('fiadores')' 
-            # pois 'fiadores' agora é ManyToMany.
-            # ==================================================================
             return Contrato.objects.filter(imobiliaria=self.request.user.perfil.imobiliaria).select_related(
                 'imovel', 'inquilino', 'proprietario'
             ).prefetch_related('fiadores')
@@ -46,15 +47,12 @@ class ContratoViewSet(viewsets.ModelViewSet):
         return ContratoSerializer
 
     def perform_create(self, serializer):
-        # Esta função está CORRETA. Ela força o status inicial para PENDENTE.
         serializer.save(
             imobiliaria=self.request.user.perfil.imobiliaria,
-            status_contrato=Contrato.Status.PENDENTE # Define o status inicial
+            status_contrato=Contrato.Status.PENDENTE 
         )
 
     def perform_update(self, serializer):
-        # Esta função está CORRETA. Ela permite salvar as alterações
-        # (incluindo o status_contrato enviado pelo Vue)
         serializer.save(imobiliaria=self.request.user.perfil.imobiliaria)
 
     @action(detail=True, methods=['get'])
@@ -63,6 +61,86 @@ class ContratoViewSet(viewsets.ModelViewSet):
         pagamentos = contrato.pagamentos.all().order_by('data_vencimento')
         serializer = PagamentoSerializer(pagamentos, many=True)
         return Response(serializer.data)
+
+    # ==================================================================
+    # CORREÇÃO: Nova Action para (Re)Gerar o Financeiro
+    # Esta função é chamada pelo novo botão no frontend
+    # ==================================================================
+    @action(detail=True, methods=['post'], url_path='gerar-financeiro')
+    @transaction.atomic
+    def gerar_financeiro(self, request, pk=None):
+        contrato = self.get_object()
+        imobiliaria = contrato.imobiliaria
+        
+        # 1. Validação: Só gera se for Aluguel (por enquanto)
+        # (Poderíamos expandir para Venda parcelada no futuro)
+        if contrato.tipo_contrato != Contrato.TipoContrato.ALUGUEL:
+            return Response(
+                {"error": "Geração financeira manual disponível apenas para contratos de Aluguel."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+            
+        if not contrato.aluguel or not contrato.duracao_meses:
+             return Response(
+                {"error": "Contrato precisa ter 'Valor do Aluguel' e 'Duração (meses)' definidos."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # 2. Limpa Lançamentos PENDENTES antigos para evitar duplicidade
+        Pagamento.objects.filter(contrato=contrato, status='PENDENTE').delete()
+        Transacao.objects.filter(contrato=contrato, status='PENDENTE').delete()
+        
+        # 3. Pega a lógica que estava no signals.py
+        data_parcela = contrato.data_inicio
+        
+        try:
+            categoria_aluguel = Categoria.objects.get(imobiliaria=imobiliaria, nome='Receita de Aluguel')
+        except Categoria.DoesNotExist:
+            categoria_aluguel = Categoria.objects.create(imobiliaria=imobiliaria, nome='Receita de Aluguel', tipo='RECEITA')
+            
+        try:
+            conta_padrao = Conta.objects.filter(imobiliaria=imobiliaria).first()
+        except Conta.DoesNotExist:
+            conta_padrao = None
+
+        duracao = contrato.duracao_meses
+        parcelas_criadas = 0
+
+        for i in range(duracao):
+            # Criar Pagamento
+            Pagamento.objects.create(
+                contrato=contrato,
+                data_vencimento=data_parcela,
+                valor=contrato.aluguel, 
+                status='PENDENTE'
+            )
+            
+            # Criar Transação correspondente
+            Transacao.objects.create(
+                imobiliaria=imobiliaria,
+                descricao=f'Aluguel {i+1}/{duracao} - Imóvel: {contrato.imovel.titulo_anuncio}',
+                valor=contrato.aluguel,
+                data_transacao=date.today(), 
+                data_vencimento=data_parcela,
+                tipo='RECEITA',
+                status='PENDENTE',
+                categoria=categoria_aluguel,
+                conta=conta_padrao,
+                cliente=contrato.inquilino,
+                imovel=contrato.imovel,
+                contrato=contrato
+            )
+            
+            data_parcela += relativedelta(months=1)
+            parcelas_criadas += 1
+
+        return Response(
+            {"status": f"{parcelas_criadas} parcelas financeiras foram geradas com sucesso."},
+            status=status.HTTP_201_CREATED
+        )
+    # ==================================================================
+    # Fim da nova Action
+    # ==================================================================
 
     @action(detail=True, methods=['get'], url_path='get-html')
     def get_html(self, request, pk=None):
