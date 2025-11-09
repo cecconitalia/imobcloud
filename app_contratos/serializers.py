@@ -6,7 +6,11 @@ from app_imoveis.models import Imovel
 from app_clientes.models import Cliente
 from django.db import transaction
 from app_financeiro.models import FormaPagamento 
+from decimal import Decimal # Import necessário para lidar com valores
 
+# ====================================================================
+# SERIALIZERS AUXILIARES
+# ====================================================================
 
 class ImovelSimplificadoSerializer(serializers.ModelSerializer):
     endereco_completo = serializers.SerializerMethodField()
@@ -35,8 +39,12 @@ class PagamentoSerializer(serializers.ModelSerializer):
         model = Pagamento
         fields = '__all__'
 
+# ====================================================================
+# SERIALIZER DE LEITURA E DETALHE (ContratoSerializer)
+# ====================================================================
+
 class ContratoSerializer(serializers.ModelSerializer):
-    # Serializer para LEITURA (Listagem)
+    """ Serializer para LEITURA (Detalhe/Visualização) """
     imovel_detalhes = ImovelSimplificadoSerializer(source='imovel', read_only=True)
     inquilino_detalhes = ClienteSimplificadoSerializer(source='inquilino', read_only=True)
     proprietario_detalhes = ClienteSimplificadoSerializer(source='proprietario', read_only=True)
@@ -47,7 +55,6 @@ class ContratoSerializer(serializers.ModelSerializer):
     parte_principal_label = serializers.SerializerMethodField()
     valor_display = serializers.SerializerMethodField()
     
-    # NOVO: Indica se já existem pagamentos gerados para o contrato.
     financeiro_gerado = serializers.BooleanField(read_only=True)
 
     formas_pagamento = serializers.PrimaryKeyRelatedField(many=True, read_only=True)
@@ -56,7 +63,14 @@ class ContratoSerializer(serializers.ModelSerializer):
         model = Contrato
         fields = [
             'id', 'imobiliaria', 'tipo_contrato', 
-            'valor_total', 'aluguel', 
+            'valor_total', 'aluguel', 'taxa_administracao_percentual',
+            
+            # [NOVOS CAMPOS DE VENDA/ALUGUEL]
+            'comissao_venda_percentual',
+            'valor_comissao_acordado',
+            'data_primeiro_vencimento',
+            'data_vencimento_venda',
+            
             'informacoes_adicionais', 'duracao_meses', 'status_contrato',
             'data_inicio', 'data_fim', 'data_assinatura', 'data_cadastro',
             'conteudo_personalizado',
@@ -74,7 +88,6 @@ class ContratoSerializer(serializers.ModelSerializer):
             # Campo de IDs de fiadores (para o v-model do form)
             'fiadores', 
             
-            # NOVO CAMPO:
             'financeiro_gerado',
         ]
         read_only_fields = ('data_cadastro', 'imobiliaria')
@@ -93,10 +106,14 @@ class ContratoSerializer(serializers.ModelSerializer):
         except Exception: pass 
         return "R$ -"
 
+# ====================================================================
+# SERIALIZER DE CRIAÇÃO E ATUALIZAÇÃO (ContratoCriacaoSerializer)
+# ====================================================================
 
 class ContratoCriacaoSerializer(serializers.ModelSerializer):
     """
     Serializer para CRIAÇÃO/ATUALIZAÇÃO.
+    Permite o envio de IDs para campos FKs e M2M.
     """
     
     imovel = serializers.PrimaryKeyRelatedField(
@@ -112,14 +129,12 @@ class ContratoCriacaoSerializer(serializers.ModelSerializer):
         required=True
     )
     
-    # Campo M2M 1: Fiadores
     fiadores = serializers.PrimaryKeyRelatedField(
         queryset=Cliente.objects.all(),
         required=False,
         many=True 
     )
 
-    # Campo M2M 2: Formas de Pagamento
     formas_pagamento = serializers.PrimaryKeyRelatedField(
         queryset=FormaPagamento.objects.all(),
         required=False,
@@ -134,7 +149,7 @@ class ContratoCriacaoSerializer(serializers.ModelSerializer):
     class Meta:
         model = Contrato
         
-        # Lista explícita de campos para garantir que todos os M2M sejam processados.
+        # Lista explícita de campos (ATUALIZADA)
         fields = [
             'tipo_contrato',
             'imovel',
@@ -143,6 +158,14 @@ class ContratoCriacaoSerializer(serializers.ModelSerializer):
             'fiadores', 
             'aluguel',
             'valor_total',
+            'taxa_administracao_percentual', # Campo de Aluguel
+            
+            # [NOVOS CAMPOS ADICIONADOS]
+            'comissao_venda_percentual',
+            'valor_comissao_acordado',
+            'data_primeiro_vencimento',
+            'data_vencimento_venda',
+            
             'informacoes_adicionais',
             'duracao_meses',
             'status_contrato',
@@ -173,6 +196,8 @@ class ContratoCriacaoSerializer(serializers.ModelSerializer):
         tipo = data.get('tipo_contrato')
         valor_aluguel = data.get('aluguel')
         valor_venda = data.get('valor_total')
+        data_primeiro_vencimento = data.get('data_primeiro_vencimento')
+        data_vencimento_venda = data.get('data_vencimento_venda')
         
         tipo_limpo = None
         
@@ -187,24 +212,27 @@ class ContratoCriacaoSerializer(serializers.ModelSerializer):
         if tipo_limpo == Contrato.TipoContrato.ALUGUEL:
             if not valor_aluguel:
                 raise serializers.ValidationError({"aluguel": "Este campo é obrigatório para contratos de Aluguel."})
+            if not data_primeiro_vencimento:
+                raise serializers.ValidationError({"data_primeiro_vencimento": "A data do primeiro vencimento é obrigatória para Aluguel."})
+
             data['valor_total'] = None 
+            data['data_vencimento_venda'] = None
 
         elif tipo_limpo == Contrato.TipoContrato.VENDA:
             if not valor_venda:
                 raise serializers.ValidationError({"valor_total": "Este campo é obrigatório para contratos de Venda."})
+            if not data_vencimento_venda:
+                raise serializers.ValidationError({"data_vencimento_venda": "A data de vencimento/quitação é obrigatória para Venda."})
+
             data['aluguel'] = None 
             data['duracao_meses'] = None 
+            data['data_primeiro_vencimento'] = None
             
-        # ==================================================================
-        # CORREÇÃO: Validação de Contrato Ativo Duplicado
-        # Movida para cá (do models.py) para retornar um erro 400
-        # formatado corretamente para o frontend.
-        # ==================================================================
+        # 5. Validação de Contrato Ativo Duplicado
         status_contrato = data.get('status_contrato')
         imovel = data.get('imovel')
         
         if status_contrato == Contrato.Status.ATIVO and imovel:
-            # Pega o 'self.instance' (o contrato atual) se for uma edição
             instance_pk = self.instance.pk if self.instance else None
             
             query_conflitos = Contrato.objects.filter(
@@ -214,9 +242,36 @@ class ContratoCriacaoSerializer(serializers.ModelSerializer):
             ).exclude(pk=instance_pk)
             
             if query_conflitos.exists():
-                # Esta é a mensagem de erro que será enviada ao frontend
                 raise serializers.ValidationError({
                     "status_contrato": f"Este imóvel já possui outro contrato de {tipo_limpo.capitalize()} ATIVO."
                 })
 
         return data
+
+# ====================================================================
+# SERIALIZER DE LISTAGEM (ContratoListSerializer) - Usado no views.py
+# ====================================================================
+
+class ContratoListSerializer(serializers.ModelSerializer):
+    """
+    Serializer leve para a listagem de Contratos.
+    """
+    # Exibe nomes em vez de IDs
+    imovel_titulo = serializers.CharField(source='imovel.titulo_anuncio', read_only=True)
+    
+    inquilino_nome = serializers.CharField(source='inquilino.nome_display', read_only=True)
+    proprietario_nome = serializers.CharField(source='proprietario.nome_display', read_only=True)
+    
+    financeiro_gerado = serializers.BooleanField(read_only=True)
+
+    class Meta:
+        model = Contrato
+        fields = [
+            'id', 'tipo_contrato', 'status_contrato',
+            'imovel', 'imovel_titulo', 
+            'inquilino', 'inquilino_nome',
+            'proprietario', 'proprietario_nome',
+            'aluguel', 'valor_total', 
+            'data_inicio', 'data_fim', 'data_assinatura',
+            'financeiro_gerado'
+        ]

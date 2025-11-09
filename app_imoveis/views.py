@@ -52,13 +52,10 @@ except Exception as e:
 
 
 # ===================================================================
-# VIEWS PÚBLICAS (Mantidas como estavam)
+# VIEWS PÚBLICAS (Mantidas)
 # ===================================================================
 
 class ImovelPublicListView(ListAPIView):
-    """
-    View para listar os imóveis ativos de uma imobiliária (tenant) no site público.
-    """
     serializer_class = ImovelPublicSerializer
     permission_classes = [permissions.AllowAny]
 
@@ -250,7 +247,7 @@ class ImovelIAView(APIView):
                     q_filter_min = Q(valor_venda__gte=valor_min_decimal) | Q(valor_aluguel__gte=valor_min_decimal)
                 base_queryset = base_queryset.filter(q_filter_min)
             except (ValueError, TypeError, InvalidOperation):
-                 pass # Ignora valor inválido
+                 pass 
 
         if 'valor_max' in search_params:
             valor_max_ia = search_params['valor_max']
@@ -261,7 +258,7 @@ class ImovelIAView(APIView):
                       q_filter_max = Q(valor_venda__lte=valor_max_decimal) | Q(valor_aluguel__lte=valor_max_decimal)
                  base_queryset = base_queryset.filter(q_filter_max)
             except (ValueError, TypeError, InvalidOperation):
-                 pass # Ignora valor inválido
+                 pass 
 
         if 'quartos_min' in search_params:
             try:
@@ -402,31 +399,31 @@ class ImovelViewSet(viewsets.ModelViewSet):
         else:
              raise PermissionDenied("Você não tem permissão para inativar este imóvel.")
 
-    # ==================================================================
-    # CORREÇÃO: Action 'lista_simples' atualizada para filtrar por proprietário
-    # ==================================================================
     @action(detail=False, methods=['get'], url_path='lista-simples')
     def lista_simples(self, request):
         """
-        Retorna uma lista simplificada de imóveis para uso em dropdowns
-        (ex: formulário de contrato).
-        
-        Se 'proprietario_id' for passado na query string, filtra
-        os imóveis que pertencem a esse proprietário.
+        Retorna uma lista simplificada de imóveis para uso em dropdowns,
+        filtrada opcionalmente por proprietário e finalidade (A_VENDA/PARA_ALUGAR).
         """
         # Inicia com o queryset base (já filtrado por tenant e status)
         queryset = self.get_queryset().exclude(status=Imovel.Status.DESATIVADO)
 
-        # --- NOVA LÓGICA DE FILTRO ---
         proprietario_id = request.query_params.get('proprietario_id')
+        finalidade = request.query_params.get('finalidade') # FILTRO POR FINALIDADE
+
+        # 1. Filtra por Proprietário (se fornecido)
         if proprietario_id:
             try:
-                # Filtra imóveis que pertencem ao ID do proprietário fornecido
                 queryset = queryset.filter(proprietario_id=int(proprietario_id))
             except (ValueError, TypeError):
-                # Ignora se o ID for inválido (ex: 'null' ou 'undefined')
                 pass 
-        # --- FIM DA NOVA LÓGICA ---
+        
+        # 2. Filtra por Finalidade (se fornecido)
+        # [CORREÇÃO] Compara a string/valor, não o atributo da classe
+        if finalidade == 'A_VENDA':
+            queryset = queryset.filter(finalidade='A_VENDA')
+        elif finalidade == 'PARA_ALUGAR':
+            queryset = queryset.filter(finalidade='PARA_ALUGAR')
 
         # Otimiza a consulta para buscar apenas o necessário
         dados_simplificados = queryset.values(
@@ -439,14 +436,12 @@ class ImovelViewSet(viewsets.ModelViewSet):
         # Formata os dados como o v-select espera ({label: '...', value: ...})
         data = [
             {
-                # Cria a label como: #CÓDIGO - Rua/Avenida, Bairro
                 "label": f"#{im['codigo_referencia']} - {im['logradouro']}, {im['bairro']}",
                 "value": im['id']
             }
             for im in dados_simplificados
         ]
         return Response(data)
-    # ==================================================================
 
 
     def _get_imovel_contexto_para_ia(self, imovel):
@@ -530,7 +525,7 @@ class ImovelViewSet(viewsets.ModelViewSet):
             response = model.generate_content(prompt_final, generation_config=generation_config)
 
             if not response.parts:
-                 raise ValueError("Resposta inesperada da IA (sem 'parts').")
+                 raise ValueError("Resposta inesperada da IA.")
 
             generated_text = response.parts[0].text
             generated_text = generated_text.strip().lstrip('```markdown').lstrip('```').rstrip('```').strip()

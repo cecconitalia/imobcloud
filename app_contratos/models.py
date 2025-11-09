@@ -6,6 +6,8 @@ from app_imoveis.models import Imovel
 from app_clientes.models import Cliente
 from django.utils import timezone
 from app_financeiro.models import FormaPagamento
+from decimal import Decimal 
+from django.core.validators import MinValueValidator, MaxValueValidator 
 
 class Contrato(models.Model):
     
@@ -57,13 +59,29 @@ class Contrato(models.Model):
         help_text="Usado para gerar parcelas de aluguel."
     )
     
-    # [NOVO CAMPO] Taxa de administração para repasse
     taxa_administracao_percentual = models.DecimalField(
         max_digits=5, 
         decimal_places=2, 
-        default=10.00, # Valor padrão de 10%
+        default=Decimal('10.00'), 
         verbose_name="Taxa de Administração (%)",
         help_text="Percentual retido pela imobiliária sobre o aluguel."
+    )
+    
+    comissao_venda_percentual = models.DecimalField(
+        max_digits=5,
+        decimal_places=2,
+        default=Decimal('6.00'), 
+        verbose_name="Comissão de Venda (%)",
+        help_text="Percentual de comissão sobre o valor total da venda."
+    )
+    
+    valor_comissao_acordado = models.DecimalField(
+        max_digits=15,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        verbose_name="Valor Final da Comissão (R$)",
+        help_text="Valor final acordado. Usado para lançar a RECEITA."
     )
     
     valor_total = models.DecimalField(
@@ -83,6 +101,25 @@ class Contrato(models.Model):
         null=True, 
         blank=True
     )
+    
+    # [CAMPO REMOVIDO] 'dia_vencimento_aluguel' foi removido.
+    
+    # [NOVO CAMPO] Data do Primeiro Vencimento (Aluguel)
+    data_primeiro_vencimento = models.DateField(
+        null=True, 
+        blank=True,
+        verbose_name="Data do 1º Vencimento (Aluguel)",
+        help_text="Data do primeiro vencimento para gerar as parcelas de aluguel."
+    )
+    
+    # [NOVO CAMPO] Data de Vencimento/Quitação para Venda
+    data_vencimento_venda = models.DateField(
+        null=True, 
+        blank=True, 
+        verbose_name="Data Venc. Comissão/Quitação (Venda)",
+        help_text="Data limite para o pagamento da comissão ou quitação da venda."
+    )
+    
     status_contrato = models.CharField(
         max_length=50, 
         default=Status.PENDENTE, 
@@ -109,6 +146,11 @@ class Contrato(models.Model):
     )
 
     def save(self, *args, **kwargs):
+        # Lógica de cálculo inicial da comissão
+        if self.tipo_contrato == self.TipoContrato.VENDA and self.valor_total and self.valor_comissao_acordado is None:
+            percentual = Decimal(self.comissao_venda_percentual) / Decimal(100) 
+            self.valor_comissao_acordado = self.valor_total * percentual
+        
         super().save(*args, **kwargs)
 
     class Meta:

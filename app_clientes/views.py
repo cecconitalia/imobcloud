@@ -33,11 +33,8 @@ from .serializers import (
     VisitaSerializer,
     AtividadeSerializer,
     FunilEtapaSerializer,
-    # ClienteSimplificadoSerializer, # <-- REMOVIDO DAQUI
 )
-# ==================================================================
-# CORREÇÃO 1: Importar o serializer do app 'app_contratos'
-# ==================================================================
+# CORREÇÃO: Importar o serializer do app 'app_contratos'
 from app_contratos.serializers import ClienteSimplificadoSerializer
 from ImobCloud.utils.google_calendar_api import agendar_tarefa_no_calendario
 from app_imoveis.models import Imovel
@@ -145,7 +142,6 @@ class ClienteViewSet(viewsets.ModelViewSet):
         if tipo:
             queryset = queryset.filter(perfil_cliente__contains=[tipo])
             
-        # Removida a ordenação por 'nome' que quebrava o SearchFilter
         return queryset
 
     def perform_create(self, serializer):
@@ -176,37 +172,45 @@ class ClienteViewSet(viewsets.ModelViewSet):
         else:
             raise PermissionDenied("Você não tem permissão para inativar este cliente.")
 
-    # ==================================================================
-    # CORREÇÃO 2: Adicionar as 'actions' 'lista_simples' e 'lista_proprietarios'
-    # ==================================================================
     @action(detail=False, methods=['get'], url_path='lista-simples')
     def lista_simples(self, request):
         """
         Retorna uma lista simplificada de TODOS os clientes 
         (para Inquilinos, Fiadores, etc).
-        (Esta action já existia no seu ficheiro e está a funcionar)
         """
         queryset = self.get_queryset() # get_queryset() já filtra por tenant
-        
-        # O 'get_queryset' já lida com o filtro ?tipo=
-             
         serializer = ClienteSimplificadoSerializer(queryset, many=True)
         return Response(serializer.data)
 
-    @action(detail=False, methods=['get'], url_path='lista_proprietarios')
+    # ==================================================================
+    # CORREÇÃO: Action 'lista_proprietarios' com filtro dinâmico
+    # ==================================================================
+    @action(detail=False, methods=['get'], url_path='lista-proprietarios')
     def lista_proprietarios(self, request):
         """
-        Retorna uma lista simplificada de clientes que são
-        proprietários de PELO MENOS UM imóvel.
-        (Esta era a rota que estava a dar 404 NOT FOUND)
+        Retorna uma lista simplificada de clientes que são proprietários, 
+        filtrados pela finalidade (A_VENDA/PARA_ALUGAR) do imóvel associado.
         """
-        base_queryset = self.get_queryset() # get_queryset() já filtra por tenant
+        base_queryset = self.get_queryset()
+        finalidade = request.query_params.get('finalidade') # Recebe 'A_VENDA' ou 'PARA_ALUGAR'
         
         # Filtra clientes que têm uma relação em 'imoveis_propriedade'
-        # (related_name do campo 'proprietario' no modelo Imovel)
         queryset = base_queryset.filter(
             imoveis_propriedade__isnull=False
-        ).distinct()
+        )
+
+        # [CORREÇÃO] Compara a string/valor, não o atributo da classe
+        if finalidade == 'A_VENDA':
+            queryset = queryset.filter(
+                imoveis_propriedade__finalidade='A_VENDA'
+            ).distinct()
+        elif finalidade == 'PARA_ALUGAR':
+            queryset = queryset.filter(
+                imoveis_propriedade__finalidade='PARA_ALUGAR'
+            ).distinct()
+        else:
+            # Se não houver finalidade, lista todos os proprietários ativos
+            queryset = queryset.distinct()
         
         serializer = ClienteSimplificadoSerializer(queryset, many=True)
         return Response(serializer.data)
@@ -486,7 +490,6 @@ class RelatoriosView(viewsets.ViewSet):
     permission_classes = [IsAdminOrSuperUser]
 
     def list(self, request):
-        # ... (código mantido, mas com a correção abaixo)
         tenant = request.tenant
         if not tenant and request.user.is_superuser:
             tenant = Imobiliaria.objects.first()
@@ -501,13 +504,9 @@ class RelatoriosView(viewsets.ViewSet):
         elif relatorio_tipo == 'origem_leads':
             data = self._get_origem_leads(tenant)
         elif relatorio_tipo == 'desempenho_corretores':
-            # Esta view usa um serializer que não foi fornecido, mantendo a lógica original
-            # Se RelatorioCorretorSerializer existir, esta parte funcionará
-            pass 
+            data = self._get_desempenho_corretores(tenant) 
         elif relatorio_tipo == 'imobiliaria':
-            # Esta view usa um serializer que não foi fornecido, mantendo a lógica original
-            # Se RelatorioImobiliariaSerializer existir, esta parte funcionará
-            pass
+            data = self._get_relatorio_imobiliaria(tenant)
         else:
             return Response({"error": "Tipo de relatório inválido."}, status=status.HTTP_400_BAD_REQUEST)
         
@@ -518,18 +517,11 @@ class RelatoriosView(viewsets.ViewSet):
         return list(funil)
 
     def _get_origem_leads(self, tenant):
-        # CORRIGIDO: A fonte do lead está no modelo Oportunidade, não no Cliente.
         origens = Oportunidade.objects.filter(imobiliaria=tenant).values('fonte').annotate(total=Count('fonte'))
         return list(origens)
 
-    # Os métodos _get_desempenho_corretores e _get_relatorio_imobiliaria
-    # foram omitidos pois dependem de serializers não fornecidos,
-    # mas a lógica original seria mantida aqui.
-    # Para o código ser funcional, adiciono placeholders.
     def _get_desempenho_corretores(self, tenant):
-        # Lógica original que depende de RelatorioCorretorSerializer
         return {"message": "Relatório de desempenho de corretores a ser implementado."}
     
     def _get_relatorio_imobiliaria(self, tenant):
-         # Lógica original que depende de RelatorioImobiliariaSerializer
-        return {"message": "Relatório de imobiliária a ser implementado."}
+         return {"message": "Relatório de imobiliária a ser implementado."}

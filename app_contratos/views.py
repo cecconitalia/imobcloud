@@ -5,7 +5,8 @@ from rest_framework.response import Response
 from rest_framework.decorators import action, api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from .models import Contrato, Pagamento
-from .serializers import ContratoSerializer, PagamentoSerializer, ContratoCriacaoSerializer
+# CORREÇÃO: Removido 'ContratoListSerializer' da importação principal
+from .serializers import ContratoSerializer, PagamentoSerializer, ContratoCriacaoSerializer 
 from django.shortcuts import get_object_or_404
 from rest_framework.exceptions import ValidationError
 from django.template.loader import render_to_string
@@ -25,6 +26,9 @@ from dateutil.relativedelta import relativedelta
 from rest_framework.views import APIView
 from django.utils import timezone
 
+# Imports adicionados para a Automação de Venda/Aluguel
+from datetime import timedelta
+from decimal import Decimal
 # Imports do Reportlab (necessárias para GerarReciboView)
 from reportlab.pdfgen import canvas
 from reportlab.lib.pagesizes import letter
@@ -37,7 +41,6 @@ class ContratoViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         if hasattr(self.request.user, 'perfil') and self.request.user.perfil.imobiliaria:
             
-            # Subquery para verificar a existência de pagamentos
             pagamento_exists_subquery = Pagamento.objects.filter(
                 contrato_id=OuterRef('pk')
             )
@@ -50,58 +53,194 @@ class ContratoViewSet(viewsets.ModelViewSet):
         return Contrato.objects.none()
 
     def get_serializer_class(self):
+        if self.action == 'list':
+            try:
+                from .serializers import ContratoListSerializer
+                return ContratoListSerializer
+            except ImportError:
+                return ContratoSerializer
+
         if self.action in ['create', 'update', 'partial_update']:
             return ContratoCriacaoSerializer
         return ContratoSerializer
 
     def perform_create(self, serializer):
-        # Cria o contrato sempre como PENDENTE
         serializer.save(
             imobiliaria=self.request.user.perfil.imobiliaria,
             status_contrato=Contrato.Status.PENDENTE 
         )
 
+    @transaction.atomic
     def perform_update(self, serializer):
+        instance = serializer.instance
+        status_anterior = instance.status_contrato
+        novo_status = serializer.validated_data.get('status_contrato')
+        
         serializer.save(imobiliaria=self.request.user.perfil.imobiliaria)
+        
+        instance.refresh_from_db() 
+        
+        # Gatilho para Venda Concluída/Ativa:
+        is_venda_concluida_agora = (
+            instance.tipo_contrato == Contrato.TipoContrato.VENDA and 
+            novo_status in [Contrato.Status.ATIVO, Contrato.Status.CONCLUIDO] and
+            status_anterior not in [Contrato.Status.ATIVO, Contrato.Status.CONCLUIDO]
+        )
 
-    # ==================================================================
-    # NOVA ACTION: Ativar Contrato (Chamada pelo novo botão)
-    # ==================================================================
+        if is_venda_concluida_agora:
+            print(f"GATILHO DE VENDA: Contrato {instance.id} concluído. Criando Receita de Comissão.")
+            self._criar_transacao_comissao(instance)
+        
+        # Lógica de Ativação para Aluguel
+        is_aluguel_ativado_agora = (
+             instance.tipo_contrato == Contrato.TipoContrato.ALUGUEL and 
+             novo_status == Contrato.Status.ATIVO and
+             status_anterior != Contrato.Status.ATIVO
+        )
+        if is_aluguel_ativado_agora and not instance.pagamentos.exists():
+            print(f"GATILHO DE ALUGUEL: Contrato {instance.id} ativado. Gerando parcelas.")
+            self._gerar_financeiro_aluguel(instance) 
+
+    
+    def _gerar_financeiro_aluguel(self, contrato: Contrato):
+        """ Helper para gerar parcelas de aluguel (replicado da action gerar_financeiro) """
+        imobiliaria = contrato.imobiliaria
+        
+        # [CORREÇÃO] Valida se a data do primeiro vencimento foi definida
+        if not contrato.aluguel or not contrato.duracao_meses or not contrato.data_primeiro_vencimento:
+             print(f"ERRO ALUGUEL: Contrato {contrato.id} sem Valor/Duração/Data do 1º Vencimento. Geração ignorada.")
+             return
+             
+        # Limpa Lançamentos PENDENTES antigos
+        Pagamento.objects.filter(contrato=contrato, status='PENDENTE').delete()
+        Transacao.objects.filter(contrato=contrato, status='PENDENTE', tipo='RECEITA').delete()
+        
+        # [CORREÇÃO] Usa a data do primeiro vencimento como base
+        data_base_vencimento = contrato.data_primeiro_vencimento
+        duracao = contrato.duracao_meses
+        
+        try:
+             categoria_aluguel = Categoria.objects.get(imobiliaria=imobiliaria, nome='Receita de Aluguel')
+        except Categoria.DoesNotExist:
+             categoria_aluguel = Categoria.objects.create(imobiliaria=imobiliaria, nome='Receita de Aluguel', tipo='RECEITA')
+             
+        conta_padrao = Conta.objects.filter(imobiliaria=imobiliaria).first()
+        
+        for i in range(duracao):
+             # [CORREÇÃO] Calcula a data da parcela usando relativedelta a partir da data base
+             data_parcela = data_base_vencimento + relativedelta(months=i)
+             
+             Pagamento.objects.create(
+                 contrato=contrato,
+                 data_vencimento=data_parcela,
+                 valor=contrato.aluguel, 
+                 status='PENDENTE'
+             )
+             
+             Transacao.objects.create(
+                 imobiliaria=imobiliaria,
+                 descricao=f'Aluguel {i+1}/{duracao} - Imóvel: {contrato.imovel.logradouro}',
+                 valor=contrato.aluguel,
+                 data_transacao=date.today(), 
+                 data_vencimento=data_parcela,
+                 tipo='RECEITA',
+                 status='PENDENTE',
+                 categoria=categoria_aluguel,
+                 conta=conta_padrao,
+                 cliente=contrato.inquilino,
+                 imovel=contrato.imovel,
+                 contrato=contrato
+             )
+        print(f"SUCESSO ALUGUEL: {duracao} parcelas geradas para Contrato {contrato.id}.")
+        
+    
+    def _criar_transacao_comissao(self, contrato: Contrato):
+        """
+        Cria a transação de RECEITA (pendente) para a comissão de venda.
+        """
+        
+        # 1. Checa se a transação já existe
+        descricao_base = f"Comissão de Venda: {contrato.imovel.logradouro}"
+        if Transacao.objects.filter(contrato=contrato, tipo='RECEITA', descricao__startswith=descricao_base).exists():
+            print(f"AVISO VENDA: Lançamento de comissão para Contrato {contrato.id} já existe. Ignorando.")
+            return
+
+        # 2. VALIDAÇÃO E CÁLCULO
+        valor_comissao = contrato.valor_comissao_acordado 
+        if not valor_comissao or valor_comissao <= 0:
+            print(f"AVISO VENDA: Contrato {contrato.id} sem Valor de Comissão Acordado (R$ {valor_comissao}). Lançamento ignorado.")
+            return
+
+        # 3. CATEGORIA (Self-Healing)
+        try:
+            categoria_comissao, created = Categoria.objects.get_or_create(
+                imobiliaria=contrato.imobiliaria,
+                nome='Comissão de Venda', 
+                tipo='RECEITA'
+            )
+            if created:
+                print(f"AVISO VENDA: Categoria 'Comissão de Venda' (RECEITA) criada automaticamente.")
+        except Exception as e:
+            print(f"ERRO CRÍTICO VENDA: Falha ao obter/criar Categoria de Comissão. Erro: {e}.")
+            return
+
+        # 4. DATAS [CORREÇÃO]
+        data_base = timezone.now().date()
+        
+        # [CORREÇÃO] Usa a data de vencimento da venda (quitação) se existir, senão usa a data da assinatura
+        if contrato.data_vencimento_venda:
+            data_vencimento = contrato.data_vencimento_venda
+        else:
+            data_vencimento = max(contrato.data_assinatura + timedelta(days=30), data_base) 
+
+        # 5. CRIAÇÃO da Transação
+        Transacao.objects.create(
+            imobiliaria=contrato.imobiliaria,
+            descricao=descricao_base,
+            valor=valor_comissao,
+            tipo='RECEITA',
+            status='PENDENTE',
+            data_transacao=data_base,
+            data_vencimento=data_vencimento,
+            
+            categoria=categoria_comissao,
+            cliente=contrato.inquilino,
+            imovel=contrato.imovel,
+            contrato=contrato,
+            
+            observacoes=f"Comissão de Venda gerada automaticamente. Valor de venda: R$ {contrato.valor_total}. Comissão baseada no valor acordado: R$ {valor_comissao.quantize(Decimal('0.01'))}."
+        )
+        print(f"SUCESSO VENDA: Criada Receita de Comissão R$ {valor_comissao} para o contrato {contrato.id}.")
+
+
     @action(detail=True, methods=['post'], url_path='ativar')
     @transaction.atomic
     def ativar_contrato(self, request, pk=None):
         contrato = self.get_object()
+        
+        status_anterior = contrato.status_contrato
 
-        # 1. Verifica se já está ativo
         if contrato.status_contrato == Contrato.Status.ATIVO:
             return Response(
                 {"error": "Este contrato já está ativo."},
                 status=status.HTTP_400_BAD_REQUEST
             )
-
-        # 2. Validação (só para aluguel): 
-        # Garante que os dados mínimos para o signal existem
+        
         if contrato.tipo_contrato == Contrato.TipoContrato.ALUGUEL:
-            if not contrato.aluguel or not contrato.duracao_meses:
+            # [CORREÇÃO] Validação para o novo campo de data
+            if not contrato.aluguel or not contrato.duracao_meses or not contrato.data_primeiro_vencimento:
                  return Response(
-                    {"error": "Não é possível ativar. Defina o 'Valor do Aluguel' e a 'Duração (meses)' primeiro."},
-                    status=status.HTTP_400_BAD_REQUEST
-                )
+                     {"error": "Não é possível ativar. Defina 'Valor do Aluguel', 'Duração' e 'Data do 1º Vencimento' primeiro."},
+                     status=status.HTTP_400_BAD_REQUEST
+                 )
 
-        # 3. Ativa o contrato
         contrato.status_contrato = Contrato.Status.ATIVO
-        contrato.save() # <-- ISSO VAI DISPARAR O SIGNAL 'pre_save'
-
-        # O signal (app_contratos/signals.py) vai cuidar da geração
-        # automática do financeiro neste momento.
+        contrato.save() # Dispara o perform_update
 
         return Response(
-            {"status": "Contrato ativado com sucesso. O financeiro foi gerado automaticamente."},
+            {"status": "Contrato ativado com sucesso. O lançamento financeiro foi verificado/criado."},
             status=status.HTTP_200_OK
         )
-    # ==================================================================
-    # Fim da nova Action
-    # ==================================================================
 
 
     @action(detail=True, methods=['get'])
@@ -115,11 +254,9 @@ class ContratoViewSet(viewsets.ModelViewSet):
     @transaction.atomic
     def gerar_financeiro(self, request, pk=None):
         """
-        Action manual para (Re)Gerar o financeiro. 
-        Usada pelo botão 'Regerar' no frontend.
+        Action manual para (Re)Gerar o financeiro para ALUGUEL.
         """
         contrato = self.get_object()
-        imobiliaria = contrato.imobiliaria
         
         if contrato.tipo_contrato != Contrato.TipoContrato.ALUGUEL:
             return Response(
@@ -127,62 +264,13 @@ class ContratoViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_400_BAD_REQUEST
             )
             
-        if not contrato.aluguel or not contrato.duracao_meses:
-             return Response(
-                {"error": "Contrato precisa ter 'Valor do Aluguel' e 'Duração (meses)' definidos."},
-                status=status.HTTP_400_BAD_REQUEST
-            )
-
-        # Limpa Lançamentos PENDENTES antigos para evitar duplicidade
-        Pagamento.objects.filter(contrato=contrato, status='PENDENTE').delete()
-        Transacao.objects.filter(contrato=contrato, status='PENDENTE').delete()
-        
-        data_parcela = contrato.data_inicio
-        
-        try:
-            categoria_aluguel = Categoria.objects.get(imobiliaria=imobiliaria, nome='Receita de Aluguel')
-        except Categoria.DoesNotExist:
-            categoria_aluguel = Categoria.objects.create(imobiliaria=imobiliaria, nome='Receita de Aluguel', tipo='RECEITA')
-            
-        try:
-            conta_padrao = Conta.objects.filter(imobiliaria=imobiliaria).first()
-        except Conta.DoesNotExist:
-            conta_padrao = None
-
-        duracao = contrato.duracao_meses
-        parcelas_criadas = 0
-
-        for i in range(duracao):
-            Pagamento.objects.create(
-                contrato=contrato,
-                data_vencimento=data_parcela,
-                valor=contrato.aluguel, 
-                status='PENDENTE'
-            )
-            
-            Transacao.objects.create(
-                imobiliaria=imobiliaria,
-                descricao=f'Aluguel {i+1}/{duracao} - Imóvel: {contrato.imovel.titulo_anuncio}',
-                valor=contrato.aluguel,
-                data_transacao=date.today(), 
-                data_vencimento=data_parcela,
-                tipo='RECEITA',
-                status='PENDENTE',
-                categoria=categoria_aluguel,
-                conta=conta_padrao,
-                cliente=contrato.inquilino,
-                imovel=contrato.imovel,
-                contrato=contrato
-            )
-            
-            data_parcela += relativedelta(months=1)
-            parcelas_criadas += 1
+        self._gerar_financeiro_aluguel(contrato)
 
         return Response(
-            {"status": f"{parcelas_criadas} parcelas financeiras foram geradas com sucesso."},
+            {"status": f"Parcelas financeiras foram regeneradas com sucesso para o Aluguel."},
             status=status.HTTP_201_CREATED
         )
-
+    
     @action(detail=True, methods=['get'], url_path='get-html')
     def get_html(self, request, pk=None):
         contrato = self.get_object()
@@ -283,7 +371,7 @@ class PagamentoViewSet(viewsets.ModelViewSet):
 
         if transacao_correspondente:
             transacao_correspondente.status = 'PAGO'
-            transacao_correspondente.data_transacao = data_pagamento
+            transacao_correspondente.data_pagamento = data_pagamento
             transacao_correspondente.save()
             return Response({'status': 'Pagamento e transação atualizados com sucesso.'}, status=status.HTTP_200_OK)
         else:
@@ -311,9 +399,9 @@ class GerarReciboView(APIView):
         y_position -= 50
 
         p.setFont("Helvetica", 12)
-        p.drawString(70, y_position, f"Recebemos de: {cliente.nome_completo}")
+        p.drawString(70, y_position, f"Recebemos de: {getattr(cliente, 'nome_completo', cliente.nome)}") 
         y_position -= 20
-        p.drawString(70, y_position, f"CPF/CNPJ: {cliente.cpf_cnpj}")
+        p.drawString(70, y_position, f"CPF/CNPJ: {getattr(cliente, 'documento', 'N/A')}")
         y_position -= 40
         p.drawString(70, y_position, f"A importância de R$ {pagamento.valor:.2f}")
         y_position -= 20
@@ -344,7 +432,7 @@ class GerarReciboView(APIView):
 @permission_classes([IsAuthenticated])
 def gerar_contrato_pdf_editado(request, contrato_id):
     contrato = get_object_or_404(Contrato, pk=contrato_id)
-    if not request.user.is_superuser and contrato.imobiliaria != request.tenant:
+    if not request.user.is_superuser and contrato.imobiliaria != request.user.perfil.imobiliaria:
         return HttpResponse("Acesso negado.", status=403)
     
     html_content = request.data.get('html_content')
