@@ -128,7 +128,7 @@
               <input
                 type="text"
                 id="aluguel"
-                v-model.lazy="contrato.aluguel"
+                v-model.lazy="contrato.aluguel_formatado"
                 v-money="moneyConfig"
                 class="form-input-money"
               />
@@ -139,7 +139,7 @@
               <input
                 type="text"
                 id="valor_total"
-                v-model.lazy="contrato.valor_total"
+                v-model.lazy="contrato.valor_total_formatado"
                 v-money="moneyConfig"
                 class="form-input-money"
               />
@@ -163,7 +163,7 @@
         
         <fieldset class="form-section">
           <legend>Cláusulas Personalizadas e Observações</legend>
-           <div class="form-group">
+            <div class="form-group">
               <label>Cláusulas Adicionais</label>
               <QuillEditor
                 theme="snow"
@@ -213,6 +213,8 @@ import '@vueup/vue-quill/dist/vue-quill.snow.css';
 import money from 'v-money3';
 const vMoney = money.directive; 
 
+// Utilitário de data (usado no watch)
+import { addMonths } from 'date-fns';
 
 // Interfaces
 interface ContratoFormData {
@@ -224,8 +226,10 @@ interface ContratoFormData {
   proprietario_id: number | null;
   fiadores: number[]; // M2M
   formas_pagamento: number[]; // M2M
-  valor_total: number | null;
-  aluguel: number | null;
+  
+  valor_total_formatado: string; 
+  aluguel_formatado: string;     
+
   duracao_meses: number | null;
   data_inicio: string;
   data_fim: string | null;
@@ -252,8 +256,10 @@ const contrato = ref<ContratoFormData>({
   proprietario_id: null,
   fiadores: [],
   formas_pagamento: [],
-  valor_total: null,
-  aluguel: null,
+  
+  valor_total_formatado: '', 
+  aluguel_formatado: '',
+
   duracao_meses: 30,
   data_inicio: new Date().toISOString().split('T')[0],
   data_fim: null,
@@ -296,22 +302,50 @@ const tipoContratoLabel = computed(() => {
   return { outraParte: 'Inquilino' };
 });
 
+// ******************************************************************
+// FUNÇÃO-CHAVE: Converte a string de dinheiro em número
+// ******************************************************************
+const parseMoney = (value: string | number | null | undefined): number | null => {
+  if (value === null || value === undefined) {
+    return null;
+  }
+  if (typeof value === 'number') {
+    return isNaN(value) ? null : value;
+  }
+  
+  const numericString = String(value)
+    .replace('R$', '')
+    .replace(/\./g, '')  // Remove separador de milhar
+    .replace(',', '.')  // Substitui vírgula decimal
+    .trim();
+    
+  if (numericString === "") {
+    return null;
+  }
+    
+  const parsed = parseFloat(numericString);
+  if (parsed === 0) return 0;
+  
+  return isNaN(parsed) ? null : parsed;
+};
+
+
 // Limpa campos incompatíveis ao trocar o tipo de contrato
 watch(() => contrato.value.tipo_contrato, (newType) => {
   if (newType === 'VENDA') {
-    contrato.value.aluguel = null;
+    contrato.value.aluguel_formatado = '';
     contrato.value.duracao_meses = null;
     contrato.value.data_fim = null;
     contrato.value.fiadores = [];
   } else {
-    contrato.value.valor_total = null;
+    contrato.value.valor_total_formatado = '';
     contrato.value.formas_pagamento = [];
+    contrato.value.duracao_meses = 30; // Valor padrão
   }
 });
 
 // Lógica de carregamento de Imóveis por Proprietário
 watch(() => contrato.value.proprietario_id, (newPropId, oldPropId) => {
-  // Limpa o imóvel selecionado APENAS se foi uma mudança manual
   if (oldPropId) {
     contrato.value.imovel_id = null;
   }
@@ -325,7 +359,6 @@ watch(() => contrato.value.proprietario_id, (newPropId, oldPropId) => {
 
 function loadImoveis(proprietarioId: number) {
   isCarregandoImoveis.value = true;
-  // Usamos 'return' para permitir o 'await' no loadContrato
   return apiClient.get<SelectOption[]>(`/v1/imoveis/lista-simples/?proprietario_id=${proprietarioId}`)
     .then(response => {
       imovelOptions.value = response.data; 
@@ -348,7 +381,6 @@ async function loadDropdownData() {
       apiClient.get('/v1/financeiro/formas-pagamento/')
     ]);
     
-    // Mapeia os dados para o formato {label, value}
     clienteOptions.value = todosClientesRes.data.map((cli: any) => ({
       label: `${cli.nome_display} (${cli.documento || 'N/D'})`,
       value: cli.id,
@@ -375,23 +407,29 @@ async function loadContrato(id: string | string[]) {
    try {
     const { data } = await apiClient.get(`/v1/contratos/${id}/`);
     
-    // Carrega os imóveis do proprietário ANTES de definir o v-model
     const proprietarioId = data.proprietario_detalhes?.id || data.proprietario;
     if (proprietarioId) {
         await loadImoveis(proprietarioId);
     }
     
-    // Agora define o v-model
     contrato.value = {
-      ...data,
+      ...data, 
+      id: data.id,
       imovel_id: data.imovel_detalhes?.id || data.imovel,
       inquilino_id: data.inquilino_detalhes?.id || data.inquilino,
       proprietario_id: proprietarioId,
-      fiadores: data.fiadores || [], // Recebe a lista de IDs do serializer
+      fiadores: data.fiadores || [], 
       formas_pagamento: data.formas_pagamento || [],
+      
+      aluguel_formatado: data.aluguel || '', 
+      valor_total_formatado: data.valor_total || '',
+      
+      duracao_meses: data.duracao_meses || 30,
       data_inicio: data.data_inicio ? data.data_inicio.split('T')[0] : '',
       data_fim: data.data_fim ? data.data_fim.split('T')[0] : null,
       data_assinatura: data.data_assinatura ? data.data_assinatura.split('T')[0] : null,
+      conteudo_personalizado: data.conteudo_personalizado || '',
+      informacoes_adicionais: data.informacoes_adicionais || '',
     };
     
   } catch (error) {
@@ -400,6 +438,23 @@ async function loadContrato(id: string | string[]) {
     router.push({ name: 'contratos' });
   }
 }
+
+// Watcher para calcular Data de Fim automaticamente para ALUGUEL
+watch([() => contrato.value.data_inicio, () => contrato.value.duracao_meses, () => contrato.value.tipo_contrato], ([novaDataInicio, novaDuracao, novoTipo]) => {
+  if (novoTipo === 'ALUGUEL' && novaDataInicio && novaDuracao && novaDuracao > 0) {
+    try {
+        const dataInicio = new Date(novaDataInicio + 'T00:00:00'); 
+        const dataFimCalculada = addMonths(dataInicio, novaDuracao);
+        
+        contrato.value.data_fim = dataFimCalculada.toISOString().split('T')[0];
+    } catch (e) {
+        contrato.value.data_fim = null;
+    }
+  } else if (novoTipo === 'VENDA') {
+    contrato.value.duracao_meses = null;
+  }
+}, { immediate: true });
+
 
 onMounted(async () => {
   isLoading.value = true;
@@ -415,21 +470,22 @@ async function handleSubmit() {
   if (isSaving.value) return;
   isSaving.value = true;
 
-  // Garantir que os valores enviados estão em MAIÚSCULAS para o backend
   const tipoContratoUpper = contrato.value.tipo_contrato ? contrato.value.tipo_contrato.toUpperCase() : null;
   const statusContratoUpper = contrato.value.status_contrato ? contrato.value.status_contrato.toUpperCase() : null;
 
   const payload = {
       tipo_contrato: tipoContratoUpper,
       status_contrato: statusContratoUpper,
-      // imobiliaria é omitido (definido no backend)
       imovel: contrato.value.imovel_id,
       inquilino: contrato.value.inquilino_id,
       proprietario: contrato.value.proprietario_id,
       fiadores: contrato.value.fiadores,
       formas_pagamento: contrato.value.formas_pagamento,
-      valor_total: contrato.value.valor_total,
-      aluguel: contrato.value.aluguel,
+      
+      // Converte a string formatada "R$ 1.200,00" para o número 1200.00
+      valor_total: parseMoney(contrato.value.valor_total_formatado),
+      aluguel: parseMoney(contrato.value.aluguel_formatado),
+      
       duracao_meses: contrato.value.duracao_meses,
       data_inicio: contrato.value.data_inicio,
       data_fim: contrato.value.data_fim || null,
@@ -448,43 +504,42 @@ async function handleSubmit() {
     if (isEditing.value) {
       await apiClient.put(`/v1/contratos/${route.params.id}/`, payload);
       toast.success("Contrato atualizado com sucesso!");
+      // CORREÇÃO: Redireciona para a lista após ATUALIZAR
+      router.push({ name: 'contratos' }); 
     } else {
-      await apiClient.post('/v1/contratos/', payload);
+      const response = await apiClient.post('/v1/contratos/', payload);
       toast.success("Contrato criado com sucesso!");
+      // CORREÇÃO: Redireciona para a lista após CRIAR (comportamento seguro)
+      // Se você quiser redirecionar para a edição, precisará que o backend retorne o ID.
+      // Por enquanto, voltamos para a lista.
+      router.push({ name: 'contratos' });
     }
-    router.push({ name: 'contratos' });
+    
   } catch (error: any) {
     console.error("Erro ao salvar contrato:", error.response?.data || error);
     
-    // Lógica de tratamento de erro aprimorada
     let errorMsg = "Ocorreu uma falha desconhecida ao salvar.";
 
     if (error.response && error.response.data) {
         const errors = error.response.data;
         
-        // Tenta pegar o erro específico de 'status_contrato' (nosso novo erro)
         if (errors.status_contrato && Array.isArray(errors.status_contrato)) {
             errorMsg = errors.status_contrato[0];
-        
-        // Tenta pegar erros não relacionados a campos
         } else if (errors.non_field_errors && Array.isArray(errors.non_field_errors)) {
             errorMsg = errors.non_field_errors[0];
-        
-        // Tenta pegar o primeiro erro da lista, se for um objeto de erros
         } else if (typeof errors === 'object' && errors !== null) {
             const firstErrorKey = Object.keys(errors)[0];
             if (Array.isArray(errors[firstErrorKey])) {
-                errorMsg = `${firstErrorKey}: ${errors[firstErrorKey][0]}`;
+                errorMsg = `Erro no campo '${firstErrorKey}': ${errors[firstErrorKey][0]}`;
             } else {
-                 errorMsg = JSON.stringify(errors);
+                 errorMsg = `Erro(s) de validação: ${JSON.stringify(errors)}`;
             }
-        // Se for apenas uma string (como erro 500)
         } else if (typeof errors === 'string') {
-            errorMsg = errors;
+             errorMsg = errors;
         }
     }
     
-    toast.error(errorMsg, { duration: 5000 }); // 5 segundos
+    toast.error(errorMsg, { duration: 7000 });
     
   } finally {
     isSaving.value = false;

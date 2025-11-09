@@ -46,6 +46,9 @@ class ContratoSerializer(serializers.ModelSerializer):
     pagamentos = PagamentoSerializer(many=True, read_only=True)
     parte_principal_label = serializers.SerializerMethodField()
     valor_display = serializers.SerializerMethodField()
+    
+    # NOVO: Indica se já existem pagamentos gerados para o contrato.
+    financeiro_gerado = serializers.BooleanField(read_only=True)
 
     formas_pagamento = serializers.PrimaryKeyRelatedField(many=True, read_only=True)
 
@@ -70,6 +73,9 @@ class ContratoSerializer(serializers.ModelSerializer):
             
             # Campo de IDs de fiadores (para o v-model do form)
             'fiadores', 
+            
+            # NOVO CAMPO:
+            'financeiro_gerado',
         ]
         read_only_fields = ('data_cadastro', 'imobiliaria')
 

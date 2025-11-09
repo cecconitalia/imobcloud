@@ -16,12 +16,12 @@ from django.conf import settings
 import os
 from django.utils.dateparse import parse_date
 from django.db import transaction
-# ==================================================================
-# CORREÇÃO: Imports necessários para a nova action
+# Imports para a query otimizada
+from django.db.models import Exists, OuterRef
+# Imports para a action 'gerar_financeiro'
 from app_financeiro.models import Transacao, Categoria, Conta
 from datetime import date
 from dateutil.relativedelta import relativedelta
-# ==================================================================
 from rest_framework.views import APIView
 from django.utils import timezone
 
@@ -36,9 +36,17 @@ class ContratoViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         if hasattr(self.request.user, 'perfil') and self.request.user.perfil.imobiliaria:
-            return Contrato.objects.filter(imobiliaria=self.request.user.perfil.imobiliaria).select_related(
+            
+            # Subquery para verificar a existência de pagamentos
+            pagamento_exists_subquery = Pagamento.objects.filter(
+                contrato_id=OuterRef('pk')
+            )
+            
+            return Contrato.objects.filter(imobiliaria=self.request.user.perfil.imobiliaria).annotate(
+                financeiro_gerado=Exists(pagamento_exists_subquery)
+            ).select_related(
                 'imovel', 'inquilino', 'proprietario'
-            ).prefetch_related('fiadores')
+            ).prefetch_related('fiadores', 'pagamentos')
         return Contrato.objects.none()
 
     def get_serializer_class(self):
@@ -47,6 +55,7 @@ class ContratoViewSet(viewsets.ModelViewSet):
         return ContratoSerializer
 
     def perform_create(self, serializer):
+        # Cria o contrato sempre como PENDENTE
         serializer.save(
             imobiliaria=self.request.user.perfil.imobiliaria,
             status_contrato=Contrato.Status.PENDENTE 
@@ -55,6 +64,46 @@ class ContratoViewSet(viewsets.ModelViewSet):
     def perform_update(self, serializer):
         serializer.save(imobiliaria=self.request.user.perfil.imobiliaria)
 
+    # ==================================================================
+    # NOVA ACTION: Ativar Contrato (Chamada pelo novo botão)
+    # ==================================================================
+    @action(detail=True, methods=['post'], url_path='ativar')
+    @transaction.atomic
+    def ativar_contrato(self, request, pk=None):
+        contrato = self.get_object()
+
+        # 1. Verifica se já está ativo
+        if contrato.status_contrato == Contrato.Status.ATIVO:
+            return Response(
+                {"error": "Este contrato já está ativo."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # 2. Validação (só para aluguel): 
+        # Garante que os dados mínimos para o signal existem
+        if contrato.tipo_contrato == Contrato.TipoContrato.ALUGUEL:
+            if not contrato.aluguel or not contrato.duracao_meses:
+                 return Response(
+                    {"error": "Não é possível ativar. Defina o 'Valor do Aluguel' e a 'Duração (meses)' primeiro."},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+        # 3. Ativa o contrato
+        contrato.status_contrato = Contrato.Status.ATIVO
+        contrato.save() # <-- ISSO VAI DISPARAR O SIGNAL 'pre_save'
+
+        # O signal (app_contratos/signals.py) vai cuidar da geração
+        # automática do financeiro neste momento.
+
+        return Response(
+            {"status": "Contrato ativado com sucesso. O financeiro foi gerado automaticamente."},
+            status=status.HTTP_200_OK
+        )
+    # ==================================================================
+    # Fim da nova Action
+    # ==================================================================
+
+
     @action(detail=True, methods=['get'])
     def pagamentos(self, request, pk=None):
         contrato = self.get_object()
@@ -62,18 +111,16 @@ class ContratoViewSet(viewsets.ModelViewSet):
         serializer = PagamentoSerializer(pagamentos, many=True)
         return Response(serializer.data)
 
-    # ==================================================================
-    # CORREÇÃO: Nova Action para (Re)Gerar o Financeiro
-    # Esta função é chamada pelo novo botão no frontend
-    # ==================================================================
     @action(detail=True, methods=['post'], url_path='gerar-financeiro')
     @transaction.atomic
     def gerar_financeiro(self, request, pk=None):
+        """
+        Action manual para (Re)Gerar o financeiro. 
+        Usada pelo botão 'Regerar' no frontend.
+        """
         contrato = self.get_object()
         imobiliaria = contrato.imobiliaria
         
-        # 1. Validação: Só gera se for Aluguel (por enquanto)
-        # (Poderíamos expandir para Venda parcelada no futuro)
         if contrato.tipo_contrato != Contrato.TipoContrato.ALUGUEL:
             return Response(
                 {"error": "Geração financeira manual disponível apenas para contratos de Aluguel."},
@@ -86,11 +133,10 @@ class ContratoViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_400_BAD_REQUEST
             )
 
-        # 2. Limpa Lançamentos PENDENTES antigos para evitar duplicidade
+        # Limpa Lançamentos PENDENTES antigos para evitar duplicidade
         Pagamento.objects.filter(contrato=contrato, status='PENDENTE').delete()
         Transacao.objects.filter(contrato=contrato, status='PENDENTE').delete()
         
-        # 3. Pega a lógica que estava no signals.py
         data_parcela = contrato.data_inicio
         
         try:
@@ -107,7 +153,6 @@ class ContratoViewSet(viewsets.ModelViewSet):
         parcelas_criadas = 0
 
         for i in range(duracao):
-            # Criar Pagamento
             Pagamento.objects.create(
                 contrato=contrato,
                 data_vencimento=data_parcela,
@@ -115,7 +160,6 @@ class ContratoViewSet(viewsets.ModelViewSet):
                 status='PENDENTE'
             )
             
-            # Criar Transação correspondente
             Transacao.objects.create(
                 imobiliaria=imobiliaria,
                 descricao=f'Aluguel {i+1}/{duracao} - Imóvel: {contrato.imovel.titulo_anuncio}',
@@ -138,9 +182,6 @@ class ContratoViewSet(viewsets.ModelViewSet):
             {"status": f"{parcelas_criadas} parcelas financeiras foram geradas com sucesso."},
             status=status.HTTP_201_CREATED
         )
-    # ==================================================================
-    # Fim da nova Action
-    # ==================================================================
 
     @action(detail=True, methods=['get'], url_path='get-html')
     def get_html(self, request, pk=None):

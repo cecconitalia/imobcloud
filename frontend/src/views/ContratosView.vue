@@ -55,19 +55,37 @@
             <p><strong>Data Início:</strong> {{ formatarData(contrato.data_inicio) }}</p>
             <p><strong>Data Fim:</strong> {{ formatarData(contrato.data_fim) || 'Indeterminado' }}</p>
             <p><strong>Valor:</strong> {{ contrato.valor_display }}</p>
+            <p>
+                <strong>Financeiro:</strong> 
+                <span :class="['status-badge', getFinanceiroStatusClass(contrato)]">
+                    {{ getFinanceiroStatusText(contrato) }}
+                </span>
+            </p>
         </div>
 
         <div class="card-actions">
+          
+          <button
+            v-if="contrato.status_contrato === 'PENDENTE'"
+            @click="handleAtivarContrato(contrato)"
+            :disabled="isProcessingId === contrato.id"
+            class="btn-action btn-ativar"
+            title="Ativar Contrato (Gera o financeiro automaticamente)"
+          >
+            <i v-if="isProcessingId === contrato.id" class="fas fa-spinner fa-spin"></i>
+            <i v-else class="fas fa-play"></i> Ativar
+          </button>
+          
           <button
             v-if="contrato.tipo_contrato === 'ALUGUEL'"
             @click="handleGerarFinanceiro(contrato.id)"
-            :disabled="isGeneratingFinanceiro === contrato.id"
-            class="btn-action btn-warning"
-            title="(Re)Gerar Financeiro (apaga parcelas pendentes e cria novas)"
+            :disabled="isProcessingId === contrato.id"
+            :class="['btn-action', contrato.financeiro_gerado ? 'btn-success' : 'btn-warning']"
+            :title="getGerarFinanceiroButtonText(contrato)"
           >
-            <i v-if="isGeneratingFinanceiro === contrato.id" class="fas fa-spinner fa-spin"></i>
-            <i v-else class="fas fa-sync-alt"></i>
-            Gerar
+            <i v-if="isProcessingId === contrato.id" class="fas fa-spinner fa-spin"></i>
+            <i v-else :class="contrato.financeiro_gerado ? 'fas fa-check' : 'fas fa-sync-alt'"></i>
+            {{ contrato.financeiro_gerado ? 'Regerar' : 'Gerar' }}
           </button>
           
           <button @click="abrirModalFinanceiro(contrato)" class="btn-action btn-financeiro" title="Ver Detalhes Financeiros">
@@ -104,7 +122,7 @@ import { useToast } from 'vue-toast-notification';
 import 'vue-toast-notification/dist/theme-sugar.css';
 
 
-// Interface atualizada (da melhoria anterior)
+// Interface atualizada (com o novo campo 'financeiro_gerado')
 interface ClienteDetalhes { 
   id: number; 
   nome_display: string; 
@@ -125,6 +143,7 @@ interface Contrato {
   status_contrato: 'ATIVO' | 'PENDENTE' | 'CONCLUIDO' | 'RESCINDIDO' | 'INATIVO';
   parte_principal_label: string;
   valor_display: string;
+  financeiro_gerado: boolean; // NOVO CAMPO
 }
 
 const router = useRouter();
@@ -136,7 +155,8 @@ const filterStatus = ref('');
 const filterTipo = ref('');
 
 const toast = useToast();
-const isGeneratingFinanceiro = ref<number | null>(null);
+// NOVO: Estado de loading genérico para qualquer ação no card
+const isProcessingId = ref<number | null>(null);
 
 // Estado do Modal Financeiro
 const showModalFinanceiro = ref(false);
@@ -177,7 +197,6 @@ async function fetchContratos() {
 function formatarData(data: string | null | undefined): string {
   if (!data) return '';
   try {
-    // Adiciona T00:00:00 para garantir que a data seja interpretada em Fuso local
     return format(new Date(data + 'T00:00:00'), 'dd/MM/yyyy', { locale: ptBR });
   } catch {
     return 'Inválida';
@@ -203,10 +222,92 @@ function getStatusClass(status: string): string {
     }
 }
 
+function getFinanceiroStatusText(contrato: Contrato): string {
+    if (contrato.tipo_contrato === 'VENDA') return 'Transação Única';
+    return contrato.financeiro_gerado ? 'Gerado' : 'Pendente';
+}
 
-// --- Funções de Ação ---
+function getFinanceiroStatusClass(contrato: Contrato): string {
+    if (contrato.tipo_contrato === 'VENDA') return 'status-financeiro-venda';
+    return contrato.financeiro_gerado ? 'status-financeiro-gerado' : 'status-financeiro-pendente';
+}
+
+function getGerarFinanceiroButtonText(contrato: Contrato): string {
+    return contrato.financeiro_gerado ? 'Financeiro já gerado! (Regerar)' : 'Gerar Financeiro (Manual)';
+}
+
+// ==================================================================
+// NOVA FUNÇÃO: Ativar Contrato
+// ==================================================================
+async function handleAtivarContrato(contrato: Contrato) {
+    if (isProcessingId.value !== null) return;
+
+    const confirmacao = window.confirm(
+        "Tem certeza que deseja ATIVAR este contrato?\n\nO financeiro será gerado automaticamente se for um contrato de aluguel e ainda não tiver sido gerado."
+    );
+    
+    if (!confirmacao) return;
+
+    isProcessingId.value = contrato.id;
+    try {
+        // Chama a nova action: /v1/contratos/{id}/ativar/
+        const response = await apiClient.post(`/v1/contratos/${contrato.id}/ativar/`);
+        
+        toast.success(response.data.status || "Contrato ativado com sucesso!");
+        
+        // Atualiza o estado local do contrato
+        contrato.status_contrato = 'ATIVO';
+        // Se for aluguel, a automação gerou o financeiro
+        if (contrato.tipo_contrato === 'ALUGUEL') {
+            contrato.financeiro_gerado = true;
+        }
+        
+    } catch (error: any) {
+        console.error("Erro ao ativar contrato:", error.response?.data || error);
+        const errorMsg = error.response?.data?.error || "Falha ao ativar o contrato.";
+        toast.error(errorMsg, { duration: 5000 });
+    } finally {
+        isProcessingId.value = null;
+    }
+}
+
+// Geração de Financeiro (Manual / Regerar)
+async function handleGerarFinanceiro(contratoId: number) {
+  if (isProcessingId.value !== null) return; 
+
+  const contratoAtual = contratos.value.find(c => c.id === contratoId);
+  const isRegerar = contratoAtual?.financeiro_gerado;
+  
+  const confirmacao = window.confirm(
+    isRegerar ? 
+    "Atenção! Você está prestes a REGERAR o financeiro. Isto irá APAGAR todas as parcelas PENDENTES deste contrato e criar novas.\n\nContas PAGO/ATRASADO serão mantidas.\n\nDeseja continuar?" :
+    "Atenção! Isto irá gerar todas as parcelas de aluguel para este contrato.\n\nDeseja continuar?"
+  );
+  
+  if (!confirmacao) {
+    return;
+  }
+
+  isProcessingId.value = contratoId;
+  try {
+    const response = await apiClient.post(`/v1/contratos/${contratoId}/gerar-financeiro/`);
+    toast.success(response.data.status || "Financeiro gerado com sucesso!");
+    
+    const contratoIndex = contratos.value.findIndex(c => c.id === contratoId);
+    if (contratoIndex !== -1) {
+        contratos.value[contratoIndex].financeiro_gerado = true;
+    }
+    
+  } catch (error: any) {
+    console.error("Erro ao gerar financeiro:", error.response?.data || error);
+    const errorMsg = error.response?.data?.error || "Falha ao gerar financeiro.";
+    toast.error(errorMsg, { duration: 5000 });
+  } finally {
+    isProcessingId.value = null;
+  }
+}
+
 function verContrato(id: number) {
-    // Rota 'contrato-editar' usada para visualização/edição
     router.push({ name: 'contrato-editar', params: { id } });
 }
 
@@ -216,51 +317,23 @@ function editarContrato(id: number) {
 
 async function excluirContrato(id: number) {
   if (window.confirm("Tem certeza de que deseja excluir este contrato? Esta ação não pode ser desfeita e excluirá os pagamentos associados.")) {
+    isProcessingId.value = id; // Bloqueia botões durante a exclusão
     try {
       await apiClient.delete(`/v1/contratos/${id}/`);
-      toast.success('Contrato excluído com sucesso!'); // (Usando toast)
-      fetchContratos(); // Recarrega a lista
+      toast.success('Contrato excluído com sucesso!');
+      fetchContratos();
     } catch (err) {
       console.error("Erro ao excluir contrato:", err);
-      toast.error('Não foi possível excluir o contrato.'); // (Usando toast)
+      toast.error('Não foi possível excluir o contrato.');
+    } finally {
+      isProcessingId.value = null;
     }
-  }
-}
-
-// Geração de Financeiro (NOVO)
-async function handleGerarFinanceiro(contratoId: number) {
-  if (isGeneratingFinanceiro.value !== null) return; // Já está gerando
-
-  const confirmacao = window.confirm(
-    "Atenção!\n\nIsto irá APAGAR todas as parcelas PENDENTES deste contrato e gerar novas parcelas com base nos dados salvos (valor, duração, data de início).\n\nDeseja continuar?"
-  );
-  
-  if (!confirmacao) {
-    return;
-  }
-
-  isGeneratingFinanceiro.value = contratoId;
-  try {
-    const response = await apiClient.post(`/v1/contratos/${contratoId}/gerar-financeiro/`);
-    toast.success(response.data.status || "Financeiro gerado com sucesso!");
-    
-  } catch (error: any) {
-    console.error("Erro ao gerar financeiro:", error.response?.data || error);
-    const errorMsg = error.response?.data?.error || "Falha ao gerar financeiro.";
-    toast.error(errorMsg, { duration: 5000 });
-  } finally {
-    isGeneratingFinanceiro.value = null; // Libera o botão
   }
 }
 
 
 // Funções do Modal Financeiro
 function abrirModalFinanceiro(contrato: Contrato) {
-    // ==================================================================
-    // CORREÇÃO: Adicionando console.log para debugging
-    // ==================================================================
-    console.log("Abrir Modal Financeiro chamado para o contrato ID:", contrato.id);
-    
     contratoSelecionado.value = contrato;
     showModalFinanceiro.value = true;
     document.body.style.overflow = 'hidden';
@@ -282,236 +355,8 @@ onMounted(fetchContratos);
 }
 
 /* ================================================== */
-/* ESTILOS PARA O NOVO CABEÇALHO */
+/* ESTILOS DE VISIBILIDADE DO MODAL (MUITO IMPORTANTES!) */
 /* ================================================== */
-.view-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 1.5rem;
-  padding: 0 0.5rem; /* Alinhamento leve com os cards */
-}
-.view-header h1 {
-  font-size: 1.75rem;
-  font-weight: 600;
-  color: #333;
-}
-
-.btn-primary {
-  background-color: #007bff;
-  color: white;
-  padding: 0.6rem 1.2rem;
-  border-radius: 6px;
-  text-decoration: none;
-  font-weight: 500;
-  display: inline-flex;
-  align-items: center;
-  gap: 0.5rem;
-  border: none;
-  cursor: pointer;
-  transition: background-color 0.2s ease;
-}
-.btn-primary:hover {
-  background-color: #0056b3;
-}
-.btn-primary i {
-  font-size: 0.9rem;
-}
-/* ================================================== */
-
-
-.card {
-    background: white;
-    padding: 1.5rem;
-    border-radius: 8px;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
-    margin-bottom: 1.5rem;
-}
-.card:last-child {
-    margin-bottom: 0;
-}
-
-.filters-bar {
-  display: flex;
-  flex-wrap: wrap; 
-  align-items: center; 
-  gap: 1rem 1.5rem; 
-}
-
-.search-wrapper {
-  position: relative;
-  flex: 1 1 300px; 
-  min-width: 250px;
-}
-.search-wrapper i {
-  position: absolute;
-  left: 12px;
-  top: 50%;
-  transform: translateY(-50%);
-  color: #adb5bd;
-}
-.search-wrapper input {
-  width: 100%;
-  padding: 10px 10px 10px 35px;
-  border: 1px solid #ced4da;
-  border-radius: 6px;
-  font-size: 0.9rem;
-  box-sizing: border-box; 
-}
-
-.filter-groups {
-  display: flex;
-  gap: 1rem;
-  flex-wrap: wrap; 
-  flex-grow: 1; 
-}
-.filter-groups select {
-  padding: 10px;
-  border: 1px solid #ced4da;
-  border-radius: 6px;
-  font-size: 0.9rem;
-  background-color: #fff;
-  flex: 1 1 150px; 
-  min-width: 150px;
-}
-
-.loading-message, .error-message, .empty-state {
-  text-align: center;
-  padding: 2rem;
-  color: #6c757d;
-}
-.error-message {
-  color: #dc3545;
-  background-color: #f8d7da;
-  border: 1px solid #f5c6cb;
-  border-radius: 8px;
-}
-.spinner {
-  border: 4px solid #f3f3f3;
-  border-top: 4px solid #007bff;
-  border-radius: 50%;
-  width: 40px;
-  height: 40px;
-  animation: spin 1s linear infinite;
-  margin: 0 auto 1rem;
-}
-@keyframes spin {
-  0% { transform: rotate(0deg); }
-  100% { transform: rotate(360deg); }
-}
-
-/* ==================================================================
-  Layout de 4 cards por linha
-  ==================================================================
-*/
-.contratos-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-  gap: 1.5rem;
-}
-/* Fim da correção do Grid */
-
-.contrato-card {
-  background-color: #fff;
-  border-radius: 8px;
-  box-shadow: 0 4px 8px rgba(0,0,0,0.07);
-  overflow: hidden;
-  display: flex;
-  flex-direction: column;
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
-}
-.contrato-card:hover {
-    transform: translateY(-4px);
-    box-shadow: 0 6px 12px rgba(0,0,0,0.1);
-}
-
-
-.card-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 0.8rem 1.2rem;
-  background-color: #f8f9fa;
-  border-bottom: 1px solid #e9ecef;
-}
-
-.status-badge {
-    padding: 4px 10px; border-radius: 12px; font-size: 0.75rem;
-    font-weight: bold; color: white; text-transform: uppercase;
-}
-.status-ativo { background-color: #198754; }
-.status-pendente { background-color: #ffc107; color: #333; }
-.status-concluido { background-color: #0d6efd; }
-.status-rescindido { background-color: #dc3545; }
-.status-inativo { background-color: #6c757d; }
-
-
-.tipo-badge {
-    font-size: 0.8rem; font-weight: 500; color: #495057;
-    background-color: #e9ecef; padding: 3px 8px; border-radius: 4px;
-}
-
-.card-body {
-  padding: 1.2rem;
-  flex-grow: 1;
-}
-.card-body p { margin: 0 0 0.6rem 0; font-size: 0.9rem; color: #495057; }
-.card-body p strong { color: #212529; margin-right: 5px; }
-
-.card-actions {
-  display: flex; 
-  flex-wrap: wrap; 
-  justify-content: flex-end; 
-  gap: 0.5rem;
-  padding: 0.8rem 1.2rem; 
-  border-top: 1px solid #e9ecef;
-  background-color: #f8f9fa;
-}
-
-.btn-action {
-    background: none; border: 1px solid transparent; padding: 6px 10px;
-    border-radius: 5px; cursor: pointer; font-size: 0.8rem; font-weight: 500;
-    transition: background-color 0.2s, color 0.2s, border-color 0.2s;
-    display: inline-flex; align-items: center; gap: 0.4rem;
-}
-.btn-action i { font-size: 0.9em; }
-
-/* ==================================================================
-  Estilo para o botão Warning (Gerar Financeiro)
-  ==================================================================
-*/
-.btn-action:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-  background-color: #e9ecef;
-  color: #6c757d;
-  border-color: #ced4da;
-}
-
-.btn-warning { 
-  border: 1px solid #ffc107;
-  background-color: #ffc107; 
-  color: #212529; /* Texto escuro */
-}
-.btn-warning:hover:not(:disabled) { 
-  background-color: #e0a800; /* Tom mais escuro no hover */
-  color: #212529; 
-  border-color: #e0a800;
-}
-/* Fim da Correção do Botão */
-
-
-.btn-view { border-color: #6c757d; color: #6c757d; }
-.btn-view:hover { background-color: #6c757d; color: white; }
-.btn-edit { border-color: #0d6efd; color: #0d6efd; }
-.btn-edit:hover { background-color: #0d6efd; color: white; }
-.btn-financeiro { border-color: #198754; color: #198754; }
-.btn-financeiro:hover { background-color: #198754; color: white; }
-.btn-delete { border-color: #dc3545; color: #dc3545; }
-.btn-delete:hover { background-color: #dc3545; color: white; }
-
-
-/* Estilos para a Modal Financeiro */
 :global(.modal-overlay) {
   position: fixed; top: 0; left: 0; width: 100%; height: 100%;
   background: rgba(0, 0, 0, 0.6); display: flex;
@@ -527,4 +372,142 @@ onMounted(fetchContratos);
     position: absolute; top: 1rem; right: 1rem; background: none; border: none;
     font-size: 1.5rem; cursor: pointer; color: #6c757d; line-height: 1;
 }
+
+/* ================================================== */
+/* ESTILOS GERAIS DA VIEW (mantidos) */
+/* ================================================== */
+
+.view-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1.5rem;
+  padding: 0 0.5rem;
+}
+.view-header h1 {
+  font-size: 1.75rem;
+  font-weight: 600;
+  color: #333;
+}
+
+.btn-primary {
+  background-color: #007bff; color: white;
+  padding: 0.6rem 1.2rem; border-radius: 6px; text-decoration: none;
+  font-weight: 500; display: inline-flex; align-items: center;
+  gap: 0.5rem; border: none; cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+.btn-primary:hover { background-color: #0056b3; }
+
+.card {
+    background: white; padding: 1.5rem; border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.05); margin-bottom: 1.5rem;
+}
+
+.filters-bar {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 1rem 1.5rem; 
+}
+.search-wrapper {
+  position: relative; flex: 1 1 300px; min-width: 250px;
+}
+.search-wrapper i {
+  position: absolute; left: 12px; top: 50%;
+  transform: translateY(-50%); color: #adb5bd;
+}
+.search-wrapper input {
+  width: 100%; padding: 10px 10px 10px 35px; border: 1px solid #ced4da;
+  border-radius: 6px; font-size: 0.9rem; box-sizing: border-box; 
+}
+.filter-groups {
+  display: flex; gap: 1rem; flex-wrap: wrap; flex-grow: 1; 
+}
+.filter-groups select {
+  padding: 10px; border: 1px solid #ced4da; border-radius: 6px;
+  font-size: 0.9rem; background-color: #fff; flex: 1 1 150px; min-width: 150px;
+}
+.loading-message, .error-message, .empty-state {
+  text-align: center; padding: 2rem; color: #6c757d;
+}
+.spinner {
+  border: 4px solid #f3f3f3; border-top: 4px solid #007bff; border-radius: 50%;
+  width: 40px; height: 40px; animation: spin 1s linear infinite; margin: 0 auto 1rem;
+}
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.contratos-grid {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1.5rem;
+}
+.contrato-card {
+  background-color: #fff; border-radius: 8px; box-shadow: 0 4px 8px rgba(0,0,0,0.07);
+  overflow: hidden; display: flex; flex-direction: column;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+.contrato-card:hover {
+    transform: translateY(-4px); box-shadow: 0 6px 12px rgba(0,0,0,0.1);
+}
+.card-header {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 0.8rem 1.2rem; background-color: #f8f9fa; border-bottom: 1px solid #e9ecef;
+}
+.status-badge {
+    padding: 4px 10px; border-radius: 12px; font-size: 0.75rem;
+    font-weight: bold; color: white; text-transform: uppercase;
+}
+.status-ativo { background-color: #198754; }
+.status-pendente { background-color: #ffc107; color: #333; }
+.status-concluido { background-color: #0d6efd; }
+.status-rescindido { background-color: #dc3545; }
+.status-inativo { background-color: #6c757d; }
+
+.status-financeiro-pendente { background-color: #ffc107; color: #333; font-weight: 600; }
+.status-financeiro-gerado { background-color: #198754; color: white; }
+.status-financeiro-venda { background-color: #0d6efd; color: white; font-size: 0.7rem; }
+
+.tipo-badge {
+    font-size: 0.8rem; font-weight: 500; color: #495057;
+    background-color: #e9ecef; padding: 3px 8px; border-radius: 4px;
+}
+.card-body {
+  padding: 1.2rem; flex-grow: 1;
+}
+.card-body p { margin: 0 0 0.6rem 0; font-size: 0.9rem; color: #495057; }
+.card-body p strong { color: #212529; margin-right: 5px; }
+
+.card-actions {
+  display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 0.5rem;
+  padding: 0.8rem 1.2rem; border-top: 1px solid #e9ecef; background-color: #f8f9fa;
+}
+
+.btn-action {
+    background: none; border: 1px solid transparent; padding: 6px 10px;
+    border-radius: 5px; cursor: pointer; font-size: 0.8rem; font-weight: 500;
+    transition: background-color 0.2s, color 0.2s, border-color 0.2s;
+    display: inline-flex; align-items: center; gap: 0.4rem;
+}
+.btn-action i { font-size: 0.9em; }
+
+.btn-action:disabled {
+  opacity: 0.6; cursor: not-allowed; background-color: #e9ecef;
+  color: #6c757d; border-color: #ced4da;
+}
+
+/* Estilo para o novo botão ATIVAR */
+.btn-ativar { border-color: #198754; color: #198754; background-color: #d1e7dd; }
+.btn-ativar:hover:not(:disabled) { background-color: #198754; color: white; }
+
+.btn-warning { border: 1px solid #ffc107; background-color: #ffc107; color: #212529; }
+.btn-warning:hover:not(:disabled) { background-color: #e0a800; color: #212529; border-color: #e0a800; }
+.btn-success { border: 1px solid #198754; background-color: #198754; color: white; }
+.btn-success:hover:not(:disabled) { background-color: #157347; color: white; border-color: #157347; }
+.btn-view { border-color: #6c757d; color: #6c757d; }
+.btn-view:hover { background-color: #6c757d; color: white; }
+.btn-edit { border-color: #0d6efd; color: #0d6efd; }
+.btn-edit:hover { background-color: #0d6efd; color: white; }
+.btn-financeiro { border-color: #198754; color: #198754; }
+.btn-financeiro:hover { background-color: #198754; color: white; }
+.btn-delete { border-color: #dc3545; color: #dc3545; }
+.btn-delete:hover { background-color: #dc3545; color: white; }
 </style>

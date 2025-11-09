@@ -1,252 +1,288 @@
 <template>
-  <div class="form-container">
-    <header class="view-header">
-      <h1>{{ isEditing ? 'Editar Contrato' : 'Adicionar Novo Contrato' }}</h1>
-    </header>
+  <div class="modal-overlay" @click.self="$emit('close')">
+    <div class="modal-container">
+      <button class="modal-close-button" @click="$emit('close')">&times;</button>
+      
+      <h2 class="modal-title">Detalhes Financeiros do Contrato #{{ contrato.id }}</h2>
+      <p class="modal-subtitle">Imóvel: {{ contrato.imovel_detalhes?.titulo_anuncio || contrato.imovel_detalhes?.logradouro }}</p>
+      <p class="modal-subtitle">Inquilino: {{ contrato.inquilino_detalhes?.nome_display }}</p>
 
-    <div v-if="isLoadingData" class="loading-message">
-      A carregar dados do contrato...
+      <div v-if="isLoadingPagamentos" class="loading-state">
+        <i class="fas fa-spinner fa-spin"></i> Carregando parcelas...
+      </div>
+      
+      <div v-else-if="error" class="error-state">
+        Erro ao carregar pagamentos: {{ error }}
+      </div>
+
+      <div v-else-if="pagamentos.length === 0" class="empty-state">
+        Nenhuma parcela gerada para este contrato.
+      </div>
+      
+      <div v-else class="pagamentos-list">
+        <div v-for="pagamento in pagamentos" :key="pagamento.id" class="pagamento-item card">
+          <div class="item-details">
+            <p><strong>Vencimento:</strong> {{ formatarData(pagamento.data_vencimento) }}</p>
+            <p><strong>Valor:</strong> {{ formatarMoeda(pagamento.valor) }}</p>
+            <p>
+                <strong>Status:</strong>
+                <span :class="['status-badge', getPagamentoStatusClass(pagamento.status)]">
+                    {{ formatarStatusPagamento(pagamento.status) }}
+                </span>
+            </p>
+            <p v-if="pagamento.data_pagamento"><strong>Data Pag.:</strong> {{ formatarData(pagamento.data_pagamento) }}</p>
+          </div>
+          
+          <div class="item-actions">
+            <button 
+              v-if="pagamento.status !== 'PAGO'"
+              @click="marcarComoPago(pagamento.id)"
+              :disabled="isProcessingId === pagamento.id"
+              class="btn-action btn-success"
+            >
+              <i v-if="isProcessingId === pagamento.id" class="fas fa-spinner fa-spin"></i>
+              <i v-else class="fas fa-check"></i> Marcar Pago
+            </button>
+            
+            <button 
+              v-if="pagamento.status === 'PAGO'"
+              @click="gerarRecibo(pagamento.id)"
+              class="btn-action btn-info"
+              :disabled="isProcessingId === pagamento.id"
+            >
+              <i class="fas fa-file-pdf"></i> Recibo
+            </button>
+          </div>
+        </div>
+      </div>
+
     </div>
-
-    <form v-else @submit.prevent="handleSubmit" class="contrato-form">
-      <div class="form-group">
-        <label for="imovel">Imóvel</label>
-        <select id="imovel" v-model="contrato.imovel" required>
-          <option disabled value="">Selecione um imóvel</option>
-          <option v-for="imovel in imoveis" :key="imovel.id" :value="imovel.id">
-            {{ imovel.titulo_anuncio }}
-          </option>
-        </select>
-      </div>
-
-      <div class="form-group">
-        <label for="inquilino">Inquilino</label>
-        <select id="inquilino" v-model="contrato.inquilino" :required="contrato.tipo_contrato === 'Aluguel'">
-          <option disabled value="">Selecione um cliente</option>
-          <option v-for="cliente in clientes" :key="cliente.id" :value="cliente.id">
-            {{ cliente.nome_completo }}
-          </option>
-        </select>
-      </div>
-      
-      <div class="form-group">
-        <label for="proprietario">Proprietário</label>
-        <select id="proprietario" v-model="contrato.proprietario" :required="contrato.tipo_contrato === 'Aluguel'">
-          <option disabled value="">Selecione um cliente</option>
-          <option v-for="cliente in clientes" :key="cliente.id" :value="cliente.id">
-            {{ cliente.nome_completo }}
-          </option>
-        </select>
-      </div>
-
-      <div class="form-group">
-        <label for="tipo_contrato">Tipo de Contrato</label>
-        <select id="tipo_contrato" v-model="contrato.tipo_contrato" required>
-          <option value="Venda">Venda</option>
-          <option value="Aluguel">Aluguel</option>
-        </select>
-      </div>
-
-      <div class="form-group">
-        <label for="status_contrato">Status do Contrato</label>
-        <select id="status_contrato" v-model="contrato.status_contrato" required>
-          <option value="Ativo">Ativo</option>
-          <option value="Concluído">Concluído</option>
-          <option value="Rescindido">Rescindido</option>
-          <option value="Pendente">Pendente</option>
-        </select>
-      </div>
-
-      <div class="form-group">
-        <label for="data_inicio">Data de Início</label>
-        <input type="date" id="data_inicio" v-model="contrato.data_inicio" required />
-      </div>
-
-      <div v-if="contrato.tipo_contrato === 'Aluguel'" class="form-group">
-        <label for="duracao_meses">Duração (meses)</label>
-        <input type="number" id="duracao_meses" v-model="contrato.duracao_meses" min="1" required />
-      </div>
-
-      <div class="form-group">
-        <label for="data_fim">Data de Fim</label>
-        <input type="date" id="data_fim" v-model="contrato.data_fim" />
-      </div>
-
-       <div class="form-group">
-        <label for="data_assinatura">Data de Assinatura</label>
-        <input type="date" id="data_assinatura" v-model="contrato.data_assinatura" required />
-      </div>
-      <div class="form-group">
-        <label for="valor_total">Valor Total (R$)</label>
-        <input type="number" step="0.01" id="valor_total" v-model="contrato.valor_total" required />
-      </div>
-      
-      <div class="form-group full-width">
-        <label for="condicoes_pagamento">Condições de Pagamento</label>
-        <textarea id="condicoes_pagamento" v-model="contrato.condicoes_pagamento" rows="4" required></textarea>
-      </div>
-
-      <div class="form-actions full-width">
-        <button type="button" @click="handleCancel" class="btn-secondary">Cancelar</button>
-        <button type="submit" class="btn-primary" :disabled="isSubmitting">
-          {{ isSubmitting ? 'Guardando...' : 'Guardar Contrato' }}
-        </button>
-      </div>
-    </form>
-
-    <ContratoFinanceiro
-      v-if="isEditing && contrato.tipo_contrato === 'Aluguel' && contrato.id"
-      :contrato-id="contrato.id"
-    />
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, computed, watch } from 'vue';
-import { useRoute, useRouter } from 'vue-router';
-import apiClient from '@/services/api';
-import ContratoFinanceiro from '@/components/ContratoFinanceiro.vue';
+import { ref, onMounted } from 'vue';
+import apiClient from '@/services/api'; 
+import { format } from 'date-fns';
+import { ptBR } from 'date-fns/locale';
+import { useToast } from 'vue-toast-notification';
 
-const route = useRoute();
-const router = useRouter();
-
-const contratoId = computed(() => route.params.id as string | undefined);
-const isEditing = computed(() => !!contratoId.value);
-
-const contrato = ref({
-  id: null as number | null,
-  imovel: null,
-  inquilino: null,
-  proprietario: null,
-  tipo_contrato: 'Venda',
-  data_inicio: '',
-  data_fim: '',
-  duracao_meses: 12,
-  data_assinatura: '',
-  condicoes_pagamento: '',
-  valor_total: null,
-  status_contrato: 'Ativo',
-  pagamentos: []
+const props = defineProps({
+  contrato: {
+    type: Object,
+    required: true,
+  },
 });
 
-const imoveis = ref<any[]>([]);
-const clientes = ref<any[]>([]);
-const isLoadingData = ref(false);
-const isSubmitting = ref(false);
+const emit = defineEmits(['close']);
 
-async function fetchDropdownData() {
+// Tipagens simplificadas do Contrato e Pagamento
+interface IContrato {
+    id: number;
+    imovel_detalhes: { titulo_anuncio: string, logradouro: string };
+    inquilino_detalhes: { nome_display: string };
+}
+interface IPagamento {
+    id: number;
+    valor: string;
+    data_vencimento: string;
+    data_pagamento: string | null;
+    status: 'PENDENTE' | 'PAGO' | 'ATRASADO' | 'CANCELADO';
+}
+
+const pagamentos = ref<IPagamento[]>([]);
+const isLoadingPagamentos = ref(false);
+const error = ref<string | null>(null);
+const isProcessingId = ref<number | null>(null);
+const toast = useToast();
+
+const contrato = props.contrato as IContrato;
+
+// --- Funções de Formatação ---
+
+function formatarData(data: string | null | undefined): string {
+  if (!data) return 'N/A';
   try {
-    const [imoveisResponse, clientesResponse] = await Promise.all([
-      apiClient.get('/v1/imoveis/'),
-      apiClient.get('/v1/clientes/'),
-    ]);
-    imoveis.value = imoveisResponse.data;
-    clientes.value = clientesResponse.data;
-  } catch (error) {
-    console.error("Erro ao carregar dados para o formulário:", error);
-    alert('Não foi possível carregar os imóveis e clientes.');
+    return format(new Date(data + 'T00:00:00'), 'dd/MM/yyyy', { locale: ptBR });
+  } catch {
+    return 'Inválida';
   }
 }
 
-async function fetchContratoData() {
-  if (isEditing.value) {
-    isLoadingData.value = true;
-    try {
-      const response = await apiClient.get(`/v1/contratos/${contratoId.value}/`);
-      contrato.value = {
-        ...response.data,
-        id: response.data.id,
-        imovel: response.data.imovel?.id || null,
-        inquilino: response.data.inquilino?.id || null,
-        proprietario: response.data.proprietario?.id || null,
-      };
-    } catch (error) {
-      console.error("Erro ao buscar dados do contrato:", error);
-      alert("Não foi possível carregar os dados do contrato para edição.");
-      router.push({ name: 'contratos' });
-    } finally {
-      isLoadingData.value = false;
-    }
-  }
+function formatarMoeda(valor: string | number): string {
+    const num = typeof valor === 'string' ? parseFloat(valor) : valor;
+    if (isNaN(num)) return 'R$ 0,00';
+    return `R$ ${num.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
 
-onMounted(async () => {
-  isLoadingData.value = true;
-  await fetchDropdownData();
-  await fetchContratoData();
-  isLoadingData.value = false;
-});
+function formatarStatusPagamento(status: string): string {
+    const map: { [key: string]: string } = {
+        'PENDENTE': 'Pendente', 'PAGO': 'Pago', 'ATRASADO': 'Atrasado', 'CANCELADO': 'Cancelado',
+    };
+    return map[status] || status;
+}
 
-watch(() => contrato.value.data_inicio, (novaData) => {
-  if (novaData && contrato.value.tipo_contrato === 'Aluguel' && contrato.value.duracao_meses) {
-    const dataInicio = new Date(novaData);
-    dataInicio.setMonth(dataInicio.getMonth() + contrato.value.duracao_meses);
-    contrato.value.data_fim = dataInicio.toISOString().split('T')[0];
-  }
-});
-
-watch(() => contrato.value.duracao_meses, (novaDuracao) => {
-  if (contrato.value.data_inicio && contrato.value.tipo_contrato === 'Aluguel' && novaDuracao) {
-    const dataInicio = new Date(contrato.value.data_inicio);
-    dataInicio.setMonth(dataInicio.getMonth() + novaDuracao);
-    contrato.value.data_fim = dataInicio.toISOString().split('T')[0];
-  }
-});
+function getPagamentoStatusClass(status: string): string {
+    switch(status) {
+        case 'PAGO': return 'status-pago';
+        case 'PENDENTE': return 'status-pendente';
+        case 'ATRASADO': return 'status-atrasado';
+        case 'CANCELADO': return 'status-cancelado';
+        default: return '';
+    }
+}
 
 
-async function handleSubmit() {
-  isSubmitting.value = true;
-  
-  const payload = {
-    imovel: contrato.value.imovel,
-    inquilino: contrato.value.inquilino,
-    proprietario: contrato.value.proprietario,
-    tipo_contrato: contrato.value.tipo_contrato,
-    data_inicio: contrato.value.data_inicio,
-    data_fim: contrato.value.data_fim,
-    duracao_meses: contrato.value.duracao_meses,
-    data_assinatura: contrato.value.data_assinatura,
-    valor_total: contrato.value.valor_total,
-    condicoes_pagamento: contrato.value.condicoes_pagamento,
-    status_contrato: contrato.value.status_contrato,
-  };
+// --- Funções de API ---
 
+async function fetchPagamentos() {
+  isLoadingPagamentos.value = true;
+  error.value = null;
   try {
-    let response;
-    if (isEditing.value) {
-      response = await apiClient.put(`/v1/contratos/${contratoId.value}/`, payload);
-    } else {
-      response = await apiClient.post('/v1/contratos/', payload);
-    }
-    if (!isEditing.value && response && response.data?.id) {
-        router.push({ name: 'contrato-editar', params: { id: response.data.id } });
-    } else {
-        router.push({ name: 'contratos' });
-    }
-  } catch (error: any) {
-    console.error("Erro ao guardar o contrato:", error.response?.data || error);
-    alert('Ocorreu um erro ao guardar o contrato. Verifique os dados.');
+    // Chama o endpoint customizado do ContratoViewSet: /v1/contratos/{id}/pagamentos/
+    const response = await apiClient.get(`/v1/contratos/${contrato.id}/pagamentos/`);
+    pagamentos.value = response.data;
+  } catch (err) {
+    console.error("Erro ao buscar pagamentos:", err);
+    error.value = "Não foi possível carregar as parcelas.";
   } finally {
-    isSubmitting.value = false;
+    isLoadingPagamentos.value = false;
   }
 }
 
-function handleCancel() {
-  router.push({ name: 'contratos' });
+async function marcarComoPago(pagamentoId: number) {
+  const pagamento = pagamentos.value.find(p => p.id === pagamentoId);
+  const vencimento = pagamento ? formatarData(pagamento.data_vencimento) : 'N/A';
+
+  if (!window.confirm(`Confirmar baixa do pagamento com vencimento em ${vencimento}?`)) return;
+  
+  isProcessingId.value = pagamentoId;
+  try {
+    // Chama o endpoint customizado do PagamentoViewSet: /v1/pagamentos/{id}/marcar-pago/
+    const response = await apiClient.post(`/v1/pagamentos/${pagamentoId}/marcar-pago/`, {});
+    
+    toast.success('Pagamento baixado com sucesso!');
+    fetchPagamentos(); // Recarrega a lista para atualizar o status
+  } catch (error: any) {
+    const errorMsg = error.response?.data?.status || 'Falha ao marcar como pago.';
+    console.error("Erro ao marcar como pago:", errorMsg);
+    toast.error(errorMsg);
+  } finally {
+    isProcessingId.value = null;
+  }
 }
+
+async function gerarRecibo(pagamentoId: number) {
+  isProcessingId.value = pagamentoId;
+  try {
+    // Chama a View personalizada para gerar o PDF: /v1/pagamentos/{id}/recibo/
+    const response = await apiClient.get(`/v1/pagamentos/${pagamentoId}/recibo/`, {
+      responseType: 'blob' // Importante para receber o arquivo PDF
+    });
+    
+    // Cria um URL temporário para o blob e abre em nova janela
+    const fileURL = window.URL.createObjectURL(new Blob([response.data], { type: 'application/pdf' }));
+    window.open(fileURL, '_blank');
+
+    toast.info('Recibo gerado e aberto em nova aba.');
+  } catch (error) {
+    console.error("Erro ao gerar recibo:", error);
+    toast.error('Não foi possível gerar o recibo.');
+  } finally {
+    isProcessingId.value = null;
+  }
+}
+
+onMounted(fetchPagamentos);
+
 </script>
 
 <style scoped>
-.form-container { padding: 2rem; }
-.view-header { margin-bottom: 1.5rem; }
-.contrato-form { display: flex; flex-wrap: wrap; gap: 1.5rem; }
-.form-group { display: flex; flex-direction: column; flex: 1 1 calc(50% - 1.5rem); }
-.form-group.full-width { flex-basis: 100%; }
-label { margin-bottom: 0.5rem; font-weight: bold; }
-input, select, textarea { padding: 10px; border: 1px solid #ccc; border-radius: 4px; font-size: 1rem; }
-.form-actions { display: flex; justify-content: flex-end; gap: 1rem; width: 100%; margin-top: 1rem; }
-.btn-primary, .btn-secondary { padding: 10px 20px; border: none; border-radius: 5px; cursor: pointer; }
-.btn-primary { background-color: #007bff; color: white; }
-.btn-secondary { background-color: #6c757d; color: white; }
-.loading-message { text-align: center; padding: 2rem; }
+/* Os estilos globais do Modal estão no ContratosView.vue. */
+
+.modal-container { 
+  max-width: 800px !important;
+}
+
+.modal-title { font-size: 1.5rem; font-weight: 600; margin-bottom: 0.5rem; color: #007bff; }
+.modal-subtitle { font-size: 1rem; color: #6c757d; margin-bottom: 0.5rem; }
+
+.loading-state, .error-state, .empty-state {
+    text-align: center;
+    padding: 2rem;
+    font-size: 1.1rem;
+    color: #6c757d;
+}
+.error-state {
+    color: #dc3545;
+    background-color: #f8d7da;
+    border-radius: 6px;
+}
+
+.pagamentos-list {
+    margin-top: 1.5rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.8rem;
+}
+
+.pagamento-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1rem;
+    border: 1px solid #e9ecef;
+    border-left: 5px solid #007bff; /* Linha de destaque */
+    background-color: #fff;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+    border-radius: 6px;
+}
+
+.item-details p {
+    margin: 0;
+    font-size: 0.95rem;
+    color: #495057;
+}
+
+.item-details p strong {
+    color: #212529;
+    margin-right: 5px;
+}
+
+.status-badge {
+    padding: 4px 10px; border-radius: 12px; font-size: 0.75rem;
+    font-weight: bold; color: white; text-transform: uppercase;
+    display: inline-block;
+    margin-left: 5px;
+}
+.status-pago { background-color: #198754; }
+.status-pendente { background-color: #ffc107; color: #333; }
+.status-atrasado { background-color: #dc3545; }
+.status-cancelado { background-color: #6c757d; }
+
+.item-actions {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.btn-action {
+    padding: 8px 12px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 0.85rem;
+    font-weight: 500;
+    transition: opacity 0.2s;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+}
+
+.btn-action:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.btn-success { background-color: #198754; color: white; }
+.btn-info { background-color: #0d6efd; color: white; }
 </style>

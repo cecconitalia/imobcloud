@@ -11,8 +11,8 @@ router.register(r'contratos', ContratoViewSet, basename='contrato')
 router.register(r'pagamentos', PagamentoViewSet, basename='pagamento')
 
 urlpatterns = [
-    # Inclui as rotas automáticas do router (incluindo o novo 'get_html')
-    path('', include(router.urls)),
+    # Inclui as rotas automáticas do router (incluindo a action 'gerar-financeiro' e 'pagamentos')
+    path('', include(router.urls)), #
     
     # Rota personalizada para o recibo
     path('pagamentos/<int:pagamento_id>/recibo/', GerarReciboView.as_view(), name='gerar-recibo'),
