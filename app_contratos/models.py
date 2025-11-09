@@ -9,7 +9,6 @@ from app_financeiro.models import FormaPagamento
 
 class Contrato(models.Model):
     
-    # CORREÇÃO: Uso de TextChoices para padronizar valores (UPPERCASE)
     class TipoContrato(models.TextChoices):
         VENDA = 'VENDA', 'Venda'
         ALUGUEL = 'ALUGUEL', 'Aluguel'
@@ -26,14 +25,14 @@ class Contrato(models.Model):
     tipo_contrato = models.CharField(
         max_length=50, 
         verbose_name="Tipo de Contrato", 
-        choices=TipoContrato.choices # CORREÇÃO: Usando TextChoices
+        choices=TipoContrato.choices
     )
     imovel = models.ForeignKey(Imovel, on_delete=models.CASCADE, verbose_name="Imóvel")
     inquilino = models.ForeignKey(
         Cliente, 
         on_delete=models.CASCADE, 
         related_name="contratos_aluguel", 
-        verbose_name="Inquilino" # Rótulo mantido, mas se aplica a Comprador também
+        verbose_name="Inquilino"
     )
     proprietario = models.ForeignKey(
         Cliente,
@@ -42,7 +41,18 @@ class Contrato(models.Model):
         verbose_name="Proprietário"
     )
 
-    # NOVO CAMPO (Faltante)
+    # ==================================================================
+    # CORREÇÃO CRÍTICA: O seu ficheiro tinha 'fiador = models.ForeignKey'.
+    # O correto é 'fiadores = models.ManyToManyField' para aceitar
+    # a lista [1, 2] enviada pelo seu ContratoFormView.vue.
+    # ==================================================================
+    fiadores = models.ManyToManyField(
+        Cliente,
+        related_name="contratos_como_fiador",
+        verbose_name="Fiadores",
+        blank=True 
+    )
+    
     aluguel = models.DecimalField(
         max_digits=15, 
         decimal_places=2, 
@@ -71,9 +81,9 @@ class Contrato(models.Model):
     )
     status_contrato = models.CharField(
         max_length=50, 
-        default=Status.PENDENTE, # CORREÇÃO: Usando TextChoices
+        default=Status.PENDENTE, 
         verbose_name="Status do Contrato", 
-        choices=Status.choices # CORREÇÃO: Usando TextChoices
+        choices=Status.choices
     )
     
     data_inicio = models.DateField(verbose_name="Data de Início")
@@ -100,12 +110,10 @@ class Contrato(models.Model):
         ordering = ['-data_cadastro']
 
     def __str__(self):
-        # CORREÇÃO: Usando .label para exibir o texto amigável (ex: 'Aluguel' em vez de 'ALUGUEL')
         return f"Contrato de {self.get_tipo_contrato_display()} - {self.imovel.logradouro} ({self.imobiliaria.nome})"
 
 
 class Pagamento(models.Model):
-    # CORREÇÃO: Padronizando Status para UPPERCASE
     STATUS_PAGAMENTO_CHOICES = [
         ('PENDENTE', 'Pendente'),
         ('PAGO', 'Pago'),

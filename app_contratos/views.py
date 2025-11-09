@@ -11,7 +11,6 @@ from rest_framework.exceptions import ValidationError
 from django.template.loader import render_to_string
 from xhtml2pdf import pisa
 from django.http import HttpResponse
-# Removidas as imports não utilizadas de reportlab
 from io import BytesIO
 from django.conf import settings
 import os
@@ -21,13 +20,24 @@ from app_financeiro.models import Transacao
 from rest_framework.views import APIView
 from django.utils import timezone
 
+# Imports do Reportlab (necessárias para GerarReciboView)
+from reportlab.pdfgen import canvas
+from reportlab.lib.pagesizes import letter
+
+
 class ContratoViewSet(viewsets.ModelViewSet):
     serializer_class = ContratoSerializer
     permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
         if hasattr(self.request.user, 'perfil') and self.request.user.perfil.imobiliaria:
-            return Contrato.objects.filter(imobiliaria=self.request.user.perfil.imobiliaria).select_related('imovel', 'inquilino', 'proprietario')
+            # ==================================================================
+            # OTIMIZAÇÃO: Adicionado 'prefetch_related('fiadores')' 
+            # pois 'fiadores' agora é ManyToMany.
+            # ==================================================================
+            return Contrato.objects.filter(imobiliaria=self.request.user.perfil.imobiliaria).select_related(
+                'imovel', 'inquilino', 'proprietario'
+            ).prefetch_related('fiadores')
         return Contrato.objects.none()
 
     def get_serializer_class(self):
@@ -36,18 +46,15 @@ class ContratoViewSet(viewsets.ModelViewSet):
         return ContratoSerializer
 
     def perform_create(self, serializer):
-        # ==================================================================
-        # CORREÇÃO CRÍTICA (Erro 400): 
-        # Define 'imobiliaria' e 'status_contrato' no views.py.
-        # Eles foram marcados como read_only no serializer.
-        # ==================================================================
+        # Esta função está CORRETA. Ela força o status inicial para PENDENTE.
         serializer.save(
             imobiliaria=self.request.user.perfil.imobiliaria,
             status_contrato=Contrato.Status.PENDENTE # Define o status inicial
         )
 
     def perform_update(self, serializer):
-        # Ao atualizar, a imobiliaria deve ser a mesma
+        # Esta função está CORRETA. Ela permite salvar as alterações
+        # (incluindo o status_contrato enviado pelo Vue)
         serializer.save(imobiliaria=self.request.user.perfil.imobiliaria)
 
     @action(detail=True, methods=['get'])
@@ -63,7 +70,6 @@ class ContratoViewSet(viewsets.ModelViewSet):
         if contrato.conteudo_personalizado:
             return HttpResponse(contrato.conteudo_personalizado, content_type='text/html; charset=utf-8')
 
-        # CORREÇÃO: Usar a constante do modelo para consistência
         template_name = 'contrato_aluguel_template.html' if contrato.tipo_contrato == Contrato.TipoContrato.ALUGUEL else 'contrato_venda_template.html'
         context = {
             'contrato': contrato,
@@ -94,7 +100,6 @@ class ContratoViewSet(viewsets.ModelViewSet):
         if contrato.conteudo_personalizado:
             html_content = contrato.conteudo_personalizado
         else:
-            # CORREÇÃO: Usar a constante do modelo para consistência
             template_name = 'contrato_aluguel_template.html' if contrato.tipo_contrato == Contrato.TipoContrato.ALUGUEL else 'contrato_venda_template.html'
             context = {
                 'contrato': contrato,

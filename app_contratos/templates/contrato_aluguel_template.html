@@ -56,7 +56,7 @@
     </div>
     <div class="clausula">
         <h2>CLÁUSULA TERCEIRA - DO VALOR DO ALUGUEL E PAGAMENTO</h2>
-        <p>O aluguel mensal é de **R$ {{ contrato.valor_total|floatformat:2 }}** ({{ contrato.valor_total|num2words:"pt_BR"|capfirst }}),
+        <p>O aluguel mensal é de **R$ {{ contrato.aluguel|floatformat:2 }}** ({{ contrato.aluguel|num2words:"pt_BR"|capfirst }}),
         devendo ser pago até o 5º dia útil de cada mês na forma: {{ contrato.informacoes_adicionais|default:"(Não especificadas)." }}</p>
     </div>
     <div class="clausula">
