@@ -6,8 +6,6 @@ from app_imoveis.models import Imovel
 from app_clientes.models import Cliente
 from django.utils import timezone
 from app_financeiro.models import FormaPagamento
-# Importação de ValidationError removida, pois não é mais usada aqui
-# from django.core.exceptions import ValidationError
 
 class Contrato(models.Model):
     
@@ -59,11 +57,20 @@ class Contrato(models.Model):
         help_text="Usado para gerar parcelas de aluguel."
     )
     
+    # [NOVO CAMPO] Taxa de administração para repasse
+    taxa_administracao_percentual = models.DecimalField(
+        max_digits=5, 
+        decimal_places=2, 
+        default=10.00, # Valor padrão de 10%
+        verbose_name="Taxa de Administração (%)",
+        help_text="Percentual retido pela imobiliária sobre o aluguel."
+    )
+    
     valor_total = models.DecimalField(
         max_digits=15, 
         decimal_places=2, 
         verbose_name="Valor Total do Contrato (Venda)",
-        null=True, # Permitir nulo para aluguel
+        null=True, 
         blank=True
     )
     informacoes_adicionais = models.TextField(
@@ -73,7 +80,7 @@ class Contrato(models.Model):
         default=12,
         verbose_name="Duração do Contrato (em meses)",
         help_text="Usado para gerar as parcelas de aluguel.",
-        null=True, # Permitir nulo para venda
+        null=True, 
         blank=True
     )
     status_contrato = models.CharField(
@@ -101,13 +108,7 @@ class Contrato(models.Model):
         help_text="Armazena o conteúdo HTML do contrato após a edição."
     )
 
-    # ==================================================================
-    # O método clean() foi removido daqui e sua lógica
-    # foi movida para o ContratoCriacaoSerializer.
-    # ==================================================================
-
     def save(self, *args, **kwargs):
-        # A chamada self.clean() foi removida daqui.
         super().save(*args, **kwargs)
 
     class Meta:
