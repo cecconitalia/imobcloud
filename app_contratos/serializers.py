@@ -5,6 +5,8 @@ from .models import Contrato, Pagamento
 from app_imoveis.models import Imovel
 from app_clientes.models import Cliente
 from django.db import transaction
+from app_financeiro.models import FormaPagamento 
+
 
 class ImovelSimplificadoSerializer(serializers.ModelSerializer):
     endereco_completo = serializers.SerializerMethodField()
@@ -39,12 +41,13 @@ class ContratoSerializer(serializers.ModelSerializer):
     inquilino_detalhes = ClienteSimplificadoSerializer(source='inquilino', read_only=True)
     proprietario_detalhes = ClienteSimplificadoSerializer(source='proprietario', read_only=True)
     
-    # CORREÇÃO: Alterado para 'fiadores' (plural) e 'many=True'
     fiadores_detalhes = ClienteSimplificadoSerializer(source='fiadores', read_only=True, many=True)
     
     pagamentos = PagamentoSerializer(many=True, read_only=True)
     parte_principal_label = serializers.SerializerMethodField()
     valor_display = serializers.SerializerMethodField()
+
+    formas_pagamento = serializers.PrimaryKeyRelatedField(many=True, read_only=True)
 
     class Meta:
         model = Contrato
@@ -59,10 +62,14 @@ class ContratoSerializer(serializers.ModelSerializer):
             'imovel_detalhes', 
             'inquilino_detalhes', 
             'proprietario_detalhes',
-            'fiadores_detalhes', # CORRIGIDO (plural)
+            'fiadores_detalhes', 
             'pagamentos',
             'parte_principal_label',
             'valor_display',
+            'formas_pagamento',
+            
+            # Campo de IDs de fiadores (para o v-model do form)
+            'fiadores', 
         ]
         read_only_fields = ('data_cadastro', 'imobiliaria')
 
@@ -86,10 +93,6 @@ class ContratoCriacaoSerializer(serializers.ModelSerializer):
     Serializer para CRIAÇÃO/ATUALIZAÇÃO.
     """
     
-    # ==================================================================
-    # CORREÇÃO: Campos explícitos para garantir que o Imóvel (e outros FKs) 
-    # sejam salvos. O seu frontend envia 'imovel', 'inquilino', 'proprietario'.
-    # ==================================================================
     imovel = serializers.PrimaryKeyRelatedField(
         queryset=Imovel.objects.all(),
         required=True
@@ -103,14 +106,18 @@ class ContratoCriacaoSerializer(serializers.ModelSerializer):
         required=True
     )
     
-    # ==================================================================
-    # CORREÇÃO: Campo 'fiadores' (plural) com many=True (M2M)
-    # (Isto já estava correto no seu ficheiro)
-    # ==================================================================
+    # Campo M2M 1: Fiadores
     fiadores = serializers.PrimaryKeyRelatedField(
         queryset=Cliente.objects.all(),
         required=False,
         many=True 
+    )
+
+    # Campo M2M 2: Formas de Pagamento
+    formas_pagamento = serializers.PrimaryKeyRelatedField(
+        queryset=FormaPagamento.objects.all(),
+        required=False,
+        many=True
     )
 
     # Campos de valor (para validação condicional)
@@ -120,7 +127,25 @@ class ContratoCriacaoSerializer(serializers.ModelSerializer):
     
     class Meta:
         model = Contrato
-        fields = '__all__'
+        
+        # Lista explícita de campos para garantir que todos os M2M sejam processados.
+        fields = [
+            'tipo_contrato',
+            'imovel',
+            'inquilino',
+            'proprietario',
+            'fiadores', 
+            'aluguel',
+            'valor_total',
+            'informacoes_adicionais',
+            'duracao_meses',
+            'status_contrato',
+            'data_inicio',
+            'data_fim',
+            'data_assinatura',
+            'conteudo_personalizado',
+            'formas_pagamento', 
+        ]
         read_only_fields = ('imobiliaria', 'data_cadastro')
         
     def validate(self, data):
@@ -128,7 +153,7 @@ class ContratoCriacaoSerializer(serializers.ModelSerializer):
         if data.get('inquilino') == data.get('proprietario'):
             raise serializers.ValidationError("O inquilino/comprador e o proprietário não podem ser a mesma pessoa.")
 
-        # Validação Fiador: Agora itera na lista
+        # 2. Validação Fiador
         fiadores_list = data.get('fiadores', [])
         inquilino = data.get('inquilino')
         proprietario = data.get('proprietario')
@@ -145,14 +170,14 @@ class ContratoCriacaoSerializer(serializers.ModelSerializer):
         
         tipo_limpo = None
         
-        # 2. Sanitização e Validação do tipo_contrato
+        # 3. Sanitização e Validação do tipo_contrato
         if tipo:
              tipo_limpo = tipo.strip().upper().replace('"', '').replace("'", "")
              if tipo_limpo not in [Contrato.TipoContrato.ALUGUEL, Contrato.TipoContrato.VENDA]:
                  raise serializers.ValidationError({"tipo_contrato": f"O tipo de contrato '{tipo}' é inválido."})
              data['tipo_contrato'] = tipo_limpo 
         
-        # 3. Validação Condicional de Valores
+        # 4. Validação Condicional de Valores
         if tipo_limpo == Contrato.TipoContrato.ALUGUEL:
             if not valor_aluguel:
                 raise serializers.ValidationError({"aluguel": "Este campo é obrigatório para contratos de Aluguel."})
@@ -164,4 +189,28 @@ class ContratoCriacaoSerializer(serializers.ModelSerializer):
             data['aluguel'] = None 
             data['duracao_meses'] = None 
             
+        # ==================================================================
+        # CORREÇÃO: Validação de Contrato Ativo Duplicado
+        # Movida para cá (do models.py) para retornar um erro 400
+        # formatado corretamente para o frontend.
+        # ==================================================================
+        status_contrato = data.get('status_contrato')
+        imovel = data.get('imovel')
+        
+        if status_contrato == Contrato.Status.ATIVO and imovel:
+            # Pega o 'self.instance' (o contrato atual) se for uma edição
+            instance_pk = self.instance.pk if self.instance else None
+            
+            query_conflitos = Contrato.objects.filter(
+                imovel=imovel,
+                status_contrato=Contrato.Status.ATIVO,
+                tipo_contrato=tipo_limpo
+            ).exclude(pk=instance_pk)
+            
+            if query_conflitos.exists():
+                # Esta é a mensagem de erro que será enviada ao frontend
+                raise serializers.ValidationError({
+                    "status_contrato": f"Este imóvel já possui outro contrato de {tipo_limpo.capitalize()} ATIVO."
+                })
+
         return data

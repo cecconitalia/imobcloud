@@ -6,6 +6,8 @@ from app_imoveis.models import Imovel
 from app_clientes.models import Cliente
 from django.utils import timezone
 from app_financeiro.models import FormaPagamento
+# Importação de ValidationError removida, pois não é mais usada aqui
+# from django.core.exceptions import ValidationError
 
 class Contrato(models.Model):
     
@@ -41,11 +43,6 @@ class Contrato(models.Model):
         verbose_name="Proprietário"
     )
 
-    # ==================================================================
-    # CORREÇÃO CRÍTICA: O seu ficheiro tinha 'fiador = models.ForeignKey'.
-    # O correto é 'fiadores = models.ManyToManyField' para aceitar
-    # a lista [1, 2] enviada pelo seu ContratoFormView.vue.
-    # ==================================================================
     fiadores = models.ManyToManyField(
         Cliente,
         related_name="contratos_como_fiador",
@@ -103,6 +100,15 @@ class Contrato(models.Model):
         verbose_name="Conteúdo Personalizado do Contrato",
         help_text="Armazena o conteúdo HTML do contrato após a edição."
     )
+
+    # ==================================================================
+    # O método clean() foi removido daqui e sua lógica
+    # foi movida para o ContratoCriacaoSerializer.
+    # ==================================================================
+
+    def save(self, *args, **kwargs):
+        # A chamada self.clean() foi removida daqui.
+        super().save(*args, **kwargs)
 
     class Meta:
         verbose_name = "Contrato"

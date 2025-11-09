@@ -18,15 +18,21 @@ class ContratoAdmin(admin.ModelAdmin):
         ('Informações Gerais', {
             'fields': ('imobiliaria', 'tipo_contrato', 'status_contrato', 'imovel')
         }),
+        # ==================================================================
+        # CORREÇÃO: Adicionando 'fiadores' em 'Partes Envolvidas'
+        # Isso garante que o campo ManyToMany seja exibido no Django Admin.
+        # ==================================================================
         ('Partes Envolvidas', {
-            'fields': ('inquilino', 'proprietario')
+            'fields': ('inquilino', 'proprietario', 'fiadores') # <--- CAMPO ADICIONADO AQUI
         }),
         ('Valores e Prazos', {
-            # *** CORREÇÃO: 'condicoes_pagamento' foi removido daqui ***
-            'fields': ('valor_total', 'duracao_meses', 'data_inicio', 'data_fim', 'data_assinatura')
+            'fields': ('valor_total', 'duracao_meses', 'aluguel', 'data_inicio', 'data_fim', 'data_assinatura')
         }),
-        ('Outras Informações', {
-            'fields': ('informacoes_adicionais',)
+        ('Informações de Pagamento', {
+            'fields': ('formas_pagamento',) # Adicionado aqui para ter formas_pagamento
+        }),
+        ('Conteúdo Personalizado', {
+            'fields': ('conteudo_personalizado', 'informacoes_adicionais',)
         }),
     )
     

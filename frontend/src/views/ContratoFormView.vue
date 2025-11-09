@@ -164,7 +164,7 @@
         <fieldset class="form-section">
           <legend>Cláusulas Personalizadas e Observações</legend>
            <div class="form-group">
-              <label for="conteudo_personalizado">Cláusulas Adicionais</label>
+              <label>Cláusulas Adicionais</label>
               <QuillEditor
                 theme="snow"
                 v-model:content="contrato.conteudo_personalizado"
@@ -209,13 +209,9 @@ import 'vue-select/dist/vue-select.css';
 import { QuillEditor } from '@vueup/vue-quill';
 import '@vueup/vue-quill/dist/vue-quill.snow.css';
 
-// ==================================================================
-// CORREÇÃO (Tela Branca / Vue Warn): 
-// O 'v-money3' exporta a diretiva como 'default'.
-// Precisamos importá-la e extrair a propriedade '.directive' para o Vue 3.
+// Importação do v-money3
 import money from 'v-money3';
-const vMoney = money.directive; // Esta é a diretiva que o template usará
-// ==================================================================
+const vMoney = money.directive; 
 
 
 // Interfaces
@@ -314,9 +310,12 @@ watch(() => contrato.value.tipo_contrato, (newType) => {
 });
 
 // Lógica de carregamento de Imóveis por Proprietário
-watch(() => contrato.value.proprietario_id, (newPropId) => {
-  // Limpa o imóvel selecionado
-  contrato.value.imovel_id = null;
+watch(() => contrato.value.proprietario_id, (newPropId, oldPropId) => {
+  // Limpa o imóvel selecionado APENAS se foi uma mudança manual
+  if (oldPropId) {
+    contrato.value.imovel_id = null;
+  }
+  
   imovelOptions.value = [];
   
   if (newPropId) {
@@ -326,7 +325,8 @@ watch(() => contrato.value.proprietario_id, (newPropId) => {
 
 function loadImoveis(proprietarioId: number) {
   isCarregandoImoveis.value = true;
-  apiClient.get<SelectOption[]>(`/v1/imoveis/lista-simples/?proprietario_id=${proprietarioId}`)
+  // Usamos 'return' para permitir o 'await' no loadContrato
+  return apiClient.get<SelectOption[]>(`/v1/imoveis/lista-simples/?proprietario_id=${proprietarioId}`)
     .then(response => {
       imovelOptions.value = response.data; 
     })
@@ -375,23 +375,24 @@ async function loadContrato(id: string | string[]) {
    try {
     const { data } = await apiClient.get(`/v1/contratos/${id}/`);
     
-    // Achata os dados para o formulário
+    // Carrega os imóveis do proprietário ANTES de definir o v-model
+    const proprietarioId = data.proprietario_detalhes?.id || data.proprietario;
+    if (proprietarioId) {
+        await loadImoveis(proprietarioId);
+    }
+    
+    // Agora define o v-model
     contrato.value = {
       ...data,
       imovel_id: data.imovel_detalhes?.id || data.imovel,
       inquilino_id: data.inquilino_detalhes?.id || data.inquilino,
-      proprietario_id: data.proprietario_detalhes?.id || data.proprietario,
-      fiadores: data.fiadores || [], 
+      proprietario_id: proprietarioId,
+      fiadores: data.fiadores || [], // Recebe a lista de IDs do serializer
       formas_pagamento: data.formas_pagamento || [],
       data_inicio: data.data_inicio ? data.data_inicio.split('T')[0] : '',
       data_fim: data.data_fim ? data.data_fim.split('T')[0] : null,
       data_assinatura: data.data_assinatura ? data.data_assinatura.split('T')[0] : null,
     };
-    
-    // Se estamos editando, carregar os imóveis do proprietário
-    if (contrato.value.proprietario_id) {
-        await loadImoveis(contrato.value.proprietario_id);
-    }
     
   } catch (error) {
     console.error("Erro ao carregar contrato:", error);
@@ -454,8 +455,37 @@ async function handleSubmit() {
     router.push({ name: 'contratos' });
   } catch (error: any) {
     console.error("Erro ao salvar contrato:", error.response?.data || error);
-    const errorMsg = JSON.stringify(error.response?.data || error);
-    toast.error(`Falha ao salvar: ${errorMsg}`);
+    
+    // Lógica de tratamento de erro aprimorada
+    let errorMsg = "Ocorreu uma falha desconhecida ao salvar.";
+
+    if (error.response && error.response.data) {
+        const errors = error.response.data;
+        
+        // Tenta pegar o erro específico de 'status_contrato' (nosso novo erro)
+        if (errors.status_contrato && Array.isArray(errors.status_contrato)) {
+            errorMsg = errors.status_contrato[0];
+        
+        // Tenta pegar erros não relacionados a campos
+        } else if (errors.non_field_errors && Array.isArray(errors.non_field_errors)) {
+            errorMsg = errors.non_field_errors[0];
+        
+        // Tenta pegar o primeiro erro da lista, se for um objeto de erros
+        } else if (typeof errors === 'object' && errors !== null) {
+            const firstErrorKey = Object.keys(errors)[0];
+            if (Array.isArray(errors[firstErrorKey])) {
+                errorMsg = `${firstErrorKey}: ${errors[firstErrorKey][0]}`;
+            } else {
+                 errorMsg = JSON.stringify(errors);
+            }
+        // Se for apenas uma string (como erro 500)
+        } else if (typeof errors === 'string') {
+            errorMsg = errors;
+        }
+    }
+    
+    toast.error(errorMsg, { duration: 5000 }); // 5 segundos
+    
   } finally {
     isSaving.value = false;
   }
