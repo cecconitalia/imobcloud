@@ -39,9 +39,11 @@
                 label="label"
                 placeholder="Selecione o proprietário"
                 :clearable="false"
-                :disabled="!proprietarioOptions.length && !isEditing"
+                :disabled="!contrato.tipo_contrato || (!proprietarioOptions.length && !isEditing && !isLoadingProprietarios)"
               ></v-select>
-              <p v-if="!proprietarioOptions.length && contrato.tipo_contrato && !isEditing" class="help-text-loading">Carregando proprietários...</p>
+              <p v-if="isLoadingProprietarios" class="help-text-loading">Carregando proprietários...</p>
+              <p v-else-if="!contrato.tipo_contrato" class="help-text">Selecione o Tipo de Contrato primeiro.</p>
+              <p v-else-if="!proprietarioOptions.length && !isEditing" class="help-text">Nenhum proprietário com imóveis disponíveis para esta finalidade.</p>
             </div>
 
 
@@ -71,11 +73,11 @@
               label="label"
               placeholder="Selecione o Imóvel"
               :clearable="false"
-              :disabled="!contrato.tipo_contrato || (!imovelOptions.length && !isEditing && !isLoadingImoveis)"
+              :disabled="!contrato.proprietario || (!imovelOptions.length && !isEditing && !isLoadingImoveis)"
             ></v-select>
-            <p v-if="isLoadingImoveis" class="help-text-loading">Carregando imóveis para {{ contrato.tipo_contrato }}...</p>
-            <p v-else-if="!contrato.tipo_contrato" class="help-text">Selecione o Tipo de Contrato primeiro.</p>
-             <p v-else-if="!imovelOptions.length" class="help-text">Nenhum imóvel encontrado para esta finalidade.</p>
+            <p v-if="isLoadingImoveis" class="help-text-loading">Carregando imóveis...</p>
+            <p v-else-if="!contrato.proprietario" class="help-text">Selecione um Proprietário primeiro.</p>
+            <p v-else-if="!imovelOptions.length" class="help-text">Nenhum imóvel disponível encontrado para este proprietário.</p>
           </div>
         </fieldset>
 
@@ -214,8 +216,6 @@ interface ClienteOption { label: string; value: number; }
 interface ImovelOption { 
   label: string; 
   value: number; 
-  proprietario_id: number;
-  proprietario_nome: string;
 }
 
 interface ContratoData {
@@ -248,6 +248,15 @@ interface ContratoData {
   conteudo_personalizado: string | null;
   formas_pagamento: number[];
 }
+
+// Tipagem para a resposta do ImovelSerializer (suposição)
+interface ImovelSerializerResponse {
+  id: number;
+  titulo: string;
+  codigo_referencia: string;
+  // ... outros campos do serializer ...
+}
+
 
 const route = useRoute();
 const router = useRouter();
@@ -287,6 +296,7 @@ const imovelOptions = ref<ImovelOption[]>([]);
 
 const isSubmitting = ref(false);
 const isLoading = ref(true); 
+const isLoadingProprietarios = ref(false); 
 const isLoadingImoveis = ref(false); 
 const error = ref<string | null>(null);
 
@@ -315,10 +325,8 @@ const calcularComissaoInicial = () => {
 };
 
 const handleTipoChange = () => {
-    // Ao mudar o tipo, resetar o Proprietário e Imóvel
     contrato.value.proprietario = null;
     contrato.value.imovel = null;
-    // Limpar as listas
     proprietarioOptions.value = [];
     imovelOptions.value = [];
     
@@ -335,8 +343,6 @@ const handleTipoChange = () => {
         contrato.value.taxa_administracao_percentual = 0.00;
         contrato.value.data_primeiro_vencimento = null;
     }
-    
-    // O watcher de tipo_contrato fará o fetchProprietarioOptions
 };
 
 // ===============================================
@@ -345,10 +351,7 @@ const handleTipoChange = () => {
 
 async function fetchInitialDependencies() {
   try {
-    // 1. Fetch Lista Completa de Clientes (para Inquilino/Fiadores)
     const clientesRes = await apiClient.get('/v1/clientes/lista-simples/');
-    
-    // Mapear a resposta da API para o formato de v-select
     todosClientesOptions.value = clientesRes.data.map((c: any) => ({
       label: c.nome_display,
       value: c.id,
@@ -362,13 +365,17 @@ async function fetchInitialDependencies() {
 async function fetchProprietarioOptions(tipo: 'ALUGUEL' | 'VENDA' | '') {
     if (!tipo) return;
     
-    // CORREÇÃO: A API de Proprietários (/clientes) espera 'A_VENDA' ou 'PARA_ALUGAR'
+    isLoadingProprietarios.value = true;
+    
+    // Esta lógica está correta e funcionando
     const finalidade = tipo === 'VENDA' ? 'A_VENDA' : 'PARA_ALUGAR';
+    const params = { 
+        finalidade: finalidade,
+        status_imovel: 'DISPONIVEL' 
+    };
 
     try {
-        const proprietarioRes = await apiClient.get('/v1/clientes/lista-proprietarios/', { params: { finalidade: finalidade } });
-        
-        // Mapear a resposta da API para o formato de v-select
+        const proprietarioRes = await apiClient.get('/v1/clientes/lista-proprietarios/', { params: params });
         proprietarioOptions.value = proprietarioRes.data.map((c: any) => ({
             label: c.nome_display,
             value: c.id,
@@ -376,28 +383,44 @@ async function fetchProprietarioOptions(tipo: 'ALUGUEL' | 'VENDA' | '') {
     } catch (err) {
         console.error('Erro ao carregar lista de Proprietários filtrada:', err);
         proprietarioOptions.value = []; 
+    } finally {
+        isLoadingProprietarios.value = false;
     }
 }
 
 async function fetchImovelOptions(tipo: 'ALUGUEL' | 'VENDA' | '', proprietarioId: number | null) {
-  if (!tipo) { 
+  if (!tipo || !proprietarioId) { 
       imovelOptions.value = [];
       return;
   }
   
   isLoadingImoveis.value = true;
   
-  // CORREÇÃO: Ambas as APIs esperam 'A_VENDA' ou 'PARA_ALUGAR'
   const finalidade = tipo === 'VENDA' ? 'A_VENDA' : 'PARA_ALUGAR';
 
   const imovelParams: Record<string, any> = { 
       finalidade: finalidade,
+      proprietario: proprietarioId, 
+      status: 'DISPONIVEL'          
   };
   
   try {
-    // Fetch: Imóveis filtrados por finalidade E proprietário
-    const imovelRes = await apiClient.get('/v1/imoveis/lista-simples/', { params: imovelParams });
-    imovelOptions.value = imovelRes.data; 
+    // =========================================================================
+    // CORREÇÃO 1: A URL FOI ALTERADA
+    // Removido '/lista-simples' para usar a rota 'list' padrão do ImovelViewSet
+    // (que é /api/v1/imoveis/)
+    // =========================================================================
+    const imovelRes = await apiClient.get('/v1/imoveis/', { params: imovelParams });
+
+    // =========================================================================
+    // CORREÇÃO 2: MAPEAMENTO DA RESPOSTA
+    // A rota '/v1/imoveis/' retorna o ImovelSerializer completo.
+    // Precisamos mapeá-lo para o formato {label, value} que o v-select espera.
+    // =========================================================================
+    imovelOptions.value = imovelRes.data.map((imovel: ImovelSerializerResponse) => ({
+      label: `${imovel.codigo_referencia || 'Ref'}: ${imovel.titulo}`, // Ex: "Ref-123: Apartamento 2 quartos"
+      value: imovel.id,
+    }));
 
   } catch (err) {
     console.error('Erro ao carregar Imóveis filtrados:', err);
@@ -425,7 +448,6 @@ async function fetchContrato() {
         valor_total: data.valor_total ? parseFloat(data.valor_total) : null,
         valor_comissao_acordado: data.valor_comissao_acordado ? parseFloat(data.valor_comissao_acordado) : null,
 
-        // Usando o ID do objeto aninhado ou o ID plano (para edição)
         proprietario: data.proprietario_detalhes?.id || data.proprietario, 
         inquilino: data.inquilino_detalhes?.id || data.inquilino,
         imovel: data.imovel_detalhes?.id || data.imovel,
@@ -444,26 +466,18 @@ async function handleSubmit() {
   try {
     const payload = { ...contrato.value };
     
-    // 1. Limpeza de dados (Garantir null para campos não usados)
     if (payload.tipo_contrato === 'ALUGUEL') {
         payload.valor_total = null;
-        
-        // CORREÇÃO: Remove as chaves para que o backend use os defaults do Django Model
         delete payload.comissao_venda_percentual; 
-        
         payload.valor_comissao_acordado = null;
         payload.data_vencimento_venda = null;
-    } else { // Venda
+    } else { 
         payload.aluguel = null;
         payload.duracao_meses = null;
-        
-        // CORREÇÃO: Remove as chaves para que o backend use os defaults do Django Model
         delete payload.taxa_administracao_percentual;
-        
         payload.data_primeiro_vencimento = null;
     }
 
-    // 2. Envio para API
     if (isEditing.value) {
       await apiClient.put(`/v1/contratos/${contratoId}/`, payload);
       alert('Contrato atualizado com sucesso!');
@@ -505,16 +519,13 @@ async function handleSubmit() {
 
 // Watcher 1: Dispara a busca de Proprietários ao mudar o Tipo de Contrato
 watch(() => contrato.value.tipo_contrato, (newTipo, oldTipo) => {
-    // 1. Recarrega lista de Proprietários
     fetchProprietarioOptions(newTipo); 
     
-    // 2. Reseta o proprietário e o imóvel se o tipo mudar (exceto na carga inicial)
     if (oldTipo !== undefined) {
       contrato.value.proprietario = null;
       contrato.value.imovel = null;
     }
     
-    // 3. Limpa a lista de imóveis
     imovelOptions.value = [];
     
 }, { immediate: true }); 
@@ -522,14 +533,11 @@ watch(() => contrato.value.tipo_contrato, (newTipo, oldTipo) => {
 // Watcher 2: Dispara a busca de Imóveis filtrados ao mudar o Proprietário
 watch(() => contrato.value.proprietario, (newProprietarioId, oldProprietarioId) => {
     
-    // 1. Reseta o Imóvel ao mudar o Proprietário
-    if (oldProprietarioId !== null && newProprietarioId !== oldProprietarioId) {
+    if (oldProprietarioId !== undefined && newProprietarioId !== oldProprietarioId) {
        contrato.value.imovel = null;
     }
     
-    // Apenas carrega a lista se um tipo de contrato estiver selecionado
     if (contrato.value.tipo_contrato) {
-        // Agora, fetchImovelOptions ignora o proprietarioId para mostrar todos.
         fetchImovelOptions(contrato.value.tipo_contrato, newProprietarioId);
     } else {
         imovelOptions.value = [];
@@ -542,21 +550,17 @@ onMounted(async () => {
   isLoading.value = true;
   error.value = null;
   
-  // 1. Carrega todas as dependências básicas (Clientes para Inquilino/Fiadores)
   await fetchInitialDependencies();
   
-  // 2. Se estiver editando, carrega os dados do contrato PRIMEIRO
   if (isEditing.value) {
     await fetchContrato();
     
-    // 3. Para o modo de edição, forçamos o carregamento dos imóveis 
-    // e esperamos a conclusão antes de liberar o isLoading geral.
-    if (contrato.value.tipo_contrato) { // Usa tipo_contrato, pois o proprietário será ignorado na listagem
+    if (contrato.value.tipo_contrato && contrato.value.proprietario) {
+        await fetchProprietarioOptions(contrato.value.tipo_contrato);
         await fetchImovelOptions(contrato.value.tipo_contrato, contrato.value.proprietario);
     }
   }
   
-  // 4. Finaliza o loading
   if (!error.value) {
     isLoading.value = false; 
   }

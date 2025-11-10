@@ -157,15 +157,15 @@ class ImovelIAView(APIView):
             try:
                 imobiliaria_obj = Imobiliaria.objects.get(subdominio__iexact=subdomain_param)
             except Imobiliaria.DoesNotExist:
-                 return Response({
-                     "mensagem": "Imobiliária não encontrada.",
-                     "imoveis": []
-                 }, status=status.HTTP_404_NOT_FOUND)
+                return Response({
+                    "mensagem": "Imobiliária não encontrada.",
+                    "imoveis": []
+                }, status=status.HTTP_404_NOT_FOUND)
 
         if not imobiliaria_obj:
              return Response({
-                 "mensagem": "Subdomínio da imobiliária não fornecido.",
-                 "imoveis": []
+                "mensagem": "Subdomínio da imobiliária não fornecido.",
+                "imoveis": []
              }, status=status.HTTP_400_BAD_REQUEST)
 
         try:
@@ -176,7 +176,7 @@ class ImovelIAView(APIView):
                 {"error": "Nenhum modelo de prompt para busca por IA está ativo."},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
-
+        
         prompt_final = template_prompt.replace('{{user_query}}', user_query)
 
         try:
@@ -255,7 +255,7 @@ class ImovelIAView(APIView):
                  valor_max_decimal = Decimal(valor_max_ia)
                  q_filter_max = Q(valor_venda__lte=valor_max_decimal) if status_filtro_ia == Imovel.Status.A_VENDA else Q(valor_aluguel__lte=valor_max_decimal)
                  if not status_filtro_ia:
-                       q_filter_max = Q(valor_venda__lte=valor_max_decimal) | Q(valor_aluguel__lte=valor_max_decimal)
+                      q_filter_max = Q(valor_venda__lte=valor_max_decimal) | Q(valor_aluguel__lte=valor_max_decimal)
                  base_queryset = base_queryset.filter(q_filter_max)
             except (ValueError, TypeError, InvalidOperation):
                  pass 
@@ -355,21 +355,50 @@ class ImovelViewSet(viewsets.ModelViewSet):
             return Imovel.objects.none()
 
         status_param = self.request.query_params.get('status', None)
-        if self.action == 'list':
-            if not status_param:
-                 base_queryset = base_queryset.exclude(status=Imovel.Status.DESATIVADO)
-            else:
-                 base_queryset = base_queryset.filter(status=status_param)
+        
+        # ==================================================================
+        # NOTA: O frontend está a enviar ?status=PARA_ALUGAR
+        # Este IF está correto para o ContratoFormView.
+        # Não mexer.
+        # ==================================================================
+        if status_param:
+             base_queryset = base_queryset.filter(status=status_param)
+        elif self.action == 'list': # Protege o /imoveis (lista principal)
+             base_queryset = base_queryset.exclude(status=Imovel.Status.DESATIVADO)
 
         finalidade = self.request.query_params.get('finalidade', None) 
         tipo = self.request.query_params.get('tipo', None)
         cidade = self.request.query_params.get('cidade', None)
         bairro = self.request.query_params.get('bairro', None)
+        
+        # ==================================================================
+        # INÍCIO DA CORREÇÃO 1 (Filtro 'proprietario' na listagem principal)
+        # ==================================================================
+        # O filtro de proprietário estava em falta.
+        # O frontend envia ?proprietario=ID
+        
+        proprietario_id = self.request.query_params.get('proprietario', None)
+        
+        # ==================================================================
+        # FIM DA CORREÇÃO 1
+        # ==================================================================
+
 
         if finalidade: base_queryset = base_queryset.filter(finalidade=finalidade)
         if tipo: base_queryset = base_queryset.filter(tipo=tipo)
         if cidade: base_queryset = base_queryset.filter(cidade__icontains=cidade)
         if bairro: base_queryset = base_queryset.filter(bairro__icontains=bairro)
+
+        # ==================================================================
+        # INÍCIO DA CORREÇÃO 1 (Aplicação do filtro)
+        # ==================================================================
+        
+        if proprietario_id:
+            base_queryset = base_queryset.filter(proprietario_id=proprietario_id)
+            
+        # ==================================================================
+        # FIM DA CORREÇÃO 1
+        # ==================================================================
 
         return base_queryset.order_by('-data_atualizacao')
 
@@ -400,33 +429,46 @@ class ImovelViewSet(viewsets.ModelViewSet):
              raise PermissionDenied("Você não tem permissão para inativar este imóvel.")
 
     # ==================================================================
-    # CORREÇÃO DEFINITIVA DA FUNÇÃO 'lista_simples'
-    # MOSTRAR TODOS: Remoção da filtragem por proprietário_id
+    # INÍCIO DA CORREÇÃO 2 (Ação 'lista_simples')
     # ==================================================================
     @action(detail=False, methods=['get'], url_path='lista-simples')
     def lista_simples(self, request):
         """
         Retorna uma lista simplificada de imóveis para uso em dropdowns,
-        filtrada por status (A_VENDA/PARA_ALUGAR), ignorando o proprietário_id.
+        filtrada por status (A_VENDA/PARA_ALUGAR) E por proprietário_id.
         """
-        # Inicia com o queryset base (já filtrado por tenant e status)
-        queryset = self.get_queryset().exclude(status=Imovel.Status.DESATIVADO)
+        # Inicia com o queryset base (já filtrado por tenant)
+        queryset = self.get_queryset() # get_queryset() JÁ FILTRA POR TENANT
 
-        # Removemos o proprietario_id para o objetivo de mostrar todos os imóveis
+        # Parâmetros vindos do ContratoFormView.vue
         finalidade = request.query_params.get('finalidade') # Recebe a string 'A_VENDA' ou 'PARA_ALUGAR'
+        proprietario_id = request.query_params.get('proprietario') # Recebe o ID do proprietário
 
-        # 1. Filtra por Proprietário (IGNORADO)
-        # Se o usuário não passou o proprietário_id ou se ele passou e queremos ignorar:
-        # A remoção do filtro aqui garante que todos os imóveis do tenant sejam considerados.
-        
-        # 2. Filtra pelo campo 'status' usando o valor de 'finalidade' (MANDATORY)
+        # 1. Filtra por Proprietário (AGORA ESTÁ CORRETO)
+        if proprietario_id:
+            try:
+                # Valida se o ID é um número
+                prop_id_int = int(proprietario_id)
+                queryset = queryset.filter(proprietario_id=prop_id_int)
+            except (ValueError, TypeError):
+                # Se o ID não for válido, não retorna nada
+                queryset = Imovel.objects.none()
+        else:
+            # Se NENHUM proprietário for enviado (ex: null), não retorna nada.
+            queryset = Imovel.objects.none()
+            
+        # 2. Filtra pelo campo 'status' usando o valor de 'finalidade'
         # Verifica se o valor da finalidade é um status de contrato válido
         if finalidade in [Imovel.Status.A_VENDA.value, Imovel.Status.PARA_ALUGAR.value]:
             # Filtra o campo 'status' do modelo Imovel com o valor da string finalidade
             queryset = queryset.filter(status=finalidade)
         else:
-            # Se não houver finalidade, a lista deve ser vazia
+            # Se não houver finalidade (ex: 'ALUGUEL' em vez de 'PARA_ALUGAR'),
+            # ou se for 'AMBOS', retorna nada (pois o status deve ser específico)
             queryset = Imovel.objects.none()
+            
+        # Garante que imóveis DESATIVADOS não apareçam
+        queryset = queryset.exclude(status=Imovel.Status.DESATIVADO)
 
         # Otimiza a consulta para buscar apenas o necessário
         dados_simplificados = queryset.values(
@@ -439,14 +481,14 @@ class ImovelViewSet(viewsets.ModelViewSet):
         # Formata os dados como o v-select espera ({label: '...', value: ...})
         data = [
             {
-                "label": f"#{im['codigo_referencia']} - {im['logradouro']}, {im['bairro']}",
+                "label": f"#{im['codigo_referencia'] or im['id']} - {im['logradouro']}, {im['bairro']}",
                 "value": im['id']
             }
             for im in dados_simplificados
         ]
         return Response(data)
     # ==================================================================
-    # FIM DA CORREÇÃO
+    # FIM DA CORREÇÃO 2
     # ==================================================================
 
     def _get_imovel_contexto_para_ia(self, imovel):
@@ -538,9 +580,9 @@ class ImovelViewSet(viewsets.ModelViewSet):
             prefixo = 'título sugerido:'
             if generated_text.lower().startswith(prefixo):
                  if '\n' in generated_text:
-                      generated_text = generated_text.split('\n', 1)[1].strip()
+                     generated_text = generated_text.split('\n', 1)[1].strip()
                  else:
-                      generated_text = generated_text[len(prefixo):].lstrip(':').strip()
+                     generated_text = generated_text[len(prefixo):].lstrip(':').strip()
             generated_text = generated_text.strip()
 
             return Response({'descricao': generated_text}, status=status.HTTP_200_OK)
@@ -756,7 +798,7 @@ class GerarAutorizacaoPDFView(APIView):
              valor_por_extenso = f"{valor:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
              
         try:
-             comissao_por_extenso = num2words(float(comissao), lang='pt_BR') + " por cento"
+            comissao_por_extenso = num2words(float(comissao), lang='pt_BR') + " por cento"
         except NotImplementedError:
              comissao_por_extenso = f"{comissao}%"
 
@@ -811,7 +853,7 @@ class GerarAutorizacaoPDFView(APIView):
         except Http404:
              return HttpResponse("Imóvel não encontrado.", status=404)
         except PermissionDenied as e:
-             # CORREÇÃO DO SYNTAXERROR (4G03 -> 403):
+            # CORREÇÃO DO SYNTAXERROR (4G03 -> 403):
              return HttpResponse(f"Erro de Permissão: {e}", status=403)
         except ValueError as e: 
              return HttpResponse(str(e), status=400)
@@ -833,9 +875,9 @@ class GerarAutorizacaoPDFView(APIView):
             data_fim_str = data.get('data_fim_autorizacao')
             if data_fim_str:
                  try:
-                      data_fim = date.fromisoformat(data_fim_str)
+                     data_fim = date.fromisoformat(data_fim_str)
                  except ValueError:
-                      pass 
+                     pass 
                  
             info_adicionais = data.get(
                 'informacoes_adicionais', 
