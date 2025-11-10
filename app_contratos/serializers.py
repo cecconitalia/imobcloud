@@ -247,12 +247,13 @@ class ContratoListSerializer(serializers.ModelSerializer):
     """
     Serializer leve para a listagem de Contratos.
     """
-    imovel_titulo = serializers.CharField(source='imovel.titulo_anuncio', read_only=True)
-    
-    inquilino_nome = serializers.CharField(source='inquilino.nome_display', read_only=True)
-    proprietario_nome = serializers.CharField(source='proprietario.nome_display', read_only=True)
-    
     financeiro_gerado = serializers.BooleanField(read_only=True)
+
+    imovel_titulo = serializers.SerializerMethodField()
+    inquilino_nome = serializers.SerializerMethodField()
+    proprietario_nome = serializers.SerializerMethodField()
+    parte_principal_label = serializers.SerializerMethodField()
+    valor_display = serializers.SerializerMethodField()
 
     class Meta:
         model = Contrato
@@ -263,5 +264,46 @@ class ContratoListSerializer(serializers.ModelSerializer):
             'proprietario', 'proprietario_nome',
             'aluguel', 'valor_total', 
             'data_inicio', 'data_fim', 'data_assinatura',
-            'financeiro_gerado'
+            'financeiro_gerado',
+            'parte_principal_label',
+            'valor_display'
         ]
+
+    def get_imovel_titulo(self, obj):
+        if obj.imovel:
+            return obj.imovel.titulo_anuncio or obj.imovel.logradouro or f"Imóvel #{obj.imovel.id}"
+        return "Imóvel não informado"
+
+    # ==================================================================
+    # CORREÇÃO: Lógica movida para cá.
+    # ==================================================================
+    def get_inquilino_nome(self, obj):
+        if obj.inquilino:
+            # Lógica para replicar 'nome_display'
+            if obj.inquilino.tipo_pessoa == 'JURIDICA' and obj.inquilino.razao_social:
+                return obj.inquilino.razao_social
+            return obj.inquilino.nome
+        return "Inquilino não informado"
+
+    def get_proprietario_nome(self, obj):
+        if obj.proprietario:
+            # Lógica para replicar 'nome_display'
+            if obj.proprietario.tipo_pessoa == 'JURIDICA' and obj.proprietario.razao_social:
+                return obj.proprietario.razao_social
+            return obj.proprietario.nome
+        return "Proprietário não informado"
+    # ==================================================================
+
+    def get_parte_principal_label(self, obj):
+        return "Comprador" if obj.tipo_contrato == Contrato.TipoContrato.VENDA else "Inquilino"
+
+    def get_valor_display(self, obj):
+        try:
+            if obj.tipo_contrato == Contrato.TipoContrato.VENDA and obj.valor_total is not None:
+                valor_formatado = f"R$ {obj.valor_total:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
+                return valor_formatado
+            if obj.tipo_contrato == Contrato.TipoContrato.ALUGUEL and obj.aluguel is not None:
+                valor_formatado = f"R$ {obj.aluguel:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
+                return f"{valor_formatado} /mês"
+        except Exception: pass 
+        return "R$ -"

@@ -144,13 +144,26 @@
           <div class="form-grid-3col">
             <div class="form-group">
               <label for="data_inicio">Data de Início *</label>
-              <input type="date" id="data_inicio" v-model="contrato.data_inicio" required>
+              <input 
+                type="date" 
+                id="data_inicio" 
+                v-model="contrato.data_inicio" 
+                :disabled="contrato.tipo_contrato === 'VENDA'"
+                required
+              >
+              <p v-if="contrato.tipo_contrato === 'VENDA'" class="help-text">Será a mesma da Data de Assinatura.</p>
             </div>
             <div class="form-group">
               <label for="data_assinatura">Data de Assinatura *</label>
-              <input type="date" id="data_assinatura" v-model="contrato.data_assinatura" required>
+              <input 
+                type="date" 
+                id="data_assinatura" 
+                v-model="contrato.data_assinatura"
+                @change="handleDataAssinaturaChange" 
+                required
+              >
             </div>
-            <div class="form-group">
+            <div class="form-group" v-if="contrato.tipo_contrato === 'ALUGUEL'">
               <label for="data_fim">Data de Término (Opcional)</label>
               <input type="date" id="data_fim" v-model="contrato.data_fim">
             </div>
@@ -275,7 +288,7 @@ const contrato = ref<ContratoData>({
   fiadores: [],
   aluguel: null,
   duracao_meses: 12,
-  taxa_administracao_percentual: 10.00, // <--- Valor padrão inicial
+  taxa_administracao_percentual: 10.00,
   data_primeiro_vencimento: null,
   
   valor_total: null,
@@ -327,8 +340,14 @@ const calcularComissaoInicial = () => {
 };
 
 // ==================================================================
-// CORREÇÃO: Restaurar valores padrão de Aluguel ao trocar o tipo
+// CORREÇÃO: Nova função para sincronizar as datas em Venda
 // ==================================================================
+const handleDataAssinaturaChange = () => {
+  if (contrato.value.tipo_contrato === 'VENDA') {
+    contrato.value.data_inicio = contrato.value.data_assinatura;
+  }
+}
+
 const handleTipoChange = () => {
     contrato.value.proprietario = null;
     contrato.value.imovel = null;
@@ -344,18 +363,22 @@ const handleTipoChange = () => {
         contrato.value.comissao_venda_percentual = 6.00;
         contrato.value.data_vencimento_venda = null;
         
-        // --- CORREÇÃO ADICIONADA ---
         // Restaurar campos padrão de Aluguel
-        contrato.value.taxa_administracao_percentual = 10.00; // <--- RESTAURADO
-        contrato.value.duracao_meses = 12; // <--- RESTAURADO
-        // --- FIM DA CORREÇÃO ---
+        contrato.value.taxa_administracao_percentual = 10.00; 
+        contrato.value.duracao_meses = 12;
 
     } else if (contrato.value.tipo_contrato === 'VENDA') {
         // Resetar campos de Aluguel
         contrato.value.aluguel = null;
         contrato.value.duracao_meses = null;
-        contrato.value.taxa_administracao_percentual = 0.00; // (Correto para VENDA)
+        contrato.value.taxa_administracao_percentual = 0.00;
         contrato.value.data_primeiro_vencimento = null;
+
+        // ==================================================================
+        // CORREÇÃO: Sincronizar data de início e zerar data de fim
+        // ==================================================================
+        contrato.value.data_fim = null;
+        contrato.value.data_inicio = contrato.value.data_assinatura;
     }
 };
 
@@ -382,8 +405,6 @@ async function fetchProprietarioOptions(tipo: 'ALUGUEL' | 'VENDA' | '') {
     isLoadingProprietarios.value = true;
     
     const finalidade = tipo === 'VENDA' ? 'A_VENDA' : 'PARA_ALUGAR';
-    
-    // Filtro de disponibilidade removido (conforme solicitação anterior)
     const params = { 
         finalidade: finalidade,
     };
@@ -411,8 +432,6 @@ async function fetchImovelOptions(tipo: 'ALUGUEL' | 'VENDA' | '', proprietarioId
   isLoadingImoveis.value = true;
   
   const finalidade = tipo === 'VENDA' ? 'A_VENDA' : 'PARA_ALUGAR';
-
-  // Filtro de disponibilidade removido (conforme solicitação anterior)
   const imovelParams: Record<string, any> = { 
       finalidade: finalidade,
       proprietario: proprietarioId, 
@@ -476,6 +495,11 @@ async function handleSubmit() {
         payload.duracao_meses = null;
         delete payload.taxa_administracao_percentual;
         payload.data_primeiro_vencimento = null;
+        
+        // ==================================================================
+        // CORREÇÃO: Garantir que data_fim seja nula para Venda
+        // ==================================================================
+        payload.data_fim = null;
     }
 
     if (isEditing.value) {
@@ -587,6 +611,11 @@ onMounted(async () => {
         await fetchProprietarioOptions(contrato.value.tipo_contrato);
         await fetchImovelOptions(contrato.value.tipo_contrato, contrato.value.proprietario);
     }
+  } else {
+    // ==================================================================
+    // CORREÇÃO: Sincronizar data de início e assinatura ao criar
+    // ==================================================================
+    handleDataAssinaturaChange();
   }
   
   if (!error.value) {
@@ -665,6 +694,11 @@ input[type="text"], input[type="number"], input[type="date"], select, .form-grou
     font-size: 0.9rem;
     box-sizing: border-box; 
     transition: border-color 0.2s, box-shadow 0.2s;
+}
+/* Estilo para o input de data desabilitado */
+input:disabled {
+  background-color: #e9ecef;
+  cursor: not-allowed;
 }
 .form-group textarea {
     resize: vertical;
