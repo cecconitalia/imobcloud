@@ -194,7 +194,7 @@ class ClienteViewSet(viewsets.ModelViewSet):
         return Response(serializer.data)
 
     # ==================================================================
-    # CORREÇÃO APLICADA AQUI: 'lista_proprietarios'
+    # FILTRO DE PROPRIETÁRIOS POR TIPO DE CONTRATO (VENDA/ALUGUEL)
     # ==================================================================
     @action(detail=False, methods=['get'], url_path='lista-proprietarios')
     def lista_proprietarios(self, request):
@@ -202,24 +202,20 @@ class ClienteViewSet(viewsets.ModelViewSet):
         Retorna uma lista simplificada de clientes que são proprietários, 
         FILTRADOS pelo status (A_VENDA/PARA_ALUGAR) do imóvel associado.
         """
-        # 1. Pega o queryset base (Ativo=True, Tenant=Correct)
         base_queryset = self.get_queryset()
+        finalidade = request.query_params.get('finalidade') # Recebe 'A_VENDA' ou 'PARA_ALUGAR'
         
-        # 2. Pega o parâmetro 'finalidade' (que contém 'A_VENDA' ou 'PARA_ALUGAR')
-        finalidade = request.query_params.get('finalidade')
-        
-        # 3. Validação: Se a finalidade não for enviada, não há o que filtrar.
         if not finalidade:
             return Response([], status=status.HTTP_400_BAD_REQUEST)
         
-        # 4. Filtra clientes que:
-        #    a) Tenham o perfil 'PROPRIETARIO'
-        #    b) [CORREÇÃO] Tenham imóveis (related_name 'imoveis_propriedade')
-        #       cujo campo 'status' corresponda à finalidade enviada.
+        # Filtra clientes que:
+        # 1. Tenham o perfil 'PROPRIETARIO'
+        # 2. Tenham imóveis (related_name 'imoveis_propriedade')
+        # 3. Cujo campo 'status' corresponda à finalidade enviada.
         queryset = base_queryset.filter(
             perfil_cliente__contains=['PROPRIETARIO'],
-            imoveis_propriedade__status=finalidade
-        ).distinct() # .distinct() é crucial para evitar duplicados
+            imoveis_propriedade__status=finalidade # <-- Filtra pelo campo STATUS do Imóvel
+        ).distinct() 
         
         serializer = ClienteSimplificadoSerializer(queryset, many=True)
         return Response(serializer.data)

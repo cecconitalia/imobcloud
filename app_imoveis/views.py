@@ -400,34 +400,40 @@ class ImovelViewSet(viewsets.ModelViewSet):
              raise PermissionDenied("Você não tem permissão para inativar este imóvel.")
 
     # ==================================================================
-    # CORREÇÃO APLICADA AQUI
-    # O seu frontend envia 'finalidade' (com 'A_VENDA'/'PARA_ALUGAR')
-    # O seu modelo Imovel armazena isso no campo 'status'
+    # CORREÇÃO DEFINITIVA DA FUNÇÃO 'lista_simples'
+    # Utiliza o valor da string 'finalidade' no campo 'status' do modelo Imovel.
     # ==================================================================
     @action(detail=False, methods=['get'], url_path='lista-simples')
     def lista_simples(self, request):
         """
         Retorna uma lista simplificada de imóveis para uso em dropdowns,
-        filtrada opcionalmente por proprietário e finalidade (A_VENDA/PARA_ALUGAR).
+        filtrada por proprietário e status (A_VENDA/PARA_ALUGAR).
         """
         # Inicia com o queryset base (já filtrado por tenant e status)
         queryset = self.get_queryset().exclude(status=Imovel.Status.DESATIVADO)
 
         proprietario_id = request.query_params.get('proprietario_id')
-        finalidade = request.query_params.get('finalidade') # FILTRO POR FINALIDADE (Vem 'A_VENDA' ou 'PARA_ALUGAR')
+        finalidade = request.query_params.get('finalidade') # Recebe a string 'A_VENDA' ou 'PARA_ALUGAR'
 
-        # 1. Filtra por Proprietário (se fornecido)
+        # 1. Filtra por Proprietário (obrigatório para este fluxo de contrato)
         if proprietario_id:
             try:
                 queryset = queryset.filter(proprietario_id=int(proprietario_id))
             except (ValueError, TypeError):
-                pass 
-        
-        # 2. Filtra por Finalidade (que no modelo Imovel é o campo 'status')
-        if finalidade == 'A_VENDA':
-            queryset = queryset.filter(status='A_VENDA') # <-- CORRIGIDO
-        elif finalidade == 'PARA_ALUGAR':
-            queryset = queryset.filter(status='PARA_ALUGAR') # <-- CORRIGIDO
+                # Se ID inválido, limpa o queryset para retornar vazio
+                queryset = Imovel.objects.none() 
+        else:
+             # Se não houver proprietário selecionado, a lista deve ser vazia
+             queryset = Imovel.objects.none()
+
+        # 2. Filtra por Status (usando o valor exato da string que veio do frontend)
+        # Verifica se o valor da finalidade é um status de contrato válido
+        if finalidade in [Imovel.Status.A_VENDA.value, Imovel.Status.PARA_ALUGAR.value]:
+            # Filtra o campo 'status' do modelo Imovel com o valor da string finalidade
+            queryset = queryset.filter(status=finalidade)
+        else:
+            # Se a finalidade não for VENDA ou ALUGUEL, limpa o queryset
+            queryset = Imovel.objects.none()
 
         # Otimiza a consulta para buscar apenas o necessário
         dados_simplificados = queryset.values(
