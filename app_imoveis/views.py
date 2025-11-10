@@ -13,6 +13,7 @@ from django.shortcuts import get_object_or_404
 from django.http import HttpResponse, QueryDict, Http404 
 from django.template.loader import render_to_string
 from django.utils import timezone
+# IMPORT OBRIGATÓRIO: Adicione o 'Q' para filtros 'OU'
 from django.db.models import Count, Q, Case, When, Value, CharField, Max, F, ExpressionWrapper, fields
 from datetime import date, timedelta
 from io import BytesIO
@@ -347,6 +348,7 @@ class ImovelViewSet(viewsets.ModelViewSet):
     search_fields = ['logradouro', 'cidade', 'titulo_anuncio', 'codigo_referencia', 'bairro'] 
 
     def get_queryset(self):
+        # 1. Filtro base por Tenant (essencial para todas as actions)
         if self.request.user.is_superuser:
              base_queryset = Imovel.objects.all()
         elif self.request.tenant:
@@ -354,52 +356,46 @@ class ImovelViewSet(viewsets.ModelViewSet):
         else:
             return Imovel.objects.none()
 
+        # ==================================================================
+        # INÍCIO DA CORREÇÃO
+        # ==================================================================
+        # 2. NÃO aplicar filtros de query param se for a action 'lista_simples'
+        #    Isso impede que 'get_queryset' filtre 'finalidade=PARA_ALUGAR'
+        #    incorretamente ANTES da 'lista_simples'
+        
+        # 'self.action' é o nome do método que está sendo executado
+        if self.action == 'lista_simples':
+            # Retorna o queryset *antes* dos filtros de 'list' serem aplicados
+            return base_queryset 
+        # ==================================================================
+        # FIM DA CORREÇÃO
+        # ==================================================================
+
+        # 3. Aplicar filtros de query param para as actions normais (list, retrieve, etc.)
         status_param = self.request.query_params.get('status', None)
         
-        # ==================================================================
-        # NOTA: O frontend está a enviar ?status=PARA_ALUGAR
-        # Este IF está correto para o ContratoFormView.
-        # Não mexer.
-        # ==================================================================
         if status_param:
-             base_queryset = base_queryset.filter(status=status_param)
+             if status_param in Imovel.Status.values:
+                base_queryset = base_queryset.filter(status=status_param)
         elif self.action == 'list': # Protege o /imoveis (lista principal)
              base_queryset = base_queryset.exclude(status=Imovel.Status.DESATIVADO)
 
+        # Filtros para a action 'list' (lista principal de imóveis)
         finalidade = self.request.query_params.get('finalidade', None) 
         tipo = self.request.query_params.get('tipo', None)
         cidade = self.request.query_params.get('cidade', None)
         bairro = self.request.query_params.get('bairro', None)
-        
-        # ==================================================================
-        # INÍCIO DA CORREÇÃO 1 (Filtro 'proprietario' na listagem principal)
-        # ==================================================================
-        # O filtro de proprietário estava em falta.
-        # O frontend envia ?proprietario=ID
-        
         proprietario_id = self.request.query_params.get('proprietario', None)
-        
-        # ==================================================================
-        # FIM DA CORREÇÃO 1
-        # ==================================================================
 
 
         if finalidade: base_queryset = base_queryset.filter(finalidade=finalidade)
         if tipo: base_queryset = base_queryset.filter(tipo=tipo)
         if cidade: base_queryset = base_queryset.filter(cidade__icontains=cidade)
         if bairro: base_queryset = base_queryset.filter(bairro__icontains=bairro)
-
-        # ==================================================================
-        # INÍCIO DA CORREÇÃO 1 (Aplicação do filtro)
-        # ==================================================================
         
         if proprietario_id:
             base_queryset = base_queryset.filter(proprietario_id=proprietario_id)
             
-        # ==================================================================
-        # FIM DA CORREÇÃO 1
-        # ==================================================================
-
         return base_queryset.order_by('-data_atualizacao')
 
     def perform_create(self, serializer):
@@ -429,7 +425,7 @@ class ImovelViewSet(viewsets.ModelViewSet):
              raise PermissionDenied("Você não tem permissão para inativar este imóvel.")
 
     # ==================================================================
-    # INÍCIO DA CORREÇÃO 2 (Ação 'lista_simples')
+    # AÇÃO 'lista_simples' (COM PRINTS DE DEPURAÇÃO)
     # ==================================================================
     @action(detail=False, methods=['get'], url_path='lista-simples')
     def lista_simples(self, request):
@@ -437,43 +433,63 @@ class ImovelViewSet(viewsets.ModelViewSet):
         Retorna uma lista simplificada de imóveis para uso em dropdowns,
         filtrada por status (A_VENDA/PARA_ALUGAR) E por proprietário_id.
         """
-        # Inicia com o queryset base (já filtrado por tenant)
-        queryset = self.get_queryset() # get_queryset() JÁ FILTRA POR TENANT
+        print("\n--- DEBUG: ACESSANDO LISTA SIMPLES ---")
 
-        # Parâmetros vindos do ContratoFormView.vue
-        finalidade = request.query_params.get('finalidade') # Recebe a string 'A_VENDA' ou 'PARA_ALUGAR'
-        proprietario_id = request.query_params.get('proprietario') # Recebe o ID do proprietário
+        # 1. Pega o queryset base (filtrado APENAS por tenant pela get_queryset)
+        queryset = self.get_queryset() 
+        print(f"--- DEBUG: 1. Queryset inicial (tenant): {queryset.count()} imóveis")
 
-        # 1. Filtra por Proprietário (AGORA ESTÁ CORRETO)
+        # 2. Pega os parâmetros da URL
+        finalidade_param = request.query_params.get('finalidade')
+        proprietario_id = request.query_params.get('proprietario')
+        status_imovel = request.query_params.get('status_imovel')
+        
+        print(f"--- DEBUG: 2. Params Recebidos: prop={proprietario_id}, finalidade={finalidade_param}, status_imovel={status_imovel}")
+
+        # 3. Filtra por Proprietário (Obrigatório)
         if proprietario_id:
             try:
-                # Valida se o ID é um número
                 prop_id_int = int(proprietario_id)
                 queryset = queryset.filter(proprietario_id=prop_id_int)
+                print(f"--- DEBUG: 3. Após filtro proprietario_id={prop_id_int}: {queryset.count()} imóveis")
             except (ValueError, TypeError):
-                # Se o ID não for válido, não retorna nada
+                print(f"--- DEBUG: 3. Erro: ID do proprietário '{proprietario_id}' não é válido.")
                 queryset = Imovel.objects.none()
         else:
-            # Se NENHUM proprietário for enviado (ex: null), não retorna nada.
+            print(f"--- DEBUG: 3. Erro: Nenhum proprietario_id fornecido.")
             queryset = Imovel.objects.none()
             
-        # 2. Filtra pelo campo 'status' usando o valor de 'finalidade'
-        # Verifica se o valor da finalidade é um status de contrato válido
-        if finalidade in [Imovel.Status.A_VENDA.value, Imovel.Status.PARA_ALUGAR.value]:
-            # Filtra o campo 'status' do modelo Imovel com o valor da string finalidade
-            queryset = queryset.filter(status=finalidade)
+        # 4. Filtra pelo *Status* do Imóvel (A_VENDA / PARA_ALUGAR)
+        if finalidade_param in [Imovel.Status.A_VENDA.value, Imovel.Status.PARA_ALUGAR.value]:
+            queryset = queryset.filter(status=finalidade_param)
+            print(f"--- DEBUG: 4. Após filtro status={finalidade_param}: {queryset.count()} imóveis")
         else:
-            # Se não houver finalidade (ex: 'ALUGUEL' em vez de 'PARA_ALUGAR'),
-            # ou se for 'AMBOS', retorna nada (pois o status deve ser específico)
+            print(f"--- DEBUG: 4. Erro: 'finalidade' (status) '{finalidade_param}' é inválida ou nula.")
             queryset = Imovel.objects.none()
             
-        # Garante que imóveis DESATIVADOS não apareçam
+        # 5. Filtra por Disponibilidade ('DISPONIVEL' = IMEDIATA ou DESOCUPADO)
+        if status_imovel == 'DISPONIVEL':
+            queryset = queryset.filter(
+                Q(disponibilidade=Imovel.Disponibilidade.IMEDIATA) |
+                Q(disponibilidade=Imovel.Disponibilidade.DESOCUPADO)
+            )
+            print(f"--- DEBUG: 5. Após filtro disponibilidade={status_imovel}: {queryset.count()} imóveis")
+        elif status_imovel in Imovel.Disponibilidade.values:
+             queryset = queryset.filter(disponibilidade=status_imovel)
+             print(f"--- DEBUG: 5. Após filtro disponibilidade={status_imovel}: {queryset.count()} imóveis")
+        else:
+            print(f"--- DEBUG: 5. Nenhum filtro de 'status_imovel' aplicado.")
+
+            
+        # 6. Exclui desativados (garantia)
         queryset = queryset.exclude(status=Imovel.Status.DESATIVADO)
+        print(f"--- DEBUG: 6. Após filtro != DESATIVADO: {queryset.count()} imóveis")
 
         # Otimiza a consulta para buscar apenas o necessário
         dados_simplificados = queryset.values(
             'id', 
             'codigo_referencia', 
+            'titulo_anuncio', 
             'logradouro', 
             'bairro'
         )
@@ -481,14 +497,17 @@ class ImovelViewSet(viewsets.ModelViewSet):
         # Formata os dados como o v-select espera ({label: '...', value: ...})
         data = [
             {
-                "label": f"#{im['codigo_referencia'] or im['id']} - {im['logradouro']}, {im['bairro']}",
+                "label": f"#{im['codigo_referencia'] or im['id']} - {im['titulo_anuncio'] or im['logradouro']}",
                 "value": im['id']
             }
             for im in dados_simplificados
         ]
+        
+        print(f"--- DEBUG: 7. Retornando {len(data)} imóveis para o frontend.")
+        print("------------------------------------------\n")
         return Response(data)
     # ==================================================================
-    # FIM DA CORREÇÃO 2
+    # FIM DA AÇÃO 'lista_simples'
     # ==================================================================
 
     def _get_imovel_contexto_para_ia(self, imovel):

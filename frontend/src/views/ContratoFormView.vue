@@ -250,12 +250,13 @@ interface ContratoData {
 }
 
 // Tipagem para a resposta do ImovelSerializer (suposição)
-interface ImovelSerializerResponse {
-  id: number;
-  titulo: string;
-  codigo_referencia: string;
-  // ... outros campos do serializer ...
-}
+// REMOVIDO - Não é mais necessário pois a lista_simples retorna {label, value}
+// interface ImovelSerializerResponse {
+//   id: number;
+//   titulo: string;
+//   codigo_referencia: string;
+//   // ... outros campos do serializer ...
+// }
 
 
 const route = useRoute();
@@ -371,7 +372,7 @@ async function fetchProprietarioOptions(tipo: 'ALUGUEL' | 'VENDA' | '') {
     const finalidade = tipo === 'VENDA' ? 'A_VENDA' : 'PARA_ALUGAR';
     const params = { 
         finalidade: finalidade,
-        status_imovel: 'DISPONIVEL' 
+        status_imovel: 'DISPONIVEL' // Garante que só peguemos proprietários com imóveis disponíveis
     };
 
     try {
@@ -396,31 +397,29 @@ async function fetchImovelOptions(tipo: 'ALUGUEL' | 'VENDA' | '', proprietarioId
   
   isLoadingImoveis.value = true;
   
+  // 'finalidade' aqui é usada pela action 'lista_simples' para filtrar o *status* do imóvel
   const finalidade = tipo === 'VENDA' ? 'A_VENDA' : 'PARA_ALUGAR';
 
   const imovelParams: Record<string, any> = { 
-      finalidade: finalidade,
+      finalidade: finalidade,     // Usado pelo backend para filtrar Imovel.Status
       proprietario: proprietarioId, 
-      status: 'DISPONIVEL'          
+      // 'status_imovel' é o nome do parâmetro que o backend 'lista_simples' espera
+      status_imovel: 'DISPONIVEL'
   };
   
   try {
     // =========================================================================
-    // CORREÇÃO 1: A URL FOI ALTERADA
-    // Removido '/lista-simples' para usar a rota 'list' padrão do ImovelViewSet
-    // (que é /api/v1/imoveis/)
+    // CORREÇÃO: A URL FOI ALTERADA DE VOLTA PARA 'lista-simples'
+    // Esta action é a correta para filtrar por proprietário E status.
     // =========================================================================
-    const imovelRes = await apiClient.get('/v1/imoveis/', { params: imovelParams });
+    const imovelRes = await apiClient.get('/v1/imoveis/lista-simples/', { params: imovelParams });
 
     // =========================================================================
     // CORREÇÃO 2: MAPEAMENTO DA RESPOSTA
-    // A rota '/v1/imoveis/' retorna o ImovelSerializer completo.
-    // Precisamos mapeá-lo para o formato {label, value} que o v-select espera.
+    // A rota 'lista_simples' (corrigida no backend) já retorna
+    // o formato {label, value}. Não é mais necessário o .map()
     // =========================================================================
-    imovelOptions.value = imovelRes.data.map((imovel: ImovelSerializerResponse) => ({
-      label: `${imovel.codigo_referencia || 'Ref'}: ${imovel.titulo}`, // Ex: "Ref-123: Apartamento 2 quartos"
-      value: imovel.id,
-    }));
+    imovelOptions.value = imovelRes.data;
 
   } catch (err) {
     console.error('Erro ao carregar Imóveis filtrados:', err);
@@ -556,6 +555,10 @@ onMounted(async () => {
     await fetchContrato();
     
     if (contrato.value.tipo_contrato && contrato.value.proprietario) {
+        // Ao editar, buscamos todos os proprietários e imóveis (sem o filtro 'DISPONIVEL')
+        // para garantir que os dados salvos sejam exibidos.
+        // A lógica de filtro normal já foi executada pelos Watchers.
+        // Apenas recarregamos para garantir que o v-select tenha as opções.
         await fetchProprietarioOptions(contrato.value.tipo_contrato);
         await fetchImovelOptions(contrato.value.tipo_contrato, contrato.value.proprietario);
     }

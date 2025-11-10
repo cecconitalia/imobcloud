@@ -1,0 +1,18 @@
+{
+  "tipo_contrato": "ALUGUEL",
+  "status_contrato": "PENDENTE",
+  
+  "imovel": 5,
+  "inquilino": 2,
+  "proprietario": 4, 
+  
+  "aluguel": 1500.00,
+  "duracao_meses": 12,
+  "taxa_administracao_percentual": 10.00,
+  "data_primeiro_vencimento": "2025-12-10", 
+  
+  "data_inicio": "2025-11-10",
+  "data_assinatura": "2025-11-10",
+  
+  "fiadores": [] 
+}
