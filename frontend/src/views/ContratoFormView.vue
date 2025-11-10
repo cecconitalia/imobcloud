@@ -71,11 +71,11 @@
               label="label"
               placeholder="Selecione o Imóvel"
               :clearable="false"
-              :disabled="!contrato.proprietario || (!imovelOptions.length && !isEditing && !isLoadingImoveis)"
+              :disabled="!contrato.tipo_contrato || (!imovelOptions.length && !isEditing && !isLoadingImoveis)"
             ></v-select>
-            <p v-if="isLoadingImoveis" class="help-text-loading">Carregando imóveis do proprietário...</p>
-            <p v-else-if="!contrato.proprietario" class="help-text">Selecione um proprietário primeiro.</p>
-             <p v-else-if="contrato.proprietario && !imovelOptions.length" class="help-text">Proprietário selecionado. Nenhum imóvel encontrado para esta finalidade.</p>
+            <p v-if="isLoadingImoveis" class="help-text-loading">Carregando imóveis para {{ contrato.tipo_contrato }}...</p>
+            <p v-else-if="!contrato.tipo_contrato" class="help-text">Selecione o Tipo de Contrato primeiro.</p>
+             <p v-else-if="!imovelOptions.length" class="help-text">Nenhum imóvel encontrado para esta finalidade.</p>
           </div>
         </fieldset>
 
@@ -380,20 +380,18 @@ async function fetchProprietarioOptions(tipo: 'ALUGUEL' | 'VENDA' | '') {
 }
 
 async function fetchImovelOptions(tipo: 'ALUGUEL' | 'VENDA' | '', proprietarioId: number | null) {
-  if (!tipo || !proprietarioId) {
+  if (!tipo) { 
       imovelOptions.value = [];
       return;
   }
   
   isLoadingImoveis.value = true;
   
-  // CORREÇÃO: A API de Imóveis (/imoveis/lista-simples) TAMBÉM espera 'A_VENDA' ou 'PARA_ALUGAR'
-  // Esta era a falha (enviando 'VENDA').
+  // CORREÇÃO: Ambas as APIs esperam 'A_VENDA' ou 'PARA_ALUGAR'
   const finalidade = tipo === 'VENDA' ? 'A_VENDA' : 'PARA_ALUGAR';
 
   const imovelParams: Record<string, any> = { 
       finalidade: finalidade,
-      proprietario_id: proprietarioId
   };
   
   try {
@@ -529,8 +527,9 @@ watch(() => contrato.value.proprietario, (newProprietarioId, oldProprietarioId) 
        contrato.value.imovel = null;
     }
     
-    // Apenas carrega a lista se um proprietário for selecionado/existir
-    if (newProprietarioId) {
+    // Apenas carrega a lista se um tipo de contrato estiver selecionado
+    if (contrato.value.tipo_contrato) {
+        // Agora, fetchImovelOptions ignora o proprietarioId para mostrar todos.
         fetchImovelOptions(contrato.value.tipo_contrato, newProprietarioId);
     } else {
         imovelOptions.value = [];
@@ -552,7 +551,7 @@ onMounted(async () => {
     
     // 3. Para o modo de edição, forçamos o carregamento dos imóveis 
     // e esperamos a conclusão antes de liberar o isLoading geral.
-    if (contrato.value.proprietario) {
+    if (contrato.value.tipo_contrato) { // Usa tipo_contrato, pois o proprietário será ignorado na listagem
         await fetchImovelOptions(contrato.value.tipo_contrato, contrato.value.proprietario);
     }
   }
