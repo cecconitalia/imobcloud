@@ -327,12 +327,22 @@ const tipoContratoLabel = computed(() => {
 });
 
 const calcularComissaoInicial = () => {
+  // Não sobrescrever o valor acordado se ele já existir (especialmente no modo de edição)
+  if (isEditing.value && contrato.value.valor_comissao_acordado) {
+    // Se o usuário editar o valor total, talvez devêssemos recalcular?
+    // Por enquanto, vamos manter o valor acordado se ele já veio da API.
+    // A lógica abaixo só roda se o valor acordado for nulo ou se não estivermos editando.
+  }
+  
   if (contrato.value.tipo_contrato === 'VENDA' && contrato.value.valor_total && contrato.value.comissao_venda_percentual) {
     const valorTotal = Number(contrato.value.valor_total);
     const percentual = Number(contrato.value.comissao_venda_percentual);
     
     if (!isNaN(valorTotal) && !isNaN(percentual)) {
-        contrato.value.valor_comissao_acordado = parseFloat((valorTotal * (percentual / 100)).toFixed(2));
+        // Apenas preenche se valor_comissao_acordado for nulo ou zero
+        if (!contrato.value.valor_comissao_acordado) {
+             contrato.value.valor_comissao_acordado = parseFloat((valorTotal * (percentual / 100)).toFixed(2));
+        }
     } else {
         contrato.value.valor_comissao_acordado = null;
     }
@@ -487,13 +497,13 @@ async function handleSubmit() {
     
     if (payload.tipo_contrato === 'ALUGUEL') {
         payload.valor_total = null;
-        delete payload.comissao_venda_percentual; 
+        // delete payload.comissao_venda_percentual; // Não delete, envie o valor padrão
         payload.valor_comissao_acordado = null;
         payload.data_vencimento_venda = null;
     } else { 
         payload.aluguel = null;
         payload.duracao_meses = null;
-        delete payload.taxa_administracao_percentual;
+        // delete payload.taxa_administracao_percentual; // Não delete, envie o valor padrão
         payload.data_primeiro_vencimento = null;
         
         // ==================================================================
@@ -545,7 +555,11 @@ async function handleSubmit() {
 watch(() => contrato.value.tipo_contrato, (newTipo, oldTipo) => {
     fetchProprietarioOptions(newTipo); 
     
-    if (oldTipo !== undefined) {
+    // ==================================================================
+    // CORREÇÃO: Adicionado "!isLoading.value" para evitar limpar os IDs
+    // durante o carregamento do formulário de edição (o BUG).
+    // ==================================================================
+    if (oldTipo !== undefined && !isLoading.value) { 
       contrato.value.proprietario = null;
       contrato.value.imovel = null;
     }
@@ -557,7 +571,11 @@ watch(() => contrato.value.tipo_contrato, (newTipo, oldTipo) => {
 // Watcher 2: Dispara a busca de Imóveis filtrados ao mudar o Proprietário
 watch(() => contrato.value.proprietario, (newProprietarioId, oldProprietarioId) => {
     
-    if (oldProprietarioId !== undefined && newProprietarioId !== oldProprietarioId) {
+    // ==================================================================
+    // CORREÇÃO: Adicionado "!isLoading.value" para evitar limpar o 
+    // imóvel durante o carregamento do formulário de edição.
+    // ==================================================================
+    if (oldProprietarioId !== undefined && newProprietarioId !== oldProprietarioId && !isLoading.value) {
        contrato.value.imovel = null;
     }
     
@@ -579,6 +597,7 @@ watch(
       return;
     }
     
+    // Impede a execução se ainda estiver carregando os dados do contrato (modo de edição)
     if (isLoading.value && isEditing.value) {
       return;
     }
@@ -587,11 +606,20 @@ watch(
     
     if (selectedImovel) {
       if (contrato.value.tipo_contrato === 'ALUGUEL') {
-        contrato.value.aluguel = selectedImovel.aluguel ? parseFloat(String(selectedImovel.aluguel)) : null;
+        // Apenas preenche se o aluguel ainda não tiver valor
+        if (!contrato.value.aluguel) {
+            contrato.value.aluguel = selectedImovel.aluguel ? parseFloat(String(selectedImovel.aluguel)) : null;
+        }
       } 
       else if (contrato.value.tipo_contrato === 'VENDA') {
-        contrato.value.valor_total = selectedImovel.venda ? parseFloat(String(selectedImovel.venda)) : null;
-        calcularComissaoInicial();
+         // Apenas preenche se o valor total ainda não tiver valor
+        if (!contrato.value.valor_total) {
+            contrato.value.valor_total = selectedImovel.venda ? parseFloat(String(selectedImovel.venda)) : null;
+        }
+        // Sempre recalcula a comissão base se o valor acordado não estiver definido
+        if (!contrato.value.valor_comissao_acordado) {
+             calcularComissaoInicial();
+        }
       }
     }
   }
@@ -607,6 +635,13 @@ onMounted(async () => {
   if (isEditing.value) {
     await fetchContrato();
     
+    // Os watchers "immediate: true" já terão disparado.
+    // Agora que 'fetchContrato' terminou, os watchers de 
+    // tipo_contrato e proprietario serão disparados novamente 
+    // por causa da mudança de valor.
+    
+    // Dispara manualmente o fetch de opções DEPOIS que fetchContrato() 
+    // já populou 'tipo_contrato' e 'proprietario'.
     if (contrato.value.tipo_contrato && contrato.value.proprietario) {
         await fetchProprietarioOptions(contrato.value.tipo_contrato);
         await fetchImovelOptions(contrato.value.tipo_contrato, contrato.value.proprietario);
@@ -616,10 +651,14 @@ onMounted(async () => {
     // CORREÇÃO: Sincronizar data de início e assinatura ao criar
     // ==================================================================
     handleDataAssinaturaChange();
+    // Dispara o fetch de proprietários para um novo contrato
+    await fetchProprietarioOptions(contrato.value.tipo_contrato);
   }
   
   if (!error.value) {
     isLoading.value = false; 
+    // Agora que isLoading é false, as mudanças manuais do usuário 
+    // nos watchers (Proprietário e Imóvel) funcionarão como esperado.
   }
 });
 </script>

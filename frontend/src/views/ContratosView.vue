@@ -54,7 +54,7 @@
             <p><strong>Proprietário:</strong> {{ contrato.proprietario_detalhes?.nome_display || 'N/A' }}</p>
             <p><strong>Data Início:</strong> {{ formatarData(contrato.data_inicio) }}</p>
             <p><strong>Data Fim:</strong> {{ formatarData(contrato.data_fim) || 'Indeterminado' }}</p>
-            <p><strong>Valor:</strong> {{ contrato.valor_display }}</p>
+             <p><strong>Valor:</strong> {{ contrato.valor_display }}</p>
             <p>
                 <strong>Financeiro:</strong> 
                 <span :class="['status-badge', getFinanceiroStatusClass(contrato)]">
@@ -122,7 +122,7 @@ import { useToast } from 'vue-toast-notification';
 import 'vue-toast-notification/dist/theme-sugar.css';
 
 
-// Interface atualizada (com o novo campo 'financeiro_gerado')
+// Interface atualizada para corresponder aos dados aninhados
 interface ClienteDetalhes { 
   id: number; 
   nome_display: string; 
@@ -135,15 +135,17 @@ interface ImovelDetalhes {
 interface Contrato {
   id: number;
   tipo_contrato: 'VENDA' | 'ALUGUEL';
+  // O frontend espera objetos aninhados:
   imovel_detalhes: ImovelDetalhes;
   proprietario_detalhes: ClienteDetalhes;
   inquilino_detalhes: ClienteDetalhes | null;
   data_inicio: string;
   data_fim?: string | null;
   status_contrato: 'ATIVO' | 'PENDENTE' | 'CONCLUIDO' | 'RESCINDIDO' | 'INATIVO';
+  // E também espera estes campos para exibição:
   parte_principal_label: string;
   valor_display: string;
-  financeiro_gerado: boolean; // NOVO CAMPO
+  financeiro_gerado: boolean;
 }
 
 const router = useRouter();
@@ -155,7 +157,6 @@ const filterStatus = ref('');
 const filterTipo = ref('');
 
 const toast = useToast();
-// NOVO: Estado de loading genérico para qualquer ação no card
 const isProcessingId = ref<number | null>(null);
 
 // Estado do Modal Financeiro
@@ -166,6 +167,7 @@ const filteredContratos = computed(() => {
   return contratos.value.filter(contrato => {
     const searchLower = searchTerm.value.toLowerCase();
     
+    // A lógica de busca já estava correta, usando os campos aninhados
     const matchSearch = !searchLower ||
       (contrato.imovel_detalhes?.titulo_anuncio?.toLowerCase() || '').includes(searchLower) ||
       (contrato.imovel_detalhes?.logradouro?.toLowerCase() || '').includes(searchLower) ||
@@ -184,6 +186,7 @@ async function fetchContratos() {
   isLoading.value = true;
   error.value = null;
   try {
+    // A API '/v1/contratos/' (GET) usará o ContratoListSerializer (corrigido)
     const response = await apiClient.get<Contrato[]>('/v1/contratos/');
     contratos.value = response.data;
   } catch (err) {

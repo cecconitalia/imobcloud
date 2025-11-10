@@ -13,6 +13,7 @@ from decimal import Decimal
 # ====================================================================
 
 class ImovelSimplificadoSerializer(serializers.ModelSerializer):
+    """ Serializer auxiliar para Imóveis (usado em listas e detalhes) """
     endereco_completo = serializers.SerializerMethodField()
     class Meta:
         model = Imovel
@@ -24,6 +25,7 @@ class ImovelSimplificadoSerializer(serializers.ModelSerializer):
         return endereco or "Endereço não disponível"
 
 class ClienteSimplificadoSerializer(serializers.ModelSerializer):
+    """ Serializer auxiliar para Clientes (usado em listas e detalhes) """
     nome_display = serializers.SerializerMethodField()
     class Meta:
         model = Cliente
@@ -40,7 +42,7 @@ class PagamentoSerializer(serializers.ModelSerializer):
         fields = '__all__'
 
 # ====================================================================
-# SERIALIZER DE LEITURA E DETALHE (ContratoSerializer)
+# SERIALIZER DE LEITURA E DETALHE (ContratoSerializer) - (CORRIGIDO)
 # ====================================================================
 
 class ContratoSerializer(serializers.ModelSerializer):
@@ -67,10 +69,19 @@ class ContratoSerializer(serializers.ModelSerializer):
             'informacoes_adicionais', 'duracao_meses', 'status_contrato',
             'data_inicio', 'data_fim', 'data_assinatura', 'data_cadastro',
             'conteudo_personalizado',
+            
+            # IDs (necessários para o formulário de edição)
+            'imovel',
+            'inquilino',
+            'proprietario', # <-- ESTA É A CORREÇÃO (garante que o ID seja enviado)
+
+            # Detalhes (usados para exibição)
             'imovel_detalhes', 
             'inquilino_detalhes', 
             'proprietario_detalhes',
             'fiadores_detalhes', 
+            
+            # Campos relacionados
             'pagamentos',
             'parte_principal_label',
             'valor_display',
@@ -240,64 +251,59 @@ class ContratoCriacaoSerializer(serializers.ModelSerializer):
         return data
 
 # ====================================================================
-# SERIALIZER DE LISTAGEM (ContratoListSerializer)
+# SERIALIZER DE LISTAGEM (ContratoListSerializer) - (Corrigido anteriormente)
 # ====================================================================
 
 class ContratoListSerializer(serializers.ModelSerializer):
     """
     Serializer leve para a listagem de Contratos.
+    Modificado para enviar os dados aninhados que o ContratosView.vue espera.
     """
-    financeiro_gerado = serializers.BooleanField(read_only=True)
-
-    imovel_titulo = serializers.SerializerMethodField()
-    inquilino_nome = serializers.SerializerMethodField()
-    proprietario_nome = serializers.SerializerMethodField()
+    
+    # CORREÇÃO: Usar os serializers simplificados para corresponder ao frontend
+    imovel_detalhes = ImovelSimplificadoSerializer(source='imovel', read_only=True)
+    inquilino_detalhes = ClienteSimplificadoSerializer(source='inquilino', read_only=True)
+    proprietario_detalhes = ClienteSimplificadoSerializer(source='proprietario', read_only=True)
+    
+    # CORREÇÃO: Adicionar os campos que o frontend (ContratosView.vue) está renderizando
     parte_principal_label = serializers.SerializerMethodField()
     valor_display = serializers.SerializerMethodField()
+
+    financeiro_gerado = serializers.BooleanField(read_only=True)
 
     class Meta:
         model = Contrato
         fields = [
             'id', 'tipo_contrato', 'status_contrato',
-            'imovel', 'imovel_titulo', 
-            'inquilino', 'inquilino_nome',
-            'proprietario', 'proprietario_nome',
-            'aluguel', 'valor_total', 
+            
+            # Campos aninhados que o frontend espera
+            'imovel_detalhes', 
+            'inquilino_detalhes',
+            'proprietario_detalhes',
+            
+            # Campos de exibição que o frontend espera
+            'parte_principal_label',
+            'valor_display',
+
+            # Campos de dados simples
+            'aluguel', 'valor_total', # Mantidos para referência, embora valor_display seja usado
             'data_inicio', 'data_fim', 'data_assinatura',
             'financeiro_gerado',
-            'parte_principal_label',
-            'valor_display'
+
+            # Campos de ID (para filtros, se necessário, mas não essenciais para exibição)
+            'imovel', 
+            'inquilino',
+            'proprietario', 
         ]
-
-    def get_imovel_titulo(self, obj):
-        if obj.imovel:
-            return obj.imovel.titulo_anuncio or obj.imovel.logradouro or f"Imóvel #{obj.imovel.id}"
-        return "Imóvel não informado"
-
-    # ==================================================================
-    # CORREÇÃO: Lógica movida para cá.
-    # ==================================================================
-    def get_inquilino_nome(self, obj):
-        if obj.inquilino:
-            # Lógica para replicar 'nome_display'
-            if obj.inquilino.tipo_pessoa == 'JURIDICA' and obj.inquilino.razao_social:
-                return obj.inquilino.razao_social
-            return obj.inquilino.nome
-        return "Inquilino não informado"
-
-    def get_proprietario_nome(self, obj):
-        if obj.proprietario:
-            # Lógica para replicar 'nome_display'
-            if obj.proprietario.tipo_pessoa == 'JURIDICA' and obj.proprietario.razao_social:
-                return obj.proprietario.razao_social
-            return obj.proprietario.nome
-        return "Proprietário não informado"
-    # ==================================================================
+        
+    # --- MÉTODOS ADICIONADOS (necessários para os SerializerMethodField) ---
 
     def get_parte_principal_label(self, obj):
+        # Lógica copiada do ContratoSerializer (detalhado)
         return "Comprador" if obj.tipo_contrato == Contrato.TipoContrato.VENDA else "Inquilino"
 
     def get_valor_display(self, obj):
+        # Lógica copiada do ContratoSerializer (detalhado)
         try:
             if obj.tipo_contrato == Contrato.TipoContrato.VENDA and obj.valor_total is not None:
                 valor_formatado = f"R$ {obj.valor_total:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")

@@ -7,7 +7,11 @@ from app_clientes.models import Cliente
 from django.utils import timezone
 from app_financeiro.models import FormaPagamento
 from decimal import Decimal 
-from django.core.validators import MinValueValidator, MaxValueValidator 
+from django.core.validators import MinValueValidator, MaxValueValidator
+# Imports ADICIONADOS (movidos de views.py)
+from app_financeiro.models import Transacao, Categoria, Conta
+from dateutil.relativedelta import relativedelta
+
 
 class Contrato(models.Model):
     
@@ -140,6 +144,108 @@ class Contrato(models.Model):
         verbose_name="Conteúdo Personalizado do Contrato",
         help_text="Armazena o conteúdo HTML do contrato após a edição."
     )
+
+    # --- MÉTODOS MOVIDOS DE views.py PARA models.py ---
+
+    def gerar_financeiro_aluguel(self):
+        """ Helper para gerar parcelas de aluguel """
+        imobiliaria = self.imobiliaria
+        
+        if not self.aluguel or not self.duracao_meses or not self.data_primeiro_vencimento:
+             print(f"ERRO ALUGUEL: Contrato {self.id} sem Valor/Duração/Data do 1º Vencimento. Geração ignorada.")
+             return False
+             
+        Pagamento.objects.filter(contrato=self, status='PENDENTE').delete()
+        Transacao.objects.filter(contrato=self, status='PENDENTE', tipo='RECEITA').delete()
+        
+        data_base_vencimento = self.data_primeiro_vencimento
+        duracao = self.duracao_meses
+        
+        try:
+             categoria_aluguel = Categoria.objects.get(imobiliaria=imobiliaria, nome='Receita de Aluguel')
+        except Categoria.DoesNotExist:
+             categoria_aluguel = Categoria.objects.create(imobiliaria=imobiliaria, nome='Receita de Aluguel', tipo='RECEITA')
+             
+        conta_padrao = Conta.objects.filter(imobiliaria=imobiliaria).first()
+        
+        for i in range(duracao):
+             data_parcela = data_base_vencimento + relativedelta(months=i)
+             
+             Pagamento.objects.create(
+                 contrato=self,
+                 data_vencimento=data_parcela,
+                 valor=self.aluguel, 
+                 status='PENDENTE'
+             )
+             
+             Transacao.objects.create(
+                 imobiliaria=imobiliaria,
+                 descricao=f'Aluguel {i+1}/{duracao} - Imóvel: {self.imovel.logradouro}',
+                 valor=self.aluguel,
+                 data_transacao=timezone.now().date(), 
+                 data_vencimento=data_parcela,
+                 tipo='RECEITA',
+                 status='PENDENTE',
+                 categoria=categoria_aluguel,
+                 conta=conta_padrao,
+                 cliente=self.inquilino,
+                 imovel=self.imovel,
+                 contrato=self
+             )
+        print(f"SUCESSO ALUGUEL: {duracao} parcelas geradas para Contrato {self.id}.")
+        return True
+
+    def criar_transacao_comissao(self):
+        """
+        Cria a transação de RECEITA (pendente) para a comissão de venda.
+        """
+        
+        descricao_base = f"Comissão Venda #{self.id}: {self.imovel.logradouro}"
+        if Transacao.objects.filter(contrato=self, tipo='RECEITA', descricao__startswith=f"Comissão Venda #{self.id}").exists():
+            print(f"AVISO VENDA: Lançamento de comissão para Contrato {self.id} já existe. Ignorando.")
+            return False
+
+        valor_comissao = self.valor_comissao_acordado 
+        if not valor_comissao or valor_comissao <= 0:
+            print(f"AVISO VENDA: Contrato {self.id} sem Valor de Comissão Acordado (R$ {valor_comissao}). Lançamento ignorado.")
+            return False
+
+        try:
+            categoria_comissao, created = Categoria.objects.get_or_create(
+                imobiliaria=self.imobiliaria,
+                nome='Comissão de Venda', 
+                tipo='RECEITA'
+            )
+            if created:
+                print(f"AVISO VENDA: Categoria 'Comissão de Venda' (RECEITA) criada automaticamente.")
+        except Exception as e:
+            print(f"ERRO CRÍTICO VENDA: Falha ao obter/criar Categoria de Comissão. Erro: {e}.")
+            return False
+
+        data_base = timezone.now().date()
+        data_vencimento = self.data_vencimento_venda 
+
+        Transacao.objects.create(
+            imobiliaria=self.imobiliaria,
+            descricao=descricao_base,
+            valor=valor_comissao,
+            tipo='RECEITA',
+            status='PENDENTE',
+            data_transacao=data_base,
+            data_vencimento=data_vencimento,
+            
+            categoria=categoria_comissao,
+            cliente=self.proprietario, # A comissão é devida pelo Proprietário
+            imovel=self.imovel,
+            contrato=self,
+            
+            observacoes=f"Comissão de Venda gerada automaticamente. Valor de venda: R$ {self.valor_total}. Comissão baseada no valor acordado: R$ {valor_comissao.quantize(Decimal('0.01'))}."
+        )
+        print(f"SUCESSO VENDA: Criada Receita de Comissão R$ {valor_comissao} para o contrato {self.id}.")
+        return True
+
+    # --- FIM DOS MÉTODOS MOVIDOS ---
+
 
     def save(self, *args, **kwargs):
         # --- LÓGICA DE FAILSAFE (Cinto de Segurança) ---
