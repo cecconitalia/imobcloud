@@ -401,13 +401,13 @@ class ImovelViewSet(viewsets.ModelViewSet):
 
     # ==================================================================
     # CORREÇÃO DEFINITIVA DA FUNÇÃO 'lista_simples'
-    # Utiliza o valor da string 'finalidade' no campo 'status' do modelo Imovel.
+    # Filtra o campo 'finalidade' do imóvel, e não o 'status'.
     # ==================================================================
     @action(detail=False, methods=['get'], url_path='lista-simples')
     def lista_simples(self, request):
         """
         Retorna uma lista simplificada de imóveis para uso em dropdowns,
-        filtrada por proprietário e status (A_VENDA/PARA_ALUGAR).
+        filtrada por proprietário e finalidade (A_VENDA/PARA_ALUGAR).
         """
         # Inicia com o queryset base (já filtrado por tenant e status)
         queryset = self.get_queryset().exclude(status=Imovel.Status.DESATIVADO)
@@ -426,11 +426,11 @@ class ImovelViewSet(viewsets.ModelViewSet):
              # Se não houver proprietário selecionado, a lista deve ser vazia
              queryset = Imovel.objects.none()
 
-        # 2. Filtra por Status (usando o valor exato da string que veio do frontend)
-        # Verifica se o valor da finalidade é um status de contrato válido
-        if finalidade in [Imovel.Status.A_VENDA.value, Imovel.Status.PARA_ALUGAR.value]:
-            # Filtra o campo 'status' do modelo Imovel com o valor da string finalidade
-            queryset = queryset.filter(status=finalidade)
+        # 2. CORREÇÃO: Filtra pelo campo 'finalidade'
+        # O frontend envia 'A_VENDA' ou 'PARA_ALUGAR'.
+        if finalidade:
+            # Filtra o campo 'finalidade' do modelo Imovel
+            queryset = queryset.filter(finalidade=finalidade)
         else:
             # Se a finalidade não for VENDA ou ALUGUEL, limpa o queryset
             queryset = Imovel.objects.none()

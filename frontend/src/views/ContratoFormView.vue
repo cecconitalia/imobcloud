@@ -71,10 +71,11 @@
               label="label"
               placeholder="Selecione o Imóvel"
               :clearable="false"
-              :disabled="!contrato.proprietario || (!imovelOptions.length && !isEditing)"
+              :disabled="!contrato.proprietario || (!imovelOptions.length && !isEditing && !isLoadingImoveis)"
             ></v-select>
-            <p v-if="contrato.proprietario && !imovelOptions.length && !isEditing" class="help-text-loading">Carregando imóveis do proprietário...</p>
-            <p v-if="!contrato.proprietario" class="help-text">Selecione um proprietário primeiro.</p>
+            <p v-if="isLoadingImoveis" class="help-text-loading">Carregando imóveis do proprietário...</p>
+            <p v-else-if="!contrato.proprietario" class="help-text">Selecione um proprietário primeiro.</p>
+             <p v-else-if="contrato.proprietario && !imovelOptions.length" class="help-text">Proprietário selecionado. Nenhum imóvel encontrado para esta finalidade.</p>
           </div>
         </fieldset>
 
@@ -286,6 +287,7 @@ const imovelOptions = ref<ImovelOption[]>([]);
 
 const isSubmitting = ref(false);
 const isLoading = ref(true); 
+const isLoadingImoveis = ref(false); 
 const error = ref<string | null>(null);
 
 // ===============================================
@@ -346,11 +348,7 @@ async function fetchInitialDependencies() {
     // 1. Fetch Lista Completa de Clientes (para Inquilino/Fiadores)
     const clientesRes = await apiClient.get('/v1/clientes/lista-simples/');
     
-    // ==================================================================
-    // CORREÇÃO AQUI
-    // A API retorna { id: ..., nome_display: ... }
-    // Precisamos mapear para { value: ..., label: ... }
-    // ==================================================================
+    // Mapear a resposta da API para o formato de v-select
     todosClientesOptions.value = clientesRes.data.map((c: any) => ({
       label: c.nome_display,
       value: c.id,
@@ -363,16 +361,14 @@ async function fetchInitialDependencies() {
 
 async function fetchProprietarioOptions(tipo: 'ALUGUEL' | 'VENDA' | '') {
     if (!tipo) return;
-    const finalidade = tipo === 'VENDA' ? 'A_VENDA' : 'PARA_ALUGAR';
     
+    // CORREÇÃO: A API de Proprietários (/clientes) espera 'A_VENDA' ou 'PARA_ALUGAR'
+    const finalidade = tipo === 'VENDA' ? 'A_VENDA' : 'PARA_ALUGAR';
+
     try {
         const proprietarioRes = await apiClient.get('/v1/clientes/lista-proprietarios/', { params: { finalidade: finalidade } });
         
-        // ==================================================================
-        // CORREÇÃO AQUI
-        // A API retorna { id: ..., nome_display: ... }
-        // Precisamos mapear para { value: ..., label: ... }
-        // ==================================================================
+        // Mapear a resposta da API para o formato de v-select
         proprietarioOptions.value = proprietarioRes.data.map((c: any) => ({
             label: c.nome_display,
             value: c.id,
@@ -388,9 +384,13 @@ async function fetchImovelOptions(tipo: 'ALUGUEL' | 'VENDA' | '', proprietarioId
       imovelOptions.value = [];
       return;
   }
-
-  const finalidade = tipo === 'VENDA' ? 'A_VENDA' : 'PARA_ALUGAR';
   
+  isLoadingImoveis.value = true;
+  
+  // CORREÇÃO: A API de Imóveis (/imoveis/lista-simples) TAMBÉM espera 'A_VENDA' ou 'PARA_ALUGAR'
+  // Esta era a falha (enviando 'VENDA').
+  const finalidade = tipo === 'VENDA' ? 'A_VENDA' : 'PARA_ALUGAR';
+
   const imovelParams: Record<string, any> = { 
       finalidade: finalidade,
       proprietario_id: proprietarioId
@@ -398,13 +398,14 @@ async function fetchImovelOptions(tipo: 'ALUGUEL' | 'VENDA' | '', proprietarioId
   
   try {
     // Fetch: Imóveis filtrados por finalidade E proprietário
-    // Assumindo que esta API já retorna { label: ..., value: ... }
     const imovelRes = await apiClient.get('/v1/imoveis/lista-simples/', { params: imovelParams });
     imovelOptions.value = imovelRes.data; 
 
   } catch (err) {
     console.error('Erro ao carregar Imóveis filtrados:', err);
     imovelOptions.value = [];
+  } finally {
+    isLoadingImoveis.value = false;
   }
 }
 
@@ -448,13 +449,19 @@ async function handleSubmit() {
     // 1. Limpeza de dados (Garantir null para campos não usados)
     if (payload.tipo_contrato === 'ALUGUEL') {
         payload.valor_total = null;
-        payload.comissao_venda_percentual = 0.00; 
+        
+        // CORREÇÃO: Remove as chaves para que o backend use os defaults do Django Model
+        delete payload.comissao_venda_percentual; 
+        
         payload.valor_comissao_acordado = null;
         payload.data_vencimento_venda = null;
     } else { // Venda
         payload.aluguel = null;
         payload.duracao_meses = null;
-        payload.taxa_administracao_percentual = 0.00;
+        
+        // CORREÇÃO: Remove as chaves para que o backend use os defaults do Django Model
+        delete payload.taxa_administracao_percentual;
+        
         payload.data_primeiro_vencimento = null;
     }
 
@@ -476,7 +483,7 @@ async function handleSubmit() {
         if (apiError.imovel) {
              error.value = `Imóvel: ${apiError.imovel[0]}`;
         } else if (apiError.proprietario) {
-             error.value = `Proprietário: ${apiError.proprietario[0]}`;
+             error.value = `Proprietario: ${apiError.proprietario[0]}`;
         } else if (apiError.status_contrato) {
             error.value = apiError.status_contrato[0];
         } else if (apiError.non_field_errors) {
@@ -522,9 +529,14 @@ watch(() => contrato.value.proprietario, (newProprietarioId, oldProprietarioId) 
        contrato.value.imovel = null;
     }
     
-    // 2. Apenas recarrega a lista de Imóveis
-    fetchImovelOptions(contrato.value.tipo_contrato, newProprietarioId);
-}, { immediate: false }); 
+    // Apenas carrega a lista se um proprietário for selecionado/existir
+    if (newProprietarioId) {
+        fetchImovelOptions(contrato.value.tipo_contrato, newProprietarioId);
+    } else {
+        imovelOptions.value = [];
+    }
+
+}, { immediate: true }); 
 
 
 onMounted(async () => {
@@ -537,16 +549,15 @@ onMounted(async () => {
   // 2. Se estiver editando, carrega os dados do contrato PRIMEIRO
   if (isEditing.value) {
     await fetchContrato();
+    
+    // 3. Para o modo de edição, forçamos o carregamento dos imóveis 
+    // e esperamos a conclusão antes de liberar o isLoading geral.
+    if (contrato.value.proprietario) {
+        await fetchImovelOptions(contrato.value.tipo_contrato, contrato.value.proprietario);
+    }
   }
   
-  // 3. O watcher 'tipo_contrato' já cuidou do fetchProprietarioOptions.
-  
-  // 4. Se editando E com proprietário, carrega a lista de imóveis para o dropdown
-  if (isEditing.value && contrato.value.proprietario) {
-    await fetchImovelOptions(contrato.value.tipo_contrato, contrato.value.proprietario);
-  }
-  
-  // 5. Finaliza o loading
+  // 4. Finaliza o loading
   if (!error.value) {
     isLoading.value = false; 
   }
