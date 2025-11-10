@@ -158,15 +158,15 @@ class ImovelIAView(APIView):
                 imobiliaria_obj = Imobiliaria.objects.get(subdominio__iexact=subdomain_param)
             except Imobiliaria.DoesNotExist:
                  return Response({
-                    "mensagem": "Imobiliária não encontrada.",
-                    "imoveis": []
+                     "mensagem": "Imobiliária não encontrada.",
+                     "imoveis": []
                  }, status=status.HTTP_404_NOT_FOUND)
 
         if not imobiliaria_obj:
              return Response({
-                    "mensagem": "Subdomínio da imobiliária não fornecido.",
-                    "imoveis": []
-                 }, status=status.HTTP_400_BAD_REQUEST)
+                 "mensagem": "Subdomínio da imobiliária não fornecido.",
+                 "imoveis": []
+             }, status=status.HTTP_400_BAD_REQUEST)
 
         try:
             prompt_config = ModeloDePrompt.objects.get(em_uso_busca=True)
@@ -211,9 +211,9 @@ class ImovelIAView(APIView):
         if search_params.get('busca_valida') == False:
             mensagem_vaga = search_params.get('mensagem_resposta', "Não consegui identificar parâmetros de busca válidos. Por favor, especifique o que você procura.")
             return Response({
-                    "mensagem": mensagem_vaga,
-                    "imoveis": []
-                 }, status=status.HTTP_200_OK)
+                 "mensagem": mensagem_vaga,
+                 "imoveis": []
+            }, status=status.HTTP_200_OK)
         
         status_filtro_ia = search_params.get('status', None)
         if status_filtro_ia:
@@ -255,16 +255,16 @@ class ImovelIAView(APIView):
                  valor_max_decimal = Decimal(valor_max_ia)
                  q_filter_max = Q(valor_venda__lte=valor_max_decimal) if status_filtro_ia == Imovel.Status.A_VENDA else Q(valor_aluguel__lte=valor_max_decimal)
                  if not status_filtro_ia:
-                      q_filter_max = Q(valor_venda__lte=valor_max_decimal) | Q(valor_aluguel__lte=valor_max_decimal)
+                       q_filter_max = Q(valor_venda__lte=valor_max_decimal) | Q(valor_aluguel__lte=valor_max_decimal)
                  base_queryset = base_queryset.filter(q_filter_max)
             except (ValueError, TypeError, InvalidOperation):
                  pass 
 
         if 'quartos_min' in search_params:
             try:
-                quartos_min_ia = int(search_params['quartos_min'])
-                if quartos_min_ia >= 0:
-                     base_queryset = base_queryset.filter(quartos__gte=quartos_min_ia)
+                 quartos_min_ia = int(search_params['quartos_min'])
+                 if quartos_min_ia >= 0:
+                      base_queryset = base_queryset.filter(quartos__gte=quartos_min_ia)
             except (ValueError, TypeError):
                  pass 
 
@@ -286,9 +286,9 @@ class ImovelIAView(APIView):
         
         if 'suites_min' in search_params:
             try:
-                suites_min_ia = int(search_params['suites_min'])
-                if suites_min_ia >= 0:
-                     base_queryset = base_queryset.filter(suites__gte=suites_min_ia) 
+                 suites_min_ia = int(search_params['suites_min'])
+                 if suites_min_ia >= 0:
+                      base_queryset = base_queryset.filter(suites__gte=suites_min_ia) 
             except (ValueError, TypeError):
                  pass
 
@@ -302,11 +302,11 @@ class ImovelIAView(APIView):
 
         if 'area_min' in search_params:
             try:
-                area_min_ia = Decimal(search_params['area_min'])
-                if area_min_ia > 0:
-                     base_queryset = base_queryset.filter(
-                         Q(area_util__gte=area_min_ia) | 
-                         Q(area_construida__gte=area_min_ia)
+                 area_min_ia = Decimal(search_params['area_min'])
+                 if area_min_ia > 0:
+                      base_queryset = base_queryset.filter(
+                           Q(area_util__gte=area_min_ia) | 
+                           Q(area_construida__gte=area_min_ia)
                       )
             except (ValueError, TypeError, InvalidOperation):
                  pass
@@ -399,6 +399,11 @@ class ImovelViewSet(viewsets.ModelViewSet):
         else:
              raise PermissionDenied("Você não tem permissão para inativar este imóvel.")
 
+    # ==================================================================
+    # CORREÇÃO APLICADA AQUI
+    # O seu frontend envia 'finalidade' (com 'A_VENDA'/'PARA_ALUGAR')
+    # O seu modelo Imovel armazena isso no campo 'status'
+    # ==================================================================
     @action(detail=False, methods=['get'], url_path='lista-simples')
     def lista_simples(self, request):
         """
@@ -409,7 +414,7 @@ class ImovelViewSet(viewsets.ModelViewSet):
         queryset = self.get_queryset().exclude(status=Imovel.Status.DESATIVADO)
 
         proprietario_id = request.query_params.get('proprietario_id')
-        finalidade = request.query_params.get('finalidade') # FILTRO POR FINALIDADE
+        finalidade = request.query_params.get('finalidade') # FILTRO POR FINALIDADE (Vem 'A_VENDA' ou 'PARA_ALUGAR')
 
         # 1. Filtra por Proprietário (se fornecido)
         if proprietario_id:
@@ -418,12 +423,11 @@ class ImovelViewSet(viewsets.ModelViewSet):
             except (ValueError, TypeError):
                 pass 
         
-        # 2. Filtra por Finalidade (se fornecido)
-        # [CORREÇÃO] Compara a string/valor, não o atributo da classe
+        # 2. Filtra por Finalidade (que no modelo Imovel é o campo 'status')
         if finalidade == 'A_VENDA':
-            queryset = queryset.filter(finalidade='A_VENDA')
+            queryset = queryset.filter(status='A_VENDA') # <-- CORRIGIDO
         elif finalidade == 'PARA_ALUGAR':
-            queryset = queryset.filter(finalidade='PARA_ALUGAR')
+            queryset = queryset.filter(status='PARA_ALUGAR') # <-- CORRIGIDO
 
         # Otimiza a consulta para buscar apenas o necessário
         dados_simplificados = queryset.values(
@@ -442,7 +446,9 @@ class ImovelViewSet(viewsets.ModelViewSet):
             for im in dados_simplificados
         ]
         return Response(data)
-
+    # ==================================================================
+    # FIM DA CORREÇÃO
+    # ==================================================================
 
     def _get_imovel_contexto_para_ia(self, imovel):
         """Helper para formatar os dados do imóvel para a IA."""
@@ -565,9 +571,9 @@ class ImagemImovelViewSet(viewsets.ModelViewSet):
 
         try:
             if request.user.is_superuser:
-                imovel = Imovel.objects.get(pk=imovel_id)
+                 imovel = Imovel.objects.get(pk=imovel_id)
             elif request.tenant:
-                imovel = Imovel.objects.get(pk=imovel_id, imobiliaria=request.tenant)
+                 imovel = Imovel.objects.get(pk=imovel_id, imobiliaria=request.tenant)
             else:
                  raise PermissionDenied("Tenant não identificado.")
         except Imovel.DoesNotExist:
@@ -980,9 +986,9 @@ def _get_autorizacao_queryset(query_params):
         if dias_restantes < 0:
              status_risco = 'Expirado'
         elif dias_restantes <= 30:
-            status_risco = 'Risco (30 dias)'
+             status_risco = 'Risco (30 dias)'
         elif dias_restantes <= 90:
-            status_risco = 'Atenção (90 dias)'
+             status_risco = 'Atenção (90 dias)'
 
         data_list.append({
             'id': imovel.id,

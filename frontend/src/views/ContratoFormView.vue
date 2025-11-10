@@ -346,9 +346,14 @@ async function fetchInitialDependencies() {
     // 1. Fetch Lista Completa de Clientes (para Inquilino/Fiadores)
     const clientesRes = await apiClient.get('/v1/clientes/lista-simples/');
     
+    // ==================================================================
+    // CORREÇÃO AQUI
+    // A API retorna { id: ..., nome_display: ... }
+    // Precisamos mapear para { value: ..., label: ... }
+    // ==================================================================
     todosClientesOptions.value = clientesRes.data.map((c: any) => ({
-      label: c.label,
-      value: c.value,
+      label: c.nome_display,
+      value: c.id,
     }));
   } catch (err) {
     console.error('Erro ao carregar lista de clientes para Inquilino/Fiadores:', err);
@@ -362,7 +367,16 @@ async function fetchProprietarioOptions(tipo: 'ALUGUEL' | 'VENDA' | '') {
     
     try {
         const proprietarioRes = await apiClient.get('/v1/clientes/lista-proprietarios/', { params: { finalidade: finalidade } });
-        proprietarioOptions.value = proprietarioRes.data;
+        
+        // ==================================================================
+        // CORREÇÃO AQUI
+        // A API retorna { id: ..., nome_display: ... }
+        // Precisamos mapear para { value: ..., label: ... }
+        // ==================================================================
+        proprietarioOptions.value = proprietarioRes.data.map((c: any) => ({
+            label: c.nome_display,
+            value: c.id,
+        }));
     } catch (err) {
         console.error('Erro ao carregar lista de Proprietários filtrada:', err);
         proprietarioOptions.value = []; 
@@ -384,6 +398,7 @@ async function fetchImovelOptions(tipo: 'ALUGUEL' | 'VENDA' | '', proprietarioId
   
   try {
     // Fetch: Imóveis filtrados por finalidade E proprietário
+    // Assumindo que esta API já retorna { label: ..., value: ... }
     const imovelRes = await apiClient.get('/v1/imoveis/lista-simples/', { params: imovelParams });
     imovelOptions.value = imovelRes.data; 
 

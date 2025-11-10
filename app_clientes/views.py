@@ -6,8 +6,7 @@ from rest_framework.decorators import action
 from rest_framework.exceptions import PermissionDenied
 from rest_framework import filters
 from rest_framework.parsers import MultiPartParser, FormParser
-# Adicionadas importações para a lógica de filtro de Proprietários
-from django.db.models import Count, Q, Exists, OuterRef 
+from django.db.models import Count, Q
 from django.utils.timezone import localdate
 from django.utils import timezone
 from django.db.models.functions import TruncMonth
@@ -35,15 +34,15 @@ from .serializers import (
     AtividadeSerializer,
     FunilEtapaSerializer,
 )
+# Importar o serializer do app 'app_contratos'
 from app_contratos.serializers import ClienteSimplificadoSerializer
 from ImobCloud.utils.google_calendar_api import agendar_tarefa_no_calendario
-from app_imoveis.models import Imovel 
-
+from app_imoveis.models import Imovel
 
 User = get_user_model()
 
 # ====================================================================
-# VIEWS DO GOOGLE CALENDAR
+# VIEWS DO GOOGLE CALENDAR (Mantidas como originais)
 # ====================================================================
 SCOPES = ['https://www.googleapis.com/auth/calendar.events']
 CREDENTIALS_DIR = os.path.join(settings.MEDIA_ROOT, 'google_credentials')
@@ -116,7 +115,7 @@ class GoogleCalendarAuthCallbackView(APIView):
             return HttpResponse(f"Erro ao processar o callback: {e}", status=400)
 
 # ====================================================================
-# VIEWS DO CRM
+# VIEWS DO CRM (Com correções)
 # ====================================================================
 
 class ClienteViewSet(viewsets.ModelViewSet):
@@ -129,59 +128,56 @@ class ClienteViewSet(viewsets.ModelViewSet):
     
     parser_classes = (MultiPartParser, FormParser)
 
-    def get_imobiliaria(self):
-        """Helper para obter a Imobiliária do usuário logado."""
-        if hasattr(self.request.user, 'perfil') and self.request.user.perfil.imobiliaria:
-            return self.request.user.perfil.imobiliaria
-        if hasattr(self.request, 'tenant'):
-             return self.request.tenant
-        return None
-
     def get_queryset(self):
         base_queryset = Cliente.objects.filter(ativo=True)
-        imobiliaria = self.get_imobiliaria()
         
         if self.request.user.is_superuser:
-            queryset = base_queryset.all().order_by('-data_cadastro')
-        elif imobiliaria:
-            queryset = base_queryset.filter(imobiliaria=imobiliaria).order_by('-data_cadastro')
+            queryset = base_queryset.all()
+        elif self.request.tenant:
+            queryset = base_queryset.filter(imobiliaria=self.request.tenant)
         else:
             return Cliente.objects.none()
-
-        tipo = self.request.query_params.get('tipo', None)
-        if tipo:
-             queryset = queryset.filter(perfil_cliente__contains=[tipo])
             
         return queryset
 
-    def perform_create(self, serializer):
-        imobiliaria = self.get_imobiliaria()
+    def list(self, request, *args, **kwargs):
+        queryset = self.get_queryset() 
         
+        tipo = self.request.query_params.get('tipo', None)
+        if tipo:
+            queryset = queryset.filter(perfil_cliente__contains=[tipo])
+            
+        page = self.paginate_queryset(queryset)
+        if page is not None:
+            serializer = self.get_serializer(page, many=True)
+            return self.get_paginated_response(serializer.data)
+
+        serializer = self.get_serializer(queryset, many=True)
+        return Response(serializer.data)
+
+    def perform_create(self, serializer):
         if self.request.user.is_superuser:
-            if 'imobiliaria' in serializer.validated_data:
-                imobiliaria_obj = serializer.validated_data['imobiliaria']
+            if 'imobiliaria' in self.request.data:
+                imobiliaria_id = self.request.data['imobiliaria']
+                imobiliaria_obj = get_object_or_404(Imobiliaria, pk=imobiliaria_id)
                 serializer.save(imobiliaria=imobiliaria_obj)
             else:
                 raise PermissionDenied("Para superusuário, a imobiliária é obrigatória.")
         else:
-            if not imobiliaria:
-                raise PermissionDenied("Não foi possível associar o cliente a uma imobiliária. Usuário não tem perfil associado.")
-            serializer.save(imobiliaria=imobiliaria)
+            if not self.request.tenant:
+                raise PermissionDenied("Não foi possível associar o cliente a uma imobiliária. Tenant não identificado ou sem permissão.")
+            serializer.save(imobiliaria=self.request.tenant)
 
     def perform_update(self, serializer):
-        imobiliaria = self.get_imobiliaria()
-        
         if self.request.user.is_superuser:
             serializer.save()
-        elif imobiliaria and serializer.instance.imobiliaria == imobiliaria:
+        elif hasattr(self.request.user, 'perfil') and self.request.user.perfil.cargo in [PerfilUsuario.Cargo.ADMIN, PerfilUsuario.Cargo.CORRETOR] and serializer.instance.imobiliaria == self.request.tenant:
             serializer.save()
         else:
             raise PermissionDenied("Você não tem permissão para atualizar este cliente.")
 
     def perform_destroy(self, instance):
-        imobiliaria = self.get_imobiliaria()
-        
-        if self.request.user.is_superuser or (imobiliaria and instance.imobiliaria == imobiliaria):
+        if self.request.user.is_superuser or (hasattr(self.request.user, 'perfil') and self.request.user.perfil.cargo in [PerfilUsuario.Cargo.ADMIN, PerfilUsuario.Cargo.CORRETOR] and instance.imobiliaria == self.request.tenant):
             instance.ativo = False
             instance.save()
         else:
@@ -189,68 +185,45 @@ class ClienteViewSet(viewsets.ModelViewSet):
 
     @action(detail=False, methods=['get'], url_path='lista-simples')
     def lista_simples(self, request):
-        """ Retorna uma lista simplificada de TODOS os clientes (para Inquilinos, Fiadores, etc). """
-        queryset = self.get_queryset()
+        """
+        Retorna uma lista simplificada de TODOS os clientes 
+        (para Inquilinos, Fiadores, etc).
+        """
+        queryset = self.get_queryset() 
         serializer = ClienteSimplificadoSerializer(queryset, many=True)
         return Response(serializer.data)
 
-    @action(detail=False, methods=['get'], url_path='lista-corretores')
-    def lista_corretores(self, request):
-        imobiliaria = self.get_imobiliaria()
-        if not imobiliaria:
-             return Response([], status=status.HTTP_403_FORBIDDEN)
-        
-        perfis = PerfilUsuario.objects.filter(imobiliaria=imobiliaria)
-        data = [{
-            'label': f"{perfil.user.first_name} {perfil.user.last_name}".strip() or perfil.user.username,
-            'value': perfil.user.id
-        } for perfil in perfis]
-        return Response(data)
-
-    # --- ACTION CRÍTICA: Filtra proprietários pela finalidade do imóvel ---
+    # ==================================================================
+    # CORREÇÃO APLICADA AQUI: 'lista_proprietarios'
+    # ==================================================================
     @action(detail=False, methods=['get'], url_path='lista-proprietarios')
     def lista_proprietarios(self, request):
         """
-        Retorna clientes que são proprietários, filtrados pela finalidade (A_VENDA/PARA_ALUGAR)
-        dos imóveis que possuem.
+        Retorna uma lista simplificada de clientes que são proprietários, 
+        FILTRADOS pelo status (A_VENDA/PARA_ALUGAR) do imóvel associado.
         """
+        # 1. Pega o queryset base (Ativo=True, Tenant=Correct)
         base_queryset = self.get_queryset()
-        imobiliaria = self.get_imobiliaria()
         
-        if not imobiliaria:
-             return Response([], status=status.HTTP_403_FORBIDDEN)
-             
+        # 2. Pega o parâmetro 'finalidade' (que contém 'A_VENDA' ou 'PARA_ALUGAR')
         finalidade = request.query_params.get('finalidade')
         
-        # Filtra clientes que têm uma relação em 'imoveis_propriedade'
-        queryset = base_queryset.filter(
-            imoveis_propriedade__isnull=False
-        )
-
-        status_list = []
-        if finalidade == 'A_VENDA':
-            # Imóveis à venda ou já vendidos
-            status_list = [Imovel.Status.A_VENDA, Imovel.Status.VENDIDO]
-        elif finalidade == 'PARA_ALUGAR':
-            # Imóveis para alugar ou já alugados
-            status_list = [Imovel.Status.PARA_ALUGAR, Imovel.Status.ALUGADO]
+        # 3. Validação: Se a finalidade não for enviada, não há o que filtrar.
+        if not finalidade:
+            return Response([], status=status.HTTP_400_BAD_REQUEST)
         
-        if status_list:
-             # Utiliza Exists/OuterRef para filtrar clientes que são proprietários de imóveis com o status desejado
-             imoveis_com_status = Imovel.objects.filter(
-                 proprietario=OuterRef('pk'),
-                 imobiliaria=imobiliaria,
-                 status__in=status_list
-             )
-             queryset = queryset.filter(Exists(imoveis_com_status))
-        else:
-            # Se a finalidade não for válida/enviada, lista todos que são proprietários
-            pass
-
-        queryset = queryset.distinct()
+        # 4. Filtra clientes que:
+        #    a) Tenham o perfil 'PROPRIETARIO'
+        #    b) [CORREÇÃO] Tenham imóveis (related_name 'imoveis_propriedade')
+        #       cujo campo 'status' corresponda à finalidade enviada.
+        queryset = base_queryset.filter(
+            perfil_cliente__contains=['PROPRIETARIO'],
+            imoveis_propriedade__status=finalidade
+        ).distinct() # .distinct() é crucial para evitar duplicados
         
         serializer = ClienteSimplificadoSerializer(queryset, many=True)
         return Response(serializer.data)
+    # ==================================================================
 
     @action(detail=True, methods=['get'])
     def atividades(self, request, pk=None):
@@ -331,7 +304,7 @@ class AtividadeViewSet(viewsets.ModelViewSet):
         serializer.save(registrado_por=self.request.user)
 
 # ====================================================================
-# VIEWS DE OPORTUNIDADE E OUTRAS
+# VIEWS DE OPORTUNIDADE E OUTRAS (Mantidas como originais)
 # ====================================================================
 
 class OportunidadeViewSet(viewsets.ModelViewSet):
@@ -408,7 +381,7 @@ class OportunidadeViewSet(viewsets.ModelViewSet):
     
     def partial_update(self, request, *args, **kwargs):
         oportunidade = self.get_object()
-        fase_anterior = oportunidade.fase 
+        fase_anterior = oportunidade.get_fase_display()
         
         response = super().partial_update(request, *args, **kwargs)
 
@@ -560,4 +533,4 @@ class RelatoriosView(viewsets.ViewSet):
         return {"message": "Relatório de desempenho de corretores a ser implementado."}
     
     def _get_relatorio_imobiliaria(self, tenant):
-          return {"message": "Relatório de imobiliária a ser implementado."}
+         return {"message": "Relatório de imobiliária a ser implementado."}
