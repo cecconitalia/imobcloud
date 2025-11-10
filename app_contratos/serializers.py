@@ -6,7 +6,7 @@ from app_imoveis.models import Imovel
 from app_clientes.models import Cliente
 from django.db import transaction
 from app_financeiro.models import FormaPagamento 
-from decimal import Decimal # Import necessário para lidar com valores
+from decimal import Decimal
 
 # ====================================================================
 # SERIALIZERS AUXILIARES
@@ -30,7 +30,7 @@ class ClienteSimplificadoSerializer(serializers.ModelSerializer):
         fields = ['id', 'nome_display', 'documento']
 
     def get_nome_display(self, obj):
-        if obj.tipo_pessoa == 'JURIDICA' and obj.razao_social:
+        if hasattr(obj, 'tipo_pessoa') and obj.tipo_pessoa == 'JURIDICA' and obj.razao_social:
             return obj.razao_social
         return obj.nome
 
@@ -48,15 +48,11 @@ class ContratoSerializer(serializers.ModelSerializer):
     imovel_detalhes = ImovelSimplificadoSerializer(source='imovel', read_only=True)
     inquilino_detalhes = ClienteSimplificadoSerializer(source='inquilino', read_only=True)
     proprietario_detalhes = ClienteSimplificadoSerializer(source='proprietario', read_only=True)
-    
     fiadores_detalhes = ClienteSimplificadoSerializer(source='fiadores', read_only=True, many=True)
-    
     pagamentos = PagamentoSerializer(many=True, read_only=True)
     parte_principal_label = serializers.SerializerMethodField()
     valor_display = serializers.SerializerMethodField()
-    
     financeiro_gerado = serializers.BooleanField(read_only=True)
-
     formas_pagamento = serializers.PrimaryKeyRelatedField(many=True, read_only=True)
 
     class Meta:
@@ -64,18 +60,13 @@ class ContratoSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'imobiliaria', 'tipo_contrato', 
             'valor_total', 'aluguel', 'taxa_administracao_percentual',
-            
-            # [NOVOS CAMPOS DE VENDA/ALUGUEL]
             'comissao_venda_percentual',
             'valor_comissao_acordado',
             'data_primeiro_vencimento',
             'data_vencimento_venda',
-            
             'informacoes_adicionais', 'duracao_meses', 'status_contrato',
             'data_inicio', 'data_fim', 'data_assinatura', 'data_cadastro',
             'conteudo_personalizado',
-            
-            # Campos Read-only (para listagem)
             'imovel_detalhes', 
             'inquilino_detalhes', 
             'proprietario_detalhes',
@@ -84,10 +75,7 @@ class ContratoSerializer(serializers.ModelSerializer):
             'parte_principal_label',
             'valor_display',
             'formas_pagamento',
-            
-            # Campo de IDs de fiadores (para o v-model do form)
             'fiadores', 
-            
             'financeiro_gerado',
         ]
         read_only_fields = ('data_cadastro', 'imobiliaria')
@@ -112,8 +100,7 @@ class ContratoSerializer(serializers.ModelSerializer):
 
 class ContratoCriacaoSerializer(serializers.ModelSerializer):
     """
-    Serializer para CRIAÇÃO/ATUALIZAÇÃO.
-    Permite o envio de IDs para campos FKs e M2M.
+    Serializer para CRIAÇÃO/ATUALIZAÇÃO. Aceita proprietário vindo do frontend.
     """
     
     imovel = serializers.PrimaryKeyRelatedField(
@@ -124,6 +111,7 @@ class ContratoCriacaoSerializer(serializers.ModelSerializer):
         queryset=Cliente.objects.all(),
         required=True
     )
+    # Proprietario é obrigatório e vem do frontend
     proprietario = serializers.PrimaryKeyRelatedField(
         queryset=Cliente.objects.all(),
         required=True
@@ -141,7 +129,6 @@ class ContratoCriacaoSerializer(serializers.ModelSerializer):
         many=True
     )
 
-    # Campos de valor (para validação condicional)
     valor_total = serializers.DecimalField(max_digits=15, decimal_places=2, required=False, allow_null=True)
     aluguel = serializers.DecimalField(max_digits=15, decimal_places=2, required=False, allow_null=True)
     duracao_meses = serializers.IntegerField(required=False, allow_null=True, default=12)
@@ -149,7 +136,7 @@ class ContratoCriacaoSerializer(serializers.ModelSerializer):
     class Meta:
         model = Contrato
         
-        # Lista explícita de campos (ATUALIZADA)
+        # Proprietario está incluído nos fields
         fields = [
             'tipo_contrato',
             'imovel',
@@ -158,14 +145,11 @@ class ContratoCriacaoSerializer(serializers.ModelSerializer):
             'fiadores', 
             'aluguel',
             'valor_total',
-            'taxa_administracao_percentual', # Campo de Aluguel
-            
-            # [NOVOS CAMPOS ADICIONADOS]
+            'taxa_administracao_percentual', 
             'comissao_venda_percentual',
             'valor_comissao_acordado',
             'data_primeiro_vencimento',
             'data_vencimento_venda',
-            
             'informacoes_adicionais',
             'duracao_meses',
             'status_contrato',
@@ -178,21 +162,32 @@ class ContratoCriacaoSerializer(serializers.ModelSerializer):
         read_only_fields = ('imobiliaria', 'data_cadastro')
         
     def validate(self, data):
+        imovel = data.get('imovel')
+        proprietario = data.get('proprietario')
+        inquilino = data.get('inquilino')
+        
+        # --- VALIDAÇÃO CRÍTICA: Imóvel pertence ao Proprietário? ---
+        if imovel and proprietario:
+            if imovel.proprietario != proprietario:
+                raise serializers.ValidationError({"imovel": "Este imóvel não pertence ao proprietário selecionado. Por favor, recarregue a lista de imóveis."})
+        elif not proprietario:
+             raise serializers.ValidationError({"proprietario": "O proprietário é obrigatório."})
+        # -------------------------------------------------------------------------
+
         # 1. Validação Inquilino/Proprietário
-        if data.get('inquilino') == data.get('proprietario'):
+        if inquilino == proprietario:
             raise serializers.ValidationError("O inquilino/comprador e o proprietário não podem ser a mesma pessoa.")
 
         # 2. Validação Fiador
         fiadores_list = data.get('fiadores', [])
-        inquilino = data.get('inquilino')
-        proprietario = data.get('proprietario')
-
         for fiador in fiadores_list:
             if fiador == inquilino:
                  raise serializers.ValidationError({"fiadores": "O fiador não pode ser o mesmo que o inquilino."})
             if fiador == proprietario:
                  raise serializers.ValidationError({"fiadores": "O fiador não pode ser o mesmo que o proprietário."})
 
+        # ... (Restante da validação de tipo e valores)
+        
         tipo = data.get('tipo_contrato')
         valor_aluguel = data.get('aluguel')
         valor_venda = data.get('valor_total')
@@ -201,14 +196,12 @@ class ContratoCriacaoSerializer(serializers.ModelSerializer):
         
         tipo_limpo = None
         
-        # 3. Sanitização e Validação do tipo_contrato
         if tipo:
              tipo_limpo = tipo.strip().upper().replace('"', '').replace("'", "")
              if tipo_limpo not in [Contrato.TipoContrato.ALUGUEL, Contrato.TipoContrato.VENDA]:
                  raise serializers.ValidationError({"tipo_contrato": f"O tipo de contrato '{tipo}' é inválido."})
              data['tipo_contrato'] = tipo_limpo 
         
-        # 4. Validação Condicional de Valores
         if tipo_limpo == Contrato.TipoContrato.ALUGUEL:
             if not valor_aluguel:
                 raise serializers.ValidationError({"aluguel": "Este campo é obrigatório para contratos de Aluguel."})
@@ -228,9 +221,7 @@ class ContratoCriacaoSerializer(serializers.ModelSerializer):
             data['duracao_meses'] = None 
             data['data_primeiro_vencimento'] = None
             
-        # 5. Validação de Contrato Ativo Duplicado
         status_contrato = data.get('status_contrato')
-        imovel = data.get('imovel')
         
         if status_contrato == Contrato.Status.ATIVO and imovel:
             instance_pk = self.instance.pk if self.instance else None
@@ -249,14 +240,13 @@ class ContratoCriacaoSerializer(serializers.ModelSerializer):
         return data
 
 # ====================================================================
-# SERIALIZER DE LISTAGEM (ContratoListSerializer) - Usado no views.py
+# SERIALIZER DE LISTAGEM (ContratoListSerializer)
 # ====================================================================
 
 class ContratoListSerializer(serializers.ModelSerializer):
     """
     Serializer leve para a listagem de Contratos.
     """
-    # Exibe nomes em vez de IDs
     imovel_titulo = serializers.CharField(source='imovel.titulo_anuncio', read_only=True)
     
     inquilino_nome = serializers.CharField(source='inquilino.nome_display', read_only=True)

@@ -12,7 +12,10 @@
         <div class="spinner"></div>
         A carregar dados...
       </div>
-
+      
+      <div v-if="error" class="error-message" role="alert">
+        <strong>Erro:</strong> {{ error }}
+      </div>
       <div v-if="!isLoading">
         
         <fieldset class="form-section">
@@ -26,7 +29,7 @@
               </select>
             </div>
             
-            <div class="form-group" v-if="proprietarioOptions.length || contrato.proprietario !== null">
+            <div class="form-group">
               <label for="proprietario">Proprietário / Locador *</label>
               <v-select
                 id="proprietario"
@@ -36,12 +39,13 @@
                 label="label"
                 placeholder="Selecione o proprietário"
                 :clearable="false"
+                :disabled="!proprietarioOptions.length && !isEditing"
               ></v-select>
+              <p v-if="!proprietarioOptions.length && contrato.tipo_contrato && !isEditing" class="help-text-loading">Carregando proprietários...</p>
             </div>
-            <div v-else class="form-group"><input type="text" disabled placeholder="Carregando Proprietários..." /></div>
 
 
-            <div class="form-group" v-if="todosClientesOptions.length">
+            <div class="form-group">
               <label for="inquilino">{{ tipoContratoLabel.outraParte }} *</label>
               <v-select
                 id="inquilino"
@@ -51,12 +55,13 @@
                 label="label"
                 placeholder="Selecione a outra parte"
                 :clearable="false"
+                :disabled="!todosClientesOptions.length"
               ></v-select>
+              <p v-if="!todosClientesOptions.length" class="help-text-loading">Carregando clientes...</p>
             </div>
-            <div v-else class="form-group"><input type="text" disabled :placeholder="`Carregando ${tipoContratoLabel.outraParte}s...`" /></div>
           </div>
           
-          <div class="form-group" v-if="imovelOptions.length || contrato.imovel !== null">
+          <div class="form-group">
             <label for="imovel">Imóvel *</label>
             <v-select
               id="imovel"
@@ -66,9 +71,11 @@
               label="label"
               placeholder="Selecione o Imóvel"
               :clearable="false"
+              :disabled="!contrato.proprietario || (!imovelOptions.length && !isEditing)"
             ></v-select>
+            <p v-if="contrato.proprietario && !imovelOptions.length && !isEditing" class="help-text-loading">Carregando imóveis do proprietário...</p>
+            <p v-if="!contrato.proprietario" class="help-text">Selecione um proprietário primeiro.</p>
           </div>
-          <div v-else class="form-group"><input type="text" disabled placeholder="Carregando Imóveis..." /></div>
         </fieldset>
 
         <fieldset v-if="contrato.tipo_contrato === 'ALUGUEL'" class="form-section">
@@ -203,7 +210,12 @@ import { format } from 'date-fns';
 
 // TIPAGEM BASE
 interface ClienteOption { label: string; value: number; }
-interface ImovelOption { label: string; value: number; }
+interface ImovelOption { 
+  label: string; 
+  value: number; 
+  proprietario_id: number;
+  proprietario_nome: string;
+}
 
 interface ContratoData {
   id?: number;
@@ -213,7 +225,7 @@ interface ContratoData {
   
   imovel: number | null;
   inquilino: number | null;
-  proprietario: number | null;
+  proprietario: number | null; // O usuário seleciona
   fiadores: number[];
   
   // Dados de Aluguel
@@ -247,7 +259,7 @@ const contrato = ref<ContratoData>({
   status_contrato: 'PENDENTE',
   imovel: null,
   inquilino: null,
-  proprietario: null,
+  proprietario: null, 
   fiadores: [],
   aluguel: null,
   duracao_meses: 12,
@@ -268,9 +280,9 @@ const contrato = ref<ContratoData>({
 });
 
 // LISTAS FILTRADAS
-const todosClientesOptions = ref<ClienteOption[]>([]); // Lista completa para Inquilino/Fiadores
-const proprietarioOptions = ref<ClienteOption[]>([]); // Lista filtrada por tipo de contrato
-const imovelOptions = ref<ImovelOption[]>([]); // Lista filtrada por tipo de contrato E proprietário
+const todosClientesOptions = ref<ClienteOption[]>([]); 
+const proprietarioOptions = ref<ClienteOption[]>([]); 
+const imovelOptions = ref<ImovelOption[]>([]); 
 
 const isSubmitting = ref(false);
 const isLoading = ref(true); 
@@ -301,9 +313,12 @@ const calcularComissaoInicial = () => {
 };
 
 const handleTipoChange = () => {
-    // Ao mudar o tipo, resetar o Proprietário e Imóvel para forçar nova seleção
+    // Ao mudar o tipo, resetar o Proprietário e Imóvel
     contrato.value.proprietario = null;
     contrato.value.imovel = null;
+    // Limpar as listas
+    proprietarioOptions.value = [];
+    imovelOptions.value = [];
     
     calcularComissaoInicial();
 
@@ -318,6 +333,8 @@ const handleTipoChange = () => {
         contrato.value.taxa_administracao_percentual = 0.00;
         contrato.value.data_primeiro_vencimento = null;
     }
+    
+    // O watcher de tipo_contrato fará o fetchProprietarioOptions
 };
 
 // ===============================================
@@ -330,8 +347,8 @@ async function fetchInitialDependencies() {
     const clientesRes = await apiClient.get('/v1/clientes/lista-simples/');
     
     todosClientesOptions.value = clientesRes.data.map((c: any) => ({
-      label: c.nome_display || c.nome,
-      value: c.id,
+      label: c.label,
+      value: c.value,
     }));
   } catch (err) {
     console.error('Erro ao carregar lista de clientes para Inquilino/Fiadores:', err);
@@ -344,9 +361,8 @@ async function fetchProprietarioOptions(tipo: 'ALUGUEL' | 'VENDA' | '') {
     const finalidade = tipo === 'VENDA' ? 'A_VENDA' : 'PARA_ALUGAR';
     
     try {
-        // Fetch: Proprietários filtrados pela finalidade
         const proprietarioRes = await apiClient.get('/v1/clientes/lista-proprietarios/', { params: { finalidade: finalidade } });
-        proprietarioOptions.value = proprietarioRes.data.map((c: any) => ({ label: c.nome_display || c.nome, value: c.id, }));
+        proprietarioOptions.value = proprietarioRes.data;
     } catch (err) {
         console.error('Erro ao carregar lista de Proprietários filtrada:', err);
         proprietarioOptions.value = []; 
@@ -354,15 +370,17 @@ async function fetchProprietarioOptions(tipo: 'ALUGUEL' | 'VENDA' | '') {
 }
 
 async function fetchImovelOptions(tipo: 'ALUGUEL' | 'VENDA' | '', proprietarioId: number | null) {
-  if (!tipo) return;
+  if (!tipo || !proprietarioId) {
+      imovelOptions.value = [];
+      return;
+  }
 
   const finalidade = tipo === 'VENDA' ? 'A_VENDA' : 'PARA_ALUGAR';
   
-  // Parâmetros base para Imóveis: Filtra por finalidade E proprietário (se selecionado)
-  const imovelParams: Record<string, any> = { finalidade: finalidade };
-  if (proprietarioId) {
-      imovelParams.proprietario_id = proprietarioId;
-  }
+  const imovelParams: Record<string, any> = { 
+      finalidade: finalidade,
+      proprietario_id: proprietarioId
+  };
   
   try {
     // Fetch: Imóveis filtrados por finalidade E proprietário
@@ -380,9 +398,11 @@ async function fetchContrato() {
     const response = await apiClient.get(`/v1/contratos/${contratoId}/`); 
     const data = response.data;
     
+    const fiadorIds = (data.fiadores || []).map((f: any) => (typeof f === 'object' ? f.id : f));
+
     contrato.value = {
         ...data,
-        fiadores: data.fiadores.map((f: any) => f.id) || [], 
+        fiadores: fiadorIds,
         
         taxa_administracao_percentual: parseFloat(data.taxa_administracao_percentual) || 10.00,
         comissao_venda_percentual: parseFloat(data.comissao_venda_percentual) || 6.00,
@@ -391,10 +411,10 @@ async function fetchContrato() {
         valor_total: data.valor_total ? parseFloat(data.valor_total) : null,
         valor_comissao_acordado: data.valor_comissao_acordado ? parseFloat(data.valor_comissao_acordado) : null,
 
-        // Garante que o ID do objeto aninhado (na leitura) seja usado
-        proprietario: data.proprietario?.id || data.proprietario, 
-        inquilino: data.inquilino?.id || data.inquilino,
-        imovel: data.imovel?.id || data.imovel,
+        // Usando o ID do objeto aninhado ou o ID plano (para edição)
+        proprietario: data.proprietario_detalhes?.id || data.proprietario, 
+        inquilino: data.inquilino_detalhes?.id || data.inquilino,
+        imovel: data.imovel_detalhes?.id || data.imovel,
     };
     
   } catch (err) {
@@ -438,7 +458,11 @@ async function handleSubmit() {
     
     if (err.response && err.response.status === 400 && err.response.data) {
         const apiError = err.response.data;
-        if (apiError.status_contrato) {
+        if (apiError.imovel) {
+             error.value = `Imóvel: ${apiError.imovel[0]}`;
+        } else if (apiError.proprietario) {
+             error.value = `Proprietário: ${apiError.proprietario[0]}`;
+        } else if (apiError.status_contrato) {
             error.value = apiError.status_contrato[0];
         } else if (apiError.non_field_errors) {
             error.value = apiError.non_field_errors[0];
@@ -459,30 +483,39 @@ async function handleSubmit() {
 // WATCHERS E MOUNTED (Gatilhos de Carregamento)
 // ===============================================
 
-// Watcher 1: Dispara a busca de Proprietários e Imóveis filtrados ao mudar o Tipo de Contrato
-watch(() => contrato.value.tipo_contrato, (newTipo) => {
+// Watcher 1: Dispara a busca de Proprietários ao mudar o Tipo de Contrato
+watch(() => contrato.value.tipo_contrato, (newTipo, oldTipo) => {
     // 1. Recarrega lista de Proprietários
     fetchProprietarioOptions(newTipo); 
     
-    // 2. Recarrega a lista de Imóveis (filtrados pelo TIPO e pelo Proprietário ATUAL)
-    fetchImovelOptions(newTipo, contrato.value.proprietario);
-}, { immediate: false }); 
-
-// Watcher 2: Dispara a busca de Imóveis filtrados ao mudar o Proprietário
-watch(() => contrato.value.proprietario, (newProprietarioId, oldProprietarioId) => {
-    // 1. **CORREÇÃO: Reseta o Imóvel ao mudar o Proprietário**
-    // Só reseta se o ID realmente mudou, evitando resets desnecessários na carga
-    if (newProprietarioId !== oldProprietarioId) {
+    // 2. Reseta o proprietário e o imóvel se o tipo mudar (exceto na carga inicial)
+    if (oldTipo !== undefined) {
+      contrato.value.proprietario = null;
       contrato.value.imovel = null;
     }
     
-    // 2. Apenas recarrega a lista de Imóveis (o tipo de contrato já está definido)
+    // 3. Limpa a lista de imóveis
+    imovelOptions.value = [];
+    
+}, { immediate: true }); 
+
+// Watcher 2: Dispara a busca de Imóveis filtrados ao mudar o Proprietário
+watch(() => contrato.value.proprietario, (newProprietarioId, oldProprietarioId) => {
+    
+    // 1. Reseta o Imóvel ao mudar o Proprietário
+    if (oldProprietarioId !== null && newProprietarioId !== oldProprietarioId) {
+       contrato.value.imovel = null;
+    }
+    
+    // 2. Apenas recarrega a lista de Imóveis
     fetchImovelOptions(contrato.value.tipo_contrato, newProprietarioId);
-}, { immediate: false });
+}, { immediate: false }); 
 
 
 onMounted(async () => {
   isLoading.value = true;
+  error.value = null;
+  
   // 1. Carrega todas as dependências básicas (Clientes para Inquilino/Fiadores)
   await fetchInitialDependencies();
   
@@ -491,11 +524,14 @@ onMounted(async () => {
     await fetchContrato();
   }
   
-  // 3. Carrega as listas filtradas com base no estado inicial (novo ou editado)
-  await fetchProprietarioOptions(contrato.value.tipo_contrato);
-  await fetchImovelOptions(contrato.value.tipo_contrato, contrato.value.proprietario);
+  // 3. O watcher 'tipo_contrato' já cuidou do fetchProprietarioOptions.
   
-  // 4. Finaliza o loading
+  // 4. Se editando E com proprietário, carrega a lista de imóveis para o dropdown
+  if (isEditing.value && contrato.value.proprietario) {
+    await fetchImovelOptions(contrato.value.tipo_contrato, contrato.value.proprietario);
+  }
+  
+  // 5. Finaliza o loading
   if (!error.value) {
     isLoading.value = false; 
   }
@@ -582,6 +618,11 @@ input[type="text"], input[type="number"], input[type="date"], select, .form-grou
     color: #6c757d;
     margin-top: 5px;
 }
+.help-text-loading {
+    font-size: 0.75rem;
+    color: #007bff;
+    margin-top: 5px;
+}
 
 /* Estilos para v-select (mantidos) */
 :deep(.vs__dropdown-toggle) {
@@ -636,7 +677,7 @@ input[type="text"], input[type="number"], input[type="date"], select, .form-grou
 .btn-secondary:hover, .btn-light:hover { background-color: #e2e6ea; }
 
 /* Mensagens de estado */
-.loading-message, .error-message {
+.loading-message {
     text-align: center;
     padding: 15px;
     border-radius: 4px;
@@ -648,10 +689,14 @@ input[type="text"], input[type="number"], input[type="date"], select, .form-grou
 }
 .error-message {
     background-color: #f8d7da;
-    color: #dc3545;
+    color: #721c24;
     border: 1px solid #f5c6cb;
+    padding: 10px 15px;
+    border-radius: 6px;
+    margin-bottom: 20px;
+    font-size: 0.9rem;
 }
-.spinner { /* Placeholder para spinner, se necessário */
+.spinner {
     border: 4px solid rgba(0, 0, 0, 0.1);
     width: 20px;
     height: 20px;

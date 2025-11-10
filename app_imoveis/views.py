@@ -52,7 +52,7 @@ except Exception as e:
 
 
 # ===================================================================
-# VIEWS PÚBLICAS (Mantidas)
+# VIEWS PÚBLICAS (Mantidas como estavam)
 # ===================================================================
 
 class ImovelPublicListView(ListAPIView):

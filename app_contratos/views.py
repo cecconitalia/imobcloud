@@ -5,7 +5,6 @@ from rest_framework.response import Response
 from rest_framework.decorators import action, api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from .models import Contrato, Pagamento
-# CORREÇÃO: Removido 'ContratoListSerializer' da importação principal
 from .serializers import ContratoSerializer, PagamentoSerializer, ContratoCriacaoSerializer 
 from django.shortcuts import get_object_or_404
 from rest_framework.exceptions import ValidationError
@@ -21,8 +20,10 @@ from django.db import transaction
 from django.db.models import Exists, OuterRef
 # Imports para a action 'gerar_financeiro'
 from app_financeiro.models import Transacao, Categoria, Conta
-from datetime import date
-from dateutil.relativedelta import relativedelta
+
+# CORREÇÃO CRÍTICA: Corrigido o typo 'relativelatedelta'
+from dateutil.relativedelta import relativedelta 
+
 from rest_framework.views import APIView
 from django.utils import timezone
 
@@ -64,12 +65,14 @@ class ContratoViewSet(viewsets.ModelViewSet):
             return ContratoCriacaoSerializer
         return ContratoSerializer
 
+    # Restaurado para a lógica simples (o serializer trata o proprietario)
     def perform_create(self, serializer):
         serializer.save(
             imobiliaria=self.request.user.perfil.imobiliaria,
             status_contrato=Contrato.Status.PENDENTE 
         )
 
+    # Restaurado para a lógica simples, mas mantendo os gatilhos
     @transaction.atomic
     def perform_update(self, serializer):
         instance = serializer.instance
@@ -106,16 +109,13 @@ class ContratoViewSet(viewsets.ModelViewSet):
         """ Helper para gerar parcelas de aluguel (replicado da action gerar_financeiro) """
         imobiliaria = contrato.imobiliaria
         
-        # [CORREÇÃO] Valida se a data do primeiro vencimento foi definida
         if not contrato.aluguel or not contrato.duracao_meses or not contrato.data_primeiro_vencimento:
              print(f"ERRO ALUGUEL: Contrato {contrato.id} sem Valor/Duração/Data do 1º Vencimento. Geração ignorada.")
              return
              
-        # Limpa Lançamentos PENDENTES antigos
         Pagamento.objects.filter(contrato=contrato, status='PENDENTE').delete()
         Transacao.objects.filter(contrato=contrato, status='PENDENTE', tipo='RECEITA').delete()
         
-        # [CORREÇÃO] Usa a data do primeiro vencimento como base
         data_base_vencimento = contrato.data_primeiro_vencimento
         duracao = contrato.duracao_meses
         
@@ -127,7 +127,6 @@ class ContratoViewSet(viewsets.ModelViewSet):
         conta_padrao = Conta.objects.filter(imobiliaria=imobiliaria).first()
         
         for i in range(duracao):
-             # [CORREÇÃO] Calcula a data da parcela usando relativedelta a partir da data base
              data_parcela = data_base_vencimento + relativedelta(months=i)
              
              Pagamento.objects.create(
@@ -141,7 +140,7 @@ class ContratoViewSet(viewsets.ModelViewSet):
                  imobiliaria=imobiliaria,
                  descricao=f'Aluguel {i+1}/{duracao} - Imóvel: {contrato.imovel.logradouro}',
                  valor=contrato.aluguel,
-                 data_transacao=date.today(), 
+                 data_transacao=timezone.now().date(), 
                  data_vencimento=data_parcela,
                  tipo='RECEITA',
                  status='PENDENTE',
@@ -159,19 +158,16 @@ class ContratoViewSet(viewsets.ModelViewSet):
         Cria a transação de RECEITA (pendente) para a comissão de venda.
         """
         
-        # 1. Checa se a transação já existe
-        descricao_base = f"Comissão de Venda: {contrato.imovel.logradouro}"
-        if Transacao.objects.filter(contrato=contrato, tipo='RECEITA', descricao__startswith=descricao_base).exists():
+        descricao_base = f"Comissão Venda #{contrato.id}: {contrato.imovel.logradouro}"
+        if Transacao.objects.filter(contrato=contrato, tipo='RECEITA', descricao__startswith=f"Comissão Venda #{contrato.id}").exists():
             print(f"AVISO VENDA: Lançamento de comissão para Contrato {contrato.id} já existe. Ignorando.")
             return
 
-        # 2. VALIDAÇÃO E CÁLCULO
         valor_comissao = contrato.valor_comissao_acordado 
         if not valor_comissao or valor_comissao <= 0:
             print(f"AVISO VENDA: Contrato {contrato.id} sem Valor de Comissão Acordado (R$ {valor_comissao}). Lançamento ignorado.")
             return
 
-        # 3. CATEGORIA (Self-Healing)
         try:
             categoria_comissao, created = Categoria.objects.get_or_create(
                 imobiliaria=contrato.imobiliaria,
@@ -184,16 +180,9 @@ class ContratoViewSet(viewsets.ModelViewSet):
             print(f"ERRO CRÍTICO VENDA: Falha ao obter/criar Categoria de Comissão. Erro: {e}.")
             return
 
-        # 4. DATAS [CORREÇÃO]
         data_base = timezone.now().date()
-        
-        # [CORREÇÃO] Usa a data de vencimento da venda (quitação) se existir, senão usa a data da assinatura
-        if contrato.data_vencimento_venda:
-            data_vencimento = contrato.data_vencimento_venda
-        else:
-            data_vencimento = max(contrato.data_assinatura + timedelta(days=30), data_base) 
+        data_vencimento = contrato.data_vencimento_venda 
 
-        # 5. CRIAÇÃO da Transação
         Transacao.objects.create(
             imobiliaria=contrato.imobiliaria,
             descricao=descricao_base,
@@ -227,10 +216,16 @@ class ContratoViewSet(viewsets.ModelViewSet):
             )
         
         if contrato.tipo_contrato == Contrato.TipoContrato.ALUGUEL:
-            # [CORREÇÃO] Validação para o novo campo de data
             if not contrato.aluguel or not contrato.duracao_meses or not contrato.data_primeiro_vencimento:
                  return Response(
                      {"error": "Não é possível ativar. Defina 'Valor do Aluguel', 'Duração' e 'Data do 1º Vencimento' primeiro."},
+                     status=status.HTTP_400_BAD_REQUEST
+                 )
+        
+        elif contrato.tipo_contrato == Contrato.TipoContrato.VENDA:
+             if not contrato.valor_total or not contrato.data_vencimento_venda:
+                 return Response(
+                     {"error": "Não é possível ativar. Para Venda, defina o 'Valor Total do Contrato' e a 'Data Venc. Comissão/Quitação' primeiro."},
                      status=status.HTTP_400_BAD_REQUEST
                  )
 

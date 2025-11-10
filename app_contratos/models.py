@@ -101,10 +101,7 @@ class Contrato(models.Model):
         null=True, 
         blank=True
     )
-    
-    # [CAMPO REMOVIDO] 'dia_vencimento_aluguel' foi removido.
-    
-    # [NOVO CAMPO] Data do Primeiro Vencimento (Aluguel)
+        
     data_primeiro_vencimento = models.DateField(
         null=True, 
         blank=True,
@@ -112,7 +109,6 @@ class Contrato(models.Model):
         help_text="Data do primeiro vencimento para gerar as parcelas de aluguel."
     )
     
-    # [NOVO CAMPO] Data de Vencimento/Quitação para Venda
     data_vencimento_venda = models.DateField(
         null=True, 
         blank=True, 
@@ -146,6 +142,13 @@ class Contrato(models.Model):
     )
 
     def save(self, *args, **kwargs):
+        # --- LÓGICA DE FAILSAFE (Cinto de Segurança) ---
+        # Garante que o proprietário do contrato seja sincronizado
+        # com o proprietário do imóvel selecionado, caso a view não o faça.
+        if self.imovel and self.imovel.proprietario:
+            self.proprietario = self.imovel.proprietario
+        # --- FIM DA LÓGICA DE FAILSAFE ---
+        
         # Lógica de cálculo inicial da comissão
         if self.tipo_contrato == self.TipoContrato.VENDA and self.valor_total and self.valor_comissao_acordado is None:
             percentual = Decimal(self.comissao_venda_percentual) / Decimal(100) 

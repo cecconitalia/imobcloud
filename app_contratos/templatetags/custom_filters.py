@@ -19,7 +19,8 @@ def num_to_words(value, lang="pt_BR"):
         # Converte o valor para palavras, depois para ASCII com unidecode
         # para evitar problemas de codificação
         text_value = num2words(value, lang=lang)
-        return unidecode(text_value)
+        # CORREÇÃO: Usar mark_safe para indicar que o output é seguro para renderização HTML
+        return mark_safe(unidecode(text_value))
     except Exception as e:
         return f"Erro: {e}"
 
@@ -30,8 +31,6 @@ def capfirst_filter(value):
         # Garante que a primeira letra seja maiúscula, mesmo após a normalização
         return value[0].upper() + value[1:]
     return ""
-
-# --- INÍCIO DA CORREÇÃO ---
 
 @register.filter(name='format_currency_brl')
 def format_currency_brl(value):
@@ -63,7 +62,4 @@ def get_tipo_negocio(status_imovel):
         return "Locação" # "Locação" é mais formal para contratos
     
     # Fallback para outros status (ex: Em Construção)
-    return "Negociação" 
-
-# --- FIM DA CORREÇÃO ---
-# (O '}' que estava aqui foi removido pois era um erro de sintaxe)
+    return "Negociação"
