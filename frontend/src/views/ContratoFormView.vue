@@ -216,6 +216,8 @@ interface ClienteOption { label: string; value: number; }
 interface ImovelOption { 
   label: string; 
   value: number; 
+  aluguel: number | null;
+  venda: number | null;
 }
 
 interface ContratoData {
@@ -250,13 +252,12 @@ interface ContratoData {
 }
 
 // Tipagem para a resposta do ImovelSerializer (suposição)
-// REMOVIDO - Não é mais necessário pois a lista_simples retorna {label, value}
-// interface ImovelSerializerResponse {
-//   id: number;
-//   titulo: string;
-//   codigo_referencia: string;
-//   // ... outros campos do serializer ...
-// }
+interface ImovelSerializerResponse {
+  id: number;
+  titulo: string;
+  codigo_referencia: string;
+  // ... outros campos do serializer ...
+}
 
 
 const route = useRoute();
@@ -274,7 +275,7 @@ const contrato = ref<ContratoData>({
   fiadores: [],
   aluguel: null,
   duracao_meses: 12,
-  taxa_administracao_percentual: 10.00,
+  taxa_administracao_percentual: 10.00, // <--- Valor padrão inicial
   data_primeiro_vencimento: null,
   
   valor_total: null,
@@ -325,6 +326,9 @@ const calcularComissaoInicial = () => {
   }
 };
 
+// ==================================================================
+// CORREÇÃO: Restaurar valores padrão de Aluguel ao trocar o tipo
+// ==================================================================
 const handleTipoChange = () => {
     contrato.value.proprietario = null;
     contrato.value.imovel = null;
@@ -334,14 +338,23 @@ const handleTipoChange = () => {
     calcularComissaoInicial();
 
     if (contrato.value.tipo_contrato === 'ALUGUEL') {
+        // Resetar campos de Venda
         contrato.value.valor_total = null;
         contrato.value.valor_comissao_acordado = null;
         contrato.value.comissao_venda_percentual = 6.00;
         contrato.value.data_vencimento_venda = null;
+        
+        // --- CORREÇÃO ADICIONADA ---
+        // Restaurar campos padrão de Aluguel
+        contrato.value.taxa_administracao_percentual = 10.00; // <--- RESTAURADO
+        contrato.value.duracao_meses = 12; // <--- RESTAURADO
+        // --- FIM DA CORREÇÃO ---
+
     } else if (contrato.value.tipo_contrato === 'VENDA') {
+        // Resetar campos de Aluguel
         contrato.value.aluguel = null;
         contrato.value.duracao_meses = null;
-        contrato.value.taxa_administracao_percentual = 0.00;
+        contrato.value.taxa_administracao_percentual = 0.00; // (Correto para VENDA)
         contrato.value.data_primeiro_vencimento = null;
     }
 };
@@ -368,11 +381,11 @@ async function fetchProprietarioOptions(tipo: 'ALUGUEL' | 'VENDA' | '') {
     
     isLoadingProprietarios.value = true;
     
-    // Esta lógica está correta e funcionando
     const finalidade = tipo === 'VENDA' ? 'A_VENDA' : 'PARA_ALUGAR';
+    
+    // Filtro de disponibilidade removido (conforme solicitação anterior)
     const params = { 
         finalidade: finalidade,
-        status_imovel: 'DISPONIVEL' // Garante que só peguemos proprietários com imóveis disponíveis
     };
 
     try {
@@ -397,28 +410,16 @@ async function fetchImovelOptions(tipo: 'ALUGUEL' | 'VENDA' | '', proprietarioId
   
   isLoadingImoveis.value = true;
   
-  // 'finalidade' aqui é usada pela action 'lista_simples' para filtrar o *status* do imóvel
   const finalidade = tipo === 'VENDA' ? 'A_VENDA' : 'PARA_ALUGAR';
 
+  // Filtro de disponibilidade removido (conforme solicitação anterior)
   const imovelParams: Record<string, any> = { 
-      finalidade: finalidade,     // Usado pelo backend para filtrar Imovel.Status
+      finalidade: finalidade,
       proprietario: proprietarioId, 
-      // 'status_imovel' é o nome do parâmetro que o backend 'lista_simples' espera
-      status_imovel: 'DISPONIVEL'
   };
   
   try {
-    // =========================================================================
-    // CORREÇÃO: A URL FOI ALTERADA DE VOLTA PARA 'lista-simples'
-    // Esta action é a correta para filtrar por proprietário E status.
-    // =========================================================================
     const imovelRes = await apiClient.get('/v1/imoveis/lista-simples/', { params: imovelParams });
-
-    // =========================================================================
-    // CORREÇÃO 2: MAPEAMENTO DA RESPOSTA
-    // A rota 'lista_simples' (corrigida no backend) já retorna
-    // o formato {label, value}. Não é mais necessário o .map()
-    // =========================================================================
     imovelOptions.value = imovelRes.data;
 
   } catch (err) {
@@ -545,6 +546,34 @@ watch(() => contrato.value.proprietario, (newProprietarioId, oldProprietarioId) 
 }, { immediate: true }); 
 
 
+// Watcher 3: Preenche o valor ao selecionar o imóvel
+watch(
+  [() => contrato.value.imovel, () => imovelOptions.value], 
+  ([newImovelId, newOptions]) => {
+    
+    if (!newImovelId || !newOptions.length) {
+      return;
+    }
+    
+    if (isLoading.value && isEditing.value) {
+      return;
+    }
+
+    const selectedImovel = newOptions.find(o => o.value === newImovelId);
+    
+    if (selectedImovel) {
+      if (contrato.value.tipo_contrato === 'ALUGUEL') {
+        contrato.value.aluguel = selectedImovel.aluguel ? parseFloat(String(selectedImovel.aluguel)) : null;
+      } 
+      else if (contrato.value.tipo_contrato === 'VENDA') {
+        contrato.value.valor_total = selectedImovel.venda ? parseFloat(String(selectedImovel.venda)) : null;
+        calcularComissaoInicial();
+      }
+    }
+  }
+);
+
+
 onMounted(async () => {
   isLoading.value = true;
   error.value = null;
@@ -555,10 +584,6 @@ onMounted(async () => {
     await fetchContrato();
     
     if (contrato.value.tipo_contrato && contrato.value.proprietario) {
-        // Ao editar, buscamos todos os proprietários e imóveis (sem o filtro 'DISPONIVEL')
-        // para garantir que os dados salvos sejam exibidos.
-        // A lógica de filtro normal já foi executada pelos Watchers.
-        // Apenas recarregamos para garantir que o v-select tenha as opções.
         await fetchProprietarioOptions(contrato.value.tipo_contrato);
         await fetchImovelOptions(contrato.value.tipo_contrato, contrato.value.proprietario);
     }
