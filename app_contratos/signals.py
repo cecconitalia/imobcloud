@@ -3,105 +3,134 @@
 from django.db.models.signals import post_save, pre_delete, pre_save
 from django.dispatch import receiver
 from .models import Contrato, Pagamento
-from app_financeiro.models import Transacao
+from app_financeiro.models import Transacao, Categoria, Conta
 from datetime import date
+from dateutil.relativedelta import relativedelta
 from django.db import transaction
 
 # ==================================================================
-# Lógica de Geração Automática (pre_save)
-# Dispara quando o contrato é salvo, ANTES de ir para o banco.
-# ESTA É A FONTE ÚNICA DA VERDADE PARA GATILHOS DE STATUS.
+# Lógica de Geração e Limpeza Automática (pre_save)
+# CORRIGIDO: Renomeado para gerenciar todos os estados
 # ==================================================================
 
 @receiver(pre_save, sender=Contrato)
 @transaction.atomic
-def disparar_gatilhos_financeiros_por_status(sender, instance, **kwargs):
+def gerenciar_financeiro_por_status(sender, instance, **kwargs):
     
-    # Se 'pk' não existe, é um novo contrato.
-    if not instance.pk:
-        # Se for criado já como ATIVO (o que o form permite)
-        if instance.status_contrato == Contrato.Status.ATIVO:
-            # O contrato ainda não foi salvo, então não podemos
-            # chamar os métodos de instância que criam transações (eles precisam do ID).
-            # Vamos adiar isso para um post_save.
-            pass
-        return # Sai do pre_save para novos contratos
-
-    # É uma edição (pk existe). Precisamos do status antigo.
-    try:
-        obj_antigo = Contrato.objects.get(pk=instance.pk)
-        status_antigo = obj_antigo.status_contrato
-    except Contrato.DoesNotExist:
-        return # Objeto antigo não existe, não faz nada
-    
-    status_novo = instance.status_contrato
-
-    # CONDIÇÃO PRINCIPAL:
-    # Só executa se o status MUDOU para ATIVO/CONCLUÍDO e ANTES não era.
-    is_being_activated = (
-        status_novo in [Contrato.Status.ATIVO, Contrato.Status.CONCLUIDO] and
-        status_antigo not in [Contrato.Status.ATIVO, Contrato.Status.CONCLUIDO]
-    )
-
-    if not is_being_activated:
-        return # Nenhuma mudança de status relevante
-
-    # --- Gatilho de Aluguel ---
-    if instance.tipo_contrato == Contrato.TipoContrato.ALUGUEL:
-        # Verifica se o financeiro já existe
-        if not instance.pagamentos.exists():
-            print(f"SIGNAL pre_save: Ativando contrato de ALUGUEL {instance.pk}. Gerando financeiro...")
-            # Não podemos chamar instance.gerar_financeiro_aluguel() aqui
-            # porque ele CRIA objetos (Pagamento, Transacao).
-            # A instância ainda não foi salva (é pre_save).
-            # Adiaremos para post_save.
-            instance._gerar_financeiro_aluguel_post_save = True 
-        else:
-            print(f"SIGNAL pre_save: Contrato de ALUGUEL {instance.pk} ativado, mas financeiro já existe.")
-    
-    # --- Gatilho de Venda (CORRIGIDO) ---
-    elif instance.tipo_contrato == Contrato.TipoContrato.VENDA:
-        # Verifica se a transação já existe
-        if not Transacao.objects.filter(contrato=instance, tipo='RECEITA').exists():
-            print(f"SIGNAL pre_save: Ativando contrato de VENDA {instance.pk}. Gerando comissão...")
-            # Adiaremos para post_save
-            instance._criar_comissao_venda_post_save = True
-        else:
-             print(f"SIGNAL pre_save: Contrato de VENDA {instance.pk} ativado, mas comissão já existe.")
-
-
-# ==================================================================
-# Lógica de Geração Automática (post_save)
-# Executa DEPOIS que o contrato foi salvo, usando as flags
-# que definimos no pre_save.
-# ==================================================================
-
-@receiver(post_save, sender=Contrato)
-@transaction.atomic
-def executar_gatilhos_financeiros_post_save(sender, instance, created, **kwargs):
-    
-    # Se foi criado já como ATIVO
-    if created and instance.status_contrato == Contrato.Status.ATIVO:
-        if instance.tipo_contrato == Contrato.TipoContrato.ALUGUEL:
-            print(f"SIGNAL post_save (CREATE): Contrato de ALUGUEL {instance.pk} criado ATIVO. Gerando financeiro...")
-            instance.gerar_financeiro_aluguel()
-        elif instance.tipo_contrato == Contrato.TipoContrato.VENDA:
-            print(f"SIGNAL post_save (CREATE): Contrato de VENDA {instance.pk} criado ATIVO. Gerando comissão...")
-            instance.criar_transacao_comissao()
+    # 1. Só executa se for um contrato de ALUGUEL
+    if instance.tipo_contrato != Contrato.TipoContrato.ALUGUEL:
         return
 
-    # Se foi ATUALIZADO (lógica vinda do pre_save)
-    if hasattr(instance, '_gerar_financeiro_aluguel_post_save') and instance._gerar_financeiro_aluguel_post_save:
-        print(f"SIGNAL post_save (UPDATE): Contrato de ALUGUEL {instance.pk} ATIVADO. Gerando financeiro...")
-        instance.gerar_financeiro_aluguel()
-        # Limpa a flag para evitar re-execução
-        delattr(instance, '_gerar_financeiro_aluguel_post_save') 
-    
-    if hasattr(instance, '_criar_comissao_venda_post_save') and instance._criar_comissao_venda_post_save:
-        print(f"SIGNAL post_save (UPDATE): Contrato de VENDA {instance.pk} ATIVADO. Gerando comissão...")
-        instance.criar_transacao_comissao()
-        # Limpa a flag para evitar re-execução
-        delattr(instance, '_criar_comissao_venda_post_save')
+    # 2. Verifica se o contrato está sendo EDITADO
+    if instance.pk: # Se 'pk' existe, o contrato já está no banco (é uma edição)
+        try:
+            obj_antigo = Contrato.objects.get(pk=instance.pk)
+            status_antigo = obj_antigo.status_contrato
+        except Contrato.DoesNotExist:
+            return # Objeto antigo não existe, não faz nada
+            
+        status_novo = instance.status_contrato
+
+        # Se o status não mudou, não faz nada
+        if status_novo == status_antigo:
+            return
+
+        # -----------------------------------------------------
+        # CASO 1: CONTRATO ESTÁ SENDO ATIVADO (Lógica Original)
+        # -----------------------------------------------------
+        # Só gera se o status MUDOU para ATIVO e ANTES não era ATIVO
+        if status_novo == Contrato.Status.ATIVO and status_antigo != Contrato.Status.ATIVO:
+            
+            # 4. Verifica se o financeiro já existe (para evitar duplicidade)
+            if Pagamento.objects.filter(contrato=instance).exists():
+                print(f"Contrato {instance.pk} já possui financeiro. Ativação normal.")
+                return # Financeiro já existe, não faz nada.
+
+            # 5. Validação dos dados
+            if not instance.aluguel or not instance.duracao_meses or not instance.data_inicio:
+                print(f"ERRO NO SIGNAL: Contrato {instance.pk} ativado sem valor, duração ou data de início.")
+                # NOTA: Idealmente, isso deveria lançar uma exceção para a View.
+                return 
+
+            print(f"SIGNAL pre_save: Ativando contrato {instance.pk} e gerando financeiro...")
+            
+            # 6. GERAÇÃO DO FINANCEIRO
+            # USA data_primeiro_vencimento se existir, senão usa data_inicio
+            data_parcela = instance.data_primeiro_vencimento if instance.data_primeiro_vencimento else instance.data_inicio
+            
+            try:
+                categoria_aluguel = Categoria.objects.get(imobiliaria=instance.imobiliaria, nome='Receita de Aluguel')
+            except Categoria.DoesNotExist:
+                categoria_aluguel = Categoria.objects.create(imobiliaria=instance.imobiliaria, nome='Receita de Aluguel', tipo='RECEITA')
+                
+            try:
+                conta_padrao = Conta.objects.filter(imobiliaria=instance.imobiliaria).first()
+            except Conta.DoesNotExist:
+                conta_padrao = None
+
+            duracao = instance.duracao_meses
+            
+            pagamentos_para_criar = []
+            transacoes_para_criar = []
+
+            for i in range(duracao):
+                pagamento = Pagamento(
+                    contrato=instance,
+                    data_vencimento=data_parcela,
+                    valor=instance.aluguel, 
+                    status='PENDENTE'
+                )
+                pagamentos_para_criar.append(pagamento)
+                
+                transacao = Transacao(
+                    imobiliaria=instance.imobiliaria,
+                    descricao=f'Aluguel {i+1}/{duracao} - Imóvel: {instance.imovel.titulo_anuncio}',
+                    valor=instance.aluguel,
+                    data_transacao=date.today(), 
+                    data_vencimento=data_parcela,
+                    tipo='RECEITA',
+                    status='PENDENTE',
+                    categoria=categoria_aluguel,
+                    conta=conta_padrao,
+                    cliente=instance.inquilino,
+                    imovel=instance.imovel,
+                    contrato=instance
+                )
+                transacoes_para_criar.append(transacao)
+                
+                # Incrementa o mês para a próxima parcela
+                data_parcela += relativedelta(months=1)
+            
+            Pagamento.objects.bulk_create(pagamentos_para_criar)
+            Transacao.objects.bulk_create(transacoes_para_criar)
+            print(f"SIGNAL: Financeiro ({len(pagamentos_para_criar)} parcelas) gerado para o contrato {instance.pk}.")
+
+        # -----------------------------------------------------
+        # CASO 2: CONTRATO ESTÁ SENDO DESATIVADO (Nova Lógica)
+        # -----------------------------------------------------
+        # Se o status ANTERIOR era ATIVO e o NOVO é um status de finalização
+        status_finalizacao = [
+            Contrato.Status.INATIVO, 
+            Contrato.Status.RESCINDIDO, 
+            Contrato.Status.CONCLUIDO
+        ]
+        
+        if status_antigo == Contrato.Status.ATIVO and status_novo in status_finalizacao:
+            print(f"SIGNAL pre_save: Desativando contrato {instance.pk}. Removendo financeiro pendente...")
+
+            # Deleta todos os pagamentos PENDENTES
+            pagamentos_deletados = Pagamento.objects.filter(
+                contrato=instance, 
+                status='PENDENTE'
+            ).delete()
+            
+            # Deleta todas as transações PENDENTES
+            transacoes_deletadas = Transacao.objects.filter(
+                contrato=instance, 
+                status='PENDENTE'
+            ).delete()
+            
+            print(f"SIGNAL: {pagamentos_deletados[0] if pagamentos_deletados else 0} pagamentos e {transacoes_deletadas[0] if transacoes_deletadas else 0} transações pendentes removidas.")
 
 
 @receiver(post_save, sender=Pagamento)
@@ -114,10 +143,13 @@ def atualizar_status_transacao(sender, instance, **kwargs):
             status__in=['PENDENTE', 'ATRASADO']
         ).update(
             status='PAGO',
-            data_pagamento=instance.data_pagamento or date.today()
+            data_transacao=instance.data_pagamento or date.today(),
+            forma_pagamento=instance.forma_pagamento_recebida
         )
 
 @receiver(pre_delete, sender=Contrato)
 def deletar_transacoes_pendentes(sender, instance, **kwargs):
     # Ao deletar um contrato, remove as transações PENDENTES associadas
+    print(f"SIGNAL pre_delete: Deletando contrato {instance.pk}. Removendo financeiro pendente...")
     Transacao.objects.filter(contrato=instance, status='PENDENTE').delete()
+    Pagamento.objects.filter(contrato=instance, status='PENDENTE').delete()
