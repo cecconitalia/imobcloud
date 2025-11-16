@@ -16,6 +16,11 @@ import ClientesView from '@/views/ClientesView.vue'
 import ClienteFormView from '@/views/ClienteFormView.vue'
 import ContratosView from '@/views/ContratosView.vue'
 import ContratoFormView from '@/views/ContratoFormView.vue'
+// ==========================================================
+// ===== NOVA IMPORTAÇÃO DO EDITOR DE CONTRATO ========
+// ==========================================================
+import ContratoEditorView from '@/views/ContratoEditorView.vue'
+// ==========================================================
 import VisitasView from '@/views/VisitasView.vue'
 import VisitaFormView from '@/views/VisitaFormView.vue'
 import ContatosView from '@/views/ContatosView.vue'
@@ -230,7 +235,7 @@ const router = createRouter({
                     }
                 },
                 {
-                    path: 'contratos/editar/:id',
+                    path: 'contratos/editar/:id', // Edição do FORMULÁRIO de dados
                     name: 'contrato-editar',
                     component: ContratoFormView,
                     meta: {
@@ -238,6 +243,19 @@ const router = createRouter({
                         requiresAuth: true
                     }
                 },
+                // ==========================================================
+                // ===== NOVA ROTA PARA O EDITOR DE DOCUMENTO =======
+                // ==========================================================
+                {
+                    path: 'contratos/editar-documento/:id', // Edição do DOCUMENTO HTML
+                    name: 'contrato-editar-documento',
+                    component: ContratoEditorView,
+                    meta: {
+                        title: 'Editar Documento do Contrato',
+                        requiresAuth: true
+                    }
+                },
+                // ==========================================================
                 {
                     path: 'visitas',
                     name: 'visitas',

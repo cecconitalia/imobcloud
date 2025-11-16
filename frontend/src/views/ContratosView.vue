@@ -33,8 +33,8 @@
     </div>
 
     <div v-if="isLoading" class="loading-message card">
-        <div class="spinner"></div>
-        A carregar contratos...
+      <div class="spinner"></div>
+      A carregar contratos...
     </div>
     <div v-if="error" class="error-message card">{{ error }}</div>
 
@@ -46,7 +46,7 @@
         </div>
         
         <div class="card-body">
-            <p><strong>Imóvel:</strong> {{ contrato.imovel_detalhes?.titulo_anuncio || contrato.imovel_detalhes?.logradouro || 'N/A' }}</p>
+            <p><strong>Imóvel:</strong> {{ contrato.imovel_detalhes?.titulo_anuncio || contrato.imovel_detalhes?.logouro || 'N/A' }}</p>
             <p>
               <strong>{{ contrato.parte_principal_label }}:</strong> 
               {{ contrato.inquilino_detalhes?.nome_display || 'N/A' }}
@@ -54,7 +54,7 @@
             <p><strong>Proprietário:</strong> {{ contrato.proprietario_detalhes?.nome_display || 'N/A' }}</p>
             <p><strong>Data Início:</strong> {{ formatarData(contrato.data_inicio) }}</p>
             <p><strong>Data Fim:</strong> {{ formatarData(contrato.data_fim) || 'Indeterminado' }}</p>
-             <p><strong>Valor:</strong> {{ contrato.valor_display }}</p>
+              <p><strong>Valor:</strong> {{ contrato.valor_display }}</p>
             <p>
                 <strong>Financeiro:</strong> 
                 <span :class="['status-badge', getFinanceiroStatusClass(contrato)]">
@@ -93,6 +93,25 @@
           </button>
           
           <button @click="verContrato(contrato.id)" class="btn-action btn-view"><i class="fas fa-eye"></i> Ver</button>
+          
+          <button 
+            @click="handleVisualizarPDF(contrato.id)" 
+            :disabled="isProcessingId === contrato.id"
+            class="btn-action btn-pdf" 
+            title="Visualizar PDF"
+          >
+            <i v-if="isProcessingId === contrato.id" class="fas fa-spinner fa-spin"></i>
+            <i v-else class="fas fa-file-pdf"></i> PDF
+          </button>
+          
+          <button
+            @click="editarDocumento(contrato.id)"
+            class="btn-action btn-edit-doc"
+            title="Editar Documento"
+          >
+            <i class="fas fa-file-signature"></i> Editar Doc.
+          </button>
+          
           <button @click="editarContrato(contrato.id)" class="btn-action btn-edit"><i class="fas fa-edit"></i> Editar</button>
           <button @click="excluirContrato(contrato.id)" class="btn-action btn-delete"><i class="fas fa-trash-alt"></i> Excluir</button>
         </div>
@@ -129,7 +148,7 @@ interface ClienteDetalhes {
 }
 interface ImovelDetalhes { 
   id: number; 
-  logradouro: string; 
+  logouro: string; 
   titulo_anuncio?: string; 
 }
 interface Contrato {
@@ -170,7 +189,7 @@ const filteredContratos = computed(() => {
     // A lógica de busca já estava correta, usando os campos aninhados
     const matchSearch = !searchLower ||
       (contrato.imovel_detalhes?.titulo_anuncio?.toLowerCase() || '').includes(searchLower) ||
-      (contrato.imovel_detalhes?.logradouro?.toLowerCase() || '').includes(searchLower) ||
+      (contrato.imovel_detalhes?.logouro?.toLowerCase() || '').includes(searchLower) ||
       (contrato.inquilino_detalhes?.nome_display?.toLowerCase() || '').includes(searchLower) ||
       (contrato.proprietario_detalhes?.nome_display?.toLowerCase() || '').includes(searchLower);
 
@@ -239,9 +258,34 @@ function getGerarFinanceiroButtonText(contrato: Contrato): string {
     return contrato.financeiro_gerado ? 'Financeiro já gerado! (Regerar)' : 'Gerar Financeiro (Manual)';
 }
 
-// ==================================================================
-// NOVA FUNÇÃO: Ativar Contrato
-// ==================================================================
+// (Função do PDF da etapa anterior)
+async function handleVisualizarPDF(contratoId: number) {
+  if (isProcessingId.value !== null) return; 
+  isProcessingId.value = contratoId;
+  
+  try {
+    toast.info('Gerando PDF... Por favor, aguarde.', { duration: 2000, position: 'top-right' });
+    
+    const response = await apiClient.get(
+      `/v1/contratos/${contratoId}/visualizar-pdf/`,
+      {
+        responseType: 'blob' 
+      }
+    );
+    const file = new Blob([response.data], { type: 'application/pdf' });
+    const fileURL = URL.createObjectURL(file);
+    window.open(fileURL, '_blank');
+    setTimeout(() => URL.revokeObjectURL(fileURL), 10000);
+
+  } catch (error: any) {
+    console.error('Erro ao visualizar PDF:', error.response?.data || error);
+    const errorMsg = error.response?.data?.error || "Falha ao gerar o PDF.";
+    toast.error(errorMsg, { duration: 5000, position: 'top-right' });
+  } finally {
+    isProcessingId.value = null;
+  }
+}
+
 async function handleAtivarContrato(contrato: Contrato) {
     if (isProcessingId.value !== null) return;
 
@@ -253,14 +297,10 @@ async function handleAtivarContrato(contrato: Contrato) {
 
     isProcessingId.value = contrato.id;
     try {
-        // Chama a nova action: /v1/contratos/{id}/ativar/
         const response = await apiClient.post(`/v1/contratos/${contrato.id}/ativar/`);
-        
         toast.success(response.data.status || "Contrato ativado com sucesso!");
         
-        // Atualiza o estado local do contrato
         contrato.status_contrato = 'ATIVO';
-        // Se for aluguel, a automação gerou o financeiro
         if (contrato.tipo_contrato === 'ALUGUEL') {
             contrato.financeiro_gerado = true;
         }
@@ -274,7 +314,6 @@ async function handleAtivarContrato(contrato: Contrato) {
     }
 }
 
-// Geração de Financeiro (Manual / Regerar)
 async function handleGerarFinanceiro(contratoId: number) {
   if (isProcessingId.value !== null) return; 
 
@@ -311,10 +350,21 @@ async function handleGerarFinanceiro(contratoId: number) {
 }
 
 function verContrato(id: number) {
+    // O botão "Ver" agora leva para o formulário de DADOS (como o editar)
     router.push({ name: 'contrato-editar', params: { id } });
 }
 
+// ==========================================================
+// ================== NOVA FUNÇÃO ADICIONADA ================
+// ==========================================================
+function editarDocumento(id: number) {
+  // Esta função leva para a NOVA tela de edição de HTML
+  router.push({ name: 'contrato-editar-documento', params: { id } });
+}
+// ==========================================================
+
 function editarContrato(id: number) {
+  // Esta é a edição do FORMULÁRIO (dados do contrato)
   router.push({ name: 'contrato-editar', params: { id } });
 }
 
@@ -513,4 +563,14 @@ onMounted(fetchContratos);
 .btn-financeiro:hover { background-color: #198754; color: white; }
 .btn-delete { border-color: #dc3545; color: #dc3545; }
 .btn-delete:hover { background-color: #dc3545; color: white; }
+
+.btn-pdf { border-color: #0d6efd; color: #0d6efd; } 
+.btn-pdf:hover:not(:disabled) { background-color: #0d6efd; color: white; }
+
+/* ========================================================== */
+/* ==================== ESTILO ADICIONADO =================== */
+/* ========================================================== */
+.btn-edit-doc { border-color: #ffc107; color: #212529; } /* Amarelo */
+.btn-edit-doc:hover:not(:disabled) { background-color: #e0a800; color: #212529; border-color: #e0a800; }
+/* ========================================================== */
 </style>

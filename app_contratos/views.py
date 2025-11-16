@@ -16,23 +16,16 @@ from django.conf import settings
 import os
 from django.utils.dateparse import parse_date
 from django.db import transaction
-# Imports para a query otimizada
 from django.db.models import Exists, OuterRef
-# Imports para a action 'gerar_financeiro'
 from app_financeiro.models import Transacao 
-# Removido Categoria e Conta (agora estão em models.py)
-
-# Removido relativedelta (agora está em models.py)
-
 from rest_framework.views import APIView
 from django.utils import timezone
-
-# Imports adicionados para a Automação de Venda/Aluguel
 from datetime import timedelta
 from decimal import Decimal
-# Imports do Reportlab (necessárias para GerarReciboView)
 from reportlab.pdfgen import canvas
 from reportlab.lib.pagesizes import letter
+
+import re # Importar a biblioteca de Expressões Regulares (RegEx)
 
 
 class ContratoViewSet(viewsets.ModelViewSet):
@@ -65,22 +58,14 @@ class ContratoViewSet(viewsets.ModelViewSet):
             return ContratoCriacaoSerializer
         return ContratoSerializer
 
-    # Restaurado para a lógica simples (o serializer trata o proprietario)
     def perform_create(self, serializer):
         serializer.save(
             imobiliaria=self.request.user.perfil.imobiliaria
-            # Status PENDENTE é o default do model
         )
 
-    # Lógica de gatilho REMOVIDA. Os signals agora cuidam disso.
     @transaction.atomic
     def perform_update(self, serializer):
         serializer.save(imobiliaria=self.request.user.perfil.imobiliaria)
-
-    
-    # Método _gerar_financeiro_aluguel REMOVIDO (movido para models.py)
-        
-    # Método _criar_transacao_comissao REMOVIDO (movido para models.py)
 
 
     @action(detail=True, methods=['post'], url_path='ativar')
@@ -96,7 +81,6 @@ class ContratoViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_400_BAD_REQUEST
             )
         
-        # Validação de dados (ainda importante antes de ativar)
         if contrato.tipo_contrato == Contrato.TipoContrato.ALUGUEL:
             if not contrato.aluguel or not contrato.duracao_meses or not contrato.data_primeiro_vencimento:
                  return Response(
@@ -110,11 +94,9 @@ class ContratoViewSet(viewsets.ModelViewSet):
                      {"error": "Não é possível ativar. Para Venda, defina o 'Valor Total do Contrato' e a 'Data Venc. Comissão/Quitação' primeiro."},
                      status=status.HTTP_400_BAD_REQUEST
                  )
-             # O Model.save() (chamado abaixo) irá calcular a comissão
-             # se 'valor_comissao_acordado' for None.
 
         contrato.status_contrato = Contrato.Status.ATIVO
-        contrato.save() # Dispara o signal pre_save/post_save E o Model.save()
+        contrato.save() 
 
         return Response(
             {"status": "Contrato ativado com sucesso. O lançamento financeiro foi verificado/criado."},
@@ -132,10 +114,6 @@ class ContratoViewSet(viewsets.ModelViewSet):
     @action(detail=True, methods=['post'], url_path='gerar-financeiro')
     @transaction.atomic
     def gerar_financeiro(self, request, pk=None):
-        """
-        Action manual para (Re)Gerar o financeiro para ALUGUEL.
-        Agora chama o método do modelo.
-        """
         contrato = self.get_object()
         
         if contrato.tipo_contrato != Contrato.TipoContrato.ALUGUEL:
@@ -144,7 +122,6 @@ class ContratoViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_400_BAD_REQUEST
             )
         
-        # Chama o método do modelo
         sucesso = contrato.gerar_financeiro_aluguel()
 
         if not sucesso:
@@ -158,12 +135,25 @@ class ContratoViewSet(viewsets.ModelViewSet):
             status=status.HTTP_201_CREATED
         )
     
+    # ==========================================================
+    # ==================== FUNÇÃO CORRIGIDA ====================
+    # ==========================================================
     @action(detail=True, methods=['get'], url_path='get-html')
     def get_html(self, request, pk=None):
+        """
+        Retorna o CONTEÚDO EDITÁVEL (apenas o body) para o editor Tiptap.
+        FORÇA SEMPRE A RENDERIZAÇÃO do template com os dados mais recentes.
+        """
         contrato = self.get_object()
-        if contrato.conteudo_personalizado:
-            return HttpResponse(contrato.conteudo_personalizado, content_type='text/html; charset=utf-8')
+        
+        # ==========================================================
+        # ==================== LÓGICA CORRIGIDA ====================
+        # ==========================================================
+        # 1. IGNORAMOS o 'contrato.conteudo_personalizado' ao carregar.
+        #    Queremos sempre renderizar o template com os dados frescos.
+        # ==========================================================
 
+        # 2. Renderiza o template com os dados atuais
         template_name = 'contrato_aluguel_template.html' if contrato.tipo_contrato == Contrato.TipoContrato.ALUGUEL else 'contrato_venda_template.html'
         context = {
             'contrato': contrato,
@@ -172,9 +162,33 @@ class ContratoViewSet(viewsets.ModelViewSet):
             'inquilino': contrato.inquilino,
             'imobiliaria': contrato.imobiliaria,
             'data_hoje': timezone.now().date(),
+            'custom_html_content': None # Força o template a renderizar o padrão
         }
-        html_string = render_to_string(template_name, context)
-        return HttpResponse(html_string, content_type='text/html; charset=utf-8')
+        
+        html_string_completo = render_to_string(template_name, context)
+        
+        # 3. Extraia APENAS o conteúdo do <body>
+        try:
+            body_content = html_string_completo.split('<body>')[1].split('</body>')[0]
+            
+            # Limpa o bloco {% else %} e {% endif %}
+            body_content = body_content.replace('{% else %}', '').replace('{% endif %}', '').strip()
+            
+        except IndexError:
+            body_content = "<p>Erro ao processar o template.</p>"
+            
+        # ==========================================================
+        # ==================== LIMPEZA PREVENTIVA ==================
+        # ==========================================================
+        # Limpa o HTML ANTES de enviar para o editor, para corrigir
+        # contratos já salvos com o estilo problemático.
+        body_content = re.sub(r'font-size:[^;"]*', '', body_content, flags=re.IGNORECASE)
+        body_content = re.sub(r'font-family:[^;"]*', '', body_content, flags=re.IGNORECASE)
+        body_content = re.sub(r'text-align:[^;"]*', '', body_content, flags=re.IGNORECASE)
+        body_content = re.sub(r'<span style="\s*">\s*</span>', '', body_content, flags=re.IGNORECASE)
+        # ==========================================================
+            
+        return HttpResponse(body_content, content_type='text/html; charset=utf-8')
 
     @action(detail=True, methods=['post'], url_path='salvar-html-editado')
     def salvar_html_editado(self, request, pk=None):
@@ -191,24 +205,45 @@ class ContratoViewSet(viewsets.ModelViewSet):
     def visualizar_pdf(self, request, pk=None):
         contrato = self.get_object()
         
+        html_personalizado_limpo = None
         if contrato.conteudo_personalizado:
-            html_content = contrato.conteudo_personalizado
-        else:
-            template_name = 'contrato_aluguel_template.html' if contrato.tipo_contrato == Contrato.TipoContrato.ALUGUEL else 'contrato_venda_template.html'
-            context = {
-                'contrato': contrato,
-                'imovel': contrato.imovel,
-                'proprietario': contrato.proprietario,
-                'inquilino': contrato.inquilino,
-                'imobiliaria': contrato.imobiliaria,
-                'data_hoje': timezone.now().date(),
-            }
-            html_content = render_to_string(template_name, context)
+            # ==========================================================
+            # ==================== CORREÇÃO DO PDF (CRÍTICA) ===========
+            # ==========================================================
+            html_personalizado_limpo = contrato.conteudo_personalizado
+            
+            # 1. Limpa os estilos CSS problemáticos
+            html_personalizado_limpo = re.sub(r'font-size:[^;"]*', '', html_personalizado_limpo, flags=re.IGNORECASE)
+            html_personalizado_limpo = re.sub(r'font-family:[^;"]*', '', html_personalizado_limpo, flags=re.IGNORECASE)
+            
+            # 2. Converte 'style="text-align: center;"' (moderno) 
+            #    para 'align="center"' (antigo), que o xhtml2pdf entende.
+            html_personalizado_limpo = re.sub(r'<p style="text-align:\s*center;">', r'<p align="center">', html_personalizado_limpo, flags=re.IGNORECASE)
+            html_personalizado_limpo = re.sub(r'<p style="text-align:\s*right;">', r'<p align="right">', html_personalizado_limpo, flags=re.IGNORECASE)
+            html_personalizado_limpo = re.sub(r'<p style="text-align:\s*left;">', r'<p align="left">', html_personalizado_limpo, flags=re.IGNORECASE)
+            
+            # Limpa qualquer 'style' de alinhamento restante que possa ter quebrado
+            html_personalizado_limpo = re.sub(r'text-align:[^;"]*', '', html_personalizado_limpo, flags=re.IGNORECASE)
+
+            # 3. Remove tags <span> vazias que possam ter sobrado
+            html_personalizado_limpo = re.sub(r'<span style="\s*">\s*</span>', '', html_personalizado_limpo, flags=re.IGNORECASE)
+            # ==========================================================
+
+        template_name = 'contrato_aluguel_template.html' if contrato.tipo_contrato == Contrato.TipoContrato.ALUGUEL else 'contrato_venda_template.html'
+        context = {
+            'contrato': contrato,
+            'imovel': contrato.imovel,
+            'proprietario': contrato.proprietario,
+            'inquilino': contrato.inquilino,
+            'imobiliaria': contrato.imobiliaria,
+            'data_hoje': timezone.now().date(),
+            'custom_html_content': html_personalizado_limpo
+        }
         
-        html_string_with_meta = f'<html><head><meta charset="UTF-8"></head><body>{html_content}</body></html>'
+        html_content = render_to_string(template_name, context)
         
         result = BytesIO()
-        pdf = pisa.pisaDocument(BytesIO(html_string_with_meta.encode("UTF-8")), result)
+        pdf = pisa.pisaDocument(BytesIO(html_content.encode("UTF-8")), result)
         
         if not pdf.err:
             response = HttpResponse(result.getvalue(), content_type='application/pdf')
@@ -216,6 +251,10 @@ class ContratoViewSet(viewsets.ModelViewSet):
             response['Content-Disposition'] = f'inline; filename="{filename}"'
             return response
         
+        print(f"==========================================================")
+        print(f"ERRO XHML2PDF: Falha ao gerar PDF para Contrato ID {contrato.id}.")
+        print(f"Erro: {pdf.err}")
+        print(f"==========================================================")
         return HttpResponse("Erro ao gerar o PDF.", status=500)
 
 
@@ -326,6 +365,23 @@ def gerar_contrato_pdf_editado(request, contrato_id):
     if not html_content:
         return HttpResponse("Conteúdo HTML é obrigatório.", status=400)
     
+    # ==========================================================
+    # ==================== CORREÇÃO DO PDF (CRÍTICA) ===========
+    # ==========================================================
+    # Aplicar a mesma limpeza aqui por segurança
+    html_content = re.sub(r'font-size:[^;"]*', '', html_content, flags=re.IGNORECASE)
+    html_content = re.sub(r'font-family:[^;"]*', '', html_content, flags=re.IGNORECASE)
+    
+    # Converter alinhamento
+    html_content = re.sub(r'<p style="text-align:\s*center;">', r'<p align="center">', html_content, flags=re.IGNORECASE)
+    html_content = re.sub(r'<p style="text-align:\s*right;">', r'<p align="right">', html_content, flags=re.IGNORECASE)
+    html_content = re.sub(r'<p style="text-align:\s*left;">', r'<p align="left">', html_content, flags=re.IGNORECASE)
+    
+    html_content = re.sub(r'text-align:[^;"]*', '', html_content, flags=re.IGNORECASE) # Limpa o que sobrou
+
+    html_content = re.sub(r'<span style="\s*">\s*</span>', '', html_content, flags=re.IGNORECASE)
+    # ==========================================================
+
     html_string_with_meta = f'<html><head><meta charset="UTF-8"></head><body>{html_content}</body></html>'
 
     result = BytesIO()

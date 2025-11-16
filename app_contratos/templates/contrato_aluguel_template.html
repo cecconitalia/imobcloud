@@ -4,72 +4,154 @@
     <title>Contrato de Locação Residencial</title>
     <meta charset="UTF-8">
     <style>
-        body { font-family: 'Times New Roman', serif; line-height: 1.8; font-size: 14px; margin: 2cm; }
-        h1, h2, h3 { text-align: center; margin-bottom: 20px; }
-        h1 { font-size: 20px; }
-        h2 { font-size: 16px; }
-        h3 { font-size: 14px; }
-        p { text-align: justify; text-indent: 30px; }
-        .parte { text-align: left; margin-bottom: 15px; }
-        .clausula { margin-bottom: 25px; }
-        .assinaturas { margin-top: 60px; text-align: center; }
-        .assinatura-line { border-top: 1px solid black; width: 70%; margin: 0 auto; padding-top: 5px; }
-        .data-local { text-align: center; margin-top: 40px; }
+        body { font-family: 'Times New Roman', serif; line-height: 1.6; font-size: 12px; margin: 2cm; }
+        h1, .h1-pdf { 
+          font-size: 16px; text-transform: uppercase;
+          text-align: center; margin-bottom: 20px; font-weight: bold; 
+        }
+        h2, .h2-pdf { 
+          font-size: 14px; text-align: left; margin-top: 25px; margin-bottom: 10px; 
+          font-weight: bold;
+        }
+        h3, .h3-pdf { 
+          font-size: 12px; text-align: left; font-weight: bold; 
+          margin-bottom: 10px;
+        }
+        p { 
+          text-align: justify; text-indent: 40px; margin-bottom: 10px; 
+        }
+        ul { padding-left: 40px; }
+        li { text-align: justify; }
+        u { text-decoration: underline; }
+        s { text-decoration: line-through; }
+        blockquote {
+          border-left: 3px solid #ccc;
+          margin-left: 20px;
+          padding-left: 10px;
+          font-style: italic;
+          color: #555;
+        }
+        hr { border-top: 1px solid #000; margin: 1rem 0; }
+        .parte { text-align: left; margin-bottom: 15px; text-indent: 0; }
+        .clausula { margin-bottom: 15px; }
+        .assinaturas { margin-top: 80px; text-align: left; }
+        .assinatura-line { 
+            border-top: 1px solid black; 
+            width: 80%; 
+            margin-top: 50px; 
+            padding-top: 5px; 
+            text-align: left;
+            text-indent: 0;
+        }
+        .data-local { 
+          text-align: right; margin-top: 40px; 
+          text-indent: 0;
+        }
     </style>
 </head>
 <body>
     {% load custom_filters %}
     
-    <h1>CONTRATO DE LOCAÇÃO RESIDENCIAL</h1>
+    {% if custom_html_content %}
+        {{ custom_html_content|safe }}
+    {% else %}
+    
+    <h1>Instrumento Particular de Contrato de Locação Residencial</h1>
     
     <div class="parte">
+        <p>Pelo presente instrumento particular, as partes abaixo qualificadas:</p>
+
+        <h3>LOCADOR(A):</h3>
         <p>
-            **IDENTIFICAÇÃO DAS PARTES**
+            {{ proprietario.nome_completo|default:"(Nome não informado)"|upper }}, 
+            {{ proprietario.nacionalidade|default:"(nacionalidade não informada)" }}, 
+            {{ proprietario.estado_civil|default:"(estado civil não informado)" }}, 
+            {{ proprietario.profissao|default:"(profissão não informada)" }}, 
+            portador(a) do RG nº {{ proprietario.rg_ie|default:"(Não informado)" }} e inscrito(a) no CPF/CNPJ sob o nº {{ proprietario.cpf_cnpj|default:"(Não informado)" }}, 
+            residente e domiciliado(a) em {{ proprietario.logradouro }}, {{ proprietario.numero|default:"s/n" }}, 
+            {{ proprietario.bairro }}, {{ proprietario.cidade }}-{{ proprietario.estado }}.
         </p>
+
+        <h3>LOCATÁRIO(A):</h3>
         <p>
-            **LOCADOR(A):** {{ proprietario.nome_completo }}, {{ proprietario.estado_civil|default:"(Estado Civil não informado)" }},
-            {{ proprietario.profissao|default:"(Profissão não informada)" }}, portador(a) do RG nº {{ proprietario.rg|default:"(Não informado)" }} e
-            inscrito(a) no CPF sob o nº {{ proprietario.cpf_cnpj|default:"(Não informado)" }}, residente e domiciliado(a)
-            em {{ proprietario.logradouro }}, {{ proprietario.numero|default:"s/n" }}, {{ proprietario.complemento|default:"(Complemento não informado)" }},
-            bairro {{ proprietario.bairro }}, {{ proprietario.cidade }}-{{ proprietario.estado }}.
+            {{ inquilino.nome_completo|default:"(Nome não informado)"|upper }}, 
+            {{ inquilino.nacionalidade|default:"(nacionalidade não informada)" }}, 
+            {{ inquilino.estado_civil|default:"(estado civil não informado)" }}, 
+            {{ inquilino.profissao|default:"(profissão não informada)" }}, 
+            portador(a) do RG nº {{ inquilino.rg_ie|default:"(Não informado)" }} e inscrito(a) no CPF/CNPJ sob o nº {{ inquilino.cpf_cnpj|default:"(Não informado)" }}, 
+            residente e domiciliado(a) em {{ inquilino.logradouro }}, {{ inquilino.numero|default:"s/n" }}, 
+            {{ inquilino.bairro }}, {{ inquilino.cidade }}-{{ inquilino.estado }}.
         </p>
-        <p>
-            **LOCATÁRIO(A):** {{ inquilino.nome_completo }}, {{ inquilino.estado_civil|default:"(Estado Civil não informado)" }},
-            {{ inquilino.profissao|default:"(Profissão não informada)" }}, portador(a) do RG nº {{ inquilino.rg|default:"(Não informado)" }} e
-            inscrito(a) no CPF sob o nº {{ inquilino.cpf_cnpj|default:"(Não informado)" }}, residente e domiciliado(a)
-            em {{ inquilino.logradouro }}, {{ inquilino.numero|default:"s/n" }}, {{ inquilino.complemento|default:"(Complemento não informado)" }},
-            bairro {{ inquilino.bairro }}, {{ inquilino.cidade }}-{{ inquilino.estado }}.
+        <p>Têm entre si justo e contratado o aluguel do imóvel abaixo descrito, mediante as cláusulas e condições seguintes:</p>
+    </div>
+    <div class="clausula">
+        <h2>CLÁUSULA PRIMEIRA - DO OBJETO DA LOCAÇÃO</h2>
+        <p>O objeto deste contrato é a locação do imóvel de fim residencial, situado em {{ imovel.logradouro }}, nº {{ imovel.numero|default:"s/n" }}, {{ imovel.complemento|default:"" }}, bairro {{ imovel.bairro }}, {{ imovel.cidade }}-{{ imovel.estado }}, CEP {{ imovel.cep|default:"N/A" }}, de propriedade do(a) LOCADOR(A).</p>
+        <p><strong>Parágrafo Único:</strong> O(A) LOCATÁRIO(A) declara ter vistoriado o imóvel, recebendo-o em perfeitas condições de uso, conservação e limpeza, conforme Laudo de Vistoria em anexo, que passa a fazer parte integrante deste contrato.</p>
+    </div>
+    <div class="clausula">
+        <h2>CLÁUSULA SEGUNDA - DA DESTINAÇÃO</h2>
+        <p>O imóvel locado destina-se exclusivamente para fins residenciais do(a) LOCATÁRIO(A) e sua família, sendo expressamente proibido sublocar, ceder ou emprestar o imóvel, no todo ou em parte, a terceiros, sem prévia autorização por escrito do(a) LOCADOR(A).</p>
+    </div>
+    <div class="clausula">
+        <h2>CLÁUSULA TERCEIRA - DO PRAZO</h2>
+        <p>O prazo de locação é de <strong>{{ contrato.duracao_meses }} ({{ contrato.duracao_meses|num2words:"pt_BR" }}) meses</strong>, com início em <strong>{{ contrato.data_inicio|date:"d/m/Y" }}</strong> e término em <strong>{{ contrato.data_fim|date:"d/m/Y" }}</strong>, data em que o(a) LOCATÁRIO(A) se obriga a restituir o imóvel desocupado e nas mesmas condições em que o recebeu, independentemente de aviso ou notificação.</p>
+    </div>
+    <div class="clausula">
+        <h2>CLÁUSULA QUARTA - DO ALUGUEL E DO REAJUSTE</h2>
+        <p>O aluguel mensal é de <strong>R$ {{ contrato.aluguel|floatformat:2 }} ({{ contrato.aluguel|num2words:"pt_BR"|capfirst }})</strong>, a ser pago até o dia {{ contrato.data_primeiro_vencimento|date:"d" }} ({{ contrato.data_primeiro_vencimento|date:"d"|num2words:"pt_BR" }}) de cada mês subsequente ao vencido, através de (Especificar forma de pagamento, ex: boleto bancário, PIX, etc.).</p>
+        <p><strong>Parágrafo Primeiro:</strong> O valor do aluguel será reajustado anualmente, ou na menor periodicidade permitida por lei, com base na variação do índice IGP-M/FGV ou, na sua falta ou impedimento legal, por outro índice que o substitua (ex: IPCA/IBGE).</p>
+        <p><strong>Parágrafo Segundo (Multa):</strong> O não pagamento do aluguel no prazo estipulado implicará em multa de 10% (dez por cento) sobre o valor do débito, acrescido de juros de mora de 1% (um por cento) ao mês e correção monetária.</p>
+    </div>
+    <div class="clausula">
+        <h2>CLÁUSULA QUINTA - DOS ENCARGOS</h2>
+        <p>Além do aluguel, correrão por conta exclusiva do(a) LOCATÁRIO(A) todas as despesas de consumo de água, luz, gás, telefone, bem como as despesas ordinárias de condomínio (se houver) e o Imposto Predial e Territorial Urbano (IPTU).</p>
+        <p><strong>Parágrafo Único:</strong> O(A) LOCATÁRIO(A) obriga-se a transferir as contas de consumo para o seu nome no prazo de 15 (quinze) dias a contar do início da locação, sob pena de rescisão contratual.</p>
+    </div>
+    <div class="clausula">
+        <h2>CLÁUSULA SEXTA - DAS OBRIGAÇÕES DO(A) LOCATÁRIO(A)</h2>
+        <p>O(A) LOCATÁRIO(A) obriga-se a:</p>
+        <ul>
+            <li>I - Manter o imóvel em perfeito estado de conservação e limpeza, promovendo os reparos necessários decorrentes do uso normal;</li>
+            <li>II - Restituir o imóvel, finda a locação, no estado em que o recebeu, salvo as deteriorações decorrentes do uso normal;</li>
+            <li>III - Não realizar qualquer modificação estrutural ou de fachada no imóvel sem o consentimento prévio e por escrito do(a) LOCADOR(A);</li>
+            <li>IV - Permitir que o(a) LOCADOR(A) ou seu representante realize vistorias no imóvel, mediante prévio acordo de dia e hora.</li>
+        </ul>
+    </div>
+    <div class="clausula">
+        <h2>CLÁUSULA SÉTIMA - DAS BENFEITORIAS</h2>
+        <p>Nenhuma benfeitoria, útil ou voluptuária, será realizada no imóvel sem a prévia e expressa autorização do(a) LOCADOR(A). As benfeitorias necessárias serão indenizadas, mas as úteis e voluptuárias, mesmo que autorizadas, não serão indenizadas, aderindo ao imóvel, renunciando o(a) LOCATÁRIO(A) ao direito de retenção.</p>
+    </div>
+    <div class="clausula">
+        <h2>CLÁUSULA OITAVA - DA GARANTIA</h2>
+        {% if contrato.fiadores.all %}
+        <p>Assinam o presente contrato na qualidade de <strong>FIADORES</strong> e principais pagadores, solidariamente responsáveis com o(a) LOCATÁRIO(A) por todas as obrigações aqui assumidas, até a efetiva entrega das chaves, renunciando expressamente aos benefícios dos artigos 827 e 835 do Código Civil:</p>
+        
+        {% for fiador in contrato.fiadores.all %}
+        <p style="text-indent: 0; margin-left: 40px;">
+            <strong>FIADOR(A):</strong> {{ fiador.nome_completo|default:"(Nome não informado)"|upper }}, 
+            {{ fiador.nacionalidade|default:"(nacionalidade)" }}, 
+            {{ fiador.estado_civil|default:"(estado civil)" }}, 
+            {{ fiador.profissao|default:"(profissão)" }}, 
+            portador(a) do RG nº {{ fiador.rg_ie|default:"(Não informado)" }} e CPF/CNPJ nº {{ fiador.cpf_cnpj|default:"(Não informado)" }}, 
+            residente em {{ fiador.logradouro }}, {{ fiador.numero|default:"s/n" }}.
         </p>
+        {% endfor %}
+        {% else %}
+        <p>A presente locação é garantida por: (Especificar o tipo de garantia, ex: Caução, Seguro Fiança, etc. O campo `contrato.informacoes_adicionais` pode ser usado para isso se não houver fiador).</p>
+        <p>{{ contrato.informacoes_adicionais|default:"(Detalhes da garantia não especificados.)" }}</p>
+        {% endif %}
+    </div>
+    <div class="clausula">
+        <h2>CLÁUSULA NONA - DA RESCISÃO E MULTA CONTRATUAL</h2>
+        <p>O descumprimento de qualquer cláusula deste contrato por qualquer das partes implicará na sua rescisão de pleno direito, sujeitando-se a parte infratora ao pagamento de multa contratual no valor de 3 (três) aluguéis vigentes à época da infração.</p>
+        <p><strong>Parágrafo Único:</strong> Caso o(A) LOCATÁRIO(A) deseje devolver o imóvel antes do término do prazo contratual, pagará a multa estipulada no caput, de forma proporcional ao tempo restante do contrato.</p>
+    </div>
+    <div class="clausula">
+        <h2>CLÁUSULA DÉCIMA - DO FORO</h2>
+        <p>As partes elegem o foro da Comarca de {{ imobiliaria.cidade|default:"(Localidade não informada)" }}, {{ imovel.estado|default:"UF" }}, para dirimir quaisquer dúvidas oriundas do presente contrato, com renúncia expressa a qualquer outro, por mais privilegiado que seja.</p>
     </div>
 
-    <div class="clausula">
-        <h2>CLÁUSULA PRIMEIRA - DO OBJETO E DESTINAÇÃO</h2>
-        <p>O objeto deste contrato é a locação do imóvel residencial localizado em {{ imovel.logradouro }},
-        nº {{ imovel.numero|default:"s/n" }}, {{ imovel.complemento|default:"" }}, bairro {{ imovel.bairro }},
-        {{ imovel.cidade }}-{{ imovel.estado }}, CEP {{ imovel.cep|default:"N/A" }}. A destinação do imóvel é
-        exclusivamente para fins residenciais do(a) LOCATÁRIO(A) e sua família.</p>
-    </div>
-    <div class="clausula">
-        <h2>CLÁUSULA SEGUNDA - DO PRAZO</h2>
-        <p>O prazo de locação é de **{{ contrato.duracao_meses }}** meses, com início em
-        **{{ contrato.data_inicio|date:"d/m/Y" }}** e término em **{{ contrato.data_fim|date:"d/m/Y" }}**.</p>
-    </div>
-    <div class="clausula">
-        <h2>CLÁUSULA TERCEIRA - DO VALOR DO ALUGUEL E PAGAMENTO</h2>
-        <p>O aluguel mensal é de **R$ {{ contrato.aluguel|floatformat:2 }}** ({{ contrato.aluguel|num2words:"pt_BR"|capfirst }}),
-        devendo ser pago até o 5º dia útil de cada mês na forma: {{ contrato.informacoes_adicionais|default:"(Não especificadas)." }}</p>
-    </div>
-    <div class="clausula">
-        <h2>CLÁUSULA QUARTA - DAS RESPONSABILIDADES</h2>
-        <p>São de responsabilidade do(a) LOCATÁRIO(A) o pagamento de todas as despesas de água, luz, gás, IPTU,
-        taxas de condomínio e qualquer outra despesa que venha a incidir sobre o imóvel durante a vigência do contrato.</p>
-    </div>
-    
-    <div class="clausula">
-        <h2>CLÁUSULA QUINTA - DA RESCISÃO</h2>
-        <p>A rescisão antecipada do contrato por qualquer das partes implicará na aplicação de multa de 3 (três)
-        vezes o valor do aluguel vigente, proporcionalmente ao período restante de contrato.</p>
-    </div>
     <p>E, por estarem justos e contratados, assinam o presente em 2 (duas) vias de igual teor e forma, na presença das testemunhas abaixo.</p>
 
     <div class="data-local">
@@ -77,13 +159,18 @@
     </div>
 
     <div class="assinaturas">
-        <p class="assinatura-line">LOCADOR(A)</p>
-        <p>Nome: {{ proprietario.nome_completo }}</p>
-        <p>CPF: {{ proprietario.cpf_cnpj }}</p>
-        <br>
-        <p class="assinatura-line">LOCATÁRIO(A)</p>
-        <p>Nome: {{ inquilino.nome_completo }}</p>
-        <p>CPF: {{ inquilino.cpf_cnpj }}</p>
+        <p class="assinatura-line">LOCADOR(A): {{ proprietario.nome_completo }}</p>
+        <p class="assinatura-line">LOCATÁRIO(A): {{ inquilino.nome_completo }}</p>
+        
+        {% if contrato.fiadores.all %}
+            {% for fiador in contrato.fiadores.all %}
+            <p class="assinatura-line">FIADOR(A): {{ fiador.nome_completo }}</p>
+            {% endfor %}
+        {% endif %}
+
+        <p class="assinatura-line">TESTEMUNHA 1:</p>
+        <p class="assinatura-line">TESTEMUNHA 2:</p>
     </div>
+    {% endif %}
 </body>
 </html>

@@ -3,18 +3,38 @@
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
 # ==================================================================
-# CORREÇÃO: Removidas as importações que causam o crash
-# (GerarReciboView, etc.)
+# CORREÇÃO: Importações das views que faltavam
 # ==================================================================
-from .views import ContratoViewSet, PagamentoViewSet
+from .views import (
+    ContratoViewSet, 
+    PagamentoViewSet, 
+    GerarReciboView, 
+    gerar_contrato_pdf_editado
+)
 
 router = DefaultRouter()
 router.register(r'contratos', ContratoViewSet, basename='contrato')
 router.register(r'pagamentos', PagamentoViewSet, basename='pagamento')
 
 urlpatterns = [
+    # Rotas do ViewSet (geradas automaticamente)
     path('', include(router.urls)),
     
-    # As rotas para 'gerar-recibo' e 'gerar-documento' são
-    # criadas automaticamente pelo router.register
+    # ==================================================================
+    # CORREÇÃO: Rotas manuais necessárias que estavam faltando
+    # ==================================================================
+    
+    # Rota para a APIView de geração de recibo de pagamento
+    path(
+        'pagamentos/<int:pagamento_id>/gerar-recibo/', 
+        GerarReciboView.as_view(), 
+        name='gerar-recibo'
+    ),
+    
+    # Rota para a @api_view de geração de PDF editado (usada pela action do frontend)
+    path(
+        'contratos/<int:contrato_id>/gerar-pdf-editado/', 
+        gerar_contrato_pdf_editado, 
+        name='gerar-contrato-pdf-editado'
+    ),
 ]
