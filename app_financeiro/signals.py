@@ -16,21 +16,17 @@ def sincronizar_pagamento_contrato(sender, instance, created, **kwargs):
     """
     Sincroniza o status do modelo Pagamento (em app_contratos) com o status
     da Transacao sempre que uma Transacao é salva.
-    
-    Isto é crucial para que o modal financeiro mostre o status PAGO.
     """
     
     # 1. Só processa se a transação estiver ligada a um Contrato
-    if instance.contrato:
+    if instance.contrato and instance.contrato.tipo_contrato == Contrato.TipoContrato.ALUGUEL:
         
-        # 2. Busca o Pagamento correspondente (Assumimos a correspondência
-        #    pela chave Contrato + Valor + Data de Vencimento, o que é frágil
-        #    mas necessário sem uma FK direta entre Pagamento e Transacao)
         try:
-            # Filtramos pelo valor e data de vencimento para encontrar o Pagamento
+            # 2. Busca o Pagamento correspondente, filtrando por contrato e vencimento
+            # Assumimos que a Transacao e o Pagamento têm o mesmo valor e data de vencimento
             pagamento_contrato = Pagamento.objects.get(
                 contrato=instance.contrato,
-                valor=instance.valor,
+                # NOTA: O campo 'valor' não é usado aqui para evitar erros de precisão decimal
                 data_vencimento=instance.data_vencimento
             )
             
@@ -44,12 +40,12 @@ def sincronizar_pagamento_contrato(sender, instance, created, **kwargs):
                 pagamento_contrato.save()
                 logger.info(f"Financeiro: Sincronização OK. Pagamento Contrato {instance.contrato.id} atualizado para PAGO.")
                 
-            elif status_novo == 'CANCELADO' and pagamento_contrato.status not in ['PAGO', 'CANCELADO']:
-                 # Transacao cancelada, atualiza o Pagamento
+            elif status_novo in ['CANCELADO', 'RESCINDIDO'] and pagamento_contrato.status not in ['PAGO', 'CANCELADO']:
+                 # Transacao cancelada/excluída, atualiza o Pagamento
                 pagamento_contrato.status = 'CANCELADO'
                 pagamento_contrato.save()
             
         except Pagamento.DoesNotExist:
-            # Isto pode ocorrer se a transação for a comissão de venda (que não tem Pagamento correspondente)
-            # ou se a correspondência falhar.
             logger.debug(f"Sincronização: Pagamento correspondente não encontrado para Transacao {instance.id}.")
+        except Exception as e:
+            logger.error(f"Sincronização ERRO CRÍTICO: Falha ao sincronizar Transacao {instance.id} -> {e}")

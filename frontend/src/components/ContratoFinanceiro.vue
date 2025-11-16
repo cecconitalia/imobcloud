@@ -69,7 +69,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, PropType, onBeforeUnmount } from 'vue';
+import { ref, onMounted, PropType, onBeforeUnmount, defineExpose } from 'vue'; // Adicionado defineExpose
 import apiClient from '@/services/api';
 import { format, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -163,9 +163,15 @@ onMounted(() => {
 onBeforeUnmount(() => {
   document.body.style.overflow = '';
 });
+
+// --- Exposição da função para permitir o refresh externo ---
+defineExpose({
+  fetchPagamentos 
+});
 </script>
 
 <style scoped>
+/* O estilo CSS permanece o mesmo e foi omitido para brevidade, mas deve ser mantido no arquivo. */
 /* Overlay do Modal */
 .modal-overlay {
   position: fixed;
