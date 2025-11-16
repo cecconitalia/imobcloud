@@ -264,13 +264,22 @@ interface ContratoData {
   formas_pagamento: number[];
 }
 
-// Tipagem para a resposta do ImovelSerializer (suposição)
-interface ImovelSerializerResponse {
+// ==================================================================
+// CORREÇÃO: Definindo a tipagem dos serializers que vêm nos 'detalhes'
+// Assumindo que 'lista-simples' de imóveis retorna a ImovelOption completa
+// e 'lista-proprietarios' retorna um tipo que o 'map' transforma em ClienteOption.
+// ==================================================================
+interface ProprietarioSerializerResponse {
   id: number;
-  titulo: string;
-  codigo_referencia: string;
-  // ... outros campos do serializer ...
+  nome_display: string;
+  // ... outros campos do serializer de cliente
 }
+
+// A 'lista-simples' de imóveis já retorna a ImovelOption
+// Vamos assumir que 'imovel_detalhes' também retorna a ImovelOption
+// Se 'imovel_detalhes' for um serializer *diferente*, este é o local
+// que precisaria de mais ajustes para mapear os campos corretos.
+// Por ex: label: data.imovel_detalhes.titulo
 
 
 const route = useRoute();
@@ -308,6 +317,13 @@ const contrato = ref<ContratoData>({
 const todosClientesOptions = ref<ClienteOption[]>([]); 
 const proprietarioOptions = ref<ClienteOption[]>([]); 
 const imovelOptions = ref<ImovelOption[]>([]); 
+
+// ==================================================================
+// CORREÇÃO: Refs para armazenar os objetos de detalhes selecionados
+// ==================================================================
+const selectedProprietario = ref<ClienteOption | null>(null);
+const selectedImovel = ref<ImovelOption | null>(null);
+
 
 const isSubmitting = ref(false);
 const isLoading = ref(true); 
@@ -421,13 +437,35 @@ async function fetchProprietarioOptions(tipo: 'ALUGUEL' | 'VENDA' | '') {
 
     try {
         const proprietarioRes = await apiClient.get('/v1/clientes/lista-proprietarios/', { params: params });
-        proprietarioOptions.value = proprietarioRes.data.map((c: any) => ({
+        // A API /lista-proprietarios/ retorna ProprietarioSerializerResponse
+        const options: ClienteOption[] = proprietarioRes.data.map((c: ProprietarioSerializerResponse) => ({
             label: c.nome_display,
             value: c.id,
         }));
+
+        // ==================================================================
+        // CORREÇÃO: Garantir que o proprietário atual (em edição) esteja na lista,
+        // mesmo que ele não tenha mais imóveis disponíveis (filtro da API).
+        // ==================================================================
+        if (isEditing.value && selectedProprietario.value) {
+            const exists = options.some(opt => opt.value === selectedProprietario.value!.value);
+            if (!exists) {
+                options.unshift(selectedProprietario.value);
+            }
+        }
+        proprietarioOptions.value = options;
+
     } catch (err) {
         console.error('Erro ao carregar lista de Proprietários filtrada:', err);
-        proprietarioOptions.value = []; 
+        // ==================================================================
+        // CORREÇÃO: Mesmo se a busca falhar, adicionar o proprietário selecionado
+        // se estivermos em modo de edição, para que o campo não fique em branco.
+        // ==================================================================
+        if (isEditing.value && selectedProprietario.value) {
+             proprietarioOptions.value = [selectedProprietario.value];
+        } else {
+             proprietarioOptions.value = []; 
+        }
     } finally {
         isLoadingProprietarios.value = false;
     }
@@ -449,11 +487,35 @@ async function fetchImovelOptions(tipo: 'ALUGUEL' | 'VENDA' | '', proprietarioId
   
   try {
     const imovelRes = await apiClient.get('/v1/imoveis/lista-simples/', { params: imovelParams });
-    imovelOptions.value = imovelRes.data;
+    // A API /lista-simples/ já retorna a lista formatada como ImovelOption
+    const options: ImovelOption[] = imovelRes.data;
+
+    // ==================================================================
+    // CORREÇÃO: Garantir que o imóvel atual (em edição) esteja na lista,
+    // mesmo que seu status não seja mais 'A_VENDA'/'PARA_ALUGAR'.
+    // ==================================================================
+    if (isEditing.value && selectedImovel.value) {
+         // Garantir que o imóvel pertença ao proprietário selecionado (embora deva pertencer)
+         if (contrato.value.proprietario === proprietarioId) {
+            const exists = options.some(opt => opt.value === selectedImovel.value!.value);
+            if (!exists) {
+                options.unshift(selectedImovel.value);
+            }
+         }
+    }
+    imovelOptions.value = options;
 
   } catch (err) {
     console.error('Erro ao carregar Imóveis filtrados:', err);
-    imovelOptions.value = [];
+    // ==================================================================
+    // CORREÇÃO: Mesmo se a busca falhar, adicionar o imóvel selecionado
+    // se estivermos em modo de edição, para que o campo não fique em branco.
+    // ==================================================================
+     if (isEditing.value && selectedImovel.value && contrato.value.proprietario === proprietarioId) {
+         imovelOptions.value = [selectedImovel.value];
+     } else {
+         imovelOptions.value = [];
+     }
   } finally {
     isLoadingImoveis.value = false;
   }
@@ -466,6 +528,22 @@ async function fetchContrato() {
     
     const fiadorIds = (data.fiadores || []).map((f: any) => (typeof f === 'object' ? f.id : f));
 
+    // ==================================================================
+    // CORREÇÃO: Armazenar os objetos de detalhes para injetar nos dropdowns
+    // ==================================================================
+    if (data.proprietario_detalhes) {
+      selectedProprietario.value = {
+        label: data.proprietario_detalhes.nome_display, // Assumindo 'nome_display' no serializer
+        value: data.proprietario_detalhes.id
+      };
+    }
+    if (data.imovel_detalhes) {
+       // Assumindo que 'imovel_detalhes' tem a mesma estrutura
+       // que os itens retornados por '/v1/imoveis/lista-simples/'
+      selectedImovel.value = data.imovel_detalhes;
+    }
+    // ==================================================================
+
     contrato.value = {
         ...data,
         fiadores: fiadorIds,
@@ -477,6 +555,7 @@ async function fetchContrato() {
         valor_total: data.valor_total ? parseFloat(data.valor_total) : null,
         valor_comissao_acordado: data.valor_comissao_acordado ? parseFloat(data.valor_comissao_acordado) : null,
 
+        // Os v-models (IDs) são mantidos
         proprietario: data.proprietario_detalhes?.id || data.proprietario, 
         inquilino: data.inquilino_detalhes?.id || data.inquilino,
         imovel: data.imovel_detalhes?.id || data.imovel,
@@ -553,6 +632,7 @@ async function handleSubmit() {
 
 // Watcher 1: Dispara a busca de Proprietários ao mudar o Tipo de Contrato
 watch(() => contrato.value.tipo_contrato, (newTipo, oldTipo) => {
+    // Busca proprietários *antes* de limpar os campos
     fetchProprietarioOptions(newTipo); 
     
     // ==================================================================
@@ -630,28 +710,41 @@ onMounted(async () => {
   isLoading.value = true;
   error.value = null;
   
-  await fetchInitialDependencies();
+  // 1. Carrega dependências não filtradas (Clientes para Inquilino/Fiador)
+  await fetchInitialDependencies(); 
   
   if (isEditing.value) {
-    await fetchContrato();
+    // 2. Carrega o contrato (isso define contrato.value.proprietario
+    // e também selectedProprietario.value e selectedImovel.value)
+    await fetchContrato(); 
     
-    // Os watchers "immediate: true" já terão disparado.
-    // Agora que 'fetchContrato' terminou, os watchers de 
-    // tipo_contrato e proprietario serão disparados novamente 
-    // por causa da mudança de valor.
+    // 3. Agora que temos os IDs e os objetos de detalhes,
+    // buscamos as *listas de opções*.
+    // Os watchers (immediate: true) JÁ foram disparados,
+    // mas podem ter rodado *antes* de 'fetchContrato' definir
+    // os selectedProprietario/Imovel.
+    // Portanto, disparamos manualmente as buscas DE NOVO,
+    // agora com a garantia de que os refs de detalhes estão preenchidos.
     
-    // Dispara manualmente o fetch de opções DEPOIS que fetchContrato() 
-    // já populou 'tipo_contrato' e 'proprietario'.
-    if (contrato.value.tipo_contrato && contrato.value.proprietario) {
+    // As funções fetch...Options (modificadas) usarão
+    // selectedProprietario/selectedImovel para garantir
+    // que os itens selecionados apareçam.
+    if (contrato.value.tipo_contrato) {
         await fetchProprietarioOptions(contrato.value.tipo_contrato);
+    }
+    if (contrato.value.tipo_contrato && contrato.value.proprietario) {
         await fetchImovelOptions(contrato.value.tipo_contrato, contrato.value.proprietario);
     }
+
   } else {
     // ==================================================================
     // CORREÇÃO: Sincronizar data de início e assinatura ao criar
     // ==================================================================
     handleDataAssinaturaChange();
+    
     // Dispara o fetch de proprietários para um novo contrato
+    // O watcher (immediate: true) já fez isso, mas
+    // esta é uma garantia caso o tipo padrão mude.
     await fetchProprietarioOptions(contrato.value.tipo_contrato);
   }
   

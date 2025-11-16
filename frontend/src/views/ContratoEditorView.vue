@@ -57,7 +57,7 @@
           <i class="fas fa-minus"></i>
         </button>
         
-        </div>
+      </div>
 
       <editor-content :editor="editor" class="editor-content-area" />
 

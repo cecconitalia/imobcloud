@@ -26,103 +26,162 @@
         s { text-decoration: line-through; }
         blockquote {
           border-left: 3px solid #ccc;
-          margin-left: 20px;
-          padding-left: 10px;
+          margin-left: 1rem;
+          padding-left: 1rem;
           font-style: italic;
           color: #555;
         }
-        hr { border-top: 1px solid #000; margin: 1rem 0; }
-        .parte { text-align: left; margin-bottom: 15px; text-indent: 0; }
-        .clausula { margin-bottom: 15px; }
-        .assinaturas { margin-top: 80px; text-align: left; }
+        hr {
+          border-top: 1px solid #000;
+          margin: 1rem 0;
+        }
+        
+        .partes { 
+            margin-bottom: 20px; 
+            text-indent: 0; /* Tirar indentação dos blocos de qualificação */
+        }
+        .data-local { text-align: right; margin-top: 30px; margin-bottom: 30px; }
+        .assinaturas { margin-top: 40px; }
         .assinatura-line { 
-            border-top: 1px solid black; 
-            width: 80%; 
-            margin-top: 50px; 
-            padding-top: 5px; 
-            text-align: left;
+            text-align: center; 
+            text-indent: 0;
+            margin-top: 60px;
+            margin-bottom: 0;
+            border-top: 1px solid #000;
+            padding-top: 5px;
+            width: 60%;
+            margin-left: auto;
+            margin-right: auto;
+        }
+        
+        /* Helpers */
+        .texto-centralizado {
+            text-align: center;
             text-indent: 0;
         }
-        .data-local { 
-          text-align: right; margin-top: 40px; 
-          text-indent: 0;
+        .texto-direita {
+            text-align: right;
+            text-indent: 0;
+        }
+        .texto-justificado {
+            text-align: justify;
+            text-indent: 0;
+        }
+        .sem-indentacao {
+            text-indent: 0;
         }
     </style>
 </head>
 <body>
-    {% load custom_filters %}
-    
-    {% if custom_html_content %}
-        {{ custom_html_content|safe }}
-    {% else %}
-
     <h1>Instrumento Particular de Promessa de Compra e Venda de Imóvel</h1>
 
-    <div class="parte">
-        <p>Pelo presente instrumento particular, as partes abaixo qualificadas:</p>
-        
-        <h3>PROMITENTE(S) VENDEDOR(ES):</h3>
-        <p>
-            {{ proprietario.nome_completo|default:"(Nome não informado)"|upper }}, 
-            {{ proprietario.nacionalidade|default:"(nacionalidade não informada)" }}, 
+    <p>Pelo presente instrumento particular, as partes abaixo qualificadas:</p>
+
+    <div class="partes">
+        <strong>PROMITENTE(S) VENDEDOR(ES):</strong>
+        <p class="sem-indentacao">
+            <strong>{{ proprietario.nome|default:"(NOME NÃO INFORMADO)" }}</strong>, 
+            {{ proprietario.nacionalidade|default:"Brasileiro" }}, 
             {{ proprietario.estado_civil|default:"(estado civil não informado)" }}, 
             {{ proprietario.profissao|default:"(profissão não informada)" }}, 
-            portador(a) do RG nº {{ proprietario.rg_ie|default:"(Não informado)" }} e inscrito(a) no CPF/CNPJ sob o nº {{ proprietario.cpf_cnpj|default:"(Não informado)" }}, 
-            residente e domiciliado(a) em {{ proprietario.logradouro }}, {{ proprietario.numero|default:"s/n" }}, 
-            {{ proprietario.bairro }}, {{ proprietario.cidade }}-{{ proprietario.estado }}.
+            portador(a) do RG nº {{ proprietario.rg|default:"(Não informado)" }} 
+            e inscrito(a) no CPF/CNPJ sob o nº {{ proprietario.documento|default:"(Não informado)" }}, 
+            residente e domiciliado(a) em 
+            {{ proprietario.logradouro|default:"(Endereço não informado)" }}, 
+            {{ proprietario.numero|default:"N/A" }}, 
+            {% if proprietario.complemento %}complemento {{ proprietario.complemento }}, {% endif %}
+            {{ proprietario.bairro|default:"(bairro não informado)" }}, 
+            {{ proprietario.cidade|default:"(cidade não informada)" }}-{{ proprietario.estado|default:"UF" }}.
             (doravante denominado simplesmente VENDEDOR(A)).
         </p>
+    </div>
 
-        <h3>PROMITENTE(S) COMPRADOR(ES):</h3>
-        <p>
-            {{ inquilino.nome_completo|default:"(Nome não informado)"|upper }}, 
-            {{ inquilino.nacionalidade|default:"(nacionalidade não informada)" }}, 
+    <div class="partes">
+        <strong>PROMITENTE(S) COMPRADOR(ES):</strong>
+        <p class="sem-indentacao">
+            <strong>{{ inquilino.nome|default:"(NOME NÃO INFORMADO)" }}</strong>, 
+            {{ inquilino.nacionalidade|default:"Brasileiro" }}, 
             {{ inquilino.estado_civil|default:"(estado civil não informado)" }}, 
             {{ inquilino.profissao|default:"(profissão não informada)" }}, 
-            portador(a) do RG nº {{ inquilino.rg_ie|default:"(Não informado)" }} e inscrito(a) no CPF/CNPJ sob o nº {{ inquilino.cpf_cnpj|default:"(Não informado)" }}, 
-            residente e domiciliado(a) em {{ inquilino.logradouro }}, {{ inquilino.numero|default:"s/n" }}, 
-            {{ inquilino.bairro }}, {{ inquilino.cidade }}-{{ inquilino.estado }}.
+            portador(a) do RG nº {{ inquilino.rg|default:"(Não informado)" }} 
+            e inscrito(a) no CPF/CNPJ sob o nº {{ inquilino.documento|default:"(Não informado)" }}, 
+            residente e domiciliado(a) em 
+            {{ inquilino.logradouro|default:"(Endereço não informado)" }}, 
+            {{ inquilino.numero|default:"N/A" }}, 
+            {% if inquilino.complemento %}complemento {{ inquilino.complemento }}, {% endif %}
+            {{ inquilino.bairro|default:"(bairro não informado)" }}, 
+            {{ inquilino.cidade|default:"(cidade não informada)" }}-{{ inquilino.estado|default:"UF" }}.
             (doravante denominado simplesmente COMPRADOR(A)).
         </p>
-        <p>Têm entre si justa e contratada a promessa de compra e venda do imóvel abaixo descrito, que se regerá pelas seguintes cláusulas e condições:</p>
     </div>
+    
+    <p>Têm entre si justa e contratada a promessa de compra e venda do imóvel abaixo descrito, que se regerá pelas seguintes cláusulas e condições:</p>
+
     <div class="clausula">
         <h2>CLÁUSULA PRIMEIRA - DO OBJETO</h2>
-        <p>O VENDEDOR(A) é legítimo possuidor e proprietário do imóvel localizado em {{ imovel.logradouro }}, nº {{ imovel.numero|default:"s/n" }}, {{ imovel.complemento|default:"" }}, bairro {{ imovel.bairro }}, {{ imovel.cidade }}-{{ imovel.estado }}, CEP {{ imovel.cep|default:"N/A" }}, devidamente registrado no Cartório de Registro de Imóveis sob a Matrícula nº {{ imovel.numero_matricula|default:"(Não informada)" }}.</p>
+        <p>
+            O VENDEDOR(A) é legítimo possuidor e proprietário do imóvel: 
+            <strong>{{ imovel.titulo|default:"(Descrição do imóvel não informada)" }}</strong>, 
+            localizado em {{ imovel.logradouro|default:"(Endereço não informado)" }}, 
+            nº {{ imovel.numero|default:"(N/A)" }}, 
+            {% if imovel.complemento %}complemento {{ imovel.complemento }}, {% endif %}
+            bairro {{ imovel.bairro|default:"(bairro não informado)" }}, 
+            {{ imovel.cidade|default:"(cidade não informada)" }}-{{ imovel.estado|default:"UF" }}, 
+            CEP {{ imovel.cep|default:"(CEP não informado)" }}, 
+            devidamente registrado no Cartório de Registro de Imóveis sob a Matrícula nº {{ imovel.matricula|default:"(Matrícula não informada)" }}.
+        </p>
     </div>
+
     <div class="clausula">
         <h2>CLÁUSULA SEGUNDA - DO PREÇO E FORMA DE PAGAMENTO</h2>
-        <p>O preço total da presente promessa de compra e venda é de <strong>R$ {{ contrato.valor_total|floatformat:2 }} ({{ contrato.valor_total|num2words:"pt_BR"|capfirst }})</strong>, que será pago pelo(a) COMPRADOR(A) ao(à) VENDEDOR(A) da seguinte forma:</p>
-        <p style="text-indent: 0; margin-left: 40px; font-style: italic;">
-            {{ contrato.informacoes_adicionais|default:"(As condições de pagamento, incluindo sinal, parcelas e datas, devem ser detalhadas aqui.)"|linebreaksbr }}
+        <p>O preço total da presente promessa de compra e venda é de <strong>R$ {{ contrato.valor_total|floatformat:2|default:"0,00" }}</strong> ({{ valor_total_extenso|default:"(Valor por extenso não informado)" }}), que será pago pelo(a) COMPRADOR(A) ao(à) VENDEDOR(A) da seguinte forma:</p>
+        <p>
+            {{ condicoes_pagamento|safe|default:"(As condições de pagamento, incluindo sinal, parcelas e datas, devem ser detalhadas aqui.)" }}
         </p>
         <p><strong>Parágrafo Único:</strong> O não pagamento de qualquer das parcelas nas datas estipuladas implicará em multa de 10% (dez por cento) sobre o valor da parcela em atraso, acrescida de juros de mora de 1% (um por cento) ao mês e correção monetária pelo IGP-M/FGV.</p>
     </div>
+
     <div class="clausula">
         <h2>CLÁUSULA TERCEIRA - DA POSSE</h2>
-        <p>O(A) COMPRADOR(A) será imitido(a) na posse precária do imóvel na data da assinatura deste instrumento, ou na data da quitação integral do preço, conforme acordado: (Definir a data ou condição da posse).</p>
+        <p>
+            O(A) COMPRADOR(A) será imitido(a) na posse precária do imóvel na data da assinatura deste instrumento, 
+            ou na data da quitação integral do preço, conforme acordado: 
+            {{ data_posse|default:"(Definir a data ou condição da posse)" }}.
+        </p>
         <p><strong>Parágrafo Único:</strong> A posse definitiva será transferida juntamente com a outorga da Escritura Pública Definitiva de Compra e Venda.</p>
     </div>
+
     <div class="clausula">
         <h2>CLÁUSULA QUARTA - DOS DÉBITOS E ÔNUS</h2>
         <p>O(A) VENDEDOR(A) declara que o imóvel objeto deste contrato encontra-se livre e desembaraçado de quaisquer ônus reais, hipotecas, penhoras, impostos ou taxas em atraso até a presente data.</p>
         <p><strong>Parágrafo Único:</strong> Serão de responsabilidade do(a) VENDEDOR(A) todos os impostos, taxas e despesas de condomínio que incidirem sobre o imóvel até a data da imissão na posse pelo(a) COMPRADOR(A), correndo tais despesas, a partir de então, por conta exclusiva do(a) COMPRADOR(A).</p>
     </div>
+    
     <div class="clausula">
         <h2>CLÁUSULA QUINTA - DA ESCRITURA DEFINITIVA</h2>
         <p>A Escritura Pública Definitiva de Compra e Venda será outorgada pelo(a) VENDEDOR(A) ao(à) COMPRADOR(A), ou a quem este indicar, no prazo de 30 (trinta) dias após a quitação integral do preço estabelecido na Cláusula Segunda.</p>
         <p><strong>Parágrafo Único:</strong> Todas as despesas com a lavratura da escritura, impostos de transmissão (ITBI) e registro no Cartório de Imóveis correrão por conta exclusiva do(a) COMPRADOR(A).</p>
     </div>
+
     <div class="clausula">
         <h2>CLÁUSULA SEXTA - DA EVICÇÃO</h2>
         <p>O(A) VENDEDOR(A) responde pelos riscos da evicção de direito, caso o imóvel venha a ser reivindicado por terceiros.</p>
     </div>
+
     <div class="clausula">
         <h2>CLÁUSULA SÉTIMA - DA INTERMEDIAÇÃO IMOBILIÁRIA</h2>
-        <p>A presente transação foi intermediada pela <strong>{{ imobiliaria.nome|default:"(Nome da Imobiliária)" }}</strong>, (CRECI/CNPJ da Imobiliária), a quem o(a) VENDEDOR(A) pagará, a título de comissão de intermediação, o valor de <strong>R$ {{ contrato.valor_comissao_acordado|floatformat:2 }} ({{ contrato.valor_comissao_acordado|num2words:"pt_BR"|capfirst }})</strong>.</p>
-        <p><strong>Parágrafo Único:</strong> A referida comissão será devida no ato de assinatura deste instrumento (ou conforme data de vencimento acordada: {{ contrato.data_vencimento_venda|date:"d/m/Y" }}).</p>
+        <p>
+            A presente transação foi intermediada pela 
+            <strong>{{ imobiliaria.nome|default:"(Nome da Imobiliária)" }}</strong>, 
+            (CRECI/CNPJ da Imobiliária: {{ imobiliaria.creci_cnpj|default:"(CRECI/CNPJ)" }}), 
+            a quem o(a) VENDEDOR(A) pagará, a título de comissão de intermediação, o valor de 
+            <strong>R$ {{ contrato.valor_comissao_acordado|floatformat:2|default:"0,00" }}</strong> 
+            ({{ valor_comissao_extenso|default:"(Valor por extenso não informado)" }}).
+        </p>
+        <p><strong>Parágrafo Único:</strong> A referida comissão será devida no ato de assinatura deste instrumento (ou conforme data de vencimento acordada: {{ contrato.data_vencimento_venda|date:"d/m/Y"|default:"(data não definida)" }}).</p>
     </div>
-    <div classs="clausula">
+    
+    <div class="clausula">
         <h2>CLÁUSULA OITAVA - DA CLÁUSULA PENAL (RESCISÃO)</h2>
         <p>O descumprimento de qualquer cláusula deste contrato pela parte inadimplente, ou o arrependimento de qualquer das partes, implicará na rescisão deste instrumento, sujeitando a parte infratora ao pagamento de multa penal no valor de 10% (dez por cento) sobre o valor total do contrato, sem prejuízo das perdas e danos cabíveis.</p>
     </div>
@@ -138,12 +197,11 @@
     </div>
 
     <div class="assinaturas">
-        <p class="assinatura-line">PROMITENTE VENDEDOR(A): {{ proprietario.nome_completo }}</p>
-        <p class="assinatura-line">PROMITENTE COMPRADOR(A): {{ inquilino.nome_completo }}</p>
-
+        <p class="assinatura-line">PROMITENTE VENDEDOR(A): {{ proprietario.nome|default:"(NOME NÃO INFORMADO)" }}</p>
+        <p class="assinatura-line">PROMITENTE COMPRADOR(A): {{ inquilino.nome|default:"(NOME NÃO INFORMADO)" }}</p>
+        
         <p class="assinatura-line">TESTEMUNHA 1:</p>
         <p class="assinatura-line">TESTEMUNHA 2:</p>
     </div>
-    {% endif %}
 </body>
 </html>
