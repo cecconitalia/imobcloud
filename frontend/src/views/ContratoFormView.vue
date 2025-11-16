@@ -23,7 +23,7 @@
           <div class="form-grid-3col">
             <div class="form-group">
               <label for="tipo">Tipo de Contrato *</label>
-              <select id="tipo" v-model="contrato.tipo_contrato" :disabled="isEditing && contrato.status_contrato !== 'PENDENTE'" @change="handleTipoChange">
+              <select id="tipo" v-model="contrato.tipo_contrato" :disabled="isEditing && contrato.status_contrato !== 'RASCUNHO'" @change="handleTipoChange">
                 <option value="ALUGUEL">Aluguel</option>
                 <option value="VENDA">Venda</option>
               </select>
@@ -63,22 +63,44 @@
             </div>
           </div>
           
-          <div class="form-group">
-            <label for="imovel">Imóvel *</label>
-            <v-select
-              id="imovel"
-              v-model="contrato.imovel"
-              :options="imovelOptions"
-              :reduce="(option) => option.value"
-              label="label"
-              placeholder="Selecione o Imóvel"
-              :clearable="false"
-              :disabled="!contrato.proprietario || (!imovelOptions.length && !isEditing && !isLoadingImoveis)"
-            ></v-select>
-            <p v-if="isLoadingImoveis" class="help-text-loading">Carregando imóveis...</p>
-            <p v-else-if="!contrato.proprietario" class="help-text">Selecione um Proprietário primeiro.</p>
-            <p v-else-if="!imovelOptions.length" class="help-text">Nenhum imóvel disponível encontrado para este proprietário.</p>
+          <div class="form-grid-2col">
+            <div class="form-group">
+              <label for="imovel">Imóvel *</label>
+              <v-select
+                id="imovel"
+                v-model="contrato.imovel"
+                :options="imovelOptions"
+                :reduce="(option) => option.value"
+                label="label"
+                placeholder="Selecione o Imóvel"
+                :clearable="false"
+                :disabled="!contrato.proprietario || (!imovelOptions.length && !isEditing && !isLoadingImoveis)"
+              ></v-select>
+              <p v-if="isLoadingImoveis" class="help-text-loading">Carregando imóveis...</p>
+              <p v-else-if="!contrato.proprietario" class="help-text">Selecione um Proprietário primeiro.</p>
+              <p v-else-if="!imovelOptions.length" class="help-text">Nenhum imóvel disponível encontrado para este proprietário.</p>
+            </div>
+            
+            <div class="form-group">
+              <label for="modelo_contrato">Modelo de Documento</label>
+              <v-select
+                id="modelo_contrato"
+                v-model="contrato.modelo_utilizado"
+                :options="modeloContratoOptions"
+                :reduce="(option) => option.value"
+                label="label"
+                placeholder="Selecione o modelo"
+                :clearable="true"
+                :disabled="!contrato.tipo_contrato || isLoadingModelos"
+              ></v-select>
+              <p v-if="isLoadingModelos" class="help-text-loading">Carregando modelos...</p>
+              <p v-else-if="!contrato.tipo_contrato" class="help-text">Selecione o Tipo de Contrato.</p>
+              <p v-else class="help-text">
+                (Opcional) Se não selecionar, o modelo padrão da imobiliária será usado.
+              </p>
+            </div>
           </div>
+
         </fieldset>
 
         <fieldset v-if="contrato.tipo_contrato === 'ALUGUEL'" class="form-section">
@@ -88,19 +110,16 @@
               <label for="aluguel">Valor do Aluguel (Mensal) *</label>
               <MoneyInput v-model.number="contrato.aluguel" class="form-input-money" required />
             </div>
-
             <div class="form-group">
               <label for="duracao_meses">Duração (meses) *</label>
               <input type="number" id="duracao_meses" v-model.number="contrato.duracao_meses" required min="1">
             </div>
-
             <div class="form-group">
               <label for="taxa_adm">Taxa Adm. (%)</label>
               <input type="number" id="taxa_adm" v-model.number="contrato.taxa_administracao_percentual" step="0.01" min="0" max="100">
               <p class="help-text">Usada no cálculo do repasse ao proprietário.</p>
             </div>
           </div>
-          
           <div class="form-grid-2col">
             <div class="form-group">
               <label for="data_primeiro_vencimento">Data do 1º Vencimento *</label>
@@ -117,19 +136,16 @@
               <label for="valor_total">Valor Total da Venda *</label>
               <MoneyInput v-model.number="contrato.valor_total" class="form-input-money" @change="calcularComissaoInicial" required />
             </div>
-
             <div class="form-group">
               <label for="comissao_venda_percentual">% Comissão (Base)</label>
               <input type="number" id="comissao_venda_percentual" v-model.number="contrato.comissao_venda_percentual" @input="calcularComissaoInicial" step="0.01" min="0" max="100">
             </div>
-            
             <div class="form-group">
               <label for="valor_comissao_acordado">Valor Acordado Comissão (R$) *</label>
               <MoneyInput v-model.number="contrato.valor_comissao_acordado" class="form-input-money" required />
               <p class="help-text">Este valor será lançado em Contas a Receber.</p>
             </div>
           </div>
-          
           <div class="form-grid-2col">
             <div class="form-group">
                 <label for="data_vencimento_venda">Data Venc. Comissão/Quitação *</label>
@@ -168,7 +184,6 @@
               <input type="date" id="data_fim" v-model="contrato.data_fim">
             </div>
           </div>
-          
           <div class="form-grid-2col">
             <div class="form-group" v-if="todosClientesOptions.length">
                 <label for="fiadores">Fiadores (Opcional)</label>
@@ -183,22 +198,21 @@
                 ></v-select>
             </div>
             <div v-else class="form-group"><input type="text" disabled placeholder="Carregando Fiadores..." /></div>
-
+            
             <div class="form-group">
                 <label for="status_contrato">Status do Contrato *</label>
                 <select id="status_contrato" v-model="contrato.status_contrato" required>
-                  <option value="PENDENTE">Pendente</option>
+                  <option value="RASCUNHO">Rascunho</option>
                   <option value="ATIVO">Ativo</option>
                   <option value="CONCLUIDO">Concluído</option>
                   <option value="RESCINDIDO">Rescindido</option>
-                  <option value="INATIVO">Inativo</option>
+                  <option value="CANCELADO">Cancelado</option>
                 </select>
                 <p class="help-text">Ao salvar como ATIVO, o financeiro será gerado/lançado.</p>
             </div>
-          </div>
-          
+            </div>
           <div class="form-group">
-            <label for="informacoes_adicionais">Informações Adicionais</label>
+            <label for="informacoes_adicionais">Informações Adicionais / Condições de Pagamento (Venda)</label>
             <textarea id="informacoes_adicionais" v-model="contrato.informacoes_adicionais"></textarea>
           </div>
         </fieldset>
@@ -226,6 +240,7 @@ import { format } from 'date-fns';
 
 // TIPAGEM BASE
 interface ClienteOption { label: string; value: number; }
+interface ModeloContratoOption { label: string; value: number; padrao: boolean; } 
 interface ImovelOption { 
   label: string; 
   value: number; 
@@ -237,25 +252,27 @@ interface ContratoData {
   id?: number;
   imobiliaria?: number;
   tipo_contrato: 'ALUGUEL' | 'VENDA' | '';
-  status_contrato: 'PENDENTE' | 'ATIVO' | 'CONCLUIDO' | 'RESCINDIDO' | 'INATIVO';
+  // ==========================================================
+  // === TIPO DE STATUS ATUALIZADO                        ===
+  // ==========================================================
+  status_contrato: 'RASCUNHO' | 'ATIVO' | 'CONCLUIDO' | 'RESCINDIDO' | 'CANCELADO';
+  
+  modelo_utilizado: number | null; 
   
   imovel: number | null;
   inquilino: number | null;
-  proprietario: number | null; // O usuário seleciona
+  proprietario: number | null; 
   fiadores: number[];
   
-  // Dados de Aluguel
+  // (Resto da interface inalterada)
   aluguel: number | null;
   duracao_meses: number | null;
   taxa_administracao_percentual: number;
   data_primeiro_vencimento: string | null; 
-  
-  // Dados de Venda/Comissão
   valor_total: number | null;
   comissao_venda_percentual: number; 
   valor_comissao_acordado: number | null; 
   data_vencimento_venda: string | null; 
-
   data_inicio: string | null;
   data_fim: string | null;
   data_assinatura: string | null;
@@ -264,23 +281,16 @@ interface ContratoData {
   formas_pagamento: number[];
 }
 
-// ==================================================================
-// CORREÇÃO: Definindo a tipagem dos serializers que vêm nos 'detalhes'
-// Assumindo que 'lista-simples' de imóveis retorna a ImovelOption completa
-// e 'lista-proprietarios' retorna um tipo que o 'map' transforma em ClienteOption.
-// ==================================================================
 interface ProprietarioSerializerResponse {
   id: number;
   nome_display: string;
-  // ... outros campos do serializer de cliente
 }
-
-// A 'lista-simples' de imóveis já retorna a ImovelOption
-// Vamos assumir que 'imovel_detalhes' também retorna a ImovelOption
-// Se 'imovel_detalhes' for um serializer *diferente*, este é o local
-// que precisaria de mais ajustes para mapear os campos corretos.
-// Por ex: label: data.imovel_detalhes.titulo
-
+interface ModeloContratoResponse {
+  id: number;
+  nome: string;
+  padrao: boolean;
+  tipo_contrato: 'ALUGUEL' | 'VENDA';
+}
 
 const route = useRoute();
 const router = useRouter();
@@ -290,7 +300,11 @@ const contratoId = route.params.id as string;
 // Definição inicial do Contrato
 const contrato = ref<ContratoData>({
   tipo_contrato: 'ALUGUEL',
-  status_contrato: 'PENDENTE',
+  // ==========================================================
+  status_contrato: 'RASCUNHO', // <--- Padrão atualizado
+  // ==========================================================
+  
+  modelo_utilizado: null, 
   imovel: null,
   inquilino: null,
   proprietario: null, 
@@ -313,27 +327,24 @@ const contrato = ref<ContratoData>({
   formas_pagamento: []
 });
 
+// (Restante do <script setup> inalterado)
+
 // LISTAS FILTRADAS
 const todosClientesOptions = ref<ClienteOption[]>([]); 
 const proprietarioOptions = ref<ClienteOption[]>([]); 
 const imovelOptions = ref<ImovelOption[]>([]); 
+const modeloContratoOptions = ref<ModeloContratoOption[]>([]); 
 
-// ==================================================================
-// CORREÇÃO: Refs para armazenar os objetos de detalhes selecionados
-// ==================================================================
 const selectedProprietario = ref<ClienteOption | null>(null);
 const selectedImovel = ref<ImovelOption | null>(null);
-
+const selectedModelo = ref<ModeloContratoOption | null>(null); 
 
 const isSubmitting = ref(false);
 const isLoading = ref(true); 
 const isLoadingProprietarios = ref(false); 
 const isLoadingImoveis = ref(false); 
+const isLoadingModelos = ref(false); 
 const error = ref<string | null>(null);
-
-// ===============================================
-// LÓGICA COMPUTADA E HELPERS
-// ===============================================
 
 const tipoContratoLabel = computed(() => {
   if (contrato.value.tipo_contrato === 'VENDA') {
@@ -341,21 +352,13 @@ const tipoContratoLabel = computed(() => {
   }
   return { principal: 'Inquilino', outraParte: 'Inquilino' };
 });
-
 const calcularComissaoInicial = () => {
-  // Não sobrescrever o valor acordado se ele já existir (especialmente no modo de edição)
   if (isEditing.value && contrato.value.valor_comissao_acordado) {
-    // Se o usuário editar o valor total, talvez devêssemos recalcular?
-    // Por enquanto, vamos manter o valor acordado se ele já veio da API.
-    // A lógica abaixo só roda se o valor acordado for nulo ou se não estivermos editando.
   }
-  
   if (contrato.value.tipo_contrato === 'VENDA' && contrato.value.valor_total && contrato.value.comissao_venda_percentual) {
     const valorTotal = Number(contrato.value.valor_total);
     const percentual = Number(contrato.value.comissao_venda_percentual);
-    
     if (!isNaN(valorTotal) && !isNaN(percentual)) {
-        // Apenas preenche se valor_comissao_acordado for nulo ou zero
         if (!contrato.value.valor_comissao_acordado) {
              contrato.value.valor_comissao_acordado = parseFloat((valorTotal * (percentual / 100)).toFixed(2));
         }
@@ -364,53 +367,35 @@ const calcularComissaoInicial = () => {
     }
   }
 };
-
-// ==================================================================
-// CORREÇÃO: Nova função para sincronizar as datas em Venda
-// ==================================================================
 const handleDataAssinaturaChange = () => {
   if (contrato.value.tipo_contrato === 'VENDA') {
     contrato.value.data_inicio = contrato.value.data_assinatura;
   }
 }
-
 const handleTipoChange = () => {
     contrato.value.proprietario = null;
     contrato.value.imovel = null;
+    contrato.value.modelo_utilizado = null;
     proprietarioOptions.value = [];
     imovelOptions.value = [];
-    
+    modeloContratoOptions.value = []; 
     calcularComissaoInicial();
-
     if (contrato.value.tipo_contrato === 'ALUGUEL') {
-        // Resetar campos de Venda
         contrato.value.valor_total = null;
         contrato.value.valor_comissao_acordado = null;
         contrato.value.comissao_venda_percentual = 6.00;
         contrato.value.data_vencimento_venda = null;
-        
-        // Restaurar campos padrão de Aluguel
         contrato.value.taxa_administracao_percentual = 10.00; 
         contrato.value.duracao_meses = 12;
-
     } else if (contrato.value.tipo_contrato === 'VENDA') {
-        // Resetar campos de Aluguel
         contrato.value.aluguel = null;
         contrato.value.duracao_meses = null;
         contrato.value.taxa_administracao_percentual = 0.00;
         contrato.value.data_primeiro_vencimento = null;
-
-        // ==================================================================
-        // CORREÇÃO: Sincronizar data de início e zerar data de fim
-        // ==================================================================
         contrato.value.data_fim = null;
         contrato.value.data_inicio = contrato.value.data_assinatura;
     }
 };
-
-// ===============================================
-// FUNÇÕES DE DADOS E SUBMISSÃO
-// ===============================================
 
 async function fetchInitialDependencies() {
   try {
@@ -424,29 +409,17 @@ async function fetchInitialDependencies() {
     error.value = 'Não foi possível carregar a lista de clientes para Inquilino/Fiadores.';
   }
 }
-
 async function fetchProprietarioOptions(tipo: 'ALUGUEL' | 'VENDA' | '') {
     if (!tipo) return;
-    
     isLoadingProprietarios.value = true;
-    
     const finalidade = tipo === 'VENDA' ? 'A_VENDA' : 'PARA_ALUGAR';
-    const params = { 
-        finalidade: finalidade,
-    };
-
+    const params = { finalidade: finalidade };
     try {
         const proprietarioRes = await apiClient.get('/v1/clientes/lista-proprietarios/', { params: params });
-        // A API /lista-proprietarios/ retorna ProprietarioSerializerResponse
         const options: ClienteOption[] = proprietarioRes.data.map((c: ProprietarioSerializerResponse) => ({
             label: c.nome_display,
             value: c.id,
         }));
-
-        // ==================================================================
-        // CORREÇÃO: Garantir que o proprietário atual (em edição) esteja na lista,
-        // mesmo que ele não tenha mais imóveis disponíveis (filtro da API).
-        // ==================================================================
         if (isEditing.value && selectedProprietario.value) {
             const exists = options.some(opt => opt.value === selectedProprietario.value!.value);
             if (!exists) {
@@ -454,13 +427,8 @@ async function fetchProprietarioOptions(tipo: 'ALUGUEL' | 'VENDA' | '') {
             }
         }
         proprietarioOptions.value = options;
-
     } catch (err) {
         console.error('Erro ao carregar lista de Proprietários filtrada:', err);
-        // ==================================================================
-        // CORREÇÃO: Mesmo se a busca falhar, adicionar o proprietário selecionado
-        // se estivermos em modo de edição, para que o campo não fique em branco.
-        // ==================================================================
         if (isEditing.value && selectedProprietario.value) {
              proprietarioOptions.value = [selectedProprietario.value];
         } else {
@@ -470,32 +438,21 @@ async function fetchProprietarioOptions(tipo: 'ALUGUEL' | 'VENDA' | '') {
         isLoadingProprietarios.value = false;
     }
 }
-
 async function fetchImovelOptions(tipo: 'ALUGUEL' | 'VENDA' | '', proprietarioId: number | null) {
   if (!tipo || !proprietarioId) { 
       imovelOptions.value = [];
       return;
   }
-  
   isLoadingImoveis.value = true;
-  
   const finalidade = tipo === 'VENDA' ? 'A_VENDA' : 'PARA_ALUGAR';
   const imovelParams: Record<string, any> = { 
       finalidade: finalidade,
       proprietario: proprietarioId, 
   };
-  
   try {
     const imovelRes = await apiClient.get('/v1/imoveis/lista-simples/', { params: imovelParams });
-    // A API /lista-simples/ já retorna a lista formatada como ImovelOption
     const options: ImovelOption[] = imovelRes.data;
-
-    // ==================================================================
-    // CORREÇÃO: Garantir que o imóvel atual (em edição) esteja na lista,
-    // mesmo que seu status não seja mais 'A_VENDA'/'PARA_ALUGAR'.
-    // ==================================================================
     if (isEditing.value && selectedImovel.value) {
-         // Garantir que o imóvel pertença ao proprietário selecionado (embora deva pertencer)
          if (contrato.value.proprietario === proprietarioId) {
             const exists = options.some(opt => opt.value === selectedImovel.value!.value);
             if (!exists) {
@@ -504,13 +461,8 @@ async function fetchImovelOptions(tipo: 'ALUGUEL' | 'VENDA' | '', proprietarioId
          }
     }
     imovelOptions.value = options;
-
   } catch (err) {
     console.error('Erro ao carregar Imóveis filtrados:', err);
-    // ==================================================================
-    // CORREÇÃO: Mesmo se a busca falhar, adicionar o imóvel selecionado
-    // se estivermos em modo de edição, para que o campo não fique em branco.
-    // ==================================================================
      if (isEditing.value && selectedImovel.value && contrato.value.proprietario === proprietarioId) {
          imovelOptions.value = [selectedImovel.value];
      } else {
@@ -520,47 +472,80 @@ async function fetchImovelOptions(tipo: 'ALUGUEL' | 'VENDA' | '', proprietarioId
     isLoadingImoveis.value = false;
   }
 }
+async function fetchModeloContratoOptions(tipo: 'ALUGUEL' | 'VENDA' | '') {
+  if (!tipo) {
+    modeloContratoOptions.value = [];
+    return;
+  }
+  isLoadingModelos.value = true;
+  try {
+    const response = await apiClient.get('/v1/modelos-contrato/', {
+      params: { tipo_contrato: tipo }
+    });
+    const options: ModeloContratoOption[] = response.data.map((m: ModeloContratoResponse) => ({
+      label: m.padrao ? `${m.nome} (Padrão)` : m.nome,
+      value: m.id,
+      padrao: m.padrao,
+    }));
+    if (isEditing.value && selectedModelo.value) {
+      const exists = options.some(opt => opt.value === selectedModelo.value!.value);
+      if (!exists) {
+        options.unshift(selectedModelo.value);
+      }
+    }
+    modeloContratoOptions.value = options;
+    if (!isEditing.value) {
+        const padrao = options.find(o => o.padrao);
+        if (padrao) {
+            contrato.value.modelo_utilizado = padrao.value;
+        }
+    }
+  } catch (err) {
+    console.error('Erro ao carregar Modelos de Contrato:', err);
+    if (isEditing.value && selectedModelo.value) {
+      modeloContratoOptions.value = [selectedModelo.value];
+    } else {
+      modeloContratoOptions.value = [];
+    }
+  } finally {
+    isLoadingModelos.value = false;
+  }
+}
 
 async function fetchContrato() {
   try {
     const response = await apiClient.get(`/v1/contratos/${contratoId}/`); 
     const data = response.data;
-    
     const fiadorIds = (data.fiadores || []).map((f: any) => (typeof f === 'object' ? f.id : f));
-
-    // ==================================================================
-    // CORREÇÃO: Armazenar os objetos de detalhes para injetar nos dropdowns
-    // ==================================================================
     if (data.proprietario_detalhes) {
       selectedProprietario.value = {
-        label: data.proprietario_detalhes.nome_display, // Assumindo 'nome_display' no serializer
+        label: data.proprietario_detalhes.nome_display,
         value: data.proprietario_detalhes.id
       };
     }
     if (data.imovel_detalhes) {
-       // Assumindo que 'imovel_detalhes' tem a mesma estrutura
-       // que os itens retornados por '/v1/imoveis/lista-simples/'
       selectedImovel.value = data.imovel_detalhes;
     }
-    // ==================================================================
-
+    if (data.modelo_utilizado) {
+        selectedModelo.value = {
+            label: data.modelo_utilizado.padrao ? `${data.modelo_utilizado.nome} (Padrão)` : data.modelo_utilizado.nome,
+            value: data.modelo_utilizado.id,
+            padrao: data.modelo_utilizado.padrao
+        };
+    }
     contrato.value = {
         ...data,
         fiadores: fiadorIds,
-        
         taxa_administracao_percentual: parseFloat(data.taxa_administracao_percentual) || 10.00,
         comissao_venda_percentual: parseFloat(data.comissao_venda_percentual) || 6.00,
-        
         aluguel: data.aluguel ? parseFloat(data.aluguel) : null,
         valor_total: data.valor_total ? parseFloat(data.valor_total) : null,
         valor_comissao_acordado: data.valor_comissao_acordado ? parseFloat(data.valor_comissao_acordado) : null,
-
-        // Os v-models (IDs) são mantidos
         proprietario: data.proprietario_detalhes?.id || data.proprietario, 
         inquilino: data.inquilino_detalhes?.id || data.inquilino,
         imovel: data.imovel_detalhes?.id || data.imovel,
+        modelo_utilizado: data.modelo_utilizado?.id || null, 
     };
-    
   } catch (err) {
     console.error('Erro ao carregar contrato:', err);
     error.value = 'Não foi possível carregar os dados do contrato.';
@@ -570,27 +555,18 @@ async function fetchContrato() {
 async function handleSubmit() {
   isSubmitting.value = true;
   error.value = null;
-
   try {
     const payload = { ...contrato.value };
-    
     if (payload.tipo_contrato === 'ALUGUEL') {
         payload.valor_total = null;
-        // delete payload.comissao_venda_percentual; // Não delete, envie o valor padrão
         payload.valor_comissao_acordado = null;
         payload.data_vencimento_venda = null;
     } else { 
         payload.aluguel = null;
         payload.duracao_meses = null;
-        // delete payload.taxa_administracao_percentual; // Não delete, envie o valor padrão
         payload.data_primeiro_vencimento = null;
-        
-        // ==================================================================
-        // CORREÇÃO: Garantir que data_fim seja nula para Venda
-        // ==================================================================
         payload.data_fim = null;
     }
-
     if (isEditing.value) {
       await apiClient.put(`/v1/contratos/${contratoId}/`, payload);
       alert('Contrato atualizado com sucesso!');
@@ -599,13 +575,14 @@ async function handleSubmit() {
       alert('Contrato criado com sucesso!');
     }
     router.push({ name: 'contratos' });
-
   } catch (err: any) {
     console.error('Erro ao salvar contrato:', err.response?.data || err);
-    
     if (err.response && err.response.status === 400 && err.response.data) {
         const apiError = err.response.data;
-        if (apiError.imovel) {
+        if (apiError.modelo_utilizado) {
+             error.value = `Modelo: ${apiError.modelo_utilizado[0]}`;
+        }
+        else if (apiError.imovel) {
              error.value = `Imóvel: ${apiError.imovel[0]}`;
         } else if (apiError.proprietario) {
              error.value = `Proprietario: ${apiError.proprietario[0]}`;
@@ -620,83 +597,52 @@ async function handleSubmit() {
     } else {
         error.value = 'Ocorreu um erro ao comunicar com o servidor. Tente novamente.';
     }
-
   } finally {
     isSubmitting.value = false;
   }
 }
 
-// ===============================================
-// WATCHERS E MOUNTED (Gatilhos de Carregamento)
-// ===============================================
-
-// Watcher 1: Dispara a busca de Proprietários ao mudar o Tipo de Contrato
 watch(() => contrato.value.tipo_contrato, (newTipo, oldTipo) => {
-    // Busca proprietários *antes* de limpar os campos
     fetchProprietarioOptions(newTipo); 
-    
-    // ==================================================================
-    // CORREÇÃO: Adicionado "!isLoading.value" para evitar limpar os IDs
-    // durante o carregamento do formulário de edição (o BUG).
-    // ==================================================================
+    fetchModeloContratoOptions(newTipo); 
     if (oldTipo !== undefined && !isLoading.value) { 
       contrato.value.proprietario = null;
       contrato.value.imovel = null;
     }
-    
     imovelOptions.value = [];
-    
 }, { immediate: true }); 
 
-// Watcher 2: Dispara a busca de Imóveis filtrados ao mudar o Proprietário
 watch(() => contrato.value.proprietario, (newProprietarioId, oldProprietarioId) => {
-    
-    // ==================================================================
-    // CORREÇÃO: Adicionado "!isLoading.value" para evitar limpar o 
-    // imóvel durante o carregamento do formulário de edição.
-    // ==================================================================
     if (oldProprietarioId !== undefined && newProprietarioId !== oldProprietarioId && !isLoading.value) {
        contrato.value.imovel = null;
     }
-    
     if (contrato.value.tipo_contrato) {
         fetchImovelOptions(contrato.value.tipo_contrato, newProprietarioId);
     } else {
         imovelOptions.value = [];
     }
-
 }, { immediate: true }); 
 
-
-// Watcher 3: Preenche o valor ao selecionar o imóvel
 watch(
   [() => contrato.value.imovel, () => imovelOptions.value], 
   ([newImovelId, newOptions]) => {
-    
     if (!newImovelId || !newOptions.length) {
       return;
     }
-    
-    // Impede a execução se ainda estiver carregando os dados do contrato (modo de edição)
     if (isLoading.value && isEditing.value) {
       return;
     }
-
     const selectedImovel = newOptions.find(o => o.value === newImovelId);
-    
     if (selectedImovel) {
       if (contrato.value.tipo_contrato === 'ALUGUEL') {
-        // Apenas preenche se o aluguel ainda não tiver valor
         if (!contrato.value.aluguel) {
             contrato.value.aluguel = selectedImovel.aluguel ? parseFloat(String(selectedImovel.aluguel)) : null;
         }
       } 
       else if (contrato.value.tipo_contrato === 'VENDA') {
-         // Apenas preenche se o valor total ainda não tiver valor
         if (!contrato.value.valor_total) {
             contrato.value.valor_total = selectedImovel.venda ? parseFloat(String(selectedImovel.venda)) : null;
         }
-        // Sempre recalcula a comissão base se o valor acordado não estiver definido
         if (!contrato.value.valor_comissao_acordado) {
              calcularComissaoInicial();
         }
@@ -705,59 +651,37 @@ watch(
   }
 );
 
-
 onMounted(async () => {
   isLoading.value = true;
   error.value = null;
   
-  // 1. Carrega dependências não filtradas (Clientes para Inquilino/Fiador)
   await fetchInitialDependencies(); 
   
   if (isEditing.value) {
-    // 2. Carrega o contrato (isso define contrato.value.proprietario
-    // e também selectedProprietario.value e selectedImovel.value)
     await fetchContrato(); 
     
-    // 3. Agora que temos os IDs e os objetos de detalhes,
-    // buscamos as *listas de opções*.
-    // Os watchers (immediate: true) JÁ foram disparados,
-    // mas podem ter rodado *antes* de 'fetchContrato' definir
-    // os selectedProprietario/Imovel.
-    // Portanto, disparamos manualmente as buscas DE NOVO,
-    // agora com a garantia de que os refs de detalhes estão preenchidos.
-    
-    // As funções fetch...Options (modificadas) usarão
-    // selectedProprietario/selectedImovel para garantir
-    // que os itens selecionados apareçam.
     if (contrato.value.tipo_contrato) {
         await fetchProprietarioOptions(contrato.value.tipo_contrato);
+        await fetchModeloContratoOptions(contrato.value.tipo_contrato);
     }
     if (contrato.value.tipo_contrato && contrato.value.proprietario) {
         await fetchImovelOptions(contrato.value.tipo_contrato, contrato.value.proprietario);
     }
 
   } else {
-    // ==================================================================
-    // CORREÇÃO: Sincronizar data de início e assinatura ao criar
-    // ==================================================================
     handleDataAssinaturaChange();
-    
-    // Dispara o fetch de proprietários para um novo contrato
-    // O watcher (immediate: true) já fez isso, mas
-    // esta é uma garantia caso o tipo padrão mude.
     await fetchProprietarioOptions(contrato.value.tipo_contrato);
+    await fetchModeloContratoOptions(contrato.value.tipo_contrato);
   }
   
   if (!error.value) {
     isLoading.value = false; 
-    // Agora que isLoading é false, as mudanças manuais do usuário 
-    // nos watchers (Proprietário e Imóvel) funcionarão como esperado.
   }
 });
 </script>
 
 <style scoped>
-/* Estilos mantidos do código anterior (semântica e cores) */
+/* (Estilos CSS inalterados) */
 .page-container-form {
     padding: 0;
 }
@@ -827,7 +751,6 @@ input[type="text"], input[type="number"], input[type="date"], select, .form-grou
     box-sizing: border-box; 
     transition: border-color 0.2s, box-shadow 0.2s;
 }
-/* Estilo para o input de data desabilitado */
 input:disabled {
   background-color: #e9ecef;
   cursor: not-allowed;
@@ -846,8 +769,6 @@ input:disabled {
     color: #007bff;
     margin-top: 5px;
 }
-
-/* Estilos para v-select (mantidos) */
 :deep(.vs__dropdown-toggle) {
   padding: 6px 8px;
   border: 1px solid #ced4da;
@@ -870,8 +791,6 @@ input:disabled {
   border-radius: 4px;
   font-size: 0.9rem;
 }
-
-/* Botões */
 .form-actions {
     margin-top: 20px;
     display: flex;
@@ -898,8 +817,6 @@ input:disabled {
     border: 1px solid #ced4da;
 }
 .btn-secondary:hover, .btn-light:hover { background-color: #e2e6ea; }
-
-/* Mensagens de estado */
 .loading-message {
     text-align: center;
     padding: 15px;
@@ -934,7 +851,6 @@ input:disabled {
   0% { transform: rotate(0deg); }
   100% { transform: rotate(360deg); }
 }
-
 @media (max-width: 768px) {
   .form-grid-3col, .form-grid-2col {
     grid-template-columns: 1fr;

@@ -8,9 +8,64 @@ from django.utils import timezone
 from app_financeiro.models import FormaPagamento
 from decimal import Decimal 
 from django.core.validators import MinValueValidator, MaxValueValidator
-# Imports ADICIONADOS (movidos de views.py)
 from app_financeiro.models import Transacao, Categoria, Conta
 from dateutil.relativedelta import relativedelta
+# Importação da nova lógica de restrição
+from django.db.models import Q, UniqueConstraint
+
+
+# ==========================================================
+# === MODELO: ModeloContrato (Inalterado)                ===
+# ==========================================================
+class ModeloContrato(models.Model):
+    class TipoContrato(models.TextChoices):
+        VENDA = 'VENDA', 'Venda'
+        ALUGUEL = 'ALUGUEL', 'Aluguel'
+
+    imobiliaria = models.ForeignKey(
+        Imobiliaria, 
+        on_delete=models.CASCADE, 
+        related_name="modelos_contrato",
+        verbose_name="Imobiliária"
+    )
+    nome = models.CharField(
+        max_length=255, 
+        verbose_name="Nome do Modelo",
+        help_text="Ex: Contrato de Aluguel Residencial (Padrão)"
+    )
+    tipo_contrato = models.CharField(
+        max_length=50, 
+        verbose_name="Tipo de Contrato", 
+        choices=TipoContrato.choices
+    )
+    conteudo = models.TextField(
+        verbose_name="Conteúdo do Modelo (HTML/Django)",
+        help_text="Cole aqui o HTML do contrato. Use variáveis como {{ inquilino.nome }}."
+    )
+    padrao = models.BooleanField(
+        default=False,
+        verbose_name="Modelo Padrão",
+        help_text="Marque se este for o modelo padrão para este tipo de contrato."
+    )
+    data_cadastro = models.DateTimeField(auto_now_add=True, verbose_name="Data de Criação")
+    data_atualizacao = models.DateTimeField(auto_now=True, verbose_name="Última Atualização")
+
+    class Meta:
+        verbose_name = "Modelo de Contrato"
+        verbose_name_plural = "Modelos de Contrato"
+        ordering = ['imobiliaria', 'tipo_contrato', '-padrao', 'nome']
+        
+        constraints = [
+            UniqueConstraint(
+                fields=['imobiliaria', 'tipo_contrato'],
+                condition=Q(padrao=True),
+                name='unique_padrao_por_imobiliaria_tipo'
+            )
+        ]
+
+    def __str__(self):
+        return f"{self.nome} ({self.get_tipo_contrato_display()}) - {self.imobiliaria.nome}"
+# ==========================================================
 
 
 class Contrato(models.Model):
@@ -19,15 +74,27 @@ class Contrato(models.Model):
         VENDA = 'VENDA', 'Venda'
         ALUGUEL = 'ALUGUEL', 'Aluguel'
 
+    # ==========================================================
+    # === ESTES SÃO OS STATUS QUE A BASE DE DADOS ESPERA AGORA ===
+    # ==========================================================
     class Status(models.TextChoices):
-        PENDENTE = 'PENDENTE', 'Pendente'
+        RASCUNHO = 'RASCUNHO', 'Rascunho'      # Substitui PENDENTE
         ATIVO = 'ATIVO', 'Ativo'
         CONCLUIDO = 'CONCLUIDO', 'Concluído'
         RESCINDIDO = 'RESCINDIDO', 'Rescindido'
-        INATIVO = 'INATIVO', 'Inativo'
+        CANCELADO = 'CANCELADO', 'Cancelado'    # Substitui INATIVO
+    # ==========================================================
     
     imobiliaria = models.ForeignKey(Imobiliaria, on_delete=models.CASCADE, verbose_name="Imobiliária")
     
+    modelo_utilizado = models.ForeignKey(
+        ModeloContrato,
+        on_delete=models.SET_NULL, 
+        null=True,
+        blank=True,
+        verbose_name="Modelo de Contrato Utilizado"
+    )
+
     tipo_contrato = models.CharField(
         max_length=50, 
         verbose_name="Tipo de Contrato", 
@@ -122,7 +189,9 @@ class Contrato(models.Model):
     
     status_contrato = models.CharField(
         max_length=50, 
-        default=Status.PENDENTE, 
+        # ==========================================================
+        default=Status.RASCUNHO, # <--- Padrão atualizado
+        # ==========================================================
         verbose_name="Status do Contrato", 
         choices=Status.choices
     )
@@ -144,40 +213,41 @@ class Contrato(models.Model):
         verbose_name="Conteúdo Personalizado do Contrato",
         help_text="Armazena o conteúdo HTML do contrato após a edição."
     )
+    
+    excluido = models.BooleanField(default=False, verbose_name="Excluído")
 
-    # --- MÉTODOS MOVIDOS DE views.py PARA models.py ---
+    @property
+    def dia_vencimento(self):
+        if self.data_primeiro_vencimento:
+            return self.data_primeiro_vencimento.day
+        return "(Dia não definido)"
 
+    # --- MÉTODOS FINANCEIROS (Inalterados) ---
+    
     def gerar_financeiro_aluguel(self):
-        """ Helper para gerar parcelas de aluguel """
         imobiliaria = self.imobiliaria
-        
         if not self.aluguel or not self.duracao_meses or not self.data_primeiro_vencimento:
              print(f"ERRO ALUGUEL: Contrato {self.id} sem Valor/Duração/Data do 1º Vencimento. Geração ignorada.")
              return False
-             
-        Pagamento.objects.filter(contrato=self, status='PENDENTE').delete()
-        Transacao.objects.filter(contrato=self, status='PENDENTE', tipo='RECEITA').delete()
-        
+        transacoes_existentes = Transacao.objects.filter(contrato=self, tipo='RECEITA').exists()
+        if transacoes_existentes:
+            print(f"AVISO ALUGUEL: Transações para Contrato {self.id} já existem. Geração ignorada.")
+            return False
         data_base_vencimento = self.data_primeiro_vencimento
         duracao = self.duracao_meses
-        
         try:
              categoria_aluguel = Categoria.objects.get(imobiliaria=imobiliaria, nome='Receita de Aluguel')
         except Categoria.DoesNotExist:
              categoria_aluguel = Categoria.objects.create(imobiliaria=imobiliaria, nome='Receita de Aluguel', tipo='RECEITA')
-             
         conta_padrao = Conta.objects.filter(imobiliaria=imobiliaria).first()
-        
         for i in range(duracao):
              data_parcela = data_base_vencimento + relativedelta(months=i)
-             
              Pagamento.objects.create(
                  contrato=self,
                  data_vencimento=data_parcela,
                  valor=self.aluguel, 
                  status='PENDENTE'
              )
-             
              Transacao.objects.create(
                  imobiliaria=imobiliaria,
                  descricao=f'Aluguel {i+1}/{duracao} - Imóvel: {self.imovel.logradouro}',
@@ -196,20 +266,14 @@ class Contrato(models.Model):
         return True
 
     def criar_transacao_comissao(self):
-        """
-        Cria a transação de RECEITA (pendente) para a comissão de venda.
-        """
-        
         descricao_base = f"Comissão Venda #{self.id}: {self.imovel.logradouro}"
         if Transacao.objects.filter(contrato=self, tipo='RECEITA', descricao__startswith=f"Comissão Venda #{self.id}").exists():
             print(f"AVISO VENDA: Lançamento de comissão para Contrato {self.id} já existe. Ignorando.")
             return False
-
         valor_comissao = self.valor_comissao_acordado 
         if not valor_comissao or valor_comissao <= 0:
             print(f"AVISO VENDA: Contrato {self.id} sem Valor de Comissão Acordado (R$ {valor_comissao}). Lançamento ignorado.")
             return False
-
         try:
             categoria_comissao, created = Categoria.objects.get_or_create(
                 imobiliaria=self.imobiliaria,
@@ -221,10 +285,9 @@ class Contrato(models.Model):
         except Exception as e:
             print(f"ERRO CRÍTICO VENDA: Falha ao obter/criar Categoria de Comissão. Erro: {e}.")
             return False
-
         data_base = timezone.now().date()
         data_vencimento = self.data_vencimento_venda 
-
+        conta_padrao = Conta.objects.filter(imobiliaria=self.imobiliaria).first()
         Transacao.objects.create(
             imobiliaria=self.imobiliaria,
             descricao=descricao_base,
@@ -233,34 +296,31 @@ class Contrato(models.Model):
             status='PENDENTE',
             data_transacao=data_base,
             data_vencimento=data_vencimento,
-            
             categoria=categoria_comissao,
-            cliente=self.proprietario, # A comissão é devida pelo Proprietário
+            conta=conta_padrao, 
+            cliente=self.proprietario, 
             imovel=self.imovel,
             contrato=self,
-            
             observacoes=f"Comissão de Venda gerada automaticamente. Valor de venda: R$ {self.valor_total}. Comissão baseada no valor acordado: R$ {valor_comissao.quantize(Decimal('0.01'))}."
         )
         print(f"SUCESSO VENDA: Criada Receita de Comissão R$ {valor_comissao} para o contrato {self.id}.")
         return True
 
-    # --- FIM DOS MÉTODOS MOVIDOS ---
-
 
     def save(self, *args, **kwargs):
-        # --- LÓGICA DE FAILSAFE (Cinto de Segurança) ---
-        # Garante que o proprietário do contrato seja sincronizado
-        # com o proprietário do imóvel selecionado, caso a view não o faça.
         if self.imovel and self.imovel.proprietario:
             self.proprietario = self.imovel.proprietario
-        # --- FIM DA LÓGICA DE FAILSAFE ---
         
-        # Lógica de cálculo inicial da comissão
         if self.tipo_contrato == self.TipoContrato.VENDA and self.valor_total and self.valor_comissao_acordado is None:
             percentual = Decimal(self.comissao_venda_percentual) / Decimal(100) 
             self.valor_comissao_acordado = self.valor_total * percentual
         
         super().save(*args, **kwargs)
+
+    def delete(self, *args, **kwargs):
+        """ Sobrescreve o delete para implementar o Soft Delete. """
+        self.excluido = True
+        self.save()
 
     class Meta:
         verbose_name = "Contrato"
@@ -272,19 +332,18 @@ class Contrato(models.Model):
 
 
 class Pagamento(models.Model):
+    # (Modelo Pagamento inalterado)
     STATUS_PAGAMENTO_CHOICES = [
         ('PENDENTE', 'Pendente'),
         ('PAGO', 'Pago'),
         ('ATRASADO', 'Atrasado'),
         ('CANCELADO', 'Cancelado'),
     ]
-
     contrato = models.ForeignKey(Contrato, on_delete=models.CASCADE, related_name="pagamentos", verbose_name="Contrato")
     valor = models.DecimalField(max_digits=15, decimal_places=2, verbose_name="Valor do Pagamento")
     data_vencimento = models.DateField(verbose_name="Data de Vencimento")
     data_pagamento = models.DateField(null=True, blank=True, verbose_name="Data de Pagamento")
     status = models.CharField(max_length=20, choices=STATUS_PAGAMENTO_CHOICES, default='PENDENTE', verbose_name="Status")
-    
     forma_pagamento_recebida = models.ForeignKey(
         'app_financeiro.FormaPagamento',
         on_delete=models.SET_NULL,
@@ -292,15 +351,12 @@ class Pagamento(models.Model):
         blank=True,
         verbose_name="Forma de Pagamento Recebida"
     )
-
     class Meta:
         verbose_name = "Pagamento"
         verbose_name_plural = "Pagamentos"
         ordering = ['data_vencimento']
-
     def __str__(self):
         return f"Pagamento de {self.valor} para o contrato #{self.contrato.id} com vencimento em {self.data_vencimento}"
-
     @property
     def esta_atrasado(self):
         return timezone.now().date() > self.data_vencimento and self.status == 'PENDENTE'

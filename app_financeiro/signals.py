@@ -1,86 +1,55 @@
-# C:\wamp64\www\ImobCloud\app_financeiro\signals.py
+# C:\wamp64\www\imobcloud\app_financeiro\signals.py
 
-from django.db.models.signals import pre_save, pre_delete
+from django.db.models.signals import post_save
 from django.dispatch import receiver
-from .models import Transacao
-from app_contratos.models import Pagamento
-from datetime import date
+from django.utils import timezone
+import logging
+# Assumindo que Pagamento e Contrato estão disponíveis via app_contratos
+from app_contratos.models import Pagamento, Contrato
+from .models import Transacao # Transacao está neste app
 
-@receiver(pre_save, sender=Transacao)
-def sincronizar_pagamento_do_contrato(sender, instance, **kwargs):
+logger = logging.getLogger(__name__)
+
+
+@receiver(post_save, sender=Transacao)
+def sincronizar_pagamento_contrato(sender, instance, created, **kwargs):
     """
-    Garante que, se uma Transacao de contrato for paga no financeiro, 
-    o Pagamento original do contrato seja atualizado.
+    Sincroniza o status do modelo Pagamento (em app_contratos) com o status
+    da Transacao sempre que uma Transacao é salva.
+    
+    Isto é crucial para que o modal financeiro mostre o status PAGO.
     """
     
-    # 1. Só executa se a transação tiver um contrato vinculado
-    if not instance.contrato:
-        return
-
-    # 2. Verifica se é uma edição (se tem 'pk')
-    if instance.pk:
+    # 1. Só processa se a transação estiver ligada a um Contrato
+    if instance.contrato:
+        
+        # 2. Busca o Pagamento correspondente (Assumimos a correspondência
+        #    pela chave Contrato + Valor + Data de Vencimento, o que é frágil
+        #    mas necessário sem uma FK direta entre Pagamento e Transacao)
         try:
-            obj_antigo = Transacao.objects.get(pk=instance.pk)
-            status_antigo = obj_antigo.status
-        except Transacao.DoesNotExist:
-            return # Objeto antigo não existe, não faz nada
-        
-        status_novo = instance.status
-
-        # 3. CONDIÇÃO PRINCIPAL:
-        # Se o status mudou para PAGO (e não era PAGO antes)
-        if status_novo == 'PAGO' and status_antigo != 'PAGO':
+            # Filtramos pelo valor e data de vencimento para encontrar o Pagamento
+            pagamento_contrato = Pagamento.objects.get(
+                contrato=instance.contrato,
+                valor=instance.valor,
+                data_vencimento=instance.data_vencimento
+            )
             
-            # 4. Encontra o Pagamento correspondente no contrato
-            try:
-                pagamento_correspondente = Pagamento.objects.get(
-                    contrato=instance.contrato,
-                    data_vencimento=instance.data_vencimento, # Usa a data de vencimento como chave
-                    status__in=['PENDENTE', 'ATRASADO']
-                )
+            status_novo = instance.status
+            
+            # 3. Sincronização
+            if status_novo == 'PAGO' and pagamento_contrato.status != 'PAGO':
+                # Transacao foi paga, atualizamos o Pagamento
+                pagamento_contrato.status = 'PAGO'
+                pagamento_contrato.data_pagamento = instance.data_pagamento or timezone.now().date()
+                pagamento_contrato.save()
+                logger.info(f"Financeiro: Sincronização OK. Pagamento Contrato {instance.contrato.id} atualizado para PAGO.")
                 
-                # 5. Atualiza o Pagamento
-                pagamento_correspondente.status = 'PAGO'
-                pagamento_correspondente.data_pagamento = instance.data_pagamento or date.today()
-                pagamento_correspondente.forma_pagamento_recebida = instance.forma_pagamento
-                pagamento_correspondente.save()
-
-            except Pagamento.DoesNotExist:
-                # Transação paga, mas não encontrou Pagamento. Pode ser uma comissão de venda (manual).
-                pass
-            except Pagamento.MultipleObjectsReturned:
-                 # ERRO: Múltiplos pagamentos encontrados. Logar isso futuramente.
-                 pass
-
-
-@receiver(pre_delete, sender=Transacao)
-def reverter_pagamento_se_transacao_deletada(sender, instance, **kwargs):
-    """
-    Se uma Transação de contrato PAGA for DELETADA, o Pagamento
-    correspondente deve voltar a ser PENDENTE para evitar inconsistência.
-    """
-    
-    # 1. Só executa se a transação tiver um contrato vinculado
-    if not instance.contrato:
-        return
-
-    # 2. Só executa se a transação deletada estava PAGA
-    if instance.status != 'PAGO':
-        return
-
-    # 3. Encontra o Pagamento correspondente que estava PAGO
-    try:
-        pagamento_correspondente = Pagamento.objects.get(
-            contrato=instance.contrato,
-            data_vencimento=instance.data_vencimento,
-            status='PAGO'
-        )
-        
-        # 4. Reverte o Pagamento para PENDENTE
-        pagamento_correspondente.status = 'PENDENTE'
-        pagamento_correspondente.data_pagamento = None
-        pagamento_correspondente.forma_pagamento_recebida = None
-        pagamento_correspondente.save()
-
-    except Pagamento.DoesNotExist:
-        pass # Não encontrou pagamento pago, o que é normal.
+            elif status_novo == 'CANCELADO' and pagamento_contrato.status not in ['PAGO', 'CANCELADO']:
+                 # Transacao cancelada, atualiza o Pagamento
+                pagamento_contrato.status = 'CANCELADO'
+                pagamento_contrato.save()
+            
+        except Pagamento.DoesNotExist:
+            # Isto pode ocorrer se a transação for a comissão de venda (que não tem Pagamento correspondente)
+            # ou se a correspondência falhar.
+            logger.debug(f"Sincronização: Pagamento correspondente não encontrado para Transacao {instance.id}.")

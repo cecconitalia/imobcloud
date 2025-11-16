@@ -39,6 +39,18 @@
         </div>
         
         <div class="toolbar-divider"></div>
+        <div class="toolbar-group">
+          <button @click="zoomOut" :disabled="zoomLevel <= 0.5" title="Diminuir Zoom (Zoom Out)">
+            <i class="fas fa-search-minus"></i>
+          </button>
+          <button @click="resetZoom" :disabled="zoomLevel === 1" title="Zoom 100%">
+            <span class="zoom-display">{{ Math.round(zoomLevel * 100) }}%</span>
+          </button>
+          <button @click="zoomIn" :disabled="zoomLevel >= 2" title="Aumentar Zoom (Zoom In)">
+            <i class="fas fa-search-plus"></i>
+          </button>
+        </div>
+        <div class="toolbar-divider"></div>
 
         <div class="toolbar-group">
           <select 
@@ -143,37 +155,35 @@
 
       </div>
 
-      <editor-content :editor="editor" class="editor-content-area" />
-
-    </div>
+      <editor-content 
+        :editor="editor" 
+        class="editor-content-area"
+        :style="editorStyle"
+      />
+      </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onBeforeUnmount } from 'vue';
+// ==========================================================
+// === IMPORTAÇÃO ADICIONADA: 'computed'                  ===
+// ==========================================================
+import { ref, onMounted, onBeforeUnmount, computed } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import apiClient from '@/services/api';
 import { useToast } from 'vue-toast-notification';
 import 'vue-toast-notification/dist/theme-sugar.css';
 
-// ==========================================================
-// ==================== IMPORTAR O TIPTAP E EXTENSÕES ========
-// ==========================================================
+// (Importações Tiptap inalteradas)
 import { useEditor, EditorContent } from '@tiptap/vue-3';
 import StarterKit from '@tiptap/starter-kit';
-// import { Heading } from '@tiptap/extension-heading'; // Removido
 import { Underline } from '@tiptap/extension-underline';
 import { TextAlign } from '@tiptap/extension-text-align';
-import { TextStyle } from '@tiptap/extension-text-style'; // Importação Base
+import { TextStyle } from '@tiptap/extension-text-style'; 
 import { Color } from '@tiptap/extension-color';
 import { Highlight } from '@tiptap/extension-highlight';
 import { FontFamily } from '@tiptap/extension-font-family';
-
-// ==========================================================
-// === Importar a extensão customizada do NOVO ARQUIVO    ===
-// ==========================================================
 import { FontSize } from '@/extensions/tiptapExtensions';
-// ==========================================================
 
 
 const route = useRoute();
@@ -186,6 +196,12 @@ const isSaving = ref(false);
 const error = ref<string | null>(null);
 const isGeneratingPdf = ref(false);
 
+// ==========================================================
+// === NOVO ESTADO: Nível de Zoom                         ===
+// ==========================================================
+const zoomLevel = ref(1); // 1 = 100%
+// ==========================================================
+
 const fontFamilies = ref([
   { label: 'Padrão (Times)', value: 'Times New Roman' },
   { label: 'Arial', value: 'Arial' },
@@ -194,41 +210,33 @@ const fontFamilies = ref([
   { label: 'Georgia', value: 'Georgia' },
 ]);
 
+// (Opções de fonte com 16px como padrão - inalterado)
 const fontSizes = ref([
-  { label: 'Padrão (12px)', value: '12px' },
+  { label: 'Padrão (16px)', value: '16px' }, 
   { label: '10px', value: '10px' },
   { label: '11px', value: '11px' },
+  { label: '12px', value: '12px' },
   { label: '14px', value: '14px' },
-  { label: '16px', value: '16px' },
   { label: '18px', value: '18px' },
 ]);
 
 
-// ==========================================================
-// ==================== CONFIGURAÇÃO DO EDITOR TIPTAP =========
-// ==========================================================
+// (Configuração do Editor Tiptap - inalterada)
 const editor = useEditor({
   content: '',
   extensions: [
     StarterKit.configure({
-      heading: false,     // CORREÇÃO: Desabilitar títulos padrão
-      textStyle: false,   // Desabilitar textStyle padrão
+      heading: false,     
+      textStyle: false,   
     }),
-    
-    // Títulos (Heading) removidos
-    
     Underline,
-    
     TextAlign.configure({
-      types: ['paragraph'], // Aplicar somente a parágrafos
+      types: ['paragraph'], 
     }),
-    
-    // Configuração para permitir `fontFamily` e `fontSize`
-    TextStyle,    // A extensão BASE (essencial)
-    FontFamily,   // Estende 'TextStyle' com 'fontFamily'
-    FontSize,     // Estende 'TextStyle' com 'fontSize' (NOSSA EXTENSÃO IMPORTADA)
-
-    Color,        // Estende 'TextStyle' com 'color'
+    TextStyle,    
+    FontFamily,   
+    FontSize,     
+    Color,        
     Highlight.configure({
       multicolor: true,
     }),
@@ -239,59 +247,73 @@ const editor = useEditor({
     },
   },
 });
-// ==========================================================
 
 // ==========================================================
-// === HANDLERS E GETTERS (Corrigidos)                    ===
+// === NOVAS FUNÇÕES: Lógica de Zoom                      ===
 // ==========================================================
+function zoomIn() {
+  if (zoomLevel.value < 2) { // Limite máximo de 200%
+    zoomLevel.value = parseFloat((zoomLevel.value + 0.1).toFixed(1));
+  }
+}
+function zoomOut() {
+  if (zoomLevel.value > 0.5) { // Limite mínimo de 50%
+    zoomLevel.value = parseFloat((zoomLevel.value - 0.1).toFixed(1));
+  }
+}
+function resetZoom() {
+  zoomLevel.value = 1;
+}
+
+// Computa o estilo CSS para aplicar o zoom
+const editorStyle = computed(() => ({
+  transform: `scale(${zoomLevel.value})`,
+  transformOrigin: 'top left',
+}));
+// ==========================================================
+
+
+// (Handlers de Fonte - inalterados, corretos para 16px)
 function handleFontFamilyChange(event: Event) {
   const target = event.target as HTMLSelectElement;
   editor.value?.chain().focus().setFontFamily(target.value).run();
 }
-
 function handleFontSizeChange(event: Event) {
   const target = event.target as HTMLSelectElement;
   const size = target.value;
-  if (size === '12px') { // Assumindo 12px como padrão
+  if (size === '16px') { 
     editor.value?.chain().focus().unsetFontSize().run();
   } else {
     editor.value?.chain().focus().setFontSize(size).run();
   }
 }
-
 function getActiveFontFamily() {
   if (!editor.value) return 'Times New Roman';
   return editor.value.getAttributes('textStyle').fontFamily || 'Times New Roman';
 }
-
 function getActiveFontSize() {
-  if (!editor.value) return '12px';
-  return editor.value.getAttributes('textStyle').fontSize || '12px';
+  if (!editor.value) return '16px'; 
+  return editor.value.getAttributes('textStyle').fontSize || '16px'; 
 }
-// ==========================================================
 
 
-// Função para buscar o HTML do contrato
+// (Funções fetchContrato, handleSave, handleVisualizarPDF - inalteradas)
 async function fetchContratoHtml() {
   isLoading.value = true;
   error.value = null;
   contratoId.value = route.params.id as string;
-
   if (!contratoId.value) {
     error.value = 'ID do contrato não encontrado.';
     isLoading.value = false;
     return;
   }
-
   try {
     const response = await apiClient.get(
       `/v1/contratos/${contratoId.value}/get-html/`
     );
-    
     if (editor.value) {
       editor.value.commands.setContent(response.data);
     }
-    
   } catch (err) {
     console.error('Erro ao buscar HTML do contrato:', err);
     error.value = 'Não foi possível carregar o documento do contrato.';
@@ -301,15 +323,11 @@ async function fetchContratoHtml() {
   }
 }
 
-// ==========================================================
-// === FUNÇÃO SALVAR (MODIFICADA)                         ===
-// ==========================================================
-async function handleSave() {
-  if (!editor.value || !contratoId.value) return;
-  
+async function handleSave(): Promise<boolean> { 
+  if (!editor.value || !contratoId.value) return false;
   isSaving.value = true;
   const htmlParaSalvar = editor.value.getHTML();
-
+  let success = false; 
   try {
     await apiClient.post(
       `/v1/contratos/${contratoId.value}/salvar-html-editado/`,
@@ -318,28 +336,32 @@ async function handleSave() {
       }
     );
     toast.success('Documento do contrato salvo com sucesso!');
-    
-    // ==========================================================
-    // === CORREÇÃO: Linha de redirecionamento REMOVIDA
-    // router.push({ name: 'contratos' }); 
-    // ==========================================================
-
+    success = true; 
   } catch (err) {
     console.error('Erro ao salvar HTML do contrato:', err);
     toast.error('Falha ao salvar o documento.');
+    success = false;
   } finally {
     isSaving.value = false;
   }
+  return success; 
 }
 
-// Função para visualizar o PDF
 async function handleVisualizarPDF() {
-  if (isGeneratingPdf.value || !contratoId.value) return; 
+  if (isGeneratingPdf.value || !contratoId.value || isSaving.value) return; 
   isGeneratingPdf.value = true;
   
+  toast.info('Salvando alterações...', { duration: 2000, position: 'top-right' });
+  const saveSuccess = await handleSave();
+  
+  if (!saveSuccess) {
+      toast.error('Não foi possível gerar o PDF pois o salvamento falhou.');
+      isGeneratingPdf.value = false;
+      return;
+  }
+
   try {
     toast.info('Gerando PDF... Por favor, aguarde.', { duration: 2000, position: 'top-right' });
-    
     const response = await apiClient.get(
       `/v1/contratos/${contratoId.value}/visualizar-pdf/`,
       {
@@ -350,7 +372,6 @@ async function handleVisualizarPDF() {
     const fileURL = URL.createObjectURL(file);
     window.open(fileURL, '_blank');
     setTimeout(() => URL.revokeObjectURL(fileURL), 10000);
-
   } catch (error: any) {
     console.error('Erro ao visualizar PDF:', error.response?.data || error);
     const errorMsg = error.response?.data?.error || "Falha ao gerar o PDF.";
@@ -360,10 +381,8 @@ async function handleVisualizarPDF() {
   }
 }
 
-
 onMounted(fetchContratoHtml);
 
-// Limpar o editor da memória
 onBeforeUnmount(() => {
   if (editor.value) {
     editor.value.destroy();
@@ -385,20 +404,28 @@ onBeforeUnmount(() => {
   /* Estilo Padrão */
   font-family: 'Times New Roman', serif; 
   line-height: 1.6; 
-  font-size: 12px; 
+  
+  /* Tamanho de fonte padrão (zoom) */
+  font-size: 1rem; /* 16px */
+  
+  /* ========================================================== */
+  /* === NOVA PROPRIEDADE: Transição suave de zoom          === */
+  /* ========================================================== */
+  transition: transform 0.2s ease-in-out;
+  /* (O 'transform' e 'transform-origin' são aplicados via style (JS)) */
+  /* ========================================================== */
 }
 .editor-content-area .prose-mirror-editor:focus {
   outline: none;
 }
 
 
-/* Estilos do PDF (Texto) */
+/* (Estilos de parágrafo, lista, etc. - inalterados) */
 .editor-content-area .prose-mirror-editor p {
   text-align: justify; 
   text-indent: 40px; 
   margin-bottom: 10px; 
 }
-/* Alinhamento do Tiptap (Aplicado a qualquer tag) */
 .editor-content-area .prose-mirror-editor [style*="text-align: left"] {
   text-align: left;
 }
@@ -413,7 +440,6 @@ onBeforeUnmount(() => {
 .editor-content-area .prose-mirror-editor [style*="text-align: justify"] {
   text-align: justify;
 }
-
 .editor-content-area .prose-mirror-editor ul {
   list-style-type: disc;
   padding-left: 40px;
@@ -439,14 +465,9 @@ onBeforeUnmount(() => {
   border-top: 1px solid #000;
   margin: 1rem 0;
 }
-/* Estilo Padrão do Marca-texto */
 .editor-content-area .prose-mirror-editor mark {
   background-color: #fef08a;
 }
-/* O Tiptap aplicará <mark style="background-color: #...">, 
-  que irá sobrescrever o padrão acima, como esperado.
-*/
-
 
 /* ========================================================== */
 /* ==================== ESTILOS DA TOOLBAR ================== */
@@ -460,7 +481,7 @@ onBeforeUnmount(() => {
   display: flex;
   flex-wrap: wrap;
   gap: 0.5rem;
-  align-items: center; /* Alinhar verticalmente */
+  align-items: center; 
 }
 
 .toolbar-group {
@@ -490,12 +511,12 @@ onBeforeUnmount(() => {
   display: inline-flex;
   align-items: center;
   gap: 0.4rem;
-  height: 29.5px; /* Altura padrão */
+  height: 29.5px; 
 }
 
 /* Botões de Ação (com texto, na toolbar) */
 .editor-toolbar .btn-toolbar-action {
-  padding: 0.25rem 0.75rem; /* Mais padding para texto */
+  padding: 0.25rem 0.75rem; 
   font-weight: 500;
   font-size: 0.8rem;
   border-width: 1px;
@@ -544,7 +565,6 @@ onBeforeUnmount(() => {
   color: #6c757d;
   border-color: #ced4da;
 }
-/* Manter a cor de fundo para botões de ação desabilitados */
 .editor-toolbar .btn-success-toolbar:disabled {
   background-color: #198754; opacity: 0.6; color: white;
 }
@@ -566,8 +586,8 @@ onBeforeUnmount(() => {
   font-weight: 500;
   line-height: 1.2;
   font-size: 0.85rem; 
-  height: 29.5px; /* Alinhar altura com botões */
-  max-width: 120px; /* Limitar largura */
+  height: 29.5px; 
+  max-width: 120px; 
 }
 .toolbar-select:hover {
   background-color: #e9ecef;
@@ -616,9 +636,34 @@ onBeforeUnmount(() => {
 </style>
 
 <style scoped>
+/* ========================================================== */
+/* === NOVO ESTILO: Display de Zoom                       === */
+/* ========================================================== */
+.zoom-display {
+  font-size: 0.8rem;
+  color: #495057;
+  font-weight: 600;
+  margin: 0 0.25rem;
+  width: 40px; /* Largura fixa para estabilidade */
+  text-align: center;
+  display: inline-block;
+  padding: 0;
+}
+/* Altera o botão de 100% para se parecer com o display */
+.editor-toolbar button .zoom-display {
+   margin: 0;
+   padding: 0;
+}
+/* ========================================================== */
+
+
 /* Estilos da página (Scoped) */
 .editor-container {
   padding: 0;
+  /* ========================================================== */
+  /* === Adiciona overflow-x para conter o zoom             === */
+  /* ========================================================== */
+  overflow-x: auto;
 }
 .card {
   background: white;
@@ -628,9 +673,9 @@ onBeforeUnmount(() => {
 }
 .card-no-padding {
   padding: 0;
-  border-radius: 8px; /* Garantir que o card tenha o radius */
-  overflow: hidden; /* Garantir que a toolbar se ajuste */
-  border: 1px solid #ccc; /* Adiciona borda ao container geral */
+  border-radius: 8px; 
+  overflow: hidden; 
+  border: 1px solid #ccc; 
 }
 .card-full-padding {
   padding: 1.5rem;

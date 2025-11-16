@@ -4,11 +4,19 @@ from rest_framework import viewsets, status, permissions
 from rest_framework.response import Response
 from rest_framework.decorators import action, api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
-from .models import Contrato, Pagamento
-from .serializers import ContratoSerializer, PagamentoSerializer, ContratoCriacaoSerializer 
+
+from .models import Contrato, Pagamento, ModeloContrato
+from .serializers import (
+    ContratoSerializer, PagamentoSerializer, ContratoCriacaoSerializer, 
+    ContratoListSerializer, ModeloContratoSerializer
+)
+
 from django.shortcuts import get_object_or_404
 from rest_framework.exceptions import ValidationError
 from django.template.loader import render_to_string
+
+from django.template import Template, Context
+
 from xhtml2pdf import pisa
 from django.http import HttpResponse
 from io import BytesIO
@@ -16,35 +24,25 @@ from django.conf import settings
 import os
 from django.utils.dateparse import parse_date
 from django.db import transaction
-from django.db.models import Exists, OuterRef
+from django.db.models import Exists, OuterRef, Q, Count, Sum
 from app_financeiro.models import Transacao 
-from rest_framework.views import APIView # Importação necessária para a classe
+from rest_framework.views import APIView 
 from django.utils import timezone
 from datetime import timedelta
 from decimal import Decimal
 from reportlab.pdfgen import canvas
 from reportlab.lib.pagesizes import letter
 
-import re # Importar a biblioteca de Expressões Regulares (RegEx)
+import re 
 
-# Importar a função de valor por extenso
 from ImobCloud.utils.formatacao_util import valor_por_extenso
 
-# ==========================================================
-# === IMPORTAÇÃO DE 'PessoaFisica' REMOVIDA (CAUSA DO ERRO) ===
-# ==========================================================
-
-
-# =================================================================
-# === CORREÇÃO: Função 'get_contrato_context' ATUALIZADA         ===
-# =================================================================
+# (Função get_contrato_context inalterada)
 def get_contrato_context(contrato):
     """
     Função helper para montar o CONTEXTO (agora fora da classe)
     """
     
-    # Importação de 'PessoaFisica' removida daqui também.
-
     # Preparar valores por extenso
     valor_total_extenso = "(Valor total não definido)"
     if contrato.valor_total:
@@ -66,22 +64,16 @@ def get_contrato_context(contrato):
             valor_comissao_extenso = valor_por_extenso(contrato.valor_comissao_acordado)
         except Exception:
             pass
-
-    # ==========================================================
-    # === Injetar perfis PF/PJ (MÉTODO CORRIGIDO)            ===
-    # === Agora usa o próprio objeto Cliente com base no tipo ===
-    # ==========================================================
     
     # 1. Proprietário (Locador)
     proprietario = contrato.proprietario
     proprietario_pf = None
     proprietario_pj = None
     if proprietario:
-        # O modelo Cliente tem 'FISICA' ou 'JURIDICA'
         if proprietario.tipo_pessoa == 'FISICA': 
-            proprietario_pf = proprietario # O próprio objeto Cliente é o Perfil PF
+            proprietario_pf = proprietario 
         elif proprietario.tipo_pessoa == 'JURIDICA':
-            proprietario_pj = proprietario # O próprio objeto Cliente é o Perfil PJ
+            proprietario_pj = proprietario 
 
     # 2. Inquilino (Locatário)
     inquilino = contrato.inquilino
@@ -105,13 +97,11 @@ def get_contrato_context(contrato):
                 fiador_pj = fiador_cliente
         
         fiadores_list.append({
-            'cliente': fiador_cliente, # O objeto Cliente
-            'pf': fiador_pf,           # O objeto Cliente (como PF) ou None
-            'pj': fiador_pj            # O objeto Cliente (como PJ) ou None
+            'cliente': fiador_cliente, 
+            'pf': fiador_pf,           
+            'pj': fiador_pj            
         })
     
-    # ==========================================================
-
     context = {
         'contrato': contrato,
         'proprietario': proprietario,
@@ -120,7 +110,6 @@ def get_contrato_context(contrato):
         'imobiliaria': contrato.imobiliaria,
         'data_hoje': timezone.now(),
         
-        # --- DADOS DE PERFIL CORRIGIDOS ---
         'locador_pf': proprietario_pf,
         'locador_pj': proprietario_pj,
         'locatario_pf': inquilino_pf,
@@ -129,7 +118,6 @@ def get_contrato_context(contrato):
         
         'fiadores': contrato.fiadores.all(), 
 
-        # --- VALORES POR EXTENSO ---
         'valor_total_extenso': valor_total_extenso,
         'aluguel_extenso': aluguel_extenso,
         'valor_comissao_extenso': valor_comissao_extenso,
@@ -137,6 +125,27 @@ def get_contrato_context(contrato):
     return context
 
 
+# (ModeloContratoViewSet inalterado)
+class ModeloContratoViewSet(viewsets.ModelViewSet):
+    serializer_class = ModeloContratoSerializer
+    permission_classes = [IsAuthenticated]
+    def get_queryset(self):
+        if hasattr(self.request.user, 'perfil') and self.request.user.perfil.imobiliaria:
+            queryset = ModeloContrato.objects.filter(
+                imobiliaria=self.request.user.perfil.imobiliaria
+            )
+            tipo_contrato = self.request.query_params.get('tipo_contrato', None)
+            if tipo_contrato:
+                queryset = queryset.filter(tipo_contrato=tipo_contrato)
+            return queryset.order_by('-padrao', 'nome')
+        return ModeloContrato.objects.none()
+    def perform_create(self, serializer):
+        if hasattr(self.request.user, 'perfil') and self.request.user.perfil.imobiliaria:
+            serializer.save(imobiliaria=self.request.user.perfil.imobiliaria)
+        else:
+            raise ValidationError("Usuário não tem imobiliária associada.")
+
+# (ContratoViewSet atualizado)
 class ContratoViewSet(viewsets.ModelViewSet):
     serializer_class = ContratoSerializer
     permission_classes = [IsAuthenticated]
@@ -148,24 +157,34 @@ class ContratoViewSet(viewsets.ModelViewSet):
                 contrato=OuterRef('pk'),
                 status='PAGO'
             ).values('pk')
-            
-            transacao_exists_subquery = Transacao.objects.filter(
+            transacao_paga_exists_subquery = Transacao.objects.filter(
                 contrato=OuterRef('pk'),
                 tipo='RECEITA',
                 status='PAGO'
             ).values('pk')
+            transacao_financeira_exists = Transacao.objects.filter(
+                contrato=OuterRef('pk')
+            ).values('pk')
 
             return Contrato.objects.filter(
-                imobiliaria=self.request.user.perfil.imobiliaria
+                imobiliaria=self.request.user.perfil.imobiliaria,
+                excluido=False 
             ).annotate(
                 possui_pagamento_pago=Exists(pagamento_exists_subquery),
-                possui_transacao_paga=Exists(transacao_exists_subquery)
-            ).order_by('-data_assinatura')
+                possui_transacao_paga=Exists(transacao_paga_exists_subquery),
+                financeiro_gerado=Exists(transacao_financeira_exists)
+            ).order_by('-data_cadastro') 
+            
         return Contrato.objects.none()
 
     def get_serializer_class(self):
-        if self.action == 'create' or self.action == 'update' or self.action == 'partial_update':
+        if self.action == 'list':
+            return ContratoListSerializer
+        
+        # O ContratoCriacaoSerializer é usado para escrita/atualização E para a ação 'ativar'
+        if self.action in ['create', 'update', 'partial_update', 'ativar']:
             return ContratoCriacaoSerializer
+            
         return ContratoSerializer
 
     def perform_create(self, serializer):
@@ -177,82 +196,144 @@ class ContratoViewSet(viewsets.ModelViewSet):
     def perform_update(self, serializer):
         serializer.save()
 
+    def destroy(self, request, *args, **kwargs):
+        try:
+            instance = self.get_object()
+            instance.delete() 
+            return Response(status=status.HTTP_204_NO_CONTENT)
+        except Contrato.DoesNotExist:
+            return Response(status=status.HTTP_404_NOT_FOUND)
+        except Exception as e:
+            return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    @action(detail=False, methods=['get'], url_path='dashboard-stats')
+    def dashboard_stats(self, request):
+        queryset = self.get_queryset()
+        stats = queryset.aggregate(
+            total_contratos=Count('id'),
+            total_ativos=Count('id', filter=Q(status_contrato=Contrato.Status.ATIVO)),
+            total_rascunho=Count('id', filter=Q(status_contrato=Contrato.Status.RASCUNHO)),
+            total_concluidos=Count('id', filter=Q(status_contrato=Contrato.Status.CONCLUIDO)),
+            valor_total_alugueis_ativos=Sum(
+                'aluguel',
+                filter=Q(
+                    tipo_contrato=Contrato.TipoContrato.ALUGUEL, 
+                    status_contrato=Contrato.Status.ATIVO
+                )
+            ),
+            valor_total_vendas_ativas=Sum(
+                'valor_total', 
+                filter=Q(
+                    tipo_contrato=Contrato.TipoContrato.VENDA, 
+                    status_contrato=Contrato.Status.ATIVO
+                )
+            )
+        )
+        stats['valor_total_vendas_ativas'] = stats['valor_total_vendas_ativas'] or 0
+        stats['valor_total_alugueis_ativos'] = stats['valor_total_alugueis_ativos'] or 0
+
+        return Response(stats)
+
     @action(detail=True, methods=['post'], url_path='ativar')
     def ativar(self, request, pk=None):
         try:
-            contrato = self.get_object()
+            contrato = self.get_object() 
             
-            if contrato.status_contrato == 'ATIVO':
+            if contrato.status_contrato == Contrato.Status.ATIVO:
                 return Response(
                     {"warning": "O contrato já está ativo."},
                     status=status.HTTP_400_BAD_REQUEST
                 )
             
-            contrato.status_contrato = 'ATIVO'
-            
+            data_patch = {'status_contrato': Contrato.Status.ATIVO}
             if not contrato.data_assinatura:
-                 contrato.data_assinatura = timezone.now().date()
+                 data_patch['data_assinatura'] = timezone.now().date()
 
-            contrato.save()
+            serializer = self.get_serializer(
+                contrato, 
+                data=data_patch, 
+                partial=True
+            )
+            serializer.is_valid(raise_exception=True)
             
-            serializer = self.get_serializer(contrato)
-            return Response(serializer.data, status=status.HTTP_200_OK)
+            self.perform_update(serializer)
+            
+            read_serializer = ContratoSerializer(serializer.instance, context={'request': request})
+            return Response(read_serializer.data, status=status.HTTP_200_OK)
 
         except Contrato.DoesNotExist:
             return Response({"error": "Contrato não encontrado"}, status=status.HTTP_404_NOT_FOUND)
         except Exception as e:
+            if isinstance(e, ValidationError):
+                return Response(e.detail, status=status.HTTP_400_BAD_REQUEST)
             return Response({"error": f"Erro interno: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
+    # ==========================================================
+    # === CORREÇÃO: Função Pagamentos (Garante Pagamentos)   ===
+    # ==========================================================
     @action(detail=True, methods=['get'])
     def pagamentos(self, request, pk=None):
         contrato = self.get_object()
-        pagamentos = Pagamento.objects.filter(contrato=contrato).order_by('data_vencimento')
-        serializer = PagamentoSerializer(pagamentos, many=True)
-        return Response(serializer.data)
+        
+        # Filtra os pagamentos/transações (apenas se o contrato for de aluguel)
+        if contrato.tipo_contrato == Contrato.TipoContrato.ALUGUEL:
+             pagamentos = Pagamento.objects.filter(contrato=contrato).order_by('data_vencimento')
+             serializer = PagamentoSerializer(pagamentos, many=True)
+             return Response(serializer.data)
+        
+        # Se for Venda, ou se o financeiro não foi gerado, retorna uma lista vazia
+        return Response([]) 
+    # ==========================================================
         
     @action(detail=True, methods=['get'])
     def transacoes(self, request, pk=None):
         contrato = self.get_object()
         pagamentos = Pagamento.objects.filter(contrato=contrato).order_by('data_vencimento')
-        transacoes_comissao = Transacao.objects.filter(
-            contrato=contrato,
-            tipo='RECEITA'
-        ).order_by('data_vencimento')
         pagamentos_data = PagamentoSerializer(pagamentos, many=True).data
-        transacoes_data = [] 
-        
         if pagamentos.exists():
-             serializer = PagamentoSerializer(pagamentos, many=True)
-             return Response(serializer.data)
-        
+             return Response(pagamentos_data)
         return Response(pagamentos_data)
-
 
     @action(detail=True, methods=['get'], url_path='get-html')
     def get_html_content(self, request, pk=None):
         contrato = get_object_or_404(Contrato, pk=pk)
         
-        # 1. Se o contrato JÁ TEM conteúdo personalizado, use-o
-        if contrato.conteudo_personalizado:
+        if contrato.conteudo_personalizado and len(contrato.conteudo_personalizado) > 50:
             return Response(contrato.conteudo_personalizado)
             
-        # 2. Se não tiver, GERE o conteúdo pela primeira vez
-        #    (AGORA USANDO A FUNÇÃO CORRIGIDA)
         context = get_contrato_context(contrato)
+        html_string = ""
         
-        template_name = 'contrato_aluguel_template.html'
-        if contrato.tipo_contrato == 'VENDA':
-            template_name = 'contrato_venda_template.html'
+        modelo = contrato.modelo_utilizado
+        
+        if not modelo:
+            modelo = ModeloContrato.objects.filter(
+                imobiliaria=contrato.imobiliaria,
+                tipo_contrato=contrato.tipo_contrato,
+                padrao=True
+            ).first()
+
+        if modelo and modelo.conteudo and len(modelo.conteudo) > 50:
+            try:
+                template = Template(modelo.conteudo)
+                context_obj = Context(context)
+                html_string = template.render(context_obj)
+            except Exception as e:
+                print(f"Erro ao renderizar template do BD (ID: {modelo.id}): {e}")
+                html_string = ""
+        
+        if not html_string:
+            print(f"Aviso: Contrato {pk} está a usar o template de fallback (modelo não encontrado ou vazio).")
+            template_name = 'contrato_aluguel_template.html'
+            if contrato.tipo_contrato == 'VENDA':
+                template_name = 'contrato_venda_template.html'
             
-        html_string = render_to_string(template_name, context)
+            html_string = render_to_string(template_name, context)
         
-        # 3. Salve o HTML (recém-gerado) no banco
         contrato.conteudo_personalizado = html_string
         contrato.save()
         
-        # 4. Retorne o HTML
         return Response(html_string)
-
 
     @action(detail=True, methods=['post'], url_path='salvar-html-editado')
     def salvar_html_editado(self, request, pk=None):
@@ -275,30 +356,36 @@ class ContratoViewSet(viewsets.ModelViewSet):
             
             html_content = contrato.conteudo_personalizado
             
-            if not html_content:
-                # Usa a função de contexto atualizada
+            if not html_content or len(html_content) < 50:
                 context = get_contrato_context(contrato)
+                modelo = contrato.modelo_utilizado
                 
-                template_name = 'contrato_aluguel_template.html'
-                if contrato.tipo_contrato == 'VENDA':
-                    template_name = 'contrato_venda_template.html'
+                if not modelo:
+                    modelo = ModeloContrato.objects.filter(
+                        imobiliaria=contrato.imobiliaria,
+                        tipo_contrato=contrato.tipo_contrato,
+                        padrao=True
+                    ).first()
                 
-                html_content = render_to_string(template_name, context)
+                if modelo and modelo.conteudo and len(modelo.conteudo) > 50:
+                    try:
+                        template = Template(modelo.conteudo)
+                        context_obj = Context(context)
+                        html_content = template.render(context_obj)
+                    except Exception:
+                        html_content = "" 
+                
+                if not html_content:
+                    template_name = 'contrato_aluguel_template.html'
+                    if contrato.tipo_contrato == 'VENDA':
+                        template_name = 'contrato_venda_template.html'
+                    html_content = render_to_string(template_name, context)
 
-            # ==========================================================
-            # === Limpeza de estilos para o PDF (Mantida)            ===
-            # ==========================================================
-            
-            # Converte alinhamento de <p style="text-align:..."> para <p align="...">
             html_content = re.sub(r'<p style=\"text-align:\\s*center;\">', r'<p align=\"center\">', html_content, flags=re.IGNORECASE)
             html_content = re.sub(r'<p style=\"text-align:\\s*right;\">', r'<p align=\"right\">', html_content, flags=re.IGNORECASE)
             html_content = re.sub(r'<p style=\"text-align:\\s*left;\">', r'<p align=\"left\">', html_content, flags=re.IGNORECASE)
             html_content = re.sub(r'<p style=\"text-align:\\s*justify;\">', r'<p align=\"justify\">', html_content, flags=re.IGNORECASE)
-            
-            # Remove spans vazios que o editor pode deixar
             html_content = re.sub(r'<span style=\"\\s*\">\\s*</span>', '', html_content, flags=re.IGNORECASE)
-            
-            # ==========================================================
 
             html_string_with_meta = f'<html><head><meta charset=\"UTF-8\"></head><body>{html_content}</body></html>'
 
@@ -317,33 +404,24 @@ class ContratoViewSet(viewsets.ModelViewSet):
         except Exception as e:
             return Response({"error": f"Erro interno: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-
-# Classe PagamentoViewSet
 class PagamentoViewSet(viewsets.ModelViewSet):
     serializer_class = PagamentoSerializer
     permission_classes = [IsAuthenticated]
-
     def get_queryset(self):
         if hasattr(self.request.user, 'perfil') and self.request.user.perfil.imobiliaria:
             return Pagamento.objects.filter(
                 contrato__imobiliaria=self.request.user.perfil.imobiliaria
             ).order_by('-data_vencimento')
         return Pagamento.objects.none()
-
     def perform_create(self, serializer):
         serializer.save()
 
-
-# Classe GerarReciboView
 class GerarReciboView(APIView):
     permission_classes = [IsAuthenticated]
-
     def get(self, request, pagamento_id):
         pagamento = get_object_or_404(Pagamento, pk=pagamento_id, contrato__imobiliaria=request.user.perfil.imobiliaria)
-
         if pagamento.status != 'PAGO':
             return HttpResponse("Este pagamento ainda não foi baixado.", status=400)
-
         context = {
             'pagamento': pagamento,
             'contrato': pagamento.contrato,
@@ -353,120 +431,57 @@ class GerarReciboView(APIView):
             'imovel': pagamento.contrato.imovel,
             'data_pagamento': pagamento.data_pagamento or timezone.now(),
         }
-        
         html_string = render_to_string('recibo_template.html', context)
-        
-        # Limpeza de estilos (mantida para o recibo, que não é editável)
-        html_string = re.sub(r'font-size:[^;\"]*', '', html_string, flags=re.IGNORECASE)
-        html_string = re.sub(r'font-family:[^;\"]*', '', html_string, flags=re.IGNORECASE)
         html_string = re.sub(r'<p style=\"text-align:\\s*center;\">', r'<p align=\"center\">', html_string, flags=re.IGNORECASE)
         html_string = re.sub(r'<p style=\"text-align:\\s*right;\">', r'<p align=\"right\">', html_string, flags=re.IGNORECASE)
         html_string = re.sub(r'<p style=\"text-align:\\s*left;\">', r'<p align=\"left\">', html_string, flags=re.IGNORECASE)
         html_string = re.sub(r'text-align:[^;\"]*', '', html_string, flags=re.IGNORECASE) 
         html_string = re.sub(r'<span style=\"\\s*\">\\s*</span>', '', html_string, flags=re.IGNORECASE)
-
         html_string_with_meta = f'<html><head><meta charset=\"UTF-8\"></head><body>{html_string}</body></html>'
-
         result = BytesIO()
         pdf = pisa.pisaDocument(BytesIO(html_string_with_meta.encode("UTF-8")), result)
-        
         if not pdf.err:
             response = HttpResponse(result.getvalue(), content_type='application/pdf')
             response['Content-Disposition'] = f'filename="recibo_{pagamento_id}.pdf"'
             return response
-        
         return HttpResponse(f'Erro ao gerar recibo: {pdf.err}', status=500)
 
-
-# Função 'gerar_contrato_pdf_editado'
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def gerar_contrato_pdf_editado(request, pk=None):
     try:
-        if not (hasattr(request.user, 'perfil') and request.user.perfil.imobiliaria):
-             return HttpResponse("Usuário não tem imobiliária associada.", status=403)
-             
-        contrato = get_object_or_404(Contrato, pk=pk, imobiliaria=request.user.perfil.imobiliaria)
-        
-        html_content = contrato.conteudo_personalizado
-        
-        if not html_content:
-            # Usa a função de contexto atualizada
-            context = get_contrato_context(contrato)
-            
-            template_name = 'contrato_aluguel_template.html'
-            if contrato.tipo_contrato == 'VENDA':
-                template_name = 'contrato_venda_template.html'
-            
-            html_content = render_to_string(template_name, context)
-
-        # ==========================================================
-        # === Limpeza de estilos para o PDF (Mantida)            ===
-        # ==========================================================
-        
-        # Converte alinhamento de <p style="text-align:..."> para <p align="...">
-        html_content = re.sub(r'<p style=\"text-align:\\s*center;\">', r'<p align=\"center\">', html_content, flags=re.IGNORECASE)
-        html_content = re.sub(r'<p style=\"text-align:\\s*right;\">', r'<p align=\"right\">', html_content, flags=re.IGNORECASE)
-        html_content = re.sub(r'<p style=\"text-align:\\s*left;\">', r'<p align=\"left\">', html_content, flags=re.IGNORECASE)
-        html_content = re.sub(r'<p style=\"text-align:\\s*justify;\">', r'<p align=\"justify\">', html_content, flags=re.IGNORECASE)
-        
-        # Remove spans vazios que o editor pode deixar
-        html_content = re.sub(r'<span style=\"\\s*\">\\s*</span>', '', html_content, flags=re.IGNORECASE)
-        # ==========================================================
-
-        html_string_with_meta = f'<html><head><meta charset=\"UTF-8\"></head><body>{html_content}</body></html>'
-
-        result = BytesIO()
-        pdf = pisa.pisaDocument(BytesIO(html_string_with_meta.encode("UTF-8")), result)
-        
-        if not pdf.err:
-            response = HttpResponse(result.getvalue(), content_type='application/pdf')
-            response['Content-Disposition'] = f'filename="contrato_editado_{pk}.pdf"'
-            return response
-        else:
-            return HttpResponse(f'Erro ao gerar PDF: {pdf.err}', status=500)
-
+        view = ContratoViewSet.as_view({'get': 'generate_pdf_contrato'})
+        response = view(request, pk=pk)
+        if response.status_code == 200:
+             response['Content-Disposition'] = f'filename="contrato_editado_{pk}.pdf"'
+        return response
     except Contrato.DoesNotExist:
         return Response({"error": "Contrato não encontrado"}, status=status.HTTP_404_NOT_FOUND)
     except Exception as e:
         return Response({"error": f"Erro interno: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-
-    
     
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def limpar_estilos_view(request, pk):
     try:
         contrato = get_object_or_404(Contrato, pk=pk, imobiliaria=request.user.perfil.imobiliaria)
-        
         if not contrato.conteudo_personalizado:
             return Response({"message": "Contrato não possui conteúdo personalizado."}, status=status.HTTP_400_BAD_REQUEST)
-
         html_content = contrato.conteudo_personalizado
-
-        # ==========================================================
-        # Aplicar a mesma limpeza aqui por segurança
-        # ==========================================================
         html_content = re.sub(r'<p style=\"text-align:\\s*center;\">', r'<p align=\"center\">', html_content, flags=re.IGNORECASE)
         html_content = re.sub(r'<p style=\"text-align:\\s*right;\">', r'<p align=\"right\">', html_content, flags=re.IGNORECASE)
         html_content = re.sub(r'<p style=\"text-align:\\s*left;\">', r'<p align=\"left\">', html_content, flags=re.IGNORECASE)
         html_content = re.sub(r'<p style=\"text-align:\\s*justify;\">', r'<p align=\"justify\">', html_content, flags=re.IGNORECASE)
-
         html_content = re.sub(r'<span style=\"\\s*\">\\s*</span>', '', html_content, flags=re.IGNORECASE)
-        # ==========================================================
-
         html_string_with_meta = f'<html><head><meta charset=\"UTF-8\"></head><body>{html_content}</body></html>'
-
         result = BytesIO()
         pdf = pisa.pisaDocument(BytesIO(html_string_with_meta.encode("UTF-8")), result)
-        
         if not pdf.err:
             contrato.conteudo_personalizado = html_content
             contrato.save()
             return Response({"success": "Estilos limpos e documento salvo."})
         else:
             return Response({"error": f"Erro ao validar PDF após limpeza: {pdf.err}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-
     except Contrato.DoesNotExist:
         return Response({"error": "Contrato não encontrado"}, status=status.HTTP_404_NOT_FOUND)
     except Exception as e:

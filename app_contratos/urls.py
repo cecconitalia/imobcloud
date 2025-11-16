@@ -1,40 +1,35 @@
-# C:\wamp64\www\imobcloud\app_contratos\urls.py
+# Em app_contratos/urls.py
 
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
-# ==================================================================
-# CORREÇÃO: Importações das views que faltavam
-# ==================================================================
 from .views import (
-    ContratoViewSet, 
-    PagamentoViewSet, 
-    GerarReciboView, 
-    gerar_contrato_pdf_editado
+    ContratoViewSet, PagamentoViewSet, GerarReciboView, 
+    gerar_contrato_pdf_editado, limpar_estilos_view,
+    # ==========================================================
+    # === IMPORTAÇÃO ADICIONADA: ModeloContratoViewSet       ===
+    # ==========================================================
+    ModeloContratoViewSet
 )
 
 router = DefaultRouter()
 router.register(r'contratos', ContratoViewSet, basename='contrato')
 router.register(r'pagamentos', PagamentoViewSet, basename='pagamento')
 
+# ==========================================================
+# === NOVO REGISTRO: API para Modelos de Contrato        ===
+# ==========================================================
+router.register(r'modelos-contrato', ModeloContratoViewSet, basename='modelo-contrato')
+# ==========================================================
+
+
 urlpatterns = [
-    # Rotas do ViewSet (geradas automaticamente)
     path('', include(router.urls)),
     
-    # ==================================================================
-    # CORREÇÃO: Rotas manuais necessárias que estavam faltando
-    # ==================================================================
+    # URLs de Ação (mantidas)
+    path('recibo/<int:pagamento_id>/gerar/', GerarReciboView.as_view(), name='gerar_recibo_pdf'),
     
-    # Rota para a APIView de geração de recibo de pagamento
-    path(
-        'pagamentos/<int:pagamento_id>/gerar-recibo/', 
-        GerarReciboView.as_view(), 
-        name='gerar-recibo'
-    ),
+    # (Esta URL agora é redundante, mas mantida por segurança)
+    path('contratos/<int:pk>/gerar-pdf-editado/', gerar_contrato_pdf_editado, name='gerar_contrato_pdf_editado'), 
     
-    # Rota para a @api_view de geração de PDF editado (usada pela action do frontend)
-    path(
-        'contratos/<int:contrato_id>/gerar-pdf-editado/', 
-        gerar_contrato_pdf_editado, 
-        name='gerar-contrato-pdf-editado'
-    ),
+    path('contratos/<int:pk>/limpar-estilos/', limpar_estilos_view, name='limpar_estilos'),
 ]
