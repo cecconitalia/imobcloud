@@ -1,79 +1,150 @@
 <template>
   <div class="page-container editor-container">
-    <div class="view-header">
-      <h1>Editor de Documento de Contrato</h1>
-      <button @click="router.back()" class="btn btn-secondary">
-        <i class="fas fa-arrow-left"></i> Voltar
-      </button>
-    </div>
-
-    <div v-if="isLoading" class="loading-message card">
+    <div v-if="isLoading" class="loading-message card-full-padding">
       <div class="spinner"></div>
       Carregando documento...
     </div>
 
-    <div v-if="error" class="error-message card">{{ error }}</div>
+    <div v-if="error" class="error-message card-full-padding">{{ error }}</div>
 
-    <div v-if="!isLoading && !error" class="card">
+    <div v-if="!isLoading && !error && editor" class="card card-no-padding">
       
-      <div v-if="editor" class="editor-toolbar">
-        <button @click="editor.chain().focus().undo().run()" :disabled="!editor.can().undo()">
-          <i class="fas fa-undo"></i>
-        </button>
-        <button @click="editor.chain().focus().redo().run()" :disabled="!editor.can().redo()">
-          <i class="fas fa-redo"></i>
-        </button>
-
-        <button @click="editor.chain().focus().toggleHeading({ level: 1 }).run()" :class="{ 'is-active': editor.isActive('heading', { level: 1 }) }">
-          H1
-        </button>
-        <button @click="editor.chain().focus().toggleHeading({ level: 2 }).run()" :class="{ 'is-active': editor.isActive('heading', { level: 2 }) }">
-          H2
-        </button>
-        <button @click="editor.chain().focus().toggleHeading({ level: 3 }).run()" :class="{ 'is-active': editor.isActive('heading', { level: 3 }) }">
-          H3
-        </button>
-
-        <button @click="editor.chain().focus().toggleBold().run()" :class="{ 'is-active': editor.isActive('bold') }">
-          <i class="fas fa-bold"></i>
-        </button>
-        <button @click="editor.chain().focus().toggleItalic().run()" :class="{ 'is-active': editor.isActive('italic') }">
-          <i class="fas fa-italic"></i>
-        </button>
-        <button @click="editor.chain().focus().toggleUnderline().run()" :class="{ 'is-active': editor.isActive('underline') }">
-          <i class="fas fa-underline"></i>
-        </button>
-        <button @click="editor.chain().focus().toggleStrike().run()" :class="{ 'is-active': editor.isActive('strike') }">
-          <i class="fas fa-strikethrough"></i>
-        </button>
-
-        <button @click="editor.chain().focus().toggleBulletList().run()" :class="{ 'is-active': editor.isActive('bulletList') }">
-          <i class="fas fa-list-ul"></i>
-        </button>
-        <button @click="editor.chain().focus().toggleBlockquote().run()" :class="{ 'is-active': editor.isActive('blockquote') }">
-          <i class="fas fa-quote-right"></i>
-        </button>
-        <button @click="editor.chain().focus().setHorizontalRule().run()">
-          <i class="fas fa-minus"></i>
-        </button>
+      <div class="editor-toolbar">
         
+        <div class="toolbar-group">
+          <button @click="router.back()" class="btn-toolbar-action btn-secondary-toolbar" title="Voltar">
+            <i class="fas fa-arrow-left"></i> Voltar
+          </button>
+          <button @click="handleSave" class="btn-toolbar-action btn-success-toolbar" :disabled="isSaving || isGeneratingPdf" title="Salvar Documento">
+            <i v-if="isSaving" class="fas fa-spinner fa-spin"></i>
+            <i v-else class="fas fa-save"></i>
+            Salvar
+          </button>
+          <button @click="handleVisualizarPDF" class="btn-toolbar-action btn-info-toolbar" :disabled="isGeneratingPdf || isSaving" title="Visualizar PDF">
+            <i v-if="isGeneratingPdf" class="fas fa-spinner fa-spin"></i>
+            <i v-else class="fas fa-file-pdf"></i>
+            PDF
+          </button>
+        </div>
+        
+        <div class="toolbar-divider"></div>
+
+        <div class="toolbar-group">
+          <button @click="editor.chain().focus().undo().run()" :disabled="!editor.can().undo()" title="Desfazer">
+            <i class="fas fa-undo"></i>
+          </button>
+          <button @click="editor.chain().focus().redo().run()" :disabled="!editor.can().redo()" title="Refazer">
+            <i class="fas fa-redo"></i>
+          </button>
+        </div>
+        
+        <div class="toolbar-divider"></div>
+
+        <div class="toolbar-group">
+          <select 
+            class="toolbar-select" 
+            :value="getActiveFontFamily()"
+            @change="handleFontFamilyChange"
+            title="Fonte"
+          >
+            <option 
+              v-for="font in fontFamilies" :key="font.value" 
+              :value="font.value"
+              :style="{ 'font-family': font.value }"
+            >
+              {{ font.label }}
+            </option>
+          </select>
+          
+          <select 
+            class="toolbar-select" 
+            :value="getActiveFontSize()"
+            @change="handleFontSizeChange"
+            title="Tamanho da Fonte"
+          >
+            <option 
+              v-for="size in fontSizes" :key="size.value" 
+              :value="size.value"
+            >
+              {{ size.label }}
+            </option>
+          </select>
+        </div>
+        
+        <div class="toolbar-divider"></div>
+        
+        <div class="toolbar-group">
+          <button @click="editor.chain().focus().toggleBold().run()" :class="{ 'is-active': editor.isActive('bold') }" title="Negrito">
+            <i class="fas fa-bold"></i>
+          </button>
+          <button @click="editor.chain().focus().toggleItalic().run()" :class="{ 'is-active': editor.isActive('italic') }" title="Itálico">
+            <i class="fas fa-italic"></i>
+          </button>
+          <button @click="editor.chain().focus().toggleUnderline().run()" :class="{ 'is-active': editor.isActive('underline') }" title="Sublinhado">
+            <i class="fas fa-underline"></i>
+          </button>
+          <button @click="editor.chain().focus().toggleStrike().run()" :class="{ 'is-active': editor.isActive('strike') }" title="Tachado">
+            <i class="fas fa-strikethrough"></i>
+          </button>
+          
+          <div class="toolbar-color-wrapper" title="Cor do Texto">
+            <i class="fas fa-font"></i>
+            <input 
+              type="color" 
+              @input="editor.chain().focus().setColor($event.target.value).run()" 
+              :value="editor.getAttributes('textStyle').color || '#000000'"
+              class="toolbar-color-picker"
+            >
+          </div>
+          <div class="toolbar-color-wrapper" title="Cor do Marca-texto">
+            <i class="fas fa-highlighter"></i>
+            <input 
+              type="color" 
+              @input="editor.chain().focus().toggleHighlight({ color: $event.target.value }).run()"
+              :value="editor.getAttributes('highlight')?.color || '#ffffff'"
+              class="toolbar-color-picker"
+            >
+          </div>
+          <button @click="editor.chain().focus().unsetAllMarks().run()" title="Limpar Formatação">
+            <i class="fas fa-eraser"></i>
+          </button>
+        </div>
+
+        <div class="toolbar-divider"></div>
+
+        <div class="toolbar-group">
+          <button @click="editor.chain().focus().setTextAlign('left').run()" :class="{ 'is-active': editor.isActive({ textAlign: 'left' }) }" title="Alinhar à Esquerda">
+            <i class="fas fa-align-left"></i>
+          </button>
+          <button @click="editor.chain().focus().setTextAlign('center').run()" :class="{ 'is-active': editor.isActive({ textAlign: 'center' }) }" title="Centralizar">
+            <i class="fas fa-align-center"></i>
+          </button>
+          <button @click="editor.chain().focus().setTextAlign('right').run()" :class="{ 'is-active': editor.isActive({ textAlign: 'right' }) }" title="Alinhar à Direita">
+            <i class="fas fa-align-right"></i>
+          </button>
+          <button @click="editor.chain().focus().setTextAlign('justify').run()" :class="{ 'is-active': editor.isActive({ textAlign: 'justify' }) }" title="Justificar">
+            <i class="fas fa-align-justify"></i>
+          </button>
+        </div>
+        
+        <div class="toolbar-divider"></div>
+
+        <div class="toolbar-group">
+          <button @click="editor.chain().focus().toggleBulletList().run()" :class="{ 'is-active': editor.isActive('bulletList') }" title="Lista">
+            <i class="fas fa-list-ul"></i>
+          </button>
+          <button @click="editor.chain().focus().toggleBlockquote().run()" :class="{ 'is-active': editor.isActive('blockquote') }" title="Citação">
+            <i class="fas fa-quote-right"></i>
+          </button>
+          <button @click="editor.chain().focus().setHorizontalRule().run()" title="Linha Horizontal">
+            <i class="fas fa-minus"></i>
+          </button>
+        </div>
+
       </div>
 
       <editor-content :editor="editor" class="editor-content-area" />
 
-      <div class="editor-actions">
-        <button @click="handleSave" class="btn btn-success" :disabled="isSaving">
-          <i v-if="isSaving" class="fas fa-spinner fa-spin"></i>
-          <i v-else class="fas fa-save"></i>
-          Salvar Alterações no Documento
-        </button>
-        <p>
-          <small>
-            Atenção: As alterações salvas aqui são permanentes e usadas para gerar
-            o PDF final.
-          </small>
-        </p>
-      </div>
     </div>
   </div>
 </template>
@@ -89,27 +160,49 @@ import 'vue-toast-notification/dist/theme-sugar.css';
 // ==================== IMPORTAR O TIPTAP E EXTENSÕES ========
 // ==========================================================
 import { useEditor, EditorContent } from '@tiptap/vue-3';
-import StarterKit from '@tiptap/starter-kit'; // Pacote base
-import { Heading } from '@tiptap/extension-heading';
-
-// Importações Corrigidas (com {})
+import StarterKit from '@tiptap/starter-kit';
+// import { Heading } from '@tiptap/extension-heading'; // Removido
 import { Underline } from '@tiptap/extension-underline';
+import { TextAlign } from '@tiptap/extension-text-align';
+import { TextStyle } from '@tiptap/extension-text-style'; // Importação Base
+import { Color } from '@tiptap/extension-color';
+import { Highlight } from '@tiptap/extension-highlight';
+import { FontFamily } from '@tiptap/extension-font-family';
 
-// REMOVIDAS AS EXTENSÕES PROBLEMÁTICAS
-// import { TextAlign } from '@tiptap/extension-text-align';
-// import { FontFamily } from '@tiptap/extension-font-family';
-// import { TextStyle } from '@tiptap/extension-text-style';
 // ==========================================================
+// === Importar a extensão customizada do NOVO ARQUIVO    ===
+// ==========================================================
+import { FontSize } from '@/extensions/tiptapExtensions';
+// ==========================================================
+
 
 const route = useRoute();
 const router = useRouter(); 
 const toast = useToast();
 
 const contratoId = ref<string | null>(null);
-const htmlContent = ref(''); 
 const isLoading = ref(true);
 const isSaving = ref(false);
 const error = ref<string | null>(null);
+const isGeneratingPdf = ref(false);
+
+const fontFamilies = ref([
+  { label: 'Padrão (Times)', value: 'Times New Roman' },
+  { label: 'Arial', value: 'Arial' },
+  { label: 'Verdana', value: 'Verdana' },
+  { label: 'Courier New', value: 'Courier New' },
+  { label: 'Georgia', value: 'Georgia' },
+]);
+
+const fontSizes = ref([
+  { label: 'Padrão (12px)', value: '12px' },
+  { label: '10px', value: '10px' },
+  { label: '11px', value: '11px' },
+  { label: '14px', value: '14px' },
+  { label: '16px', value: '16px' },
+  { label: '18px', value: '18px' },
+]);
+
 
 // ==========================================================
 // ==================== CONFIGURAÇÃO DO EDITOR TIPTAP =========
@@ -117,31 +210,28 @@ const error = ref<string | null>(null);
 const editor = useEditor({
   content: '',
   extensions: [
-    // Corrigido: Dizer ao StarterKit para NÃO incluir o 'heading' padrão
     StarterKit.configure({
-      heading: false,
+      heading: false,     // CORREÇÃO: Desabilitar títulos padrão
+      textStyle: false,   // Desabilitar textStyle padrão
     }),
     
-    // Carregar o 'heading' configurado
-    Heading.configure({
-      levels: [1, 2, 3],
-      HTMLAttributes: {
-        class: (attrs) => {
-          if (attrs.level === 1) return 'h1-pdf'; 
-          if (attrs.level === 2) return 'h2-pdf';
-          if (attrs.level === 3) return 'h3-pdf';
-          return '';
-        },
-      },
-    }),
+    // Títulos (Heading) removidos
     
-    // Extensões adicionais
     Underline,
     
-    // REMOVIDAS AS EXTENSÕES PROBLEMÁTICAS
-    // TextAlign.configure(...),
-    // TextStyle, 
-    // FontFamily,
+    TextAlign.configure({
+      types: ['paragraph'], // Aplicar somente a parágrafos
+    }),
+    
+    // Configuração para permitir `fontFamily` e `fontSize`
+    TextStyle,    // A extensão BASE (essencial)
+    FontFamily,   // Estende 'TextStyle' com 'fontFamily'
+    FontSize,     // Estende 'TextStyle' com 'fontSize' (NOSSA EXTENSÃO IMPORTADA)
+
+    Color,        // Estende 'TextStyle' com 'color'
+    Highlight.configure({
+      multicolor: true,
+    }),
   ],
   editorProps: {
     attributes: {
@@ -151,12 +241,33 @@ const editor = useEditor({
 });
 // ==========================================================
 
+// ==========================================================
+// === HANDLERS E GETTERS (Corrigidos)                    ===
+// ==========================================================
+function handleFontFamilyChange(event: Event) {
+  const target = event.target as HTMLSelectElement;
+  editor.value?.chain().focus().setFontFamily(target.value).run();
+}
 
-// ==========================================================
-// ==================== FUNÇÕES (Fonte/Tamanho) REMOVIDAS ====
-// ==========================================================
-// const setFontFamily = ...
-// const setFontSize = ...
+function handleFontSizeChange(event: Event) {
+  const target = event.target as HTMLSelectElement;
+  const size = target.value;
+  if (size === '12px') { // Assumindo 12px como padrão
+    editor.value?.chain().focus().unsetFontSize().run();
+  } else {
+    editor.value?.chain().focus().setFontSize(size).run();
+  }
+}
+
+function getActiveFontFamily() {
+  if (!editor.value) return 'Times New Roman';
+  return editor.value.getAttributes('textStyle').fontFamily || 'Times New Roman';
+}
+
+function getActiveFontSize() {
+  if (!editor.value) return '12px';
+  return editor.value.getAttributes('textStyle').fontSize || '12px';
+}
 // ==========================================================
 
 
@@ -190,12 +301,13 @@ async function fetchContratoHtml() {
   }
 }
 
-// Função para salvar o HTML editado
+// ==========================================================
+// === FUNÇÃO SALVAR (MODIFICADA)                         ===
+// ==========================================================
 async function handleSave() {
   if (!editor.value || !contratoId.value) return;
   
   isSaving.value = true;
-
   const htmlParaSalvar = editor.value.getHTML();
 
   try {
@@ -207,7 +319,10 @@ async function handleSave() {
     );
     toast.success('Documento do contrato salvo com sucesso!');
     
-    router.push({ name: 'contratos' }); // Volta para a lista de contratos
+    // ==========================================================
+    // === CORREÇÃO: Linha de redirecionamento REMOVIDA
+    // router.push({ name: 'contratos' }); 
+    // ==========================================================
 
   } catch (err) {
     console.error('Erro ao salvar HTML do contrato:', err);
@@ -216,6 +331,35 @@ async function handleSave() {
     isSaving.value = false;
   }
 }
+
+// Função para visualizar o PDF
+async function handleVisualizarPDF() {
+  if (isGeneratingPdf.value || !contratoId.value) return; 
+  isGeneratingPdf.value = true;
+  
+  try {
+    toast.info('Gerando PDF... Por favor, aguarde.', { duration: 2000, position: 'top-right' });
+    
+    const response = await apiClient.get(
+      `/v1/contratos/${contratoId.value}/visualizar-pdf/`,
+      {
+        responseType: 'blob' 
+      }
+    );
+    const file = new Blob([response.data], { type: 'application/pdf' });
+    const fileURL = URL.createObjectURL(file);
+    window.open(fileURL, '_blank');
+    setTimeout(() => URL.revokeObjectURL(fileURL), 10000);
+
+  } catch (error: any) {
+    console.error('Erro ao visualizar PDF:', error.response?.data || error);
+    const errorMsg = error.response?.data?.error || "Falha ao gerar o PDF.";
+    toast.error(errorMsg, { duration: 5000, position: 'top-right' });
+  } finally {
+    isGeneratingPdf.value = false;
+  }
+}
+
 
 onMounted(fetchContratoHtml);
 
@@ -233,34 +377,20 @@ onBeforeUnmount(() => {
 /* ========================================================== */
 .editor-content-area .prose-mirror-editor {
   min-height: 600px;
-  border: 1px solid #ccc;
-  border-radius: 0 0 8px 8px; /* Cantos arredondados em baixo */
+  border-top: 1px solid #ccc;
   padding: 2cm; 
   background: #fdfdfd;
   color: #000;
   
+  /* Estilo Padrão */
   font-family: 'Times New Roman', serif; 
   line-height: 1.6; 
   font-size: 12px; 
 }
 .editor-content-area .prose-mirror-editor:focus {
   outline: none;
-  border: 1px solid #007bff;
 }
 
-/* Estilos do PDF (Títulos) */
-.editor-content-area .prose-mirror-editor .h1-pdf {
-  font-size: 16px; text-transform: uppercase;
-  text-align: center; margin-bottom: 20px; font-weight: bold; 
-}
-.editor-content-area .prose-mirror-editor .h2-pdf {
-  font-size: 14px; text-align: left; margin-top: 25px; margin-bottom: 10px; 
-  font-weight: bold;
-}
-.editor-content-area .prose-mirror-editor .h3-pdf {
-  font-size: 12px; text-align: left; font-weight: bold; 
-  margin-bottom: 10px;
-}
 
 /* Estilos do PDF (Texto) */
 .editor-content-area .prose-mirror-editor p {
@@ -268,6 +398,22 @@ onBeforeUnmount(() => {
   text-indent: 40px; 
   margin-bottom: 10px; 
 }
+/* Alinhamento do Tiptap (Aplicado a qualquer tag) */
+.editor-content-area .prose-mirror-editor [style*="text-align: left"] {
+  text-align: left;
+}
+.editor-content-area .prose-mirror-editor [style*="text-align: center"] {
+  text-align: center;
+  text-indent: 0px;
+}
+.editor-content-area .prose-mirror-editor [style*="text-align: right"] {
+  text-align: right;
+  text-indent: 0px;
+}
+.editor-content-area .prose-mirror-editor [style*="text-align: justify"] {
+  text-align: justify;
+}
+
 .editor-content-area .prose-mirror-editor ul {
   list-style-type: disc;
   padding-left: 40px;
@@ -293,22 +439,46 @@ onBeforeUnmount(() => {
   border-top: 1px solid #000;
   margin: 1rem 0;
 }
+/* Estilo Padrão do Marca-texto */
+.editor-content-area .prose-mirror-editor mark {
+  background-color: #fef08a;
+}
+/* O Tiptap aplicará <mark style="background-color: #...">, 
+  que irá sobrescrever o padrão acima, como esperado.
+*/
+
 
 /* ========================================================== */
 /* ==================== ESTILOS DA TOOLBAR ================== */
 /* ========================================================== */
 .editor-toolbar {
   border: 1px solid #ccc;
-  border-bottom: none; /* Une-se ao editor */
+  border-bottom: none;
   border-radius: 8px 8px 0 0;
   background-color: #f8f9fa;
   padding: 0.5rem;
   display: flex;
   flex-wrap: wrap;
   gap: 0.5rem;
+  align-items: center; /* Alinhar verticalmente */
 }
-.editor-toolbar button,
-.editor-toolbar select.editor-select {
+
+.toolbar-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+}
+.toolbar-divider {
+  width: 1px;
+  height: 24px;
+  background-color: #ddd;
+  margin: 0 0.25rem;
+}
+
+
+/* Botões simples (ícones) */
+.editor-toolbar button {
   background: #fff;
   border: 1px solid #ccc;
   border-radius: 4px;
@@ -316,10 +486,48 @@ onBeforeUnmount(() => {
   cursor: pointer;
   font-weight: 500;
   line-height: 1.2;
-  font-size: 0.85rem; /* Alinhar tamanho */
+  font-size: 0.85rem; 
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  height: 29.5px; /* Altura padrão */
 }
-.editor-toolbar button.is-active,
-.editor-toolbar select.editor-select:focus {
+
+/* Botões de Ação (com texto, na toolbar) */
+.editor-toolbar .btn-toolbar-action {
+  padding: 0.25rem 0.75rem; /* Mais padding para texto */
+  font-weight: 500;
+  font-size: 0.8rem;
+  border-width: 1px;
+  border-style: solid;
+  transition: background-color 0.2s;
+}
+.editor-toolbar .btn-toolbar-action i {
+  font-size: 0.9em;
+}
+
+/* Cores dos botões de ação */
+.editor-toolbar .btn-secondary-toolbar {
+  background-color: #6c757d; color: white; border-color: #6c757d;
+}
+.editor-toolbar .btn-secondary-toolbar:hover {
+  background-color: #5a6268;
+}
+.editor-toolbar .btn-success-toolbar {
+  background-color: #198754; color: white; border-color: #198754;
+}
+.editor-toolbar .btn-success-toolbar:hover:not(:disabled) {
+  background-color: #157347;
+}
+.editor-toolbar .btn-info-toolbar {
+  background-color: #0d6efd; color: white; border-color: #0d6efd;
+}
+.editor-toolbar .btn-info-toolbar:hover:not(:disabled) {
+  background-color: #0b5ed7;
+}
+
+/* Estados (ativo, hover, disabled) */
+.editor-toolbar button.is-active {
   background-color: #007bff;
   color: white;
   border-color: #0056b3;
@@ -328,24 +536,106 @@ onBeforeUnmount(() => {
 .editor-toolbar button:hover:not(.is-active) {
   background-color: #e9ecef;
 }
-.editor-toolbar button:disabled {
-  opacity: 0.4;
+.editor-toolbar button:disabled,
+.editor-toolbar .btn-toolbar-action:disabled {
+  opacity: 0.5;
   cursor: not-allowed;
+  background-color: #e9ecef;
+  color: #6c757d;
+  border-color: #ced4da;
 }
-/* ========================================================== */
+/* Manter a cor de fundo para botões de ação desabilitados */
+.editor-toolbar .btn-success-toolbar:disabled {
+  background-color: #198754; opacity: 0.6; color: white;
+}
+.editor-toolbar .btn-info-toolbar:disabled {
+  background-color: #0d6efd; opacity: 0.6; color: white;
+}
+.editor-toolbar .btn-secondary-toolbar:disabled {
+  background-color: #6c757d; opacity: 0.6; color: white;
+}
 
 
+/* Select (Dropdown) para Fontes/Tamanhos */
+.toolbar-select {
+  background: #fff;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  padding: 0.25rem 0.4rem;
+  cursor: pointer;
+  font-weight: 500;
+  line-height: 1.2;
+  font-size: 0.85rem; 
+  height: 29.5px; /* Alinhar altura com botões */
+  max-width: 120px; /* Limitar largura */
+}
+.toolbar-select:hover {
+  background-color: #e9ecef;
+}
+.toolbar-select:focus {
+  outline: 2px solid #007bff;
+  border-color: #0056b3;
+}
+
+
+/* Seletores de Cor */
+.toolbar-color-wrapper {
+  display: inline-flex;
+  align-items: center;
+  background: #fff;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  padding: 0.25rem 0.6rem;
+  gap: 0.4rem;
+  height: 29.5px;
+  box-sizing: border-box;
+}
+.toolbar-color-picker {
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  border: none;
+  background: none;
+  cursor: pointer;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  appearance: none;
+}
+.toolbar-color-picker::-webkit-color-swatch-wrapper {
+  padding: 0;
+}
+.toolbar-color-picker::-webkit-color-swatch {
+  border: 1px solid #888;
+  border-radius: 4px;
+}
+.toolbar-color-picker::-moz-color-swatch {
+  border: 1px solid #888;
+  border-radius: 4px;
+}
+
+</style>
+
+<style scoped>
 /* Estilos da página (Scoped) */
 .editor-container {
   padding: 0;
 }
 .card {
   background: white;
-  padding: 1.5rem;
   border-radius: 8px;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
   margin-bottom: 1.5rem;
 }
+.card-no-padding {
+  padding: 0;
+  border-radius: 8px; /* Garantir que o card tenha o radius */
+  overflow: hidden; /* Garantir que a toolbar se ajuste */
+  border: 1px solid #ccc; /* Adiciona borda ao container geral */
+}
+.card-full-padding {
+  padding: 1.5rem;
+}
+
 .loading-message,
 .error-message {
   text-align: center;
@@ -366,64 +656,4 @@ onBeforeUnmount(() => {
   100% { transform: rotate(360deg); }
 }
 
-.view-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 1.5rem;
-  padding: 0 0.5rem;
-}
-.view-header h1 {
-  font-size: 1.75rem;
-  font-weight: 600;
-  color: #333;
-}
-
-.editor-actions {
-  margin-top: 1.5rem;
-  padding-top: 1.5rem;
-  border-top: 1px solid #e9ecef;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 1rem;
-}
-.editor-actions p {
-  color: #6c757d;
-  text-align: center;
-  margin: 0;
-}
-
-/* Botões */
-.btn {
-  padding: 0.6rem 1.2rem;
-  border-radius: 6px;
-  text-decoration: none;
-  font-weight: 500;
-  display: inline-flex;
-  align-items: center;
-  gap: 0.5rem;
-  border: none;
-  cursor: pointer;
-  transition: background-color 0.2s ease;
-}
-.btn-secondary {
-  background-color: #6c757d;
-  color: white;
-}
-.btn-secondary:hover {
-  background-color: #5a6268;
-}
-.btn-success {
-  background-color: #198754;
-  color: white;
-  border: 1px solid #198754;
-}
-.btn-success:hover:not(:disabled) {
-  background-color: #157347;
-}
-.btn:disabled {
-  opacity: 0.65;
-  cursor: not-allowed;
-}
 </style>

@@ -88,11 +88,14 @@
             {{ contrato.financeiro_gerado ? 'Regerar' : 'Gerar' }}
           </button>
           
-          <button @click="abrirModalFinanceiro(contrato)" class="btn-action btn-financeiro" title="Ver Detalhes Financeiros">
+          <button 
+            v-if="contrato.tipo_contrato !== 'VENDA'"
+            @click="abrirModalFinanceiro(contrato)" 
+            class="btn-action btn-financeiro" 
+            title="Ver Detalhes Financeiros"
+          >
             <i class="fas fa-dollar-sign"></i> Financeiro
           </button>
-          
-          <button @click="verContrato(contrato.id)" class="btn-action btn-view"><i class="fas fa-eye"></i> Ver</button>
           
           <button 
             @click="handleVisualizarPDF(contrato.id)" 
@@ -349,10 +352,13 @@ async function handleGerarFinanceiro(contratoId: number) {
   }
 }
 
-function verContrato(id: number) {
-    // O botão "Ver" agora leva para o formulário de DADOS (como o editar)
-    router.push({ name: 'contrato-editar', params: { id } });
-}
+// ==========================================================
+// === CORREÇÃO: Função 'verContrato' removida (pois o   ===
+// === botão foi removido)                               ===
+// ==========================================================
+// function verContrato(id: number) {
+//     router.push({ name: 'contrato-editar', params: { id } });
+// }
 
 // ==========================================================
 // ================== NOVA FUNÇÃO ADICIONADA ================

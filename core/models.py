@@ -10,6 +10,11 @@ class Imobiliaria(models.Model):
     subdominio = models.CharField(max_length=255, unique=True)
     email_contato = models.EmailField(max_length=254, blank=True, null=True, verbose_name="Email para Notificações")
     
+    # --- CAMPOS ADICIONADOS ---
+    cnpj = models.CharField(max_length=18, blank=True, null=True, verbose_name="CNPJ")
+    creci = models.CharField(max_length=20, blank=True, null=True, verbose_name="CRECI")
+    # --- FIM DA ADIÇÃO ---
+
     facebook_page_id = models.CharField(max_length=255, blank=True, null=True, verbose_name="ID da Página do Facebook")
     facebook_page_access_token = models.CharField(max_length=512, blank=True, null=True, verbose_name="Token de Acesso da Página do Facebook")
     instagram_business_account_id = models.CharField(max_length=255, blank=True, null=True, verbose_name="ID da Conta Business do Instagram")

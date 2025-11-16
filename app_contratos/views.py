@@ -30,50 +30,106 @@ import re # Importar a biblioteca de Expressões Regulares (RegEx)
 # Importar a função de valor por extenso
 from ImobCloud.utils.formatacao_util import valor_por_extenso
 
+# ==========================================================
+# === IMPORTAÇÃO DE 'PessoaFisica' REMOVIDA (CAUSA DO ERRO) ===
+# ==========================================================
+
 
 # =================================================================
-# === Função helper 'get_contrato_context' (movida para fora)    ===
+# === CORREÇÃO: Função 'get_contrato_context' ATUALIZADA         ===
 # =================================================================
 def get_contrato_context(contrato):
     """
     Função helper para montar o CONTEXTO (agora fora da classe)
     """
     
+    # Importação de 'PessoaFisica' removida daqui também.
+
     # Preparar valores por extenso
     valor_total_extenso = "(Valor total não definido)"
     if contrato.valor_total:
         try:
-            # Usa a função importada
             valor_total_extenso = valor_por_extenso(contrato.valor_total)
         except Exception:
-            pass # Mantém o default
+            pass 
 
     aluguel_extenso = "(Valor do aluguel não definido)"
     if contrato.aluguel:
         try:
-            # Usa a função importada
             aluguel_extenso = valor_por_extenso(contrato.aluguel)
         except Exception:
-            pass # Mantém o default
+            pass 
 
     valor_comissao_extenso = "(Valor de comissão não definido)"
     if contrato.valor_comissao_acordado:
         try:
-            # Usa a função importada
             valor_comissao_extenso = valor_por_extenso(contrato.valor_comissao_acordado)
         except Exception:
-            pass # Mantém o default
+            pass
+
+    # ==========================================================
+    # === Injetar perfis PF/PJ (MÉTODO CORRIGIDO)            ===
+    # === Agora usa o próprio objeto Cliente com base no tipo ===
+    # ==========================================================
+    
+    # 1. Proprietário (Locador)
+    proprietario = contrato.proprietario
+    proprietario_pf = None
+    proprietario_pj = None
+    if proprietario:
+        # O modelo Cliente tem 'FISICA' ou 'JURIDICA'
+        if proprietario.tipo_pessoa == 'FISICA': 
+            proprietario_pf = proprietario # O próprio objeto Cliente é o Perfil PF
+        elif proprietario.tipo_pessoa == 'JURIDICA':
+            proprietario_pj = proprietario # O próprio objeto Cliente é o Perfil PJ
+
+    # 2. Inquilino (Locatário)
+    inquilino = contrato.inquilino
+    inquilino_pf = None
+    inquilino_pj = None
+    if inquilino:
+        if inquilino.tipo_pessoa == 'FISICA':
+            inquilino_pf = inquilino
+        elif inquilino.tipo_pessoa == 'JURIDICA':
+            inquilino_pj = inquilino
+    
+    # 3. Fiadores (Lista)
+    fiadores_list = []
+    for fiador_cliente in contrato.fiadores.all():
+        fiador_pf = None
+        fiador_pj = None
+        if fiador_cliente:
+            if fiador_cliente.tipo_pessoa == 'FISICA':
+                fiador_pf = fiador_cliente
+            elif fiador_cliente.tipo_pessoa == 'JURIDICA':
+                fiador_pj = fiador_cliente
+        
+        fiadores_list.append({
+            'cliente': fiador_cliente, # O objeto Cliente
+            'pf': fiador_pf,           # O objeto Cliente (como PF) ou None
+            'pj': fiador_pj            # O objeto Cliente (como PJ) ou None
+        })
+    
+    # ==========================================================
 
     context = {
         'contrato': contrato,
-        'proprietario': contrato.proprietario,
-        'inquilino': contrato.inquilino,
+        'proprietario': proprietario,
+        'inquilino': inquilino,
         'imovel': contrato.imovel,
-        'fiadores': contrato.fiadores.all(),
         'imobiliaria': contrato.imobiliaria,
         'data_hoje': timezone.now(),
         
-        # Adicionando os valores por extenso que faltavam
+        # --- DADOS DE PERFIL CORRIGIDOS ---
+        'locador_pf': proprietario_pf,
+        'locador_pj': proprietario_pj,
+        'locatario_pf': inquilino_pf,
+        'locatario_pj': inquilino_pj,
+        'fiadores_list': fiadores_list,
+        
+        'fiadores': contrato.fiadores.all(), 
+
+        # --- VALORES POR EXTENSO ---
         'valor_total_extenso': valor_total_extenso,
         'aluguel_extenso': aluguel_extenso,
         'valor_comissao_extenso': valor_comissao_extenso,
@@ -88,10 +144,9 @@ class ContratoViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         if hasattr(self.request.user, 'perfil') and self.request.user.perfil.imobiliaria:
             
-            # CORREÇÃO: O nome do campo é 'status', não 'status_pagamento'
             pagamento_exists_subquery = Pagamento.objects.filter(
                 contrato=OuterRef('pk'),
-                status='PAGO' # <-- CORRIGIDO
+                status='PAGO'
             ).values('pk')
             
             transacao_exists_subquery = Transacao.objects.filter(
@@ -103,9 +158,7 @@ class ContratoViewSet(viewsets.ModelViewSet):
             return Contrato.objects.filter(
                 imobiliaria=self.request.user.perfil.imobiliaria
             ).annotate(
-                # Verifica se existe algum pagamento PAGO para este contrato
                 possui_pagamento_pago=Exists(pagamento_exists_subquery),
-                # Verifica se existe alguma transação de RECEITA PAGA para este contrato
                 possui_transacao_paga=Exists(transacao_exists_subquery)
             ).order_by('-data_assinatura')
         return Contrato.objects.none()
@@ -122,8 +175,33 @@ class ContratoViewSet(viewsets.ModelViewSet):
             raise ValidationError("Usuário não tem imobiliária associada.")
             
     def perform_update(self, serializer):
-        # A lógica de atualização (sinais) cuidará do financeiro
         serializer.save()
+
+    @action(detail=True, methods=['post'], url_path='ativar')
+    def ativar(self, request, pk=None):
+        try:
+            contrato = self.get_object()
+            
+            if contrato.status_contrato == 'ATIVO':
+                return Response(
+                    {"warning": "O contrato já está ativo."},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            
+            contrato.status_contrato = 'ATIVO'
+            
+            if not contrato.data_assinatura:
+                 contrato.data_assinatura = timezone.now().date()
+
+            contrato.save()
+            
+            serializer = self.get_serializer(contrato)
+            return Response(serializer.data, status=status.HTTP_200_OK)
+
+        except Contrato.DoesNotExist:
+            return Response({"error": "Contrato não encontrado"}, status=status.HTTP_404_NOT_FOUND)
+        except Exception as e:
+            return Response({"error": f"Erro interno: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
     @action(detail=True, methods=['get'])
     def pagamentos(self, request, pk=None):
@@ -135,21 +213,14 @@ class ContratoViewSet(viewsets.ModelViewSet):
     @action(detail=True, methods=['get'])
     def transacoes(self, request, pk=None):
         contrato = self.get_object()
-        
-        # Tenta buscar transações de aluguel (Pagamentos)
         pagamentos = Pagamento.objects.filter(contrato=contrato).order_by('data_vencimento')
-        
-        # Tenta buscar transações de comissão de venda (Transações)
         transacoes_comissao = Transacao.objects.filter(
             contrato=contrato,
-            tipo='RECEITA' # Assumindo que a comissão é uma RECEITA
+            tipo='RECEITA'
         ).order_by('data_vencimento')
-
-        # Serializa os dois tipos
         pagamentos_data = PagamentoSerializer(pagamentos, many=True).data
-        transacoes_data = [] # Precisamos de um TransacaoSerializer aqui
+        transacoes_data = [] 
         
-        # Por enquanto, vamos focar nos pagamentos de aluguel se existirem
         if pagamentos.exists():
              serializer = PagamentoSerializer(pagamentos, many=True)
              return Response(serializer.data)
@@ -157,18 +228,17 @@ class ContratoViewSet(viewsets.ModelViewSet):
         return Response(pagamentos_data)
 
 
-    # (Correção anterior)
     @action(detail=True, methods=['get'], url_path='get-html')
     def get_html_content(self, request, pk=None):
         contrato = get_object_or_404(Contrato, pk=pk)
         
         # 1. Se o contrato JÁ TEM conteúdo personalizado, use-o
-        #    (Isto carrega as suas edições salvas)
         if contrato.conteudo_personalizado:
             return Response(contrato.conteudo_personalizado)
             
         # 2. Se não tiver, GERE o conteúdo pela primeira vez
-        context = get_contrato_context(contrato) # Chamando a função standalone
+        #    (AGORA USANDO A FUNÇÃO CORRIGIDA)
+        context = get_contrato_context(contrato)
         
         template_name = 'contrato_aluguel_template.html'
         if contrato.tipo_contrato == 'VENDA':
@@ -184,7 +254,6 @@ class ContratoViewSet(viewsets.ModelViewSet):
         return Response(html_string)
 
 
-    # (Correção anterior)
     @action(detail=True, methods=['post'], url_path='salvar-html-editado')
     def salvar_html_editado(self, request, pk=None):
         contrato = get_object_or_404(Contrato, pk=pk)
@@ -199,21 +268,15 @@ class ContratoViewSet(viewsets.ModelViewSet):
         return Response({"success": "Documento atualizado com sucesso."})
 
 
-    # =================================================================
-    # === CORREÇÃO: Adicionar url_path='visualizar-pdf'            ===
-    # === para corrigir o erro 404 Not Found ao visualizar.         ===
-    # =================================================================
-    @action(detail=True, methods=['get'], permission_classes=[permissions.AllowAny], url_path='visualizar-pdf') # Cuidado: AllowAny
+    @action(detail=True, methods=['get'], permission_classes=[permissions.AllowAny], url_path='visualizar-pdf')
     def generate_pdf_contrato(self, request, pk=None):
         try:
             contrato = get_object_or_404(Contrato, pk=pk)
             
-            # 1. Pega o HTML (prioriza o editado)
             html_content = contrato.conteudo_personalizado
             
-            # 2. Se não houver HTML editado, gera a partir do template
             if not html_content:
-                # Chamando a função standalone
+                # Usa a função de contexto atualizada
                 context = get_contrato_context(contrato)
                 
                 template_name = 'contrato_aluguel_template.html'
@@ -223,21 +286,20 @@ class ContratoViewSet(viewsets.ModelViewSet):
                 html_content = render_to_string(template_name, context)
 
             # ==========================================================
-            # LIMPEZA DE ESTILOS INCOMPATÍVEIS com xhtml2pdf
+            # === Limpeza de estilos para o PDF (Mantida)            ===
             # ==========================================================
-            html_content = re.sub(r'font-size:[^;\"]*', '', html_content, flags=re.IGNORECASE)
-            html_content = re.sub(r'font-family:[^;\"]*', '', html_content, flags=re.IGNORECASE)
             
+            # Converte alinhamento de <p style="text-align:..."> para <p align="...">
             html_content = re.sub(r'<p style=\"text-align:\\s*center;\">', r'<p align=\"center\">', html_content, flags=re.IGNORECASE)
             html_content = re.sub(r'<p style=\"text-align:\\s*right;\">', r'<p align=\"right\">', html_content, flags=re.IGNORECASE)
             html_content = re.sub(r'<p style=\"text-align:\\s*left;\">', r'<p align=\"left\">', html_content, flags=re.IGNORECASE)
+            html_content = re.sub(r'<p style=\"text-align:\\s*justify;\">', r'<p align=\"justify\">', html_content, flags=re.IGNORECASE)
             
-            html_content = re.sub(r'text-align:[^;\"]*', '', html_content, flags=re.IGNORECASE) 
-            
+            # Remove spans vazios que o editor pode deixar
             html_content = re.sub(r'<span style=\"\\s*\">\\s*</span>', '', html_content, flags=re.IGNORECASE)
+            
             # ==========================================================
 
-            # Adicionar meta charset UTF-8
             html_string_with_meta = f'<html><head><meta charset=\"UTF-8\"></head><body>{html_content}</body></html>'
 
             result = BytesIO()
@@ -256,43 +318,32 @@ class ContratoViewSet(viewsets.ModelViewSet):
             return Response({"error": f"Erro interno: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
-# Classe PagamentoViewSet (Adicionada na correção anterior)
+# Classe PagamentoViewSet
 class PagamentoViewSet(viewsets.ModelViewSet):
-    """
-    ViewSet para gerenciar Pagamentos (Criada para corrigir o ImportError).
-    """
     serializer_class = PagamentoSerializer
     permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
-        # Garante que o usuário só veja pagamentos da sua imobiliária
         if hasattr(self.request.user, 'perfil') and self.request.user.perfil.imobiliaria:
             return Pagamento.objects.filter(
                 contrato__imobiliaria=self.request.user.perfil.imobiliaria
             ).order_by('-data_vencimento')
-        
-        # Se não tiver imobiliária, não retorna nada
         return Pagamento.objects.none()
 
     def perform_create(self, serializer):
         serializer.save()
 
 
-# Classe GerarReciboView (Adicionada na correção anterior)
+# Classe GerarReciboView
 class GerarReciboView(APIView):
-    """
-    View baseada em classe para gerar o PDF do recibo.
-    Substitui a antiga função 'gerar_recibo_pdf'.
-    """
     permission_classes = [IsAuthenticated]
 
     def get(self, request, pagamento_id):
         pagamento = get_object_or_404(Pagamento, pk=pagamento_id, contrato__imobiliaria=request.user.perfil.imobiliaria)
 
-        if pagamento.status != 'PAGO': # <-- CORRIGIDO
+        if pagamento.status != 'PAGO':
             return HttpResponse("Este pagamento ainda não foi baixado.", status=400)
 
-        # Lógica para gerar o recibo (exemplo simples)
         context = {
             'pagamento': pagamento,
             'contrato': pagamento.contrato,
@@ -300,17 +351,17 @@ class GerarReciboView(APIView):
             'locatario': pagamento.contrato.inquilino,
             'locador': pagamento.contrato.proprietario,
             'imovel': pagamento.contrato.imovel,
-            'data_pagamento': pagamento.data_pagamento or timezone.now(), # Usa a data do pagamento se houver
+            'data_pagamento': pagamento.data_pagamento or timezone.now(),
         }
         
         html_string = render_to_string('recibo_template.html', context)
         
-        # Limpeza de estilos
+        # Limpeza de estilos (mantida para o recibo, que não é editável)
         html_string = re.sub(r'font-size:[^;\"]*', '', html_string, flags=re.IGNORECASE)
         html_string = re.sub(r'font-family:[^;\"]*', '', html_string, flags=re.IGNORECASE)
         html_string = re.sub(r'<p style=\"text-align:\\s*center;\">', r'<p align=\"center\">', html_string, flags=re.IGNORECASE)
-        html_string = re.sub(r'<p style=\"text-align:\\s*right;\">', r'<p align=\"right\">', html_content, flags=re.IGNORECASE)
-        html_string = re.sub(r'<p style=\"text-align:\\s*left;\">', r'<p align=\"left\">', html_content, flags=re.IGNORECASE)
+        html_string = re.sub(r'<p style=\"text-align:\\s*right;\">', r'<p align=\"right\">', html_string, flags=re.IGNORECASE)
+        html_string = re.sub(r'<p style=\"text-align:\\s*left;\">', r'<p align=\"left\">', html_string, flags=re.IGNORECASE)
         html_string = re.sub(r'text-align:[^;\"]*', '', html_string, flags=re.IGNORECASE) 
         html_string = re.sub(r'<span style=\"\\s*\">\\s*</span>', '', html_string, flags=re.IGNORECASE)
 
@@ -327,27 +378,20 @@ class GerarReciboView(APIView):
         return HttpResponse(f'Erro ao gerar recibo: {pdf.err}', status=500)
 
 
-# Função 'gerar_contrato_pdf_editado' (Adicionada na correção anterior)
+# Função 'gerar_contrato_pdf_editado'
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def gerar_contrato_pdf_editado(request, pk=None):
-    """
-    View standalone para gerar o PDF (usada pelo urls.py).
-    A lógica é idêntica à action 'generate_pdf_contrato'.
-    """
     try:
-        # Garante que o contrato pertença à imobiliária do usuário
         if not (hasattr(request.user, 'perfil') and request.user.perfil.imobiliaria):
              return HttpResponse("Usuário não tem imobiliária associada.", status=403)
              
         contrato = get_object_or_404(Contrato, pk=pk, imobiliaria=request.user.perfil.imobiliaria)
         
-        # 1. Pega o HTML (prioriza o editado)
         html_content = contrato.conteudo_personalizado
         
-        # 2. Se não houver HTML editado, gera a partir do template
         if not html_content:
-            # Chama a função standalone
+            # Usa a função de contexto atualizada
             context = get_contrato_context(contrato)
             
             template_name = 'contrato_aluguel_template.html'
@@ -357,21 +401,19 @@ def gerar_contrato_pdf_editado(request, pk=None):
             html_content = render_to_string(template_name, context)
 
         # ==========================================================
-        # LIMPEZA DE ESTILOS INCOMPATÍVEIS com xhtml2pdf
+        # === Limpeza de estilos para o PDF (Mantida)            ===
         # ==========================================================
-        html_content = re.sub(r'font-size:[^;\"]*', '', html_content, flags=re.IGNORECASE)
-        html_content = re.sub(r'font-family:[^;\"]*', '', html_content, flags=re.IGNORECASE)
         
+        # Converte alinhamento de <p style="text-align:..."> para <p align="...">
         html_content = re.sub(r'<p style=\"text-align:\\s*center;\">', r'<p align=\"center\">', html_content, flags=re.IGNORECASE)
         html_content = re.sub(r'<p style=\"text-align:\\s*right;\">', r'<p align=\"right\">', html_content, flags=re.IGNORECASE)
         html_content = re.sub(r'<p style=\"text-align:\\s*left;\">', r'<p align=\"left\">', html_content, flags=re.IGNORECASE)
+        html_content = re.sub(r'<p style=\"text-align:\\s*justify;\">', r'<p align=\"justify\">', html_content, flags=re.IGNORECASE)
         
-        html_content = re.sub(r'text-align:[^;\"]*', '', html_content, flags=re.IGNORECASE) 
-        
+        # Remove spans vazios que o editor pode deixar
         html_content = re.sub(r'<span style=\"\\s*\">\\s*</span>', '', html_content, flags=re.IGNORECASE)
         # ==========================================================
 
-        # Adicionar meta charset UTF-8
         html_string_with_meta = f'<html><head><meta charset=\"UTF-8\"></head><body>{html_content}</body></html>'
 
         result = BytesIO()
@@ -405,15 +447,10 @@ def limpar_estilos_view(request, pk):
         # ==========================================================
         # Aplicar a mesma limpeza aqui por segurança
         # ==========================================================
-        html_content = re.sub(r'font-size:[^;\"]*', '', html_content, flags=re.IGNORECASE)
-        html_content = re.sub(r'font-family:[^;\"]*', '', html_content, flags=re.IGNORECASE)
-        
-        # Converter alinhamento
         html_content = re.sub(r'<p style=\"text-align:\\s*center;\">', r'<p align=\"center\">', html_content, flags=re.IGNORECASE)
         html_content = re.sub(r'<p style=\"text-align:\\s*right;\">', r'<p align=\"right\">', html_content, flags=re.IGNORECASE)
         html_content = re.sub(r'<p style=\"text-align:\\s*left;\">', r'<p align=\"left\">', html_content, flags=re.IGNORECASE)
-        
-        html_content = re.sub(r'text-align:[^;\"]*', '', html_content, flags=re.IGNORECASE) # Limpa o que sobrou
+        html_content = re.sub(r'<p style=\"text-align:\\s*justify;\">', r'<p align=\"justify\">', html_content, flags=re.IGNORECASE)
 
         html_content = re.sub(r'<span style=\"\\s*\">\\s*</span>', '', html_content, flags=re.IGNORECASE)
         # ==========================================================
@@ -424,7 +461,6 @@ def limpar_estilos_view(request, pk):
         pdf = pisa.pisaDocument(BytesIO(html_string_with_meta.encode("UTF-8")), result)
         
         if not pdf.err:
-            # Salvar o conteúdo limpo de volta no banco
             contrato.conteudo_personalizado = html_content
             contrato.save()
             return Response({"success": "Estilos limpos e documento salvo."})
