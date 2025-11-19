@@ -18,18 +18,22 @@ def sincronizar_pagamento_contrato(sender, instance, created, **kwargs):
     da Transacao sempre que uma Transacao é salva.
     """
     
-    # 1. Só processa se a transação estiver ligada a um Contrato
+    # 1. Só processa se a transação estiver ligada a um Contrato e for ALUGUEL
     if instance.contrato and instance.contrato.tipo_contrato == Contrato.TipoContrato.ALUGUEL:
         
         try:
-            # 2. Busca o Pagamento correspondente, filtrando por contrato e vencimento
-            # Assumimos que a Transacao e o Pagamento têm o mesmo valor e data de vencimento
-            pagamento_contrato = Pagamento.objects.get(
+            # 2. CORREÇÃO CRÍTICA: Busca segura. 
+            # Usa filter().first() em vez de get() para evitar 'MultipleObjectsReturned'
+            # caso existam duas parcelas com o mesmo vencimento (acordos, erros antigos).
+            pagamento_contrato = Pagamento.objects.filter(
                 contrato=instance.contrato,
-                # NOTA: O campo 'valor' não é usado aqui para evitar erros de precisão decimal
                 data_vencimento=instance.data_vencimento
-            )
+            ).first()
             
+            if not pagamento_contrato:
+                logger.warning(f"Sincronização: Nenhum Pagamento encontrado para Transacao {instance.id} (Venc: {instance.data_vencimento}).")
+                return
+
             status_novo = instance.status
             
             # 3. Sincronização
@@ -38,14 +42,13 @@ def sincronizar_pagamento_contrato(sender, instance, created, **kwargs):
                 pagamento_contrato.status = 'PAGO'
                 pagamento_contrato.data_pagamento = instance.data_pagamento or timezone.now().date()
                 pagamento_contrato.save()
-                logger.info(f"Financeiro: Sincronização OK. Pagamento Contrato {instance.contrato.id} atualizado para PAGO.")
+                logger.info(f"Financeiro: Sincronização OK. Pagamento ID {pagamento_contrato.id} atualizado para PAGO.")
                 
             elif status_novo in ['CANCELADO', 'RESCINDIDO'] and pagamento_contrato.status not in ['PAGO', 'CANCELADO']:
                  # Transacao cancelada/excluída, atualiza o Pagamento
                 pagamento_contrato.status = 'CANCELADO'
                 pagamento_contrato.save()
+                logger.info(f"Financeiro: Pagamento ID {pagamento_contrato.id} marcado como CANCELADO via Transacao.")
             
-        except Pagamento.DoesNotExist:
-            logger.debug(f"Sincronização: Pagamento correspondente não encontrado para Transacao {instance.id}.")
         except Exception as e:
             logger.error(f"Sincronização ERRO CRÍTICO: Falha ao sincronizar Transacao {instance.id} -> {e}")

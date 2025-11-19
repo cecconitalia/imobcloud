@@ -6,57 +6,67 @@
     </div>
     <div v-if="!isLoadingStats && dashboardData" class="dashboard-grid">
       <div class="stat-card">
-        <h3>Total de Contratos</h3>
-        <p>{{ dashboardData.total_contratos }}</p>
+        <div class="stat-icon"><i class="fas fa-file-contract"></i></div>
+        <div class="stat-info">
+            <h3>Total de Contratos</h3>
+            <p>{{ dashboardData.total_contratos }}</p>
+        </div>
       </div>
       <div class="stat-card stat-ativo">
-        <h3>Ativos</h3>
-        <p>{{ dashboardData.total_ativos }}</p>
+        <div class="stat-icon"><i class="fas fa-check-circle"></i></div>
+        <div class="stat-info">
+            <h3>Ativos</h3>
+            <p>{{ dashboardData.total_ativos }}</p>
+        </div>
       </div>
       <div class="stat-card">
-        <h3>Aluguéis Ativos (Mensal)</h3>
-        <p>{{ formatCurrency(dashboardData.valor_total_alugueis_ativos) }}</p>
+        <div class="stat-icon"><i class="fas fa-hand-holding-usd"></i></div>
+        <div class="stat-info">
+            <h3>Aluguéis (Mensal)</h3>
+            <p>{{ formatCurrency(dashboardData.valor_total_alugueis_ativos) }}</p>
+        </div>
       </div>
       <div class="stat-card">
-        <h3>Vendas (Em Andamento)</h3>
-        <p>{{ formatCurrency(dashboardData.valor_total_vendas_ativas) }}</p>
+        <div class="stat-icon"><i class="fas fa-comments-dollar"></i></div>
+        <div class="stat-info">
+            <h3>Vendas (Volume)</h3>
+            <p>{{ formatCurrency(dashboardData.valor_total_vendas_ativas) }}</p>
+        </div>
       </div>
     </div>
 
-    <div class="filters-bar card">
-        <div class="filters-container">
-          <div class="filter-group">
-            <i class="fas fa-search filter-icon"></i>
-            <input 
-              type="text" 
-              v-model="filtro" 
-              placeholder="Filtrar por imóvel, inquilino..."
-              class="form-control with-icon"
-            />
-          </div>
-          <div class="filter-group">
-            <i class="fas fa-filter filter-icon"></i>
-            <select v-model="filtroStatus" class="form-select with-icon">
-              <option value="">Todos os Status</option>
-              <option value="RASCUNHO">Rascunho</option>
-              <option value="ATIVO">Ativo</option>
-              <option value="CONCLUIDO">Concluído</option>
-              <option value="RESCINDIDO">Rescindido</option>
-              <option value="CANCELADO">Cancelado</option>
-            </select>
-          </div>
-          <div class="filter-group">
-             <i class="fas fa-file-alt filter-icon"></i>
-            <select v-model="filtroTipo" class="form-select with-icon">
-              <option value="">Todos os Tipos</option>
-              <option value="VENDA">Venda</option>
-              <option value="ALUGUEL">Aluguel</option>
-            </select>
-          </div>
-        </div>
-        <router-link :to="{ name: 'contrato-novo' }" class="btn btn-primary btn-novo-contrato">
-          <i class="fas fa-plus"></i> Novo Contrato
-        </router-link>
+    <div class="search-and-filter-bar">
+      <input 
+        type="text" 
+        v-model="filtro" 
+        placeholder="Buscar por imóvel, inquilino..." 
+        class="search-input"
+      />
+      
+      <div class="filter-group">
+        <label for="status">Status:</label>
+        <select id="status" v-model="filtroStatus">
+          <option value="">Todos</option>
+          <option value="RASCUNHO">Rascunho</option>
+          <option value="ATIVO">Ativo</option>
+          <option value="CONCLUIDO">Concluído</option>
+          <option value="RESCINDIDO">Rescindido</option>
+          <option value="CANCELADO">Cancelado</option>
+        </select>
+      </div>
+
+      <div class="filter-group">
+        <label for="tipo">Tipo:</label>
+        <select id="tipo" v-model="filtroTipo">
+          <option value="">Todos</option>
+          <option value="VENDA">Venda</option>
+          <option value="ALUGUEL">Aluguel</option>
+        </select>
+      </div>
+
+      <router-link :to="{ name: 'contrato-novo' }" class="btn-add">
+        <i class="fas fa-plus"></i> <span class="mobile-hide">Novo Contrato</span>
+      </router-link>
     </div>
 
     <div v-if="isLoading" class="loading-message card">
@@ -65,7 +75,8 @@
     </div>
     <div v-else-if="error" class="error-message card">{{ error }}</div>
     <div v-else-if="filteredContratos.length === 0" class="empty-state card">
-      Nenhum contrato encontrado com os filtros selecionados.
+      <div class="empty-icon"><i class="fas fa-folder-open"></i></div>
+      <p>Nenhum contrato encontrado com os filtros selecionados.</p>
     </div>
 
     <div v-else class="contratos-grid">
@@ -74,86 +85,126 @@
         :key="contrato.id" 
         :class="['contrato-card', getStatusClass(contrato.status_contrato)]"
       >
-        
-        <div class="card-header">
-          <span :class="['status-badge', getStatusClass(contrato.status_contrato)]">
-            {{ formatStatus(contrato.status_contrato) }}
-          </span>
-          <span class="tipo-badge">{{ contrato.tipo_contrato === 'VENDA' ? 'Venda' : 'Aluguel' }}</span>
+        <div class="card-top-bar">
+           <div class="badges-left">
+               <span class="contrato-id">#{{ contrato.id }}</span>
+               <span :class="['tipo-badge', contrato.tipo_contrato === 'VENDA' ? 'tipo-venda' : 'tipo-aluguel']">
+                  {{ contrato.tipo_contrato === 'VENDA' ? 'Venda' : 'Aluguel' }}
+               </span>
+           </div>
+           <div class="badges-right">
+               <span :class="['status-pill', getStatusClass(contrato.status_contrato)]">
+                  <i :class="getStatusIcon(contrato.status_contrato)"></i>
+                  {{ formatStatus(contrato.status_contrato) }}
+               </span>
+           </div>
         </div>
         
         <div class="card-body">
-          <div class="card-item-principal">
-            <span class="text-primary">{{ contrato.imovel_detalhes?.titulo_anuncio || 'N/A' }}</span>
-            <span class="text-small">{{ contrato.imovel_detalhes?.endereco_completo || 'Endereço não disponível' }}</span>
-          </div>
-          
-          <div class="card-info-row">
-            <i class="fas fa-user icon-blue"></i>
-            <div>
-              <label v-if="contrato.tipo_contrato === 'VENDA'">Comprador</label>
-              <label v-else>Inquilino</label>
-              <span>{{ contrato.inquilino_detalhes?.nome_display || 'N/A' }}</span>
-            </div>
+          <div class="imovel-section">
+             <h4 class="imovel-title" :title="contrato.imovel_detalhes?.titulo_anuncio">
+                {{ contrato.imovel_detalhes?.titulo_anuncio || 'Imóvel sem título' }}
+             </h4>
+             <p class="imovel-address">
+                <i class="fas fa-map-marker-alt text-muted"></i> 
+                {{ contrato.imovel_detalhes?.endereco_completo || 'Endereço não disponível' }}
+             </p>
           </div>
 
-          <div class="card-info-row">
-            <i class="fas fa-user-tie icon-grey"></i>
-            <div>
-              <label>Proprietário</label>
-              <span>{{ contrato.proprietario_detalhes?.nome_display || 'N/A' }}</span>
-            </div>
-          </div>
-          
-          <div class="card-info-row">
-             <i class="fas fa-dollar-sign icon-green"></i>
-             <div>
-                <label>Valor</label>
-                <span class="text-bold-valor">{{ contrato.valor_display }}</span>
+          <div class="datas-grid" v-if="contrato.data_inicio">
+             <div class="data-col">
+                <span class="data-label">Início</span>
+                <div class="data-value text-success">
+                    <i class="fas fa-hourglass-start"></i> {{ formatarData(contrato.data_inicio) }}
+                </div>
              </div>
+             <div class="data-divider"></div>
+             <div class="data-col">
+                <span class="data-label">Término</span>
+                <div class="data-value" :class="contrato.data_fim ? 'text-danger' : 'text-muted'">
+                    <i class="fas fa-hourglass-end"></i> {{ contrato.data_fim ? formatarData(contrato.data_fim) : 'Indeterminado' }}
+                </div>
+             </div>
+          </div>
+          <div class="datas-grid empty-dates" v-else>
+              <span class="text-muted"><i class="far fa-clock"></i> Datas não definidas</span>
+          </div>
+
+          <div class="pessoas-container">
+              <div class="pessoa-row">
+                 <div class="pessoa-avatar avatar-proprietario">
+                    <i class="fas fa-user-shield"></i>
+                 </div>
+                 <div class="pessoa-info">
+                    <span class="pessoa-role role-proprietario">Proprietário</span>
+                    <span class="pessoa-name" :title="contrato.proprietario_detalhes?.nome_display">
+                        {{ contrato.proprietario_detalhes?.nome_display || '—' }}
+                    </span>
+                 </div>
+              </div>
+              
+              <div class="pessoa-row">
+                 <div class="pessoa-avatar avatar-inquilino">
+                    <i class="fas fa-user"></i>
+                 </div>
+                 <div class="pessoa-info">
+                    <span class="pessoa-role role-inquilino">
+                        {{ contrato.tipo_contrato === 'VENDA' ? 'Comprador' : 'Inquilino' }}
+                    </span>
+                    <span class="pessoa-name" :title="contrato.inquilino_detalhes?.nome_display">
+                        {{ contrato.inquilino_detalhes?.nome_display || '—' }}
+                    </span>
+                 </div>
+              </div>
           </div>
         </div>
         
+        <div class="valor-footer">
+           <span class="valor-label">Valor do Contrato</span>
+           <span class="valor-amount">{{ contrato.valor_display }}</span>
+        </div>
+
         <div class="card-actions">
-          
-          <button
-            v-if="contrato.status_contrato === 'RASCUNHO'"
-            @click="handleAtivarContrato(contrato)"
-            :disabled="isProcessingId === contrato.id"
-            class="btn-action btn-ativar"
-            title="Ativar Contrato (Gera o financeiro)"
-          >
-            <i v-if="isProcessingId === contrato.id" class="fas fa-spinner fa-spin"></i>
-            <i v-else class="fas fa-play"></i> Ativar
-          </button>
+          <div class="actions-left">
+            <button
+                v-if="contrato.status_contrato === 'RASCUNHO'"
+                @click="handleAtivarContrato(contrato)"
+                :disabled="isProcessingId === contrato.id"
+                class="btn-pill btn-ativar"
+            >
+                <i v-if="isProcessingId === contrato.id" class="fas fa-spinner fa-spin"></i>
+                <i v-else class="fas fa-play"></i> Ativar
+            </button>
 
-          <button 
-            v-if="contrato.tipo_contrato === 'ALUGUEL' && (contrato.status_contrato === 'ATIVO' || contrato.status_contrato === 'CONCLUIDO')"
-            @click="abrirModalFinanceiro(contrato)" 
-            class="btn-action btn-financeiro" 
-            title="Ver Detalhes Financeiros"
-          >
-            <i class="fas fa-dollar-sign"></i> Financeiro
-          </button>
+            <button 
+                v-if="contrato.tipo_contrato === 'ALUGUEL' && (contrato.status_contrato === 'ATIVO' || contrato.status_contrato === 'CONCLUIDO')"
+                @click="abrirModalFinanceiro(contrato)" 
+                class="btn-pill btn-financeiro" 
+            >
+                <i class="fas fa-coins"></i> Financeiro
+            </button>
+          </div>
 
-          <button @click="editarContrato(contrato.id)" class="btn-action btn-edit" title="Editar Dados (Status, Datas...)">
-            <i class="fas fa-edit"></i> Editar
-          </button>
-          <button @click="editarDocumento(contrato.id)" class="btn-action btn-edit-doc" title="Editar Documento (Texto)">
-            <i class="fas fa-file-signature"></i> Documento
-          </button>
-          <button 
-            @click="handleVisualizarPDF(contrato.id)" 
-            :disabled="isProcessingId === contrato.id"
-            class="btn-action btn-pdf" 
-            title="Visualizar PDF"
-          >
-            <i v-if="isProcessingId === contrato.id" class="fas fa-spinner fa-spin"></i>
-            <i v-else class="fas fa-file-pdf"></i>
-          </button>
-          <button @click="handleDelete(contrato.id)" class="btn-action btn-delete" title="Excluir Contrato">
-            <i class="fas fa-trash-alt"></i>
-          </button>
+          <div class="actions-right">
+              <button @click="editarDocumento(contrato.id)" class="btn-mini" title="Editar Texto do Contrato">
+                <i class="fas fa-file-signature"></i>
+              </button>
+              <button 
+                @click="handleVisualizarPDF(contrato.id)" 
+                :disabled="isProcessingId === contrato.id"
+                class="btn-mini" 
+                title="Visualizar PDF"
+              >
+                <i v-if="isProcessingId === contrato.id" class="fas fa-spinner fa-spin"></i>
+                <i v-else class="fas fa-file-pdf"></i>
+              </button>
+              <button @click="editarContrato(contrato.id)" class="btn-mini" title="Editar Dados">
+                <i class="fas fa-pen"></i>
+              </button>
+              <button @click="handleDelete(contrato.id)" class="btn-mini btn-delete-mini" title="Excluir">
+                <i class="fas fa-trash"></i>
+              </button>
+          </div>
         </div>
       </div>
     </div>
@@ -177,7 +228,6 @@ import { formatCurrency } from '@/utils/formatters';
 import ModalFinanceiroContrato from '@/components/ContratoFinanceiro.vue';
 import { useToast } from 'vue-toast-notification';
 import 'vue-toast-notification/dist/theme-sugar.css';
-
 
 // --- Interfaces ---
 interface DetalhesPessoa {
@@ -258,22 +308,29 @@ async function fetchContratos() {
   }
 }
 
+// ==========================================================
+// === CORREÇÃO: Função de Exclusão com DUPLO ALERTA    ===
+// ==========================================================
 async function handleDelete(contratoId: number) {
-  if (window.confirm('Tem certeza que deseja excluir este contrato? Esta ação marcará o contrato como excluído (Soft Delete).')) {
-    try {
-      await apiClient.delete(`/v1/contratos/${contratoId}/`);
-      contratos.value = contratos.value.filter(c => c.id !== contratoId);
-      fetchDashboardStats();
-    } catch (err: any) {
-      console.error('Erro ao excluir contrato:', err);
-      if (err.response && err.response.data && err.response.data.error) {
-        alert(`Erro: ${err.response.data.error}`);
-      } else {
-        alert('Não foi possível excluir o contrato.');
+  // 1º ALERTA: Confirmação padrão
+  if (window.confirm('Tem certeza que deseja excluir este contrato?')) {
+      
+      // 2º ALERTA: Aviso de IRREVERSIBILIDADE
+      if (window.confirm('ATENÇÃO: Esta ação é IRREVERSÍVEL. O contrato desaparecerá da lista e todo o financeiro pendente será cancelado. Deseja realmente continuar?')) {
+          try {
+            await apiClient.delete(`/v1/contratos/${contratoId}/`);
+            contratos.value = contratos.value.filter(c => c.id !== contratoId);
+            fetchDashboardStats();
+            toast.success("Contrato excluído com sucesso.");
+          } catch (err: any) {
+            console.error('Erro ao excluir contrato:', err);
+            const msg = err.response?.data?.error || 'Não foi possível excluir o contrato.';
+            toast.error(msg);
+          }
       }
-    }
   }
 }
+// ==========================================================
 
 async function handleVisualizarPDF(contratoId: number) {
   if (isProcessingId.value !== null) return; 
@@ -291,7 +348,7 @@ async function handleVisualizarPDF(contratoId: number) {
 
   } catch (error: any) {
     console.error('Erro ao visualizar PDF:', error.response?.data || error);
-    alert("Falha ao gerar o PDF.");
+    toast.error("Falha ao gerar o PDF.");
   } finally {
     isProcessingId.value = null;
   }
@@ -299,25 +356,15 @@ async function handleVisualizarPDF(contratoId: number) {
 
 async function handleAtivarContrato(contrato: Contrato) {
     if (isProcessingId.value !== null) return;
-
-    const confirmacao = window.confirm(
-        "Tem certeza que deseja ATIVAR este contrato?\n\nO financeiro será gerado automaticamente."
-    );
-    
+    const confirmacao = window.confirm("Tem certeza que deseja ATIVAR este contrato?\n\nO financeiro será gerado automaticamente.");
     if (!confirmacao) return;
-
     isProcessingId.value = contrato.id;
     try {
         const response = await apiClient.post(`/v1/contratos/${contrato.id}/ativar/`);
-        
         toast.success("Contrato ativado com sucesso!");
-        
         const index = contratos.value.findIndex(c => c.id === contrato.id);
-        if (index !== -1) {
-             contratos.value[index] = response.data;
-        }
+        if (index !== -1) { contratos.value[index] = response.data; }
         fetchDashboardStats(); 
-        
     } catch (error: any) {
         console.error("Erro ao ativar contrato:", error.response?.data || error);
         const errorMsg = error.response?.data?.error || error.response?.data?.status_contrato || "Falha ao ativar o contrato.";
@@ -327,63 +374,35 @@ async function handleAtivarContrato(contrato: Contrato) {
     }
 }
 
-
 // --- Funções de Navegação ---
-
-function editarContrato(id: number) {
-  router.push({ name: 'contrato-editar', params: { id } });
-}
-
-function editarDocumento(id: number) {
-  // ==========================================================
-  // === CORREÇÃO: Usando a rota 'contrato-editar-documento'  ===
-  // === do seu ficheiro router/index.ts                    ===
-  // ==========================================================
-  router.push({ name: 'contrato-editar-documento', params: { id } });
-}
+function editarContrato(id: number) { router.push({ name: 'contrato-editar', params: { id } }); }
+function editarDocumento(id: number) { router.push({ name: 'contrato-editar-documento', params: { id } }); }
 
 // --- Funções do Modal ---
-function abrirModalFinanceiro(contrato: Contrato) {
-    contratoSelecionado.value = contrato;
-    showModalFinanceiro.value = true;
-    // document.body.style.overflow = 'hidden'; // O componente do Modal deve tratar disto
-}
+function abrirModalFinanceiro(contrato: Contrato) { contratoSelecionado.value = contrato; showModalFinanceiro.value = true; }
+function fecharModalFinanceiro() { showModalFinanceiro.value = false; contratoSelecionado.value = null; }
 
-function fecharModalFinanceiro() {
-    showModalFinanceiro.value = false;
-    contratoSelecionado.value = null;
-    // document.body.style.overflow = ''; // O componente do Modal deve tratar disto
-}
-
-// --- Funções Computadas e Helpers ---
-
+// --- Computados e Formatadores ---
 const filteredContratos = computed(() => {
   return contratos.value.filter(contrato => {
     const searchLower = filtro.value.toLowerCase().trim();
-    
     const matchSearch = !searchLower ||
       (contrato.imovel_detalhes?.titulo_anuncio?.toLowerCase() || '').includes(searchLower) ||
       (contrato.imovel_detalhes?.endereco_completo?.toLowerCase() || '').includes(searchLower) ||
       (contrato.inquilino_detalhes?.nome_display?.toLowerCase() || '').includes(searchLower) ||
       (contrato.proprietario_detalhes?.nome_display?.toLowerCase() || '').includes(searchLower);
-
     const matchStatus = !filtroStatus.value || contrato.status_contrato === filtroStatus.value;
     const matchTipo = !filtroTipo.value || contrato.tipo_contrato === filtroTipo.value;
-
     return matchSearch && matchStatus && matchTipo;
   });
 });
 
 function formatarData(data: string | null | undefined): string {
-  if (!data) return '';
-  try {
-    return format(parseISO(data), 'dd/MM/yyyy', { locale: ptBR });
-  } catch {
-    return 'Inválida';
-  }
+  if (!data) return '—';
+  try { return format(parseISO(data), 'dd/MM/yy', { locale: ptBR }); } catch { return 'Inválida'; }
 }
 
-const formatStatus = (status: Contrato['status_contrato']) => {
+const formatStatus = (status: string) => {
   switch (status) {
     case 'RASCUNHO': return 'Rascunho';
     case 'ATIVO': return 'Ativo';
@@ -394,7 +413,7 @@ const formatStatus = (status: Contrato['status_contrato']) => {
   }
 };
 
-const getStatusClass = (status: Contrato['status_contrato']) => {
+const getStatusClass = (status: string) => {
   switch (status) {
     case 'ATIVO': return 'status-ativo';
     case 'RASCUNHO': return 'status-rascunho';
@@ -405,363 +424,211 @@ const getStatusClass = (status: Contrato['status_contrato']) => {
   }
 };
 
+const getStatusIcon = (status: string) => {
+  switch (status) {
+    case 'ATIVO': return 'fas fa-check-circle';
+    case 'RASCUNHO': return 'fas fa-pencil-alt';
+    case 'CONCLUIDO': return 'fas fa-flag-checkered';
+    case 'RESCINDIDO': return 'fas fa-ban';
+    case 'CANCELADO': return 'fas fa-times-circle';
+    default: return 'fas fa-info-circle';
+  }
+};
 
-onMounted(() => {
-  fetchContratos();
-  fetchDashboardStats();
-});
+onMounted(() => { fetchContratos(); fetchDashboardStats(); });
 </script>
 
 <style scoped>
 /* ================================================== */
-/* ESTILOS GERAIS DA VIEW (Layout e Cabeçalho) */
+/* 1. Layout Geral */
 /* ================================================== */
-.page-container {
-  padding-top: 0;
-  margin-top: 0;
-}
-.view-header {
-  /* (Ocultado a pedido) */
-  display: none; 
-}
-.btn-primary {
-  background-color: #007bff; color: white;
-  padding: 0.6rem 1.2rem; border-radius: 6px; text-decoration: none;
-  font-weight: 500; display: inline-flex; align-items: center;
-  gap: 0.5rem; border: none; cursor: pointer;
-  transition: background-color 0.2s ease;
-}
-.btn-primary:hover { background-color: #0056b3; }
+.page-container { padding: 0; }
 
 /* ================================================== */
-/* ESTILOS DO DASHBOARD (Inalterado) */
+/* 2. Dashboard Stats */
 /* ================================================== */
 .dashboard-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: 1rem;
-  margin-bottom: 1.5rem;
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 1.25rem; margin-bottom: 2rem;
 }
 .stat-card {
-  background-color: #fff;
-  border: 1px solid #e9ecef;
-  border-radius: 8px;
-  padding: 1rem 1.25rem;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.03);
+  background-color: #fff; border: none; border-radius: 12px; padding: 1.5rem;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.04); display: flex; align-items: center; gap: 1rem;
+  transition: transform 0.2s ease;
 }
-.stat-card h3 {
-  font-size: 0.85rem;
-  color: #6c757d;
-  font-weight: 600;
-  margin: 0 0 0.25rem 0;
-  text-transform: uppercase;
+.stat-card:hover { transform: translateY(-3px); }
+.stat-icon {
+    width: 50px; height: 50px; border-radius: 12px; background-color: #e7f1ff; color: #0d6efd;
+    display: flex; align-items: center; justify-content: center; font-size: 1.5rem;
 }
-.stat-card p {
-  font-size: 1.75rem;
-  font-weight: 700;
-  color: #212529;
-  margin: 0;
+.stat-ativo .stat-icon { background-color: #d1e7dd; color: #198754; }
+.stat-info h3 { font-size: 0.8rem; color: #6c757d; font-weight: 600; margin: 0; text-transform: uppercase; }
+.stat-info p { font-size: 1.5rem; font-weight: 700; color: #212529; margin: 0; }
+.stat-ativo p { color: #198754; }
+
+/* ================================================== */
+/* 3. Filtros (PRESERVADOS) */
+/* ================================================== */
+.search-and-filter-bar {
+  display: flex; flex-wrap: wrap; gap: 1rem; margin-bottom: 1.5rem;
+  align-items: center; background-color: transparent; padding: 0; box-shadow: none;
 }
-.stat-card.stat-ativo p { color: #198754; }
-.stat-card.stat-rascunho p { color: #6c757d; }
-.stats-loading { padding: 2rem; }
-.spinner.small {
-  width: 20px;
-  height: 20px;
-  border-width: 3px;
+.search-input {
+  padding: 10px; border: 1px solid #ccc; border-radius: 5px; width: 100%; max-width: 350px; box-sizing: border-box; font-family: system-ui, sans-serif;
+}
+.filter-group { display: flex; align-items: center; gap: 0.5rem; }
+.filter-group label { font-weight: 500; color: #555; white-space: nowrap; }
+.filter-group select {
+  padding: 8px 12px; border: 1px solid #ccc; border-radius: 5px; font-size: 0.95rem;
+  background-color: #f8f9fa; min-width: 120px; font-family: system-ui, sans-serif;
+}
+.btn-add {
+  background-color: #007bff; color: white; padding: 10px 15px; border: none; border-radius: 5px;
+  cursor: pointer; font-weight: bold; transition: background-color 0.3s ease; font-size: 0.95rem;
+  display: flex; align-items: center; gap: 0.5rem; margin-left: auto; width: auto; text-decoration: none;
+  font-family: system-ui, sans-serif;
+}
+.btn-add:hover { background-color: #0056b3; }
+.mobile-hide { display: inline; }
+@media (max-width: 768px) {
+  .search-and-filter-bar { flex-direction: column; align-items: stretch; }
+  .search-input { max-width: 100%; }
+  .filter-group { flex-direction: column; align-items: stretch; }
+  .btn-add { margin-left: 0; justify-content: center; }
 }
 
 /* ================================================== */
-/* ESTILOS DOS FILTROS (Melhorados) */
-/* ================================================== */
-.card {
-  background: white;
-  border-radius: 8px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
-  margin-bottom: 1.5rem;
-}
-.filters-bar {
-  padding: 1rem 1.5rem;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 1rem;
-}
-.filters-container {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.75rem;
-  flex-grow: 1;
-}
-.filter-group {
-  position: relative;
-  flex-grow: 1;
-  min-width: 220px;
-}
-.filter-icon {
-  position: absolute;
-  left: 12px;
-  top: 50%;
-  transform: translateY(-50%);
-  color: #adb5bd;
-  font-size: 0.9rem;
-}
-.form-control.with-icon,
-.form-select.with-icon {
-  padding-left: 38px;
-  height: 40px;
-  width: 100%;
-  border-radius: 6px;
-  border: 1px solid #ced4da;
-  background-color: #fff;
-  font-size: 0.9rem;
-}
-.form-select.with-icon {
-  appearance: none;
-  background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3e%3cpath fill='none' stroke='%23343a40' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M2 5l6 6 6-6'/%3e%3c/svg%3e");
-  background-repeat: no-repeat;
-  background-position: right 0.75rem center;
-  background-size: 16px 12px;
-}
-.btn-novo-contrato {
-  white-space: nowrap; /* Impede que o botão quebre a linha */
-}
-
-/* ================================================== */
-/* ESTILOS DE GRELHA E CARDS (Layout 4 Colunas) */
+/* 4. Grid de Contratos */
 /* ================================================== */
 .contratos-grid {
-  display: grid;
-  grid-template-columns: 1fr; /* 1 coluna (Mobile) */
-  gap: 1.5rem;
-}
-
-@media (min-width: 768px) {
-  .contratos-grid {
-    grid-template-columns: repeat(2, 1fr); /* 2 colunas (Tablet) */
-  }
-}
-
-@media (min-width: 1200px) {
-  .contratos-grid {
-    grid-template-columns: repeat(3, 1fr); /* 3 colunas (Desktop) */
-  }
-}
-
-@media (min-width: 1600px) {
-  .contratos-grid {
-    grid-template-columns: repeat(4, 1fr); /* 4 colunas (Desktop Largo) */
-  }
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+  gap: 1.5rem; padding-bottom: 2rem;
 }
 
 .contrato-card {
-  background-color: #fff;
-  border-radius: 8px;
-  border: 1px solid #e9ecef;
-  box-shadow: 0 4px 8px rgba(0,0,0,0.05);
-  overflow: hidden;
-  display: flex;
-  flex-direction: column;
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
-  border-left-width: 5px; 
-  border-left-style: solid;
+  background-color: #fff; border-radius: 12px; border: 1px solid rgba(0,0,0,0.06);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.03); display: flex; flex-direction: column;
+  transition: all 0.3s ease; position: relative; overflow: hidden;
 }
-.contrato-card:hover {
-  transform: translateY(-4px);
-  box-shadow: 0 8px 16px rgba(0,0,0,0.08);
+.contrato-card:hover { transform: translateY(-5px); box-shadow: 0 12px 24px rgba(0,0,0,0.08); }
+
+/* Header (Status/Type) */
+.card-top-bar {
+    padding: 0.85rem 1.25rem; display: flex; justify-content: space-between; align-items: center;
+    border-bottom: 1px solid #f0f2f5; background: #fff;
+}
+.badges-left, .badges-right { display: flex; align-items: center; gap: 8px; }
+
+.contrato-id {
+    font-size: 0.75rem; font-weight: 800; color: #6b7280;
+    background: #f3f4f6; padding: 3px 8px; border-radius: 6px;
 }
 
-/* Cores da Borda de Status */
-.status-ativo { border-left-color: #198754; }
-.status-rascunho { border-left-color: #6c757d; }
-.status-concluido { border-left-color: #0d6efd; }
-.status-rescindido, .status-cancelado { border-left-color: #dc3545; }
-.status-default { border-left-color: #e9ecef; }
-
-
-/* Cabeçalho do Card (Status e Tipo) */
-.card-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 0.8rem 1.2rem;
-  background-color: #f8f9fa;
-  border-bottom: 1px solid #e9ecef;
-}
-.status-badge {
-  padding: 4px 10px; border-radius: 12px; font-size: 0.75rem;
-  font-weight: bold; text-transform: uppercase;
-}
-.status-ativo { background-color: #d1e7dd; color: #0f5132; }
-.status-rascunho { background-color: #e9ecef; color: #495057; }
-.status-concluido { background-color: #cce5ff; color: #004085; }
-.status-rescindido, .status-cancelado { background-color: #f8d7da; color: #721c24; }
-.status-default { background-color: #e9ecef; color: #495057; }
-
+/* Badges & Colors */
 .tipo-badge {
-  font-size: 0.8rem; font-weight: 500; color: #495057;
-  background-color: #e9ecef; padding: 3px 8px; border-radius: 4px;
+    font-size: 0.7rem; font-weight: 700; text-transform: uppercase;
+    padding: 3px 8px; border-radius: 6px; color: #6b7280; background-color: #f9fafb; border: 1px solid #e5e7eb;
 }
-
-/* Corpo do Card (Imóvel e Partes) */
-.card-body {
-  padding: 1.2rem;
-  flex-grow: 1;
+.status-pill {
+    padding: 0.35em 0.85em; border-radius: 50px; font-size: 0.7rem; font-weight: 700;
+    text-transform: uppercase; display: flex; align-items: center; gap: 5px;
 }
-.card-item-principal {
-  display: flex;
-  flex-direction: column;
-  margin-bottom: 1.25rem;
-}
-.card-item-principal .text-primary {
-  font-size: 1.15rem;
-  font-weight: 600;
-  color: #212529; 
-  line-height: 1.3;
-}
-.card-item-principal .text-small {
-  font-size: 0.9rem;
-  color: #6c757d;
-  line-height: 1.4;
-}
-
-.card-info-row {
-  display: flex;
-  align-items: flex-start;
-  gap: 10px;
-  margin-top: 1rem;
-}
-.card-info-row i {
-  font-size: 0.9rem;
-  margin-top: 5px;
-  width: 16px;
-  text-align: center;
-}
-.card-info-row .icon-blue { color: #0d6efd; }
-.card-info-row .icon-grey { color: #6c757d; }
-.card-info-row .icon-green { color: #198754; }
-
-.card-info-row div {
-  display: flex;
-  flex-direction: column;
-}
-.card-info-row label {
-  font-size: 0.75rem;
-  color: #6c757d;
-  margin-bottom: 2px;
-  text-transform: uppercase;
-  font-weight: 500;
-}
-.card-info-row span {
-  font-size: 0.95rem;
-  font-weight: 600;
-  color: #343a40;
-}
-.card-info-row .text-bold-valor {
-  font-size: 1rem;
-  font-weight: 700;
-  color: #198754;
-}
+/* Status Colors (Pastel + Strong Text) */
+.status-ativo { background-color: #dcfce7; color: #166534; }
+.status-rascunho { background-color: #f1f5f9; color: #475569; }
+.status-concluido { background-color: #dbeafe; color: #1e40af; }
+.status-rescindido, .status-cancelado { background-color: #fee2e2; color: #991b1b; }
 
 
-/* Rodapé do Card (Ações) */
+/* Body */
+.card-body { padding: 0; flex-grow: 1; display: flex; flex-direction: column; }
+
+/* Imovel Info */
+.imovel-section { padding: 1.25rem 1.25rem 0.75rem; }
+.imovel-title {
+    font-size: 1.05rem; font-weight: 700; color: #111827; margin: 0 0 0.25rem 0;
+    line-height: 1.4; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.imovel-address {
+    font-size: 0.85rem; color: #6b7280; margin: 0;
+    display: flex; align-items: center; gap: 6px;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+
+/* Dates (Timeline) */
+.datas-grid {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 0.6rem 1.25rem; background-color: #f8fafc; border-top: 1px solid #f1f5f9; border-bottom: 1px solid #f1f5f9;
+}
+.data-col { display: flex; flex-direction: column; gap: 2px; }
+.data-label { font-size: 0.65rem; color: #9ca3af; font-weight: 600; text-transform: uppercase; }
+.data-value { font-size: 0.85rem; font-weight: 600; color: #374151; display: flex; align-items: center; gap: 6px; }
+.data-divider { width: 1px; height: 24px; background-color: #e2e8f0; }
+.empty-dates { justify-content: center; color: #9ca3af; font-size: 0.85rem; }
+.text-success { color: #10b981; }
+.text-danger { color: #ef4444; }
+
+/* Pessoas Grid */
+.pessoas-container { padding: 1rem 1.25rem; display: flex; flex-direction: column; gap: 1rem; }
+.pessoa-row { display: flex; align-items: center; gap: 0.85rem; }
+
+.pessoa-avatar {
+    width: 36px; height: 36px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 0.9rem; flex-shrink: 0;
+}
+/* Colors for Roles */
+.avatar-proprietario { background-color: #f3e8ff; color: #9333ea; } /* Purple */
+.role-proprietario { color: #9333ea; }
+
+.avatar-inquilino { background-color: #e0f2fe; color: #0284c7; } /* Blue */
+.role-inquilino { color: #0284c7; }
+
+.pessoa-info { display: flex; flex-direction: column; overflow: hidden; }
+.pessoa-role { font-size: 0.7rem; font-weight: 700; text-transform: uppercase; margin-bottom: 1px; }
+.pessoa-name { font-size: 0.9rem; color: #1f2937; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+
+/* Footer Values */
+.valor-footer {
+    margin-top: auto; padding: 0.85rem 1.25rem;
+    display: flex; justify-content: space-between; align-items: center;
+    background-color: #111827; color: #fff; /* Dark contrast footer for value */
+}
+.valor-label { font-size: 0.75rem; color: #9ca3af; font-weight: 500; text-transform: uppercase; }
+.valor-amount { font-size: 1.1rem; font-weight: 700; color: #fff; }
+
+
+/* Actions */
 .card-actions {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: flex-end; 
-  gap: 0.5rem;
-  padding: 0.8rem 1.2rem;
-  border-top: 1px solid #e9ecef;
-  background-color: #f8f9fa;
+    padding: 0.85rem 1.25rem; background-color: #fff;
+    display: flex; justify-content: space-between; align-items: center; gap: 1rem;
 }
+.actions-left { display: flex; gap: 0.5rem; }
+.actions-right { display: flex; gap: 0.25rem; }
 
-/* ================================================== */
-/* === CORREÇÃO: Estilo dos Botões (flex-grow removido) */
-/* ================================================== */
-.btn-action {
-  background: none;
-  border: 1px solid #ced4da;
-  padding: 6px 10px; 
-  border-radius: 5px;
-  cursor: pointer;
-  font-size: 0.8rem;
-  font-weight: 600;
-  color: #495057;
-  transition: all 0.2s ease;
-  display: inline-flex;
-  align-items: center;
-  gap: 0.4rem;
-  /* flex-grow: 1; */ /* <-- REMOVIDO para tamanhos naturais */
-  justify-content: center;
+/* Action Buttons */
+.btn-pill {
+    border: none; border-radius: 6px; padding: 0.4rem 0.85rem; font-size: 0.8rem; font-weight: 600;
+    cursor: pointer; display: inline-flex; align-items: center; gap: 6px; transition: all 0.2s;
 }
-.btn-action:hover:not(:disabled) {
-  background-color: #e9ecef;
-  border-color: #adb5bd;
+.btn-ativar { background-color: #d1fae5; color: #065f46; }
+.btn-ativar:hover { background-color: #a7f3d0; }
+.btn-financeiro { background-color: #eff6ff; color: #1e40af; }
+.btn-financeiro:hover { background-color: #dbeafe; }
+
+.btn-mini {
+    width: 32px; height: 32px; border-radius: 6px; border: 1px solid transparent; background: transparent;
+    color: #9ca3af; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: all 0.2s;
 }
-.btn-action:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-}
-.btn-action i {
-  font-size: 0.9em;
-  /* Margem zero para botões só de ícone */
-  margin-right: 0.2rem; 
-}
-/* Estilo para botões só de ícone (PDF e Excluir) */
-.btn-pdf, .btn-delete {
-  padding: 6px 9px; /* Padding horizontal menor */
-}
-.btn-pdf i, .btn-delete i {
-  margin-right: 0; /* Remove margem do ícone */
-}
+.btn-mini:hover { background-color: #f3f4f6; color: #374151; }
+.btn-delete-mini:hover { background-color: #fee2e2; color: #dc2626; }
 
-
-/* Cores específicas dos botões */
-.btn-ativar { color: #198754; border-color: #198754; }
-.btn-ativar:hover:not(:disabled) { background-color: #198754; color: white; }
-
-.btn-financeiro { color: #0d6efd; border-color: #0d6efd; }
-.btn-financeiro:hover:not(:disabled) { background-color: #0d6efd; color: white; }
-
-.btn-edit { color: #007bff; border-color: #007bff; }
-.btn-edit:hover:not(:disabled) { background-color: #007bff; color: white; }
-
-.btn-edit-doc { color: #fd7e14; border-color: #fd7e14; }
-.btn-edit-doc:hover:not(:disabled) { background-color: #fd7e14; color: white; }
-
-.btn-pdf { color: #6c757d; border-color: #6c757d; }
-.btn-pdf:hover:not(:disabled) { background-color: #6c757d; color: white; }
-
-.btn-delete { color: #dc3545; border-color: #dc3545; }
-.btn-delete:hover:not(:disabled) { background-color: #dc3545; color: white; }
-
-
-/* Mensagens de Estado */
-.loading-message, .error-message, .empty-state {
-  text-align: center; padding: 3rem; color: #6c757d;
-  font-size: 1.1rem;
-}
+/* Utils */
+.text-muted { color: #9ca3af; }
+.loading-message, .error-message, .empty-state { text-align: center; padding: 4rem 2rem; color: #6c757d; }
+.empty-icon { font-size: 3rem; color: #dee2e6; margin-bottom: 1rem; }
 .spinner {
-  border: 4px solid #f3f3f3;
-  border-top: 4px solid #007bff;
-  border-radius: 50%;
-  width: 40px;
-  height: 40px;
-  animation: spin 1s linear infinite;
-  margin: 0 auto 1rem;
+  border: 3px solid #e9ecef; border-top: 3px solid #0d6efd; border-radius: 50%;
+  width: 40px; height: 40px; animation: spin 0.8s linear infinite; margin: 0 auto 1rem;
 }
-@keyframes spin {
-  0% { transform: rotate(0deg); }
-  100% { transform: rotate(360deg); }
-}
-
-/* ================================================== */
-/* === ESTILOS GLOBAIS DO MODAL (Restaurados)       === */
-/* ================================================== */
-:global(body.modal-open) {
-  overflow: hidden;
-}
-/* O componente ModalFinanceiroContrato.vue é responsável 
-   pelos seus próprios estilos internos (overlay, container, etc.) */
+@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
 </style>

@@ -114,13 +114,10 @@ class ContratoSerializer(serializers.ModelSerializer):
         return "R$ -"
 
 # ====================================================================
-# SERIALIZER DE CRIAÇÃO E ATUALIZAÇÃO (ContratoCriacaoSerializer) - (CORRIGIDO)
+# SERIALIZER DE CRIAÇÃO E ATUALIZAÇÃO (ContratoCriacaoSerializer)
 # ====================================================================
 
 class ContratoCriacaoSerializer(serializers.ModelSerializer):
-    """
-    Serializer para CRIAÇÃO/ATUALIZAÇÃO. Aceita proprietário vindo do frontend.
-    """
     
     modelo_utilizado = serializers.PrimaryKeyRelatedField(
         queryset=ModeloContrato.objects.all(),
@@ -187,19 +184,41 @@ class ContratoCriacaoSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError("Este modelo de contrato não pertence à sua imobiliária.")
         return value
 
-    # ==========================================================
-    # === CORREÇÃO: Método validate() ATUALIZADO             ===
-    # ==========================================================
     def validate(self, data):
-        """
-        Validação que agora suporta partial updates (ex: ação 'ativar')
-        buscando dados do self.instance quando não estão em 'data'.
-        """
         instance = self.instance 
 
-        # 1. Coleta os dados (novos ou existentes)
-        # Se 'instance' existe (é um update), usa o valor do instance como fallback.
-        # Se não (é um create), o .get() retornará None se a chave não estiver em 'data'.
+        # --- CORREÇÃO: BLOQUEIO DE EDIÇÃO PARA CONTRATOS ATIVOS ---
+        # Impede que campos financeiros sejam alterados se o contrato já estiver ATIVO,
+        # pois isso causaria dessincronia com o módulo financeiro.
+        if instance and instance.status_contrato == Contrato.Status.ATIVO:
+            campos_bloqueados = [
+                'aluguel', 
+                'valor_total', 
+                'data_primeiro_vencimento', 
+                'duracao_meses',
+                'imovel',
+                'inquilino',
+                'proprietario'
+            ]
+            for campo in campos_bloqueados:
+                # Se o campo foi enviado e é diferente do atual
+                if campo in data:
+                    valor_novo = data[campo]
+                    valor_atual = getattr(instance, campo)
+                    
+                    # Tratamento especial para chaves estrangeiras (comparar objetos ou IDs)
+                    if hasattr(valor_atual, 'pk'): # É um objeto relacionado (Imovel, Cliente)
+                         if valor_novo != valor_atual:
+                             raise serializers.ValidationError({
+                                 campo: "Não é possível alterar este campo pois o contrato já está ATIVO e gerou financeiro. Cancele o contrato e crie um novo."
+                             })
+                    else: # Campo simples (Decimal, Date, Int)
+                        if valor_novo != valor_atual:
+                             raise serializers.ValidationError({
+                                 campo: "Não é possível alterar valores financeiros ou datas cruciais em um contrato ATIVO."
+                             })
+        # ------------------------------------------------------------
+
         imovel = data.get('imovel', instance.imovel if instance else None)
         proprietario = data.get('proprietario', instance.proprietario if instance else None)
         inquilino = data.get('inquilino', instance.inquilino if instance else None)
@@ -210,11 +229,8 @@ class ContratoCriacaoSerializer(serializers.ModelSerializer):
         data_vencimento_venda = data.get('data_vencimento_venda', instance.data_vencimento_venda if instance else None)
         status_contrato = data.get('status_contrato', instance.status_contrato if instance else None)
         
-        # Fiadores: se 'fiadores' foi passado, usa a lista de 'data'. 
-        # Se não, usa a lista existente do 'instance'.
         fiadores_list = data.get('fiadores', instance.fiadores.all() if instance else [])
         
-        # 2. Executa as validações com os dados consolidados
         if imovel and proprietario:
             if imovel.proprietario != proprietario:
                 raise serializers.ValidationError({"imovel": "Este imóvel não pertence ao proprietário selecionado. Por favor, recarregue a lista de imóveis."})
@@ -224,7 +240,6 @@ class ContratoCriacaoSerializer(serializers.ModelSerializer):
         if inquilino == proprietario:
             raise serializers.ValidationError("O inquilino/comprador e o proprietário não podem ser a mesma pessoa.")
         
-        # Só valida os fiadores se o campo 'fiadores' foi enviado na requisição (create ou update)
         if 'fiadores' in data: 
             for fiador in fiadores_list:
                 if fiador == inquilino:
@@ -232,13 +247,12 @@ class ContratoCriacaoSerializer(serializers.ModelSerializer):
                 if fiador == proprietario:
                      raise serializers.ValidationError({"fiadores": "O fiador não pode ser o mesmo que o proprietário."})
 
-        # 3. Validação de Tipo/Valores
         tipo_limpo = None
         if tipo_contrato:
              tipo_limpo = str(tipo_contrato).strip().upper().replace('"', '').replace("'", "")
              if tipo_limpo not in [Contrato.TipoContrato.ALUGUEL, Contrato.TipoContrato.VENDA]:
                  raise serializers.ValidationError({"tipo_contrato": f"O tipo de contrato '{tipo_contrato}' é inválido."})
-             data['tipo_contrato'] = tipo_limpo # Garante que o valor salvo está limpo
+             data['tipo_contrato'] = tipo_limpo 
         
         if tipo_limpo == Contrato.TipoContrato.ALUGUEL:
             if not aluguel:
@@ -257,7 +271,6 @@ class ContratoCriacaoSerializer(serializers.ModelSerializer):
             data['duracao_meses'] = None 
             data['data_primeiro_vencimento'] = None
             
-        # 4. Validação de Conflito de Status
         if status_contrato == Contrato.Status.ATIVO and imovel:
             instance_pk = self.instance.pk if self.instance else None
             
@@ -274,7 +287,6 @@ class ContratoCriacaoSerializer(serializers.ModelSerializer):
                 })
 
         return data
-    # ==========================================================
 
     def _executar_logica_financeira(self, contrato):
         if contrato.status_contrato == Contrato.Status.ATIVO:
@@ -302,13 +314,11 @@ class ContratoCriacaoSerializer(serializers.ModelSerializer):
                 
         contrato = super().update(instance, validated_data)
         
-        # Lógica de geração financeira (permanece a mesma)
         if status_anterior != Contrato.Status.ATIVO and contrato.status_contrato == Contrato.Status.ATIVO:
             self._executar_logica_financeira(contrato)
             
         return contrato
 
-# (ContratoListSerializer inalterado)
 class ContratoListSerializer(serializers.ModelSerializer):
     imovel_detalhes = ImovelSimplificadoSerializer(source='imovel', read_only=True)
     inquilino_detalhes = ClienteSimplificadoSerializer(source='inquilino', read_only=True)

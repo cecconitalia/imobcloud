@@ -74,16 +74,12 @@ class Contrato(models.Model):
         VENDA = 'VENDA', 'Venda'
         ALUGUEL = 'ALUGUEL', 'Aluguel'
 
-    # ==========================================================
-    # === ESTES SÃO OS STATUS QUE A BASE DE DADOS ESPERA AGORA ===
-    # ==========================================================
     class Status(models.TextChoices):
-        RASCUNHO = 'RASCUNHO', 'Rascunho'      # Substitui PENDENTE
+        RASCUNHO = 'RASCUNHO', 'Rascunho'
         ATIVO = 'ATIVO', 'Ativo'
         CONCLUIDO = 'CONCLUIDO', 'Concluído'
         RESCINDIDO = 'RESCINDIDO', 'Rescindido'
-        CANCELADO = 'CANCELADO', 'Cancelado'    # Substitui INATIVO
-    # ==========================================================
+        CANCELADO = 'CANCELADO', 'Cancelado'
     
     imobiliaria = models.ForeignKey(Imobiliaria, on_delete=models.CASCADE, verbose_name="Imobiliária")
     
@@ -189,9 +185,7 @@ class Contrato(models.Model):
     
     status_contrato = models.CharField(
         max_length=50, 
-        # ==========================================================
-        default=Status.RASCUNHO, # <--- Padrão atualizado
-        # ==========================================================
+        default=Status.RASCUNHO, 
         verbose_name="Status do Contrato", 
         choices=Status.choices
     )
@@ -222,7 +216,7 @@ class Contrato(models.Model):
             return self.data_primeiro_vencimento.day
         return "(Dia não definido)"
 
-    # --- MÉTODOS FINANCEIROS (Inalterados) ---
+    # --- MÉTODOS FINANCEIROS ---
     
     def gerar_financeiro_aluguel(self):
         imobiliaria = self.imobiliaria
@@ -233,15 +227,28 @@ class Contrato(models.Model):
         if transacoes_existentes:
             print(f"AVISO ALUGUEL: Transações para Contrato {self.id} já existem. Geração ignorada.")
             return False
+        
         data_base_vencimento = self.data_primeiro_vencimento
         duracao = self.duracao_meses
+        
         try:
              categoria_aluguel = Categoria.objects.get(imobiliaria=imobiliaria, nome='Receita de Aluguel')
         except Categoria.DoesNotExist:
              categoria_aluguel = Categoria.objects.create(imobiliaria=imobiliaria, nome='Receita de Aluguel', tipo='RECEITA')
+        
         conta_padrao = Conta.objects.filter(imobiliaria=imobiliaria).first()
+        
         for i in range(duracao):
              data_parcela = data_base_vencimento + relativedelta(months=i)
+             
+             # CORREÇÃO: Cálculo do Mês de Referência
+             # Assume-se "Mês Vencido": Se vence em 05/02, a referência é Janeiro.
+             data_referencia = data_parcela - relativedelta(months=1)
+             ref_str = data_referencia.strftime('%m/%Y')
+             venc_str = data_parcela.strftime('%d/%m/%Y')
+             
+             descricao = f"Aluguel {i+1}/{duracao} - Ref: {ref_str} (Venc: {venc_str})"
+             
              Pagamento.objects.create(
                  contrato=self,
                  data_vencimento=data_parcela,
@@ -250,7 +257,7 @@ class Contrato(models.Model):
              )
              Transacao.objects.create(
                  imobiliaria=imobiliaria,
-                 descricao=f'Aluguel {i+1}/{duracao} - Imóvel: {self.imovel.logradouro}',
+                 descricao=descricao,
                  valor=self.aluguel,
                  data_transacao=timezone.now().date(), 
                  data_vencimento=data_parcela,
@@ -318,7 +325,18 @@ class Contrato(models.Model):
         super().save(*args, **kwargs)
 
     def delete(self, *args, **kwargs):
-        """ Sobrescreve o delete para implementar o Soft Delete. """
+        """ 
+        Sobrescreve o delete para implementar o Soft Delete E GARANTIR LIMPEZA FINANCEIRA.
+        """
+        # CORREÇÃO CRÍTICA: 
+        # Muda o status para CANCELADO antes de excluir.
+        # Isso dispara o signal 'limpar_financeiro_se_cancelado' em signals.py,
+        # removendo todas as contas a receber PENDENTES.
+        if self.status_contrato not in [self.Status.CANCELADO, self.Status.RESCINDIDO]:
+            self.status_contrato = self.Status.CANCELADO
+            # Salva para disparar o signal pre_save/post_save
+            self.save()
+        
         self.excluido = True
         self.save()
 
@@ -332,7 +350,6 @@ class Contrato(models.Model):
 
 
 class Pagamento(models.Model):
-    # (Modelo Pagamento inalterado)
     STATUS_PAGAMENTO_CHOICES = [
         ('PENDENTE', 'Pendente'),
         ('PAGO', 'Pago'),

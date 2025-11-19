@@ -26,6 +26,7 @@ from django.utils.dateparse import parse_date
 from django.db import transaction
 from django.db.models import Exists, OuterRef, Q, Count, Sum
 from app_financeiro.models import Transacao 
+from app_financeiro.serializers import TransacaoListSerializer # CORREÇÃO: Importação necessária
 from rest_framework.views import APIView 
 from django.utils import timezone
 from datetime import timedelta
@@ -35,15 +36,17 @@ from reportlab.lib.pagesizes import letter
 
 import re 
 
+# === SEGURANÇA: Importação do Bleach (Requer pip install bleach) ===
+try:
+    import bleach
+except ImportError:
+    bleach = None # Fallback para evitar crash se não instalado, mas inseguro
+# ===================================================================
+
 from ImobCloud.utils.formatacao_util import valor_por_extenso
 
-# (Função get_contrato_context inalterada)
 def get_contrato_context(contrato):
-    """
-    Função helper para montar o CONTEXTO (agora fora da classe)
-    """
-    
-    # Preparar valores por extenso
+    # (Função get_contrato_context permanece inalterada)
     valor_total_extenso = "(Valor total não definido)"
     if contrato.valor_total:
         try:
@@ -65,7 +68,6 @@ def get_contrato_context(contrato):
         except Exception:
             pass
     
-    # 1. Proprietário (Locador)
     proprietario = contrato.proprietario
     proprietario_pf = None
     proprietario_pj = None
@@ -75,7 +77,6 @@ def get_contrato_context(contrato):
         elif proprietario.tipo_pessoa == 'JURIDICA':
             proprietario_pj = proprietario 
 
-    # 2. Inquilino (Locatário)
     inquilino = contrato.inquilino
     inquilino_pf = None
     inquilino_pj = None
@@ -85,7 +86,6 @@ def get_contrato_context(contrato):
         elif inquilino.tipo_pessoa == 'JURIDICA':
             inquilino_pj = inquilino
     
-    # 3. Fiadores (Lista)
     fiadores_list = []
     for fiador_cliente in contrato.fiadores.all():
         fiador_pf = None
@@ -125,7 +125,6 @@ def get_contrato_context(contrato):
     return context
 
 
-# (ModeloContratoViewSet inalterado)
 class ModeloContratoViewSet(viewsets.ModelViewSet):
     serializer_class = ModeloContratoSerializer
     permission_classes = [IsAuthenticated]
@@ -145,7 +144,6 @@ class ModeloContratoViewSet(viewsets.ModelViewSet):
         else:
             raise ValidationError("Usuário não tem imobiliária associada.")
 
-# (ContratoViewSet atualizado)
 class ContratoViewSet(viewsets.ModelViewSet):
     serializer_class = ContratoSerializer
     permission_classes = [IsAuthenticated]
@@ -181,7 +179,6 @@ class ContratoViewSet(viewsets.ModelViewSet):
         if self.action == 'list':
             return ContratoListSerializer
         
-        # O ContratoCriacaoSerializer é usado para escrita/atualização E para a ação 'ativar'
         if self.action in ['create', 'update', 'partial_update', 'ativar']:
             return ContratoCriacaoSerializer
             
@@ -269,19 +266,32 @@ class ContratoViewSet(viewsets.ModelViewSet):
             return Response({"error": f"Erro interno: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
     # ==========================================================
-    # === CORREÇÃO: Função Pagamentos (Garante Pagamentos)   ===
+    # === CORREÇÃO: Função Pagamentos (Prioriza Transações)  ===
     # ==========================================================
     @action(detail=True, methods=['get'])
     def pagamentos(self, request, pk=None):
         contrato = self.get_object()
         
-        # Filtra os pagamentos/transações (apenas se o contrato for de aluguel)
+        # 1. Busca as Transações reais (O "Contas a Receber" verdadeiro)
+        # Isso garante que se você alterou valor, data ou baixou no financeiro, apareça aqui.
+        transacoes = Transacao.objects.filter(
+            contrato=contrato, 
+            tipo='RECEITA'
+        ).order_by('data_vencimento')
+        
+        if transacoes.exists():
+            # Retorna os dados reais do financeiro
+            serializer = TransacaoListSerializer(transacoes, many=True)
+            return Response(serializer.data)
+        
+        # 2. Fallback: Se não houver transações (ex: contrato rascunho ou erro),
+        # tenta mostrar o cronograma de Pagamentos original se for Aluguel.
         if contrato.tipo_contrato == Contrato.TipoContrato.ALUGUEL:
              pagamentos = Pagamento.objects.filter(contrato=contrato).order_by('data_vencimento')
              serializer = PagamentoSerializer(pagamentos, many=True)
              return Response(serializer.data)
         
-        # Se for Venda, ou se o financeiro não foi gerado, retorna uma lista vazia
+        # Se for Venda sem transações geradas, retorna lista vazia
         return Response([]) 
     # ==========================================================
         
@@ -323,7 +333,6 @@ class ContratoViewSet(viewsets.ModelViewSet):
                 html_string = ""
         
         if not html_string:
-            print(f"Aviso: Contrato {pk} está a usar o template de fallback (modelo não encontrado ou vazio).")
             template_name = 'contrato_aluguel_template.html'
             if contrato.tipo_contrato == 'VENDA':
                 template_name = 'contrato_venda_template.html'
@@ -335,6 +344,9 @@ class ContratoViewSet(viewsets.ModelViewSet):
         
         return Response(html_string)
 
+    # ==========================================================
+    # === CORREÇÃO: Sanitização de HTML (Segurança XSS)      ===
+    # ==========================================================
     @action(detail=True, methods=['post'], url_path='salvar-html-editado')
     def salvar_html_editado(self, request, pk=None):
         contrato = get_object_or_404(Contrato, pk=pk)
@@ -343,11 +355,41 @@ class ContratoViewSet(viewsets.ModelViewSet):
         if not html_content:
             return Response({"error": "Nenhum conteúdo HTML fornecido."}, status=status.HTTP_400_BAD_REQUEST)
             
+        # Lógica de Sanitização com Bleach
+        if bleach:
+            # === CORREÇÃO AQUI: Convertendo para list() antes de somar ===
+            allowed_tags = list(bleach.sanitizer.ALLOWED_TAGS) + [
+                'p', 'br', 'strong', 'b', 'i', 'em', 'u', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6',
+                'ul', 'ol', 'li', 'span', 'div', 'table', 'thead', 'tbody', 'tr', 'th', 'td',
+                'img', 'hr', 'blockquote'
+            ]
+            allowed_attributes = {
+                '*': ['style', 'class', 'align'],
+                'img': ['src', 'alt', 'width', 'height'],
+                'a': ['href', 'target']
+            }
+            allowed_styles = [
+                'color', 'background-color', 'text-align', 'font-size', 'font-weight', 
+                'margin', 'padding', 'border', 'width', 'height', 'text-decoration'
+            ]
+            
+            try:
+                html_content = bleach.clean(
+                    html_content,
+                    tags=allowed_tags,
+                    attributes=allowed_attributes,
+                    styles=allowed_styles,
+                    strip=True # Remove tags perigosas (script, iframe)
+                )
+            except Exception as e:
+                print(f"Erro ao sanitizar HTML: {e}")
+                # Em caso de erro, mantém o original mas loga o problema
+        
         contrato.conteudo_personalizado = html_content
         contrato.save()
         
         return Response({"success": "Documento atualizado com sucesso."})
-
+    # ==========================================================
 
     @action(detail=True, methods=['get'], permission_classes=[permissions.AllowAny], url_path='visualizar-pdf')
     def generate_pdf_contrato(self, request, pk=None):
