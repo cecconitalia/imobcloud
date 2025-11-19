@@ -1,32 +1,57 @@
 <template>
-  <div class="clientes-container">
+  <div class="page-container">
     
-    <div v-if="sumarioClientes" class="summary-cards">
+    <div v-if="sumarioClientes" class="dashboard-grid">
       <div 
-        class="card" 
-        @click="setFilter('status', 'ATIVO')" 
-        :class="{ active: filters.status === 'ATIVO' }"
+        class="stat-card clickable-card" 
+        @click="resetFilters"
+        :class="{ 'active-card': !filters.status && !filters.tipo_pessoa }"
+        title="Ver todos os clientes"
       >
-        <p class="card-value">{{ sumarioClientes.ativos }}</p>
-        <p class="card-label">Clientes Ativos</p>
+        <div class="stat-icon"><i class="fas fa-users"></i></div>
+        <div class="stat-info">
+            <h3>Total de Clientes</h3>
+            <p>{{ sumarioClientes.total }}</p>
+        </div>
       </div>
 
       <div 
-        class="card" 
-        @click="setFilter('tipo_pessoa', 'FISICA')" 
-        :class="{ active: filters.tipo_pessoa === 'FISICA' }"
+        class="stat-card stat-ativo clickable-card" 
+        @click="setFilter('status', 'ATIVO')"
+        :class="{ 'active-card': filters.status === 'ATIVO' }"
+        title="Filtrar apenas ativos"
       >
-        <p class="card-value">{{ sumarioClientes.pf }}</p>
-        <p class="card-label">Pessoa Física</p>
+        <div class="stat-icon"><i class="fas fa-user-check"></i></div>
+        <div class="stat-info">
+            <h3>Ativos</h3>
+            <p>{{ sumarioClientes.ativos }}</p>
+        </div>
       </div>
 
       <div 
-        class="card" 
-        @click="setFilter('tipo_pessoa', 'JURIDICA')" 
-        :class="{ active: filters.tipo_pessoa === 'JURIDICA' }"
+        class="stat-card clickable-card" 
+        @click="setFilter('tipo_pessoa', 'FISICA')"
+        :class="{ 'active-card': filters.tipo_pessoa === 'FISICA' }"
+        title="Filtrar Pessoa Física"
       >
-        <p class="card-value">{{ sumarioClientes.pj }}</p>
-        <p class="card-label">Pessoa Jurídica</p>
+        <div class="stat-icon"><i class="fas fa-user"></i></div>
+        <div class="stat-info">
+            <h3>Pessoa Física</h3>
+            <p>{{ sumarioClientes.pf }}</p>
+        </div>
+      </div>
+
+      <div 
+        class="stat-card clickable-card" 
+        @click="setFilter('tipo_pessoa', 'JURIDICA')"
+        :class="{ 'active-card': filters.tipo_pessoa === 'JURIDICA' }"
+        title="Filtrar Pessoa Jurídica"
+      >
+        <div class="stat-icon"><i class="fas fa-building"></i></div>
+        <div class="stat-info">
+            <h3>Pessoa Jurídica</h3>
+            <p>{{ sumarioClientes.pj }}</p>
+        </div>
       </div>
     </div>
     
@@ -34,7 +59,7 @@
       <input
         type="text"
         v-model="searchTerm"
-        placeholder="Pesquisar por nome, email, documento..."
+        placeholder="Buscar por nome, email, documento..."
         class="search-input"
       />
       
@@ -55,15 +80,24 @@
           <option value="JURIDICA">Jurídica</option>
         </select>
       </div>
-      <button @click="goToCreateCliente" class="btn-add">
-        <i class="fas fa-plus"></i> Adicionar Cliente
-      </button>
+
+      <router-link :to="{ name: 'cliente-novo' }" class="btn-add">
+        <i class="fas fa-plus"></i> <span class="mobile-hide">Novo Cliente</span>
+      </router-link>
     </div>
 
-    <div v-if="isLoading" class="loading-message">A carregar...</div>
-    <div v-if="error" class="error-message">{{ error }}</div>
+    <div v-if="isLoading" class="loading-message card">
+        <div class="spinner"></div>
+        A carregar clientes...
+    </div>
+    <div v-else-if="error" class="error-message card">{{ error }}</div>
 
-    <div v-if="filteredClientes.length > 0" class="clientes-grid">
+    <div v-else-if="filteredClientes.length === 0" class="empty-state card">
+      <div class="empty-icon"><i class="fas fa-users-slash"></i></div>
+      <p>Nenhum cliente encontrado com os filtros selecionados.</p>
+    </div>
+
+    <div v-else class="clientes-grid">
       <div
         v-for="cliente in filteredClientes"
         :key="cliente.id"
@@ -78,7 +112,10 @@
           <h3 class="cliente-nome">{{ cliente.nome_exibicao || 'Nome não disponível' }}</h3>
           <p class="cliente-contato">{{ cliente.email || 'Email não informado'}}</p>
           <p class="cliente-contato">{{ cliente.telefone || 'Telefone não informado' }}</p>
-          <p class="cliente-contato tipo-pessoa">({{ cliente.tipo_pessoa === 'FISICA' ? 'Pessoa Física' : 'Pessoa Jurídica' }})</p>
+          <p class="cliente-contato tipo-pessoa">
+             <i :class="cliente.tipo_pessoa === 'FISICA' ? 'fas fa-user' : 'fas fa-building'"></i>
+             {{ cliente.tipo_pessoa === 'FISICA' ? 'Pessoa Física' : 'Pessoa Jurídica' }}
+          </p>
         </div>
         <div class="cliente-tags">
           <span v-if="cliente.tipo === 'PROPRIETARIO'" class="tag proprietario">Proprietário</span>
@@ -88,9 +125,7 @@
         </div>
       </div>
     </div>
-    <div v-else-if="!isLoading && !error" class="empty-message">
-      Nenhum cliente encontrado.
-    </div>
+
   </div>
 </template>
 
@@ -146,7 +181,6 @@ function calculateSummary(list: Cliente[]) {
     const proprietarios = list.filter(c => c.tipo === 'PROPRIETARIO' || c.tipo === 'AMBOS').length;
     const interessados = list.filter(c => c.tipo === 'INTERESSADO' || c.tipo === 'AMBOS').length;
     
-    // CORREÇÃO: Adicionada a contagem de Pessoa Física
     const pj = list.filter(c => c.tipo_pessoa === 'JURIDICA').length;
     const pf = list.filter(c => c.tipo_pessoa === 'FISICA').length; 
 
@@ -155,33 +189,35 @@ function calculateSummary(list: Cliente[]) {
         proprietarios,
         interessados,
         pj,
-        pf, // Adicionado ao objeto de sumário
+        pf, 
         total: list.length
     };
 }
 
-function setFilter(key: 'status' | 'tipo_pessoa', value: any) {
-    let targetValue = value;
-
+function setFilter(key: 'status' | 'tipo_pessoa', value: string) {
     if (key === 'status') {
-        // Se já estiver ativo, desativa, senão ativa
-        if (filters.value.status === targetValue) {
+        // Toggle
+        if (filters.value.status === value) {
              filters.value.status = '';
         } else {
-             filters.value.status = targetValue as string;
+             filters.value.status = value;
         }
-        filters.value.tipo_pessoa = '';
+        filters.value.tipo_pessoa = ''; // Reseta o outro filtro
     } else if (key === 'tipo_pessoa') {
-         if (filters.value.tipo_pessoa === targetValue) {
+         if (filters.value.tipo_pessoa === value) {
              filters.value.tipo_pessoa = '';
         } else {
-             // Mapeia o valor para FISICA ou JURIDICA
-             filters.value.tipo_pessoa = targetValue as string;
+             filters.value.tipo_pessoa = value;
         }
-        filters.value.status = 'ATIVO'; // Mudar filtro de pessoa reseta para ATIVO
+        filters.value.status = ''; // Reseta o status para ver todos desse tipo
     }
 }
 
+function resetFilters() {
+    filters.value.status = '';
+    filters.value.tipo_pessoa = '';
+    searchTerm.value = '';
+}
 
 const filteredClientes = computed(() => {
   let list = clientes.value;
@@ -199,14 +235,14 @@ const filteredClientes = computed(() => {
       );
   }
 
-  // 2. Filtrar por Status (Dropdown/Card)
+  // 2. Filtrar por Status
   if (filters.value.status === 'ATIVO') {
       list = list.filter(c => c.ativo === true);
   } else if (filters.value.status === 'INATIVO') {
       list = list.filter(c => c.ativo === false);
   }
   
-  // 3. Filtrar por Tipo de Pessoa (Dropdown/Card)
+  // 3. Filtrar por Tipo de Pessoa
   if (filters.value.tipo_pessoa === 'JURIDICA') {
       list = list.filter(c => c.tipo_pessoa === 'JURIDICA');
   } else if (filters.value.tipo_pessoa === 'FISICA') {
@@ -220,166 +256,106 @@ function editCliente(id: number) {
   router.push({ name: 'cliente-editar', params: { id } });
 }
 
-function goToCreateCliente() { 
-    router.push({ name: 'cliente-novo' });
-}
-
 onMounted(fetchClientes);
 </script>
 
 <style scoped>
-.clientes-container {
+.page-container {
   padding: 0;
 }
 
-/* ESTILOS DO DASHBOARD (REUTILIZADOS DE IMOVEISVIEW) */
-.summary-cards {
-  display: grid;
-  /* CORREÇÃO: Ajustado para 3 colunas (ATIVO, PF, PJ) */
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: 1.5rem;
-  margin-bottom: 2rem;
+/* ================================================== */
+/* 1. Dashboard Grid (Estilo Padronizado) */
+/* ================================================== */
+.dashboard-grid {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 1.25rem; margin-bottom: 2rem;
 }
-.card {
-  background-color: #fff;
-  padding: 1.5rem;
-  border-radius: 8px;
-  box-shadow: 0 4px 6px rgba(0,0,0,0.05);
-  text-align: center;
-  cursor: pointer;
-  border: 2px solid transparent;
-  transition: all 0.2s;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
+.stat-card {
+  background-color: #fff; border: 1px solid transparent; border-radius: 12px; padding: 1.5rem;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.04); display: flex; align-items: center; gap: 1rem;
+  transition: transform 0.2s ease, border-color 0.2s;
 }
-.card:hover {
-    transform: translateY(-5px);
-    box-shadow: 0 8px 12px rgba(0,0,0,0.1);
-}
-/* CORREÇÃO: Mapeamento de 'FISICA' para o estilo ativo */
-.card.active {
+.clickable-card { cursor: pointer; }
+.clickable-card:hover { transform: translateY(-3px); }
+
+/* Feedback visual de filtro ativo */
+.active-card {
     border-color: #007bff;
-    box-shadow: 0 6px 10px rgba(0, 123, 255, 0.2);
+    background-color: #f8fbff;
+    box-shadow: 0 6px 12px rgba(0, 123, 255, 0.15);
 }
-.card-value {
-  font-size: 2.5rem;
-  font-weight: bold;
-  margin: 0;
-  color: #007bff;
-}
-.card-label {
-  margin: 0.5rem 0 0 0;
-  color: #6c757d;
-  font-size: 0.9rem;
-}
-/* FIM ESTILOS DO DASHBOARD */
 
+.stat-icon {
+    width: 50px; height: 50px; border-radius: 12px; background-color: #e7f1ff; color: #0d6efd;
+    display: flex; align-items: center; justify-content: center; font-size: 1.5rem;
+}
+.stat-ativo .stat-icon { background-color: #d1e7dd; color: #198754; }
+.stat-info h3 { font-size: 0.8rem; color: #6c757d; font-weight: 600; margin: 0; text-transform: uppercase; }
+.stat-info p { font-size: 1.5rem; font-weight: 700; color: #212529; margin: 0; }
+.stat-ativo p { color: #198754; }
+
+
+/* ================================================== */
+/* 2. Barra de Filtros (Padronizada) */
+/* ================================================== */
 .search-and-filter-bar {
-  display: flex;
-  flex-wrap: wrap; 
-  justify-content: flex-start;
-  align-items: center;
-  gap: 1rem;
-  margin-bottom: 1.5rem;
-  background-color: transparent;
-  padding: 0;
-  box-shadow: none;
-  border-radius: 0;
+  display: flex; flex-wrap: wrap; gap: 1rem; margin-bottom: 1.5rem;
+  align-items: center; background-color: transparent; padding: 0; box-shadow: none;
 }
-
 .search-input {
-  padding: 10px 15px;
-  border: 1px solid #ccc;
-  border-radius: 5px;
-  width: 100%;
-  max-width: 400px;
-  box-sizing: border-box;
-  font-size: 1rem;
-  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif;
+  padding: 10px; border: 1px solid #ccc; border-radius: 5px; width: 100%; max-width: 350px; 
+  box-sizing: border-box; font-family: system-ui, sans-serif; font-size: 0.95rem;
 }
-
-/* NOVOS ESTILOS PARA FILTROS DE DROPDOWN */
-.filter-group {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-}
-
-.filter-group label {
-  font-weight: 500;
-  color: #555;
-  white-space: nowrap;
-}
-
+.filter-group { display: flex; align-items: center; gap: 0.5rem; }
+.filter-group label { font-weight: 500; color: #555; white-space: nowrap; }
 .filter-group select {
-  padding: 8px 12px;
-  border: 1px solid #ccc;
-  border-radius: 5px;
-  font-size: 0.95rem;
-  background-color: #f8f9fa;
-  min-width: 120px;
-  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif;
+  padding: 8px 12px; border: 1px solid #ccc; border-radius: 5px; font-size: 0.95rem;
+  background-color: #f8f9fa; min-width: 120px; font-family: system-ui, sans-serif;
 }
-/* FIM NOVOS ESTILOS */
-
-/* Estilo do botão Adicionar Cliente (MANTIDO) */
 .btn-add {
-  background-color: #007bff;
-  color: white;
-  padding: 10px 15px;
-  border: none;
-  border-radius: 5px;
-  cursor: pointer;
-  font-weight: bold;
-  transition: background-color 0.3s ease;
-  font-size: 0.95rem;
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  margin-left: auto; 
-  width: auto;
-  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif;
+  background-color: #007bff; color: white; padding: 10px 15px; border: none; border-radius: 5px;
+  cursor: pointer; font-weight: bold; transition: background-color 0.3s ease; font-size: 0.95rem;
+  display: flex; align-items: center; gap: 0.5rem; margin-left: auto; width: auto; text-decoration: none;
+  font-family: system-ui, sans-serif;
 }
-
-.btn-add:hover {
-  background-color: #0056b3;
+.btn-add:hover { background-color: #0056b3; }
+.mobile-hide { display: inline; }
+@media (max-width: 768px) {
+  .search-and-filter-bar { flex-direction: column; align-items: stretch; }
+  .search-input { max-width: 100%; }
+  .filter-group { flex-direction: column; align-items: stretch; }
+  .btn-add { margin-left: 0; justify-content: center; }
 }
 
 
-.loading-message, .error-message, .empty-message {
-  text-align: center;
-  padding: 2rem;
-  font-size: 1.2rem;
-  color: #6c757d;
+/* ================================================== */
+/* 3. Grid de Clientes & Componentes de Estado */
+/* ================================================== */
+.loading-message, .error-message, .empty-state {
+  text-align: center; padding: 4rem 2rem; color: #6c757d;
+  background-color: #fff; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.03);
 }
-
-.error-message {
-  color: #dc3545;
-  background-color: #f8d7da;
-  border: 1px solid #f5c6cb;
-  border-radius: 8px;
+.empty-icon { font-size: 3rem; color: #dee2e6; margin-bottom: 1rem; }
+.error-message { color: #dc3545; background-color: #f8d7da; border: 1px solid #f5c6cb; }
+.spinner {
+  border: 3px solid #e9ecef; border-top: 3px solid #0d6efd; border-radius: 50%;
+  width: 40px; height: 40px; animation: spin 0.8s linear infinite; margin: 0 auto 1rem;
 }
-
-.empty-message {
-   margin-top: 1rem;
-   background-color: #fff;
-   padding: 2rem;
-   border-radius: 8px;
-   box-shadow: 0 2px 4px rgba(0,0,0,0.05);
-}
+@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
 
 
 .clientes-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
-  gap: 1.5rem;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 1.5rem; padding-bottom: 2rem;
 }
 
 .cliente-card {
   background-color: #ffffff;
-  border-radius: 8px;
-  box-shadow: 0 4px 8px rgba(0,0,0,0.07);
+  border-radius: 12px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.04);
+  border: 1px solid rgba(0,0,0,0.05);
   padding: 1.5rem;
   display: flex;
   flex-direction: column;
@@ -387,101 +363,55 @@ onMounted(fetchClientes);
   text-align: center;
   transition: transform 0.3s ease, box-shadow 0.3s ease;
   cursor: pointer;
+  position: relative;
 }
 
 .cliente-card:hover {
   transform: translateY(-5px);
-  box-shadow: 0 6px 12px rgba(0,0,0,0.15);
+  box-shadow: 0 12px 24px rgba(0,0,0,0.1);
+  border-color: rgba(0,123,255, 0.2);
 }
 
 .cliente-profile-pic {
-  width: 80px;
-  height: 80px;
-  border-radius: 50%;
-  overflow: hidden;
-  margin-bottom: 1rem;
-  background-color: #e9ecef;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  border: 2px solid #007bff;
+  width: 80px; height: 80px; border-radius: 50%; overflow: hidden;
+  margin-bottom: 1rem; background-color: #e9ecef;
+  display: flex; justify-content: center; align-items: center;
+  border: 3px solid #fff;
+  box-shadow: 0 4px 8px rgba(0,0,0,0.1);
 }
 
-.profile-img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
+.profile-img { width: 100%; height: 100%; object-fit: cover; }
+.profile-icon { font-size: 40px; color: #adb5bd; }
 
-.profile-icon {
-  font-size: 40px;
-  color: #6c757d;
-}
-
-.cliente-info {
-  margin-bottom: 1rem;
-}
+.cliente-info { margin-bottom: 1rem; width: 100%; }
 
 .cliente-nome {
-  font-size: 1.2rem;
-  font-weight: 600;
-  margin: 0 0 0.5rem 0;
-  color: #343a40;
+  font-size: 1.1rem; font-weight: 700; margin: 0 0 0.5rem 0; color: #343a40;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 
 .cliente-contato {
-  margin: 0.2rem 0;
-  color: #6c757d;
-  font-size: 0.9rem;
-  word-break: break-all;
+  margin: 0.25rem 0; color: #6c757d; font-size: 0.9rem;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 .cliente-contato.tipo-pessoa {
-    font-style: italic;
-    font-size: 0.8rem;
-    margin-top: 0.4rem;
+    font-size: 0.8rem; margin-top: 0.5rem; color: #007bff; font-weight: 500;
+    background-color: #e7f1ff; display: inline-block; padding: 2px 8px; border-radius: 10px;
 }
+.cliente-contato.tipo-pessoa i { margin-right: 4px; }
 
 .cliente-tags {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
-  gap: 0.5rem;
-  margin-top: auto;
-  padding-top: 1rem;
+  display: flex; flex-wrap: wrap; justify-content: center; gap: 0.5rem;
+  margin-top: auto; width: 100%;
 }
 
 .tag {
-  padding: 4px 10px;
-  border-radius: 12px;
-  font-size: 0.75rem;
-  font-weight: bold;
-  color: #fff;
+  padding: 4px 10px; border-radius: 6px; font-size: 0.7rem; font-weight: 700;
+  color: #fff; text-transform: uppercase;
 }
-
 .tag.proprietario { background-color: #198754; }
 .tag.interessado { background-color: #0d6efd; }
 .tag.ambos { background-color: #6f42c1; }
 .tag.inativo { background-color: #6c757d; }
 
-.btn-primary { 
-  background-color: #007bff;
-  color: white;
-  padding: 10px 20px;
-  border: none;
-  border-radius: 5px;
-  cursor: pointer;
-  font-weight: bold;
-  transition: background-color 0.3s ease;
-  font-size: 0.95rem;
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  margin-left: auto; 
-  width: auto;
-  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif;
-}
-
-.btn-primary:hover {
-  background-color: #0056b3;
-}
 </style>

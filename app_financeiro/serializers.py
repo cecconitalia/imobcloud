@@ -1,6 +1,7 @@
 # C:\wamp64\www\ImobCloud\app_financeiro\serializers.py
 
 from rest_framework import serializers
+from django.db.models import Sum
 from .models import Categoria, Conta, Transacao, FormaPagamento
 
 # --- Serializers Básicos (Modelos de Configuração) ---
@@ -12,10 +13,34 @@ class CategoriaSerializer(serializers.ModelSerializer):
         read_only_fields = ['imobiliaria']
 
 class ContaSerializer(serializers.ModelSerializer):
+    # Campo calculado dinamicamente
+    saldo_atual = serializers.SerializerMethodField()
+
     class Meta:
         model = Conta
-        fields = ['id', 'nome', 'saldo_inicial', 'imobiliaria']
-        read_only_fields = ['imobiliaria']
+        # Adicionamos 'saldo_atual' aos campos retornados
+        fields = ['id', 'nome', 'saldo_inicial', 'saldo_atual', 'imobiliaria']
+        read_only_fields = ['imobiliaria', 'saldo_atual']
+
+    def get_saldo_atual(self, obj):
+        """
+        Calcula o saldo atual somando receitas pagas e subtraindo despesas pagas
+        do saldo inicial.
+        """
+        # Soma todas as RECEITAS com status PAGO vinculadas a esta conta
+        total_receitas = obj.transacao_set.filter(
+            status='PAGO', 
+            tipo='RECEITA'
+        ).aggregate(total=Sum('valor'))['total'] or 0
+
+        # Soma todas as DESPESAS com status PAGO vinculadas a esta conta
+        total_despesas = obj.transacao_set.filter(
+            status='PAGO', 
+            tipo='DESPESA'
+        ).aggregate(total=Sum('valor'))['total'] or 0
+
+        # Retorna o cálculo final
+        return obj.saldo_inicial + total_receitas - total_despesas
 
 class FormaPagamentoSerializer(serializers.ModelSerializer):
     class Meta:

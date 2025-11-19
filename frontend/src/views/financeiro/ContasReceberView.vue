@@ -2,7 +2,6 @@
   <div class="page-container">
     
     <div v-if="stats && stats.a_receber" class="summary-grid"> 
-      
       <div class="summary-card pending-revenue">
         <h4 class="card-title">Total Pendente (Previsto)</h4>
         <p class="card-value">{{ formatarValor(stats.a_receber.pendente) }}</p>
@@ -19,7 +18,7 @@
       </div>
     </div>
     
-    <div v-if="isLoading" class="loading-state card">A carregar...</div>
+    <div v-if="isLoading" class="loading-state card">A carregar dados financeiros...</div>
     <div v-if="error" class="error-message card">{{ error }}</div>
 
     <div class="filter-card card">
@@ -31,7 +30,6 @@
         </div>
 
         <div class="filter-controls">
-          
           <div class="filter-group filter-cliente">
             <label for="cliente_search">Buscar Cliente</label>
             <input 
@@ -71,7 +69,6 @@
         </div>
     </div>
 
-
     <div class="table-card" v-if="!isLoading && !error">
       <div v-if="transacoes.length">
         <table class="styled-table">
@@ -93,7 +90,8 @@
               <td class="text-right text-success">{{ formatarValor(transacao.valor) }}</td>
               <td class="text-center">
                 <span :class="['status-badge', getStatusClass(transacao.status)]">
-                  {{ transacao.status }} </span>
+                  {{ transacao.status }}
+                </span>
               </td>
               <td class="action-column">
                 <button 
@@ -125,6 +123,11 @@
             </tr>
           </tbody>
         </table>
+        
+        <div class="pagination-info" v-if="totalCount > transacoes.length">
+            Exibindo {{ transacoes.length }} de {{ totalCount }} registos. (Use o Extrato Completo para ver mais)
+        </div>
+
       </div>
       <div v-else class="no-data-message">
         Nenhuma conta a receber encontrada com os filtros atuais.
@@ -140,7 +143,7 @@ import { format, startOfMonth, endOfMonth, addDays } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { useRouter } from 'vue-router';
 
-// Interfaces (Mantidas)
+// --- Interfaces ---
 interface TransacaoReceber {
     id: number;
     data_vencimento: string;
@@ -149,6 +152,14 @@ interface TransacaoReceber {
     valor: number;
     status: 'PENDENTE' | 'ATRASADO' | 'PAGO' | string;
     isUpdating?: boolean; 
+}
+
+// Interface para a resposta paginada do Django REST Framework
+interface PaginatedResponse<T> {
+    count: number;
+    next: string | null;
+    previous: string | null;
+    results: T[];
 }
 
 interface StatsFinanceiro {
@@ -167,7 +178,9 @@ interface Filters {
 
 const router = useRouter();
 
+// Estados Reativos
 const transacoes = ref<TransacaoReceber[]>([]);
+const totalCount = ref(0);
 const stats = ref<StatsFinanceiro | null>(null); 
 const isLoading = ref(true);
 const error = ref<string | null>(null);
@@ -180,7 +193,7 @@ const filters = ref<Filters>({
     cliente_id: null,
 });
 
-// Funções de Formatação (Mantidas)
+// --- Formatters ---
 const formatarValor = (valor: number | null | undefined): string => {
     if (valor === null || valor === undefined) return 'R$ 0,00';
     const numValue = typeof valor === 'string' ? parseFloat(valor) : valor;
@@ -192,9 +205,7 @@ const formatarData = (data: string | null): string => {
     if (!data) return 'N/A';
     try {
         return format(new Date(data + 'T00:00:00'), 'dd/MM/yyyy', { locale: ptBR });
-    } catch {
-        return 'Inválida';
-    }
+    } catch { return 'Inválida'; }
 };
 
 const getStatusClass = (status: string): string => {
@@ -206,7 +217,7 @@ const getStatusClass = (status: string): string => {
   }
 };
 
-// Lógica de Pagamento Rápido (Mantida)
+// --- Ações ---
 async function updateStatus(id: number, newStatus: 'PAGO' | 'PENDENTE') {
     const transacaoToUpdate = transacoes.value.find(t => t.id === id);
     if (!transacaoToUpdate) return;
@@ -223,18 +234,16 @@ async function updateStatus(id: number, newStatus: 'PAGO' | 'PENDENTE') {
         }
 
         await apiClient.patch(`/v1/financeiro/transacoes/${id}/`, payload);
-        
-        alert(`Transação #${id} atualizada para ${newStatus} com sucesso!`);
+        alert(`Transação atualizada para ${newStatus}!`);
         fetchData(false); 
     } catch (err) {
-        console.error(`Erro ao atualizar status da transação #${id}:`, err);
-        alert('Erro ao atualizar o status. Verifique o console.');
+        console.error(`Erro ao atualizar status:`, err);
+        alert('Erro ao atualizar o status.');
     } finally {
         transacaoToUpdate.isUpdating = false;
     }
 }
 
-// Filtros rápidos de data (Mantidos)
 const setQuickFilter = (period: 'currentMonth' | 'next30Days') => {
     const today = new Date();
     let startDate: Date;
@@ -268,7 +277,7 @@ const resetFilters = () => {
 };
 
 
-// Função principal de busca de dados
+// --- Data Fetching ---
 async function fetchData(isFilterChange: boolean = false) {
   if (!isFilterChange) {
       isLoading.value = true;
@@ -287,26 +296,30 @@ async function fetchData(isFilterChange: boolean = false) {
     if (filters.value.data_vencimento_inicio) { params.data_vencimento_inicio = filters.value.data_vencimento_inicio; }
     if (filters.value.data_vencimento_fim) { params.data_vencimento_fim = filters.value.data_vencimento_fim; }
     
-    // =========================================================================
-    // CORREÇÃO: Envia o TEXTO de 'cliente_search' para o backend
-    // =========================================================================
     if (filters.value.cliente_search) {
         params.cliente_search = filters.value.cliente_search;
-    } 
-    // Se um ID específico foi selecionado (por um autocomplete futuro), ele tem prioridade
-    else if (filters.value.cliente_id) {
+    } else if (filters.value.cliente_id) {
         params.cliente_id = filters.value.cliente_id;
     }
+    
+    // Adiciona paginação para garantir retorno consistente
+    params.page_size = 50; 
 
-    const transacoesResponse = await apiClient.get<TransacaoReceber[]>(
+    // CORREÇÃO AQUI: Tipagem correta da resposta paginada
+    const transacoesResponse = await apiClient.get<PaginatedResponse<TransacaoReceber>>(
       '/v1/financeiro/transacoes/a-receber/', 
-      { params: params } // params agora contém 'cliente_search'
+      { params: params }
     );
-    transacoes.value = transacoesResponse.data.map(t => ({...t, isUpdating: false}));
+
+    // CORREÇÃO AQUI: Acessa .results em vez de .data diretamente
+    const results = transacoesResponse.data.results || []; 
+    totalCount.value = transacoesResponse.data.count || 0;
+
+    transacoes.value = results.map(t => ({...t, isUpdating: false}));
 
   } catch (err) {
-    console.error("Erro CRÍTICO ao buscar dados de contas a receber. Causa:", err);
-    error.value = "Não foi possível carregar os dados. Verifique a API do Django.";
+    console.error("Erro ao carregar contas a receber:", err);
+    error.value = "Não foi possível carregar os dados. Tente recarregar a página.";
   } finally {
     isLoading.value = false;
   }
@@ -319,8 +332,10 @@ onMounted(() => {
 
 <style scoped>
 /* ======================================= */
-/* 1. ESTILOS GERAIS/BOTÕES             */
+/* ESTILOS GERAIS/BOTÕES                   */
 /* ======================================= */
+.page-container { padding: 0; }
+
 .btn-primary {
     background-color: #007bff;
     color: white;
@@ -358,11 +373,9 @@ onMounted(() => {
     border-radius: 8px;
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1), 0 1px 2px rgba(0, 0, 0, 0.06); 
 }
-.page-container { padding: 0; }
-
 
 /* ======================================= */
-/* 2. SUMMARY CARDS - HIERARQUIA VISUAL  */
+/* SUMMARY CARDS                           */
 /* ======================================= */
 .summary-grid {
     margin-top: 0; 
@@ -400,15 +413,13 @@ onMounted(() => {
 .card-positive .card-value { color: #17a2b8; }
 .card-negative .card-value { color: #dc3545; }
 
-
 /* ======================================= */
-/* 3. FILTROS - DESIGN APERFEIÇOADO      */
+/* FILTROS                                 */
 /* ======================================= */
 .filter-card {
     padding: 0.75rem 1.5rem;
     margin-bottom: 0.5rem;
 }
-
 .filter-header {
     margin-top: 0;
     margin-bottom: 0.75rem; 
@@ -418,7 +429,6 @@ onMounted(() => {
     padding-bottom: 0.5rem;
     font-weight: 600;
 }
-
 .quick-filters {
     margin-bottom: 0.75rem;
     display: flex;
@@ -432,10 +442,9 @@ onMounted(() => {
     padding: 0.3rem 0.6rem;
     font-size: 0.8rem;
     cursor: pointer;
-    transition: background-color 0.2s, border-color 0.2s;
+    transition: background-color 0.2s;
 }
 .quick-filter-btn:hover { background-color: #dee2e6; }
-
 
 .filter-controls {
     display: flex;
@@ -448,34 +457,24 @@ onMounted(() => {
     flex-direction: column;
     min-width: 140px;
 }
-.filter-cliente {
-    min-width: 200px;
-    flex-grow: 1;
-}
+.filter-cliente { min-width: 200px; flex-grow: 1; }
 .filter-group label {
     font-size: 0.8rem;
     color: #6c757d; 
     margin-bottom: 0.25rem;
     font-weight: 500;
 }
-.filter-group select, .filter-group input[type="date"], .filter-group input[type="text"] {
+.filter-group select, .filter-group input {
     padding: 0.4rem 0.5rem;
     border: 1px solid #ced4da;
     border-radius: 4px;
     font-size: 0.9rem;
     height: 36px;
     background-color: #ffffff;
-    transition: border-color 0.2s;
 }
-.filter-group input:focus, .filter-group select:focus {
-    border-color: #80bdff;
-    outline: 0;
-    box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
-}
-
 
 /* ======================================= */
-/* 4. TABELA E BOTÕES DE AÇÃO (PROFISSIONAL) */
+/* TABELA E AÇÕES                          */
 /* ======================================= */
 .table-card {
     padding: 1rem; 
@@ -503,7 +502,6 @@ onMounted(() => {
     box-shadow: inset 3px 0 0 0 #007bff;
 }
 
-/* Estilos dos Botões de Ação Rápida (Ações da Tabela) */
 .action-column {
     text-align: center;
     display: flex;
@@ -516,69 +514,27 @@ onMounted(() => {
     cursor: pointer;
     font-size: 0.75rem; 
     font-weight: 600;
-    transition: all 0.2s;
     text-decoration: none;
-    line-height: 1;
     min-width: 55px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
+    display: flex; align-items: center; justify-content: center;
 }
-.btn-action:disabled {
-    opacity: 0.6;
-    cursor: not-allowed;
-}
+.btn-action:disabled { opacity: 0.6; cursor: not-allowed; }
 
-/* 1. Botão Primário (Pagar) - Sólido */
-.btn-solid-success {
-    background-color: #28a745;
-    color: white !important;
-    border: 1px solid #28a745;
-}
-.btn-solid-success:hover {
-    background-color: #1e7e34;
-    border-color: #1c7430;
-}
+.btn-solid-success { background-color: #28a745; color: white !important; border: 1px solid #28a745; }
+.btn-solid-success:hover { background-color: #1e7e34; }
 
-/* 2. Botão Secundário (Reverter) - Outline Vermelho (Perigo) */
-.btn-outline-danger {
-    background-color: transparent;
-    color: #dc3545 !important;
-    border: 1px solid #dc3545;
-}
-.btn-outline-danger:hover {
-    background-color: #dc3545;
-    color: white !important;
-}
+.btn-outline-danger { background-color: transparent; color: #dc3545 !important; border: 1px solid #dc3545; }
+.btn-outline-danger:hover { background-color: #dc3545; color: white !important; }
 
-/* 3. Botão Terciário (Editar) - Outline Neutro/Info */
-.btn-outline-info {
-    background-color: transparent;
-    color: #17a2b8 !important;
-    border: 1px solid #17a2b8;
-    min-width: 30px; 
-}
-.btn-outline-info:hover {
-    background-color: #17a2b8;
-    color: white !important;
-}
+.btn-outline-info { background-color: transparent; color: #17a2b8 !important; border: 1px solid #17a2b8; min-width: 30px; }
+.btn-outline-info:hover { background-color: #17a2b8; color: white !important; }
 
-
-/* Badges de Status (Cores Aprimoradas) */
-.status-badge {
-    padding: 0.2rem 0.5rem;
-    border-radius: 10px;
-    font-size: 0.7rem;
-    font-weight: 700;
-}
+.status-badge { padding: 0.2rem 0.5rem; border-radius: 10px; font-size: 0.7rem; font-weight: 700; }
 .status-pending { background-color: #ffc107; color: #3c3c3c; } 
-.status-overdue { background-color: #dc3545; } 
-.status-paid { background-color: #28a745; }    
+.status-overdue { background-color: #dc3545; color: white; } 
+.status-paid { background-color: #28a745; color: white; }    
 
 .text-success { color: #198754; font-weight: bold; } 
-
-/* Estados de Mensagem (Mantidos) */
-.loading-state, .error-message, .no-data-message {
-    padding: 1.5rem;
-}
+.loading-state, .error-message, .no-data-message { padding: 1.5rem; text-align: center; }
+.pagination-info { margin-top: 1rem; text-align: center; font-size: 0.85rem; color: #6c757d; }
 </style>

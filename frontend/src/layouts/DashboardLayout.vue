@@ -11,56 +11,66 @@
       <ul class="sidebar-nav">
         <li>
           <router-link to="/dashboard" active-class="active" title="Dashboard">
-            <i class="fas fa-tachometer-alt fa-fw"></i> <span class="nav-text">Dashboard</span>
+            <i class="fas fa-tachometer-alt fa-fw"></i> <span class="nav-text">Visão Geral</span>
           </router-link>
+        </li>
+
+        <li class="nav-section-title"><span class="nav-text">Negócios</span></li>
+
+        <li class="nav-item-dropdown" :class="{ open: isMenuOpen('comercial') }">
+          <a @click.prevent="toggleMenu('comercial')" href="#">
+            <i class="fas fa-handshake fa-fw"></i> <span class="nav-text">Comercial & CRM</span>
+            <i class="fas fa-chevron-right dropdown-caret"></i>
+          </a>
+          <ul class="submenu">
+            <li><router-link to="/clientes" active-class="active">Clientes</router-link></li>
+            <li><router-link to="/funil-vendas" active-class="active">Funil de Vendas</router-link></li>
+            <li><router-link to="/oportunidades/nova" active-class="active">Nova Oportunidade</router-link></li>
+            <li><router-link to="/visitas" active-class="active">Agenda de Visitas</router-link></li>
+            <li><router-link to="/contatos" active-class="active">Leads (Site)</router-link></li>
+          </ul>
         </li>
 
         <li class="nav-item-dropdown" :class="{ open: isMenuOpen('imoveis') }">
           <a @click.prevent="toggleMenu('imoveis')" href="#">
-            <i class="fas fa-home fa-fw"></i> <span class="nav-text">Imóveis</span>
+            <i class="fas fa-building fa-fw"></i> <span class="nav-text">Portfólio Imóveis</span>
             <i class="fas fa-chevron-right dropdown-caret"></i>
           </a>
           <ul class="submenu">
             <li><router-link to="/imoveis" active-class="active" exact-active-class="active">Listar Imóveis</router-link></li>
-            <li><router-link to="/imoveis/novo" active-class="active">Adicionar Imóvel</router-link></li>
-            
             <li><router-link to="/relatorios/autorizacoes" active-class="active">Relatório de Autorizações</router-link></li>
-            <li><router-link to="/contatos" active-class="active">Contatos do Site</router-link></li>
           </ul>
         </li>
 
-        <li class="nav-item-dropdown" :class="{ open: isMenuOpen('clientes') }">
-          <a @click.prevent="toggleMenu('clientes')" href="#">
-            <i class="fas fa-users fa-fw"></i> <span class="nav-text">Clientes & CRM</span>
+        <li class="nav-item-dropdown" :class="{ open: isMenuOpen('contratos') }">
+          <a @click.prevent="toggleMenu('contratos')" href="#">
+            <i class="fas fa-file-signature fa-fw"></i> <span class="nav-text">Contratos & Locação</span>
             <i class="fas fa-chevron-right dropdown-caret"></i>
           </a>
           <ul class="submenu">
-            <li><router-link to="/clientes" active-class="active" exact-active-class="active">Listar Clientes</router-link></li>
-            <li><router-link to="/clientes/novo" active-class="active">Adicionar Cliente</router-link></li>
-            <li><router-link to="/funil-vendas" active-class="active">Funil de Vendas</router-link></li>
-            <li><router-link to="/oportunidades/nova" active-class="active">Nova Oportunidade</router-link></li>
-          </ul>
+            <li><router-link to="/contratos" active-class="active">Gerenciar Contratos</router-link></li>
+            </ul>
         </li>
 
-        <li class="nav-item-dropdown" :class="{ open: isMenuOpen('admin') }">
-          <a @click.prevent="toggleMenu('admin')" href="#">
-            <i class="fas fa-file-invoice-dollar fa-fw"></i> <span class="nav-text">Administrativo</span>
+        <li class="nav-section-title"><span class="nav-text">Gestão</span></li>
+
+        <li class="nav-item-dropdown" :class="{ open: isMenuOpen('financeiro') }">
+          <a @click.prevent="toggleMenu('financeiro')" href="#">
+            <i class="fas fa-chart-line fa-fw"></i> <span class="nav-text">Financeiro</span>
             <i class="fas fa-chevron-right dropdown-caret"></i>
           </a>
           <ul class="submenu">
-            <li><router-link to="/financeiro/dashboard" active-class="active">Dashboard Financeiro</router-link></li>
-            <li><router-link to="/financeiro/contas-a-pagar" active-class="active">Contas a Pagar</router-link></li>
             <li><router-link to="/financeiro/contas-a-receber" active-class="active">Contas a Receber</router-link></li>
-            <li><router-link to="/financeiro/transacoes" active-class="active">Extrato (Transações)</router-link></li>
+            <li><router-link to="/financeiro/contas-a-pagar" active-class="active">Contas a Pagar</router-link></li>
+            <li><router-link to="/financeiro/transacoes" active-class="active">Extrato / Movimentações</router-link></li>
+            <li><router-link to="/financeiro/remessa-retorno" active-class="active">Remessa e Retorno</router-link></li>
             <li><router-link to="/financeiro/dre" active-class="active">Relatório DRE</router-link></li>
-            <li><router-link to="/contratos" active-class="active">Contratos</router-link></li>
-            <li><router-link to="/alugueis/dashboard" active-class="active">Gerenciar Aluguéis</router-link></li>
           </ul>
         </li>
 
         <li class="nav-item-dropdown" :class="{ open: isMenuOpen('marketing') }">
           <a @click.prevent="toggleMenu('marketing')" href="#">
-            <i class="fas fa-share-square fa-fw"></i> <span class="nav-text">Marketing</span>
+            <i class="fas fa-bullhorn fa-fw"></i> <span class="nav-text">Marketing</span>
             <i class="fas fa-chevron-right dropdown-caret"></i>
           </a>
           <ul class="submenu">
@@ -71,37 +81,38 @@
 
         <li>
           <router-link to="/calendario" active-class="active" title="Calendário">
-            <i class="fas fa-calendar-alt fa-fw"></i> <span class="nav-text">Agenda / Tarefas</span>
+            <i class="fas fa-calendar-alt fa-fw"></i> <span class="nav-text">Agenda & Tarefas</span>
           </router-link>
         </li>
 
-        <li class="nav-section-title"><span class="nav-text">Configurações</span></li>
+        <li class="nav-section-title"><span class="nav-text">Sistema</span></li>
 
         <li class="nav-item-dropdown" :class="{ open: isMenuOpen('config_geral') }">
           <a @click.prevent="toggleMenu('config_geral')" href="#">
-            <i class="fas fa-cogs fa-fw"></i> <span class="nav-text">Geral</span>
+            <i class="fas fa-cogs fa-fw"></i> <span class="nav-text">Configurações Gerais</span>
             <i class="fas fa-chevron-right dropdown-caret"></i>
           </a>
           <ul class="submenu">
-            <li><router-link to="/corretores" active-class="active">Utilizadores</router-link></li>
+            <li><router-link to="/corretores" active-class="active">Equipe / Usuários</router-link></li>
             <li><router-link to="/integracoes" active-class="active">Integrações</router-link></li>
-            <li><router-link to="/configuracoes-ia" active-class="active">Configurações da IA</router-link></li>
+            <li><router-link to="/configuracoes-ia" active-class="active">Inteligência Artificial</router-link></li>
           </ul>
         </li>
 
         <li class="nav-item-dropdown" :class="{ open: isMenuOpen('config_financeiro') }">
           <a @click.prevent="toggleMenu('config_financeiro')" href="#">
-            <i class="fas fa-wallet fa-fw"></i> <span class="nav-text">Financeiro</span>
+            <i class="fas fa-wallet fa-fw"></i> <span class="nav-text">Config. Financeiro</span>
             <i class="fas fa-chevron-right dropdown-caret"></i>
           </a>
           <ul class="submenu">
-            <li><router-link to="/financeiro/categorias" active-class="active">Categorias</router-link></li>
             <li><router-link to="/financeiro/contas" active-class="active">Contas Bancárias</router-link></li>
+            <li><router-link to="/financeiro/categorias" active-class="active">Categorias (DRE)</router-link></li>
             <li><router-link to="/financeiro/formas-pagamento" active-class="active">Formas de Pagamento</router-link></li>
-            <li><router-link to="/financeiro/config-boleto" active-class="active">Configuração Boleto</router-link></li>
+            <li><router-link to="/financeiro/config-boleto" active-class="active">Boletos Bancários</router-link></li>
           </ul>
         </li>
       </ul>
+
       <div class="sidebar-footer">
         <button @click="logout" class="logout-button" title="Sair">
           <i class="fas fa-sign-out-alt fa-fw"></i> <span class="nav-text">Sair</span>
@@ -173,7 +184,8 @@ watch(route, () => {
   if (isSidebarOpen.value) {
     isSidebarOpen.value = false;
   }
-  openMenu.value = null; // Fecha submenus ao navegar
+  // Opcional: Fechar submenus ao navegar se desejar
+  // openMenu.value = null; 
 });
 
 const logout = () => {
