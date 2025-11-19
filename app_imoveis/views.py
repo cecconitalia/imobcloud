@@ -344,7 +344,12 @@ class ImovelViewSet(viewsets.ModelViewSet):
     serializer_class = ImovelSerializer
     permission_classes = [permissions.IsAuthenticated]
     filter_backends = [filters.SearchFilter]
-    search_fields = ['logradouro', 'cidade', 'titulo_anuncio', 'codigo_referencia', 'bairro'] 
+    
+    # CORREÇÃO: Adicionado campos do proprietário para busca
+    search_fields = [
+        'logradouro', 'cidade', 'titulo_anuncio', 'codigo_referencia', 'bairro',
+        'proprietario__nome', 'proprietario__razao_social', 'proprietario__documento'
+    ] 
 
     def get_queryset(self):
         # 1. Filtro base por Tenant
@@ -412,7 +417,7 @@ class ImovelViewSet(viewsets.ModelViewSet):
              raise PermissionDenied("Você não tem permissão para inativar este imóvel.")
 
     # ==================================================================
-    # AÇÃO 'lista_simples' (COM VALORES DE VENDA E ALUGUEL)
+    # AÇÃO 'lista_simples'
     # ==================================================================
     @action(detail=False, methods=['get'], url_path='lista-simples')
     def lista_simples(self, request):
@@ -427,50 +432,53 @@ class ImovelViewSet(viewsets.ModelViewSet):
         finalidade_param = request.query_params.get('finalidade')
         proprietario_id = request.query_params.get('proprietario')
 
-        # 3. Filtra por Proprietário (Obrigatório)
+        # 3. Filtra por Proprietário (Se enviado)
         if proprietario_id:
             try:
                 prop_id_int = int(proprietario_id)
                 queryset = queryset.filter(proprietario_id=prop_id_int)
             except (ValueError, TypeError):
                 queryset = Imovel.objects.none()
-        else:
-            queryset = Imovel.objects.none()
-            
+        
         # 4. Filtra pelo *Status* do Imóvel (A_VENDA / PARA_ALUGAR)
         if finalidade_param in [Imovel.Status.A_VENDA.value, Imovel.Status.PARA_ALUGAR.value]:
             queryset = queryset.filter(status=finalidade_param)
-        else:
-            queryset = Imovel.objects.none()
             
         # 5. Exclui desativados
         queryset = queryset.exclude(status=Imovel.Status.DESATIVADO)
 
-        # ==================================================================
-        # CORREÇÃO: Adicionado 'valor_venda' e 'valor_aluguel' ao values()
-        # ==================================================================
+        # CORREÇÃO: Adicionado campos do proprietário para retorno inicial
         dados_simplificados = queryset.values(
             'id', 
             'codigo_referencia', 
             'titulo_anuncio', 
             'logradouro', 
             'bairro',
-            'valor_venda',      # <--- ADICIONADO
-            'valor_aluguel'     # <--- ADICIONADO
+            'cidade',
+            'valor_venda',      
+            'valor_aluguel',
+            'proprietario__nome', 
+            'proprietario__razao_social'
         )
         
-        # ==================================================================
-        # CORREÇÃO: Adicionado 'venda' e 'aluguel' ao dict de resposta
-        # ==================================================================
-        data = [
-            {
+        data = []
+        for im in dados_simplificados:
+             # Determina o nome do proprietário para exibição
+             prop_nome = im['proprietario__nome'] or im['proprietario__razao_social'] or 'N/A'
+             
+             data.append({
                 "label": f"#{im['codigo_referencia'] or im['id']} - {im['titulo_anuncio'] or im['logradouro']}",
                 "value": im['id'],
+                # Campos extras para uso no frontend (Dropdown Rico)
+                "titulo_anuncio": im['titulo_anuncio'],
+                "codigo_referencia": im['codigo_referencia'],
+                "logradouro": im['logradouro'],
+                "bairro": im['bairro'],
+                "cidade": im['cidade'],
+                "proprietario_nome": prop_nome, # Retorna para frontend
                 "venda": im['valor_venda'],
                 "aluguel": im['valor_aluguel']
-            }
-            for im in dados_simplificados
-        ]
+             })
         
         return Response(data)
     # ==================================================================

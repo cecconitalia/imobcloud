@@ -12,7 +12,7 @@ from django.shortcuts import get_object_or_404
 from django.contrib.auth import get_user_model
 from django.db.models import Sum
 
-# --- NOVAS IMPORTAÇÕES PARA LOGOUT ---\
+# --- NOVAS IMPORTAÇÕES PARA LOGOUT ---
 from rest_framework_simplejwt.tokens import RefreshToken
 
 # Importações dos modelos de outros apps
@@ -69,11 +69,21 @@ class CorretorRegistrationViewSet(viewsets.ModelViewSet):
     serializer_class = CorretorRegistrationSerializer
 
     def get_queryset(self):
-        # Apenas Admins podem listar todos os usuários da imobiliária
-        if self.request.user.is_superuser or (hasattr(self.request.user, 'perfil') and self.request.user.perfil.cargo == 'ADMIN'):
+        # Permite que Admins listem todos ou que Corretores vejam a lista (para selecionar responsáveis)
+        # Se quiser restringir, mantenha a lógica de cargo do request.user
+        if self.request.user.is_superuser or self.request.tenant:
             imobiliaria_id = self.request.tenant.id
-            return User.objects.filter(perfil__imobiliaria_id=imobiliaria_id)
-        # Usuários não-admin não podem listar ninguém por este método
+            queryset = User.objects.filter(perfil__imobiliaria_id=imobiliaria_id)
+            
+            # --- ADIÇÃO: FILTRO POR CARGO ---
+            # Permite ?cargo=Corretor na URL
+            cargo = self.request.query_params.get('cargo')
+            if cargo:
+                # Converte para maiúsculo (ex: 'Corretor' -> 'CORRETOR') para bater com o modelo
+                queryset = queryset.filter(perfil__cargo=cargo.upper())
+            
+            return queryset
+            
         return User.objects.none()
 
     def get_serializer_class(self):
@@ -88,17 +98,18 @@ class CorretorRegistrationViewSet(viewsets.ModelViewSet):
         """
         if self.action == 'create':
             permission_classes = [permissions.AllowAny]
-        elif self.action in ['update', 'partial_update', 'destroy', 'list', 'retrieve']:
-            permission_classes = [IsAdminOrSuperUser()]
+        # Alterado: 'list' permitido para Authenticated para carregar dropdowns
+        elif self.action == 'list':
+            permission_classes = [IsAuthenticated]
+        elif self.action in ['update', 'partial_update', 'destroy', 'retrieve']:
+            permission_classes = [IsAdminOrSuperUser]
         elif self.action in ['me', 'minhas_notificacoes', 'marcar_notificacoes_lidas']:
-            # Usamos instâncias aqui
-            permission_classes = [IsAuthenticated()]
+            permission_classes = [IsAuthenticated]
         else:
-            # Fallback seguro
-            permission_classes = [IsAuthenticated()]
+            permission_classes = [IsAuthenticated]
             
-        # CORREÇÃO (TypeError): Retorna a lista de instâncias diretamente.
-        return permission_classes
+        # Instancia as classes de permissão
+        return [permission() for permission in permission_classes]
 
     def perform_create(self, serializer):
         # Define a imobiliária automaticamente baseado no subdomínio
@@ -205,26 +216,20 @@ class DashboardStatsView(APIView):
         # 3. Contratos Ativos
         total_contratos_ativos = Contrato.objects.filter(
             imobiliaria=imobiliaria,
-            status_contrato='ATIVO' # <- Correção anterior
+            status_contrato='ATIVO' 
         ).count()
         
         # 4. Total a Receber (Próximos 30 dias)
         hoje = timezone.now().date()
         proximos_30_dias = hoje + timedelta(days=30)
         
-        # ==================================================================
-        # CORREÇÃO 3 (FieldError):
-        # O traceback do erro 500 informou que o campo 'valor_total' não 
-        # existe no modelo Pagamento. O nome correto é 'valor'.
-        # ==================================================================
         a_receber_contratos = Pagamento.objects.filter(
             contrato__imobiliaria=imobiliaria,
             status='PENDENTE',
             data_vencimento__gte=hoje,
             data_vencimento__lte=proximos_30_dias
-        ).aggregate(total=Sum('valor'))['total'] or 0 # <-- CORRIGIDO DE 'valor_total'
+        ).aggregate(total=Sum('valor'))['total'] or 0
         
-        # (Aqui você pode adicionar outras fontes de 'a receber', ex: app_financeiro)
         total_a_receber = a_receber_contratos
 
         stats = {

@@ -1,7 +1,11 @@
 # C:\wamp64\www\ImobCloud\app_clientes\urls.py
 
 from django.urls import path, include
-from rest_framework_nested import routers
+# Importamos o DefaultRouter nativo para evitar conflitos com prefixos complexos
+from rest_framework.routers import DefaultRouter
+# Importamos apenas o NestedSimpleRouter da biblioteca nested
+from rest_framework_nested.routers import NestedSimpleRouter
+
 from .views import (
     ClienteViewSet, 
     VisitaViewSet, 
@@ -12,25 +16,30 @@ from .views import (
     GoogleCalendarAuthView,
     GoogleCalendarAuthCallbackView,
     RelatoriosView,
-    FunilEtapaViewSet, # ADICIONADO AQUI
+    FunilEtapaViewSet,
 )
 
-# Roteador principal
-router = routers.DefaultRouter()
+# Roteador principal (Usa o nativo para maior compatibilidade com prefixos '/')
+router = DefaultRouter()
 
+# --- ROTAS ESPECÍFICAS (Registrar ANTES de 'clientes' para evitar conflitos de URL) ---
+# O frontend chama: /api/v1/clientes/oportunidades/
+router.register(r'clientes/oportunidades', OportunidadeViewSet, basename='oportunidade')
+
+# O frontend chama: /api/v1/clientes/fases-funil/
+router.register(r'clientes/fases-funil', FunilEtapaViewSet, basename='fases-funil')
+
+# --- ROTAS GERAIS ---
 router.register(r'clientes', ClienteViewSet, basename='cliente')
 router.register(r'visitas', VisitaViewSet, basename='visita')
 router.register(r'atividades', AtividadeViewSet, basename='atividade')
-router.register(r'oportunidades', OportunidadeViewSet, basename='oportunidade')
 router.register(r'tarefas', TarefaViewSet, basename='tarefa')
 router.register(r'minhas-tarefas', MinhasTarefasView, basename='minhas-tarefas')
 router.register(r'relatorios', RelatoriosView, basename='relatorios')
 
-# ADICIONADO AQUI: Rota para as etapas do funil dinâmico
-router.register(r'funil-etapas', FunilEtapaViewSet, basename='funil-etapas')
-
-# Roteador aninhado
-oportunidades_router = routers.NestedSimpleRouter(router, r'oportunidades', lookup='oportunidade')
+# --- ROTEADOR ANINHADO (Para tarefas dentro de oportunidades) ---
+# Atenção: O prefixo aqui DEVE ser idêntico ao registado acima (clientes/oportunidades)
+oportunidades_router = NestedSimpleRouter(router, r'clientes/oportunidades', lookup='oportunidade')
 oportunidades_router.register(r'tarefas', TarefaViewSet, basename='oportunidade-tarefas')
 
 urlpatterns = [
@@ -38,7 +47,7 @@ urlpatterns = [
     path('', include(router.urls)),
     path('', include(oportunidades_router.urls)),
     
-    # URLs específicas
+    # URLs específicas fora do router
     path('google-calendar-auth/', GoogleCalendarAuthView.as_view(), name='google-calendar-auth'),
     path('google-calendar-auth/callback/', GoogleCalendarAuthCallbackView.as_view(), name='google-calendar-auth-callback'),
 ]

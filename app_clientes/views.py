@@ -124,7 +124,8 @@ class ClienteViewSet(viewsets.ModelViewSet):
     permission_classes = [permissions.IsAuthenticated]
     filter_backends = [filters.SearchFilter]
     
-    search_fields = ['nome', 'documento', 'razao_social', 'email']
+    # ATUALIZADO: Adicionado 'telefone' para busca
+    search_fields = ['nome', 'documento', 'razao_social', 'email', 'telefone']
     
     parser_classes = (MultiPartParser, FormParser)
 
