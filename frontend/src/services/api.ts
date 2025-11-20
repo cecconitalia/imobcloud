@@ -39,13 +39,14 @@ export const setupInterceptors = (router: Router) => {
         async (error: AxiosError) => {
             
             // ==================================================================
-            // CORREÇÃO APLICADA (CONFORME SOLICITADO):
-            // Agora, o interceptor captura tanto o erro 401 (Não Autorizado)
-            // quanto o 403 (Proibido) e redireciona para o login.
+            // CORREÇÃO APLICADA:
+            // Logout automático APENAS no 401 (Não Autorizado / Token Expirado).
+            // O erro 403 (Proibido/Sem Permissão de Negócio) deve ser tratado
+            // pelo componente para mostrar a mensagem de erro ao usuário.
             // ==================================================================
-            if (error.response && (error.response.status === 401 || error.response.status === 403)) {
+            if (error.response && error.response.status === 401) {
                 
-                const status = error.response.status;
+                console.log("Token expirado ou inválido (401). Redirecionando para login.");
                 
                 // 1. Limpar tokens locais para encerrar a sessão
                 localStorage.removeItem('authToken');
@@ -54,21 +55,14 @@ export const setupInterceptors = (router: Router) => {
                 
                 // 2. Redirecionar para a tela de login se não estiver já nela
                 if (router.currentRoute.value.name !== 'login') {
-                    if (status === 401) {
-                        console.log("Token expirado ou inválido (401). Redirecionando para login.");
-                    } else {
-                        console.log("Acesso proibido (403). Redirecionando para login.");
-                    }
                     router.replace({ name: 'login' });
                 }
 
-                return Promise.reject(new Error("Sessão encerrada (401/403). Por favor, faça login novamente."));
+                return Promise.reject(new Error("Sessão encerrada (401). Por favor, faça login novamente."));
             }
 
-            // Para outros erros (como 500 - Erro de Servidor),
-            // rejeita a promessa. O componente (DashboardView)
-            // ainda pode mostrar "Erro ao carregar", mas não
-            // irá deslogar o usuário por um erro interno do servidor.
+            // Para outros erros (403, 404, 500), rejeita a promessa para que
+            // o componente (VisitasView) possa capturar e mostrar a mensagem.
             return Promise.reject(error);
         }
     );

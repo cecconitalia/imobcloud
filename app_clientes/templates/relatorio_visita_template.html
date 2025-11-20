@@ -115,7 +115,14 @@
         <div class="box-title">Dados do Visitante</div>
         <table>
             <tr>
-                <td width="60%"><span class="label">Nome:</span> {{ cliente.nome }}</td>
+                <td width="60%">
+                    <span class="label">Nome:</span> 
+                    {% if cliente.tipo_pessoa == 'JURIDICA' and cliente.razao_social %}
+                        {{ cliente.razao_social }} ({{ cliente.nome }})
+                    {% else %}
+                        {{ cliente.nome }}
+                    {% endif %}
+                </td>
                 <td width="40%"><span class="label">CPF/CNPJ:</span> {{ cliente.documento }}</td>
             </tr>
             <tr>
@@ -230,7 +237,13 @@
                     <div class="sig-line"></div>
                 {% endif %}
                 
-                <div class="sig-name">{{ cliente.nome }}</div>
+                <div class="sig-name">
+                    {% if cliente.tipo_pessoa == 'JURIDICA' and cliente.razao_social %}
+                        {{ cliente.razao_social }}
+                    {% else %}
+                        {{ cliente.nome }}
+                    {% endif %}
+                </div>
                 <div class="sig-role">Cliente / Visitante</div>
             </td>
         </tr>

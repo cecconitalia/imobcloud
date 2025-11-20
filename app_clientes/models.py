@@ -213,6 +213,16 @@ class Visita(models.Model):
     imobiliaria = models.ForeignKey('core.Imobiliaria', on_delete=models.CASCADE)
     cliente = models.ForeignKey(Cliente, on_delete=models.CASCADE)
     
+    # ADICIONADO: Campo para saber qual corretor é o responsável pela visita
+    corretor = models.ForeignKey(
+        settings.AUTH_USER_MODEL, 
+        on_delete=models.SET_NULL, 
+        null=True, 
+        blank=True, 
+        related_name='visitas_realizadas',
+        verbose_name="Corretor Responsável"
+    )
+    
     # ManyToManyField para múltiplos imóveis
     imoveis = models.ManyToManyField('app_imoveis.Imovel', related_name='visitas', verbose_name="Imóveis Visitados")
     

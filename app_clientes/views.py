@@ -252,9 +252,37 @@ class VisitaViewSet(viewsets.ModelViewSet):
         if not imobiliaria:
             raise PermissionDenied("Não foi possível associar a visita. Tenant/Imobiliária não identificada.")
 
-        serializer.save(imobiliaria=imobiliaria, cliente=cliente)
+        # Salva o corretor responsável (quem criou a visita)
+        serializer.save(imobiliaria=imobiliaria, cliente=cliente, corretor=self.request.user)
 
     def perform_update(self, serializer):
+        # VALIDAÇÃO: Impede edição se já houver assinaturas (exceto updates internos de assinatura)
+        # Nota: O patch de assinatura também passa por aqui, então precisamos ter cuidado.
+        # Mas o serializer normal valida os campos. Se for apenas um PATCH de assinatura, ok.
+        # Se for uma edição de dados da visita (data, obs, imoveis) E já estiver assinado, bloqueia.
+        
+        # Como simplificação, se já estiver assinado, bloqueamos qualquer alteração que não seja do sistema.
+        # Se o frontend enviar um update normal e tiver assinatura, bloqueamos.
+        instance = serializer.instance
+        
+        # Verifica se está tentando alterar dados da visita E já tem assinatura
+        # (Permitimos apenas se for o próprio processo de assinatura que está enviando os dados agora)
+        
+        # A lógica mais segura: Se já tem assinatura cliente OU corretor, 
+        # só pode salvar se estivermos ADICIONANDO a outra assinatura.
+        # Mas para simplificar a regra de negócio "não pode editar":
+        
+        if (instance.assinatura_cliente or instance.assinatura_corretor):
+             # Verifica se os dados sendo salvos são APENAS a nova assinatura que falta
+             # Se o request contém 'assinatura_cliente' ou 'assinatura_corretor', deixamos passar (é o ato de assinar)
+             # Caso contrário (ex: mudando data, mudando cliente), bloqueia.
+             
+             dados = self.request.data
+             eh_processo_assinatura = 'assinatura_cliente' in dados or 'assinatura_corretor' in dados
+             
+             if not eh_processo_assinatura:
+                 raise PermissionDenied("Não é possível editar os dados de uma visita que já possui assinaturas.")
+
         if self.request.user.is_superuser:
             serializer.save()
         elif hasattr(self.request.user, 'perfil') and serializer.instance.imobiliaria == self.request.tenant:
@@ -263,6 +291,10 @@ class VisitaViewSet(viewsets.ModelViewSet):
             raise PermissionDenied("Você não tem permissão para atualizar esta visita.")
 
     def perform_destroy(self, instance):
+        # VALIDAÇÃO: Impede a exclusão se já houver assinaturas
+        if instance.assinatura_cliente or instance.assinatura_corretor:
+             raise PermissionDenied("Não é possível excluir uma visita que já foi assinada pelo cliente ou corretor.")
+
         if self.request.user.is_superuser:
             instance.delete()
         elif hasattr(self.request.user, 'perfil') and instance.imobiliaria == self.request.tenant:
@@ -323,9 +355,6 @@ class OportunidadeViewSet(viewsets.ModelViewSet):
         elif self.request.tenant:
             queryset = base_queryset.filter(imobiliaria=self.request.tenant)
             
-            # --- CORREÇÃO CRÍTICA AQUI ---
-            # Se tem perfil E NÃO é admin, filtra apenas as suas oportunidades.
-            # Se for admin (is_admin=True), pula esse if e vê tudo.
             if hasattr(user, 'perfil') and not user.perfil.is_admin:
                 queryset = queryset.filter(responsavel=user)
         
@@ -557,13 +586,8 @@ class GerarRelatorioVisitaPDFView(APIView):
         cliente = visita.cliente
         imobiliaria = visita.imobiliaria
         
-        # PADRONIZADO: 'corretor' é o usuário logado
-        corretor = request.user
-        
-        # Assinatura do corretor da VISITA (se assinada) ou do PERFIL (para preview/manual)
-        # Se a visita já foi assinada pelo corretor, usamos essa imagem.
-        # Caso contrário, se o usuário logado tiver assinatura no perfil, passamos para exibir se necessário.
-        # No template, priorizamos visita.assinatura_corretor
+        # Busca o corretor responsável pela visita, ou usa o usuário atual se antigo
+        corretor = visita.corretor if visita.corretor else request.user
         
         hoje = timezone.now()
 
@@ -573,7 +597,7 @@ class GerarRelatorioVisitaPDFView(APIView):
             'imobiliaria': imobiliaria,
             'imoveis': imoveis,
             'data_impressao': hoje,
-            'corretor': corretor, # Passado como 'corretor'
+            'corretor': corretor, # Agora passa o corretor da visita
             'logo_url': None
         }
 

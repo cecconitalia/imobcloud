@@ -126,7 +126,12 @@
         
         <div class="card-actions">
           <div class="actions-left">
+            <span v-if="visita.assinatura_cliente && visita.assinatura_corretor" class="signed-badge">
+                <i class="fas fa-check-double"></i> Assinado
+            </span>
+
             <button 
+                v-else
                 @click="abrirDetalhes(visita)" 
                 class="btn-pill btn-sign"
                 title="Gerir Assinaturas"
@@ -144,7 +149,12 @@
                 <i class="fas fa-eye"></i>
               </button>
               
-              <router-link :to="`/visitas/editar/${visita.id}`" class="btn-mini" title="Editar">
+              <span v-if="visita.assinatura_cliente || visita.assinatura_corretor" title="Visita assinada não pode ser editada" style="cursor: not-allowed; opacity: 0.5; display: inline-block;">
+                  <button class="btn-mini" disabled style="pointer-events: none;">
+                    <i class="fas fa-pen"></i>
+                  </button>
+              </span>
+              <router-link v-else :to="`/visitas/editar/${visita.id}`" class="btn-mini" title="Editar">
                 <i class="fas fa-pen"></i>
               </router-link>
               
@@ -309,8 +319,9 @@ async function handleDeletar(visitaId: number) {
     await apiClient.delete(`/v1/visitas/${visitaId}/`);
     visitas.value = visitas.value.filter(v => v.id !== visitaId);
     toast.success('Agendamento cancelado.');
-  } catch (error) {
-    toast.error("Erro ao cancelar agendamento.");
+  } catch (error: any) {
+    const msg = error.response?.data?.detail || "Erro ao cancelar agendamento. Tente novamente.";
+    toast.error(msg);
   }
 }
 
@@ -369,7 +380,6 @@ async function salvarAssinatura(base64Image: string) {
             });
             localizacao = `${position.coords.latitude}, ${position.coords.longitude}`;
         } catch { 
-            // CORREÇÃO: Se falhar, envia vazio para não mostrar "Indisponível" no PDF
             localizacao = ''; 
         }
     }
@@ -380,20 +390,17 @@ async function salvarAssinatura(base64Image: string) {
 
     const formData = new FormData();
     
-    // Decide qual campo de assinatura preencher
     if (tipoAssinaturaAtual.value === 'CORRETOR') {
         formData.append('assinatura_corretor', file);
         formData.append('data_assinatura_corretor', new Date().toISOString());
     } else {
         formData.append('assinatura_cliente', file);
         formData.append('data_assinatura', new Date().toISOString());
-        // A visita só conta como "realizada" quando o cliente assina
         formData.append('realizada', 'true');
     }
 
     if(localizacao) formData.append('localizacao_assinatura', localizacao);
     
-    // Envia a lista de imóveis (para manter a seleção feita no modal)
     imoveisParaSalvar.value.forEach(id => {
         formData.append('imoveis', id.toString());
     });
@@ -410,8 +417,6 @@ async function salvarAssinatura(base64Image: string) {
         
         toast.success(`${tipoAssinaturaAtual.value === 'CORRETOR' ? 'Corretor' : 'Cliente'} assinou com sucesso!`);
         fecharModalAssinatura();
-        
-        // Reabre o detalhe para ver o resultado
         abrirDetalhes(visitas.value[index]);
 
     } catch (error) {

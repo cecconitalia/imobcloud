@@ -25,7 +25,6 @@
           <ul class="submenu">
             <li><router-link to="/clientes" active-class="active">Clientes</router-link></li>
             <li><router-link to="/funil-vendas" active-class="active">Funil de Vendas</router-link></li>
-            <li><router-link to="/oportunidades/nova" active-class="active">Nova Oportunidade</router-link></li>
             <li><router-link to="/visitas" active-class="active">Agenda de Visitas</router-link></li>
             <li><router-link to="/contatos" active-class="active">Leads (Site)</router-link></li>
           </ul>
