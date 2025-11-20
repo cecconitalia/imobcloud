@@ -132,10 +132,37 @@
                 </div>
              </div>
           </div>
+
+          <div class="section-divider"></div>
+
+          <div class="form-section">
+             <h3 class="section-title"><i class="fas fa-file-signature"></i> Assinatura Digital</h3>
+             <div class="integration-card">
+                <div class="integration-body">
+                    <p class="help-text">Esta assinatura será utilizada automaticamente em documentos gerados pelo sistema (ex: Termos de Visita).</p>
+                    
+                    <div class="signature-preview" v-if="previewAssinatura">
+                        <img :src="previewAssinatura" alt="Pré-visualização da Assinatura" />
+                        <button type="button" class="btn-remove-sig" @click="removeAssinatura">
+                            <i class="fas fa-trash"></i> Remover
+                        </button>
+                    </div>
+
+                    <div class="file-upload-area" v-else>
+                        <label for="assinatura_file" class="custom-file-upload">
+                            <i class="fas fa-pen-nib"></i>
+                            <span>Carregar Imagem da Assinatura (PNG/JPG)</span>
+                        </label>
+                        <input type="file" id="assinatura_file" @change="handleAssinaturaUpload" accept="image/*" />
+                    </div>
+                    <small class="help-text" style="margin-top: 0.5rem; display: block;">Recomendado: Imagem com fundo transparente (PNG), proporção horizontal.</small>
+                </div>
+             </div>
+          </div>
           
            <div class="section-divider"></div>
 
-          <div class="form-section">
+           <div class="form-section">
              <h3 class="section-title"><i class="fas fa-plug"></i> Integrações & Observações</h3>
              
              <div class="form-group full-width">
@@ -155,7 +182,7 @@
                         <label for="google_json_file" class="custom-file-upload">
                             <i class="fas fa-cloud-upload-alt"></i>
                             <span v-if="!user.perfil.google_json_file">Carregar JSON de Credenciais</span>
-                            <span v-else>Arquivo selecionado: {{ user.perfil.google_json_file.name || 'Novo Arquivo' }}</span>
+                            <span v-else>Arquivo selecionado: {{ typeof user.perfil.google_json_file === 'string' ? 'Já enviado' : user.perfil.google_json_file.name }}</span>
                         </label>
                         <input type="file" id="google_json_file" @change="handleFileUpload" accept=".json" />
                     </div>
@@ -207,6 +234,7 @@ const router = useRouter();
 
 const userId = computed(() => route.params.id as string | undefined);
 const isEditing = computed(() => !!userId.value);
+const previewAssinatura = ref<string | null>(null);
 
 const user = ref({
   username: '',
@@ -215,7 +243,6 @@ const user = ref({
   email: '',
   password: '',
   perfil: {
-    // ATUALIZADO: Usando booleanos
     is_admin: false,
     is_corretor: true,
     
@@ -228,8 +255,9 @@ const user = ref({
     endereco_estado: '',
     endereco_cep: '',
     observacoes: '',
-    google_json_file: null as File | null,
+    google_json_file: null as File | null | string,
     google_calendar_token: null as string | null,
+    assinatura: null as File | null | string // Campo novo
   },
 });
 
@@ -250,15 +278,18 @@ async function fetchUserData() {
       user.value.last_name = data.last_name;
       user.value.email = data.email;
       
-      // Mapeia o perfil e garante os booleanos
       const perfilData = data.perfil || {};
       user.value.perfil = { 
           ...user.value.perfil, 
           ...perfilData,
-          // Garante que venham como booleanos mesmo se API retornar null
           is_admin: !!perfilData.is_admin,
           is_corretor: !!perfilData.is_corretor 
       };
+
+      // Se já tiver assinatura, mostra o preview
+      if (perfilData.assinatura) {
+          previewAssinatura.value = perfilData.assinatura;
+      }
       
     } catch (error) {
       console.error("Erro ao buscar dados:", error);
@@ -275,6 +306,25 @@ function handleFileUpload(event: Event) {
     if (target.files && target.files[0]) {
         user.value.perfil.google_json_file = target.files[0];
     }
+}
+
+// Manipula o upload da assinatura e gera preview
+function handleAssinaturaUpload(event: Event) {
+    const target = event.target as HTMLInputElement;
+    if (target.files && target.files[0]) {
+        const file = target.files[0];
+        user.value.perfil.assinatura = file;
+        
+        // Cria URL temporária para preview
+        previewAssinatura.value = URL.createObjectURL(file);
+    }
+}
+
+function removeAssinatura() {
+    user.value.perfil.assinatura = null; // Será tratado no backend se enviar null/vazio?
+    previewAssinatura.value = null;
+    // Nota: Para apagar no backend, geralmente precisaríamos de uma flag ou lógica específica, 
+    // mas aqui estamos apenas limpando o input para novo upload.
 }
 
 function handleGoogleAuth() {
@@ -296,7 +346,6 @@ async function handleSubmit() {
     formData.append('password', user.value.password);
   }
 
-  // Adiciona campos do perfil (ATUALIZADO PARA BOOLEANOS)
   const p = user.value.perfil;
   formData.append('perfil.is_admin', p.is_admin ? 'true' : 'false');
   formData.append('perfil.is_corretor', p.is_corretor ? 'true' : 'false');
@@ -311,8 +360,13 @@ async function handleSubmit() {
   if (p.endereco_cep) formData.append('perfil.endereco_cep', p.endereco_cep);
   if (p.observacoes) formData.append('perfil.observacoes', p.observacoes);
   
+  // Envia arquivos apenas se forem objetos File (novos uploads)
   if (p.google_json_file instanceof File) {
     formData.append('perfil.google_json_file', p.google_json_file);
+  }
+  
+  if (p.assinatura instanceof File) {
+    formData.append('perfil.assinatura', p.assinatura);
   }
 
   try {
@@ -453,6 +507,18 @@ input[type="file"] { display: none; }
     cursor: pointer; background-color: #fff; color: #495057; font-size: 0.9rem; transition: all 0.2s; width: 100%; justify-content: center;
 }
 .custom-file-upload:hover { border-color: #3498db; color: #3498db; background-color: #f1f8ff; }
+
+/* Signature Preview */
+.signature-preview {
+    display: flex; flex-direction: column; align-items: center; gap: 10px;
+    background: #fff; padding: 15px; border: 1px solid #dee2e6; border-radius: 6px;
+}
+.signature-preview img { max-height: 80px; max-width: 100%; object-fit: contain; }
+.btn-remove-sig {
+    background: #ffebee; color: #c62828; border: 1px solid #ef9a9a;
+    padding: 5px 10px; border-radius: 4px; cursor: pointer; font-size: 0.8rem; display: flex; align-items: center; gap: 5px;
+}
+.btn-remove-sig:hover { background: #ffcdd2; }
 
 .auth-actions { margin-top: 1rem; text-align: center; }
 .btn-google {

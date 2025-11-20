@@ -23,8 +23,8 @@ class ClienteAdmin(admin.ModelAdmin):
 @admin.register(Oportunidade)
 class OportunidadeAdmin(SimpleHistoryAdmin):
     list_display = ('titulo', 'cliente', 'imovel', 'fase', 'valor_estimado', 'responsavel', 'imobiliaria')
-    # VERSÃO FINAL: busca por nome e razão social do cliente
-    search_fields = ('titulo', 'cliente__nome', 'cliente__razao_social', 'imovel__titulo')
+    # CORREÇÃO: Atualizado para buscar pelo campo correto do imóvel (titulo_anuncio)
+    search_fields = ('titulo', 'cliente__nome', 'cliente__razao_social', 'imovel__titulo_anuncio')
     list_filter = ('imobiliaria', 'fase', 'responsavel')
     history_list_display = ["status"]
 
@@ -37,10 +37,17 @@ class AtividadeAdmin(admin.ModelAdmin):
 
 @admin.register(Visita)
 class VisitaAdmin(admin.ModelAdmin):
-    list_display = ('cliente', 'imovel', 'data_visita', 'imobiliaria')
-    # VERSÃO FINAL: busca por nome e razão social do cliente
-    search_fields = ('cliente__nome', 'cliente__razao_social', 'imovel__titulo')
+    # CORREÇÃO: Trocamos 'imovel' por um método customizado 'get_imoveis'
+    list_display = ('cliente', 'get_imoveis', 'data_visita', 'imobiliaria')
+    
+    # CORREÇÃO: Atualizado para buscar dentro da relação ManyToMany (imoveis) e pelo campo correto (titulo_anuncio)
+    search_fields = ('cliente__nome', 'cliente__razao_social', 'imoveis__titulo_anuncio')
     list_filter = ('imobiliaria', 'data_visita')
+
+    def get_imoveis(self, obj):
+        # Retorna uma string com os imóveis separados por vírgula
+        return ", ".join([str(i) for i in obj.imoveis.all()])
+    get_imoveis.short_description = 'Imóveis'
     
 @admin.register(Tarefa)
 class TarefaAdmin(admin.ModelAdmin):

@@ -17,6 +17,7 @@ from .views import (
     GoogleCalendarAuthCallbackView,
     RelatoriosView,
     FunilEtapaViewSet,
+    GerarRelatorioVisitaPDFView # NOVO IMPORT
 )
 
 # Roteador principal (Usa o nativo para maior compatibilidade com prefixos '/')
@@ -50,4 +51,7 @@ urlpatterns = [
     # URLs específicas fora do router
     path('google-calendar-auth/', GoogleCalendarAuthView.as_view(), name='google-calendar-auth'),
     path('google-calendar-auth/callback/', GoogleCalendarAuthCallbackView.as_view(), name='google-calendar-auth-callback'),
+
+    # NOVO: Rota para PDF da Visita
+    path('visitas/<int:pk>/pdf/', GerarRelatorioVisitaPDFView.as_view(), name='visita-pdf'),
 ]

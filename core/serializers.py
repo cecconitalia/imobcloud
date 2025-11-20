@@ -56,7 +56,8 @@ class PerfilUsuarioSerializer(serializers.ModelSerializer):
             'is_admin', 'is_corretor', 
             'creci', 'telefone', 'endereco_logradouro', 'endereco_numero',
             'endereco_bairro', 'endereco_cidade', 'endereco_estado', 'endereco_cep',
-            'observacoes', 'google_json_file', 'google_calendar_token'
+            'observacoes', 'google_json_file', 'google_calendar_token',
+            'assinatura'  # Campo adicionado aqui
         ]
 
 class CorretorRegistrationSerializer(serializers.ModelSerializer):

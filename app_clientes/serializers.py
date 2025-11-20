@@ -26,27 +26,33 @@ class ClienteSimplesSerializer(serializers.ModelSerializer):
     """Para exibir dados básicos do cliente na visita"""
     class Meta:
         model = Cliente
-        fields = ['id', 'nome', 'razao_social']
+        fields = ['id', 'nome', 'razao_social', 'telefone', 'email']
 
 class ImovelSimplesSerializer(serializers.ModelSerializer):
     """Para exibir dados básicos do imóvel na visita"""
     class Meta:
         model = Imovel
-        fields = ['id', 'titulo_anuncio', 'logradouro', 'numero', 'bairro', 'cidade', 'estado']
+        fields = ['id', 'titulo_anuncio', 'codigo_referencia', 'logradouro', 'numero', 'bairro', 'cidade', 'estado']
 
 # ===================================================================
 # Serializers Principais
 # ===================================================================
 
 class VisitaSerializer(serializers.ModelSerializer):
-    # --- CORREÇÃO CRÍTICA: Definir explicitamente os campos de escrita ---
-    # Isso resolve o conflito com o source='imovel' dos campos de leitura
+    # Escrita: Cliente é ID obrigatório
     cliente = serializers.PrimaryKeyRelatedField(queryset=Cliente.objects.all())
-    imovel = serializers.PrimaryKeyRelatedField(queryset=Imovel.objects.all())
     
-    # Campos de leitura (Output: Objeto completo)
+    # Escrita: Imóveis é uma LISTA de IDs (Write Only)
+    imoveis = serializers.PrimaryKeyRelatedField(
+        queryset=Imovel.objects.all(), 
+        many=True, 
+        write_only=True
+    )
+    
+    # Leitura: Objetos completos aninhados
     cliente_obj = ClienteSimplesSerializer(source='cliente', read_only=True)
-    imovel_obj = ImovelSimplesSerializer(source='imovel', read_only=True)
+    # Retorna uma lista de objetos de imóvel
+    imoveis_obj = ImovelSimplesSerializer(source='imoveis', many=True, read_only=True)
 
     class Meta:
         model = Visita

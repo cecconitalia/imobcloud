@@ -32,13 +32,17 @@ from django.test import RequestFactory
 
 
 from .models import Imovel, ImagemImovel, ContatoImovel
-from .serializers import ImovelSerializer, ImovelPublicSerializer, ContatoImovelSerializer, ImagemImovelSerializer
+from .serializers import (
+    ImovelSerializer, 
+    ImovelPublicSerializer, 
+    ContatoImovelSerializer, 
+    ImagemImovelSerializer,
+    ImovelSimplificadoSerializer # Importação adicionada aqui
+)
 from core.models import Imobiliaria, PerfilUsuario, Notificacao
 from app_clientes.models import Oportunidade
 from app_config_ia.models import ModeloDePrompt
 from core.serializers import ImobiliariaPublicSerializer
-from app_contratos.serializers import ImovelSimplificadoSerializer 
-
 
 # Configura a API do Google Gemini
 try:
@@ -422,68 +426,12 @@ class ImovelViewSet(viewsets.ModelViewSet):
     @action(detail=False, methods=['get'], url_path='lista-simples')
     def lista_simples(self, request):
         """
-        Retorna uma lista simplificada de imóveis para uso em dropdowns,
-        filtrada por status (A_VENDA/PARA_ALUGAR) E por proprietário_id.
+        Retorna uma lista simplificada de imóveis para uso em dropdowns.
         """
-        # 1. Pega o queryset base (filtrado APENAS por tenant)
-        queryset = self.get_queryset() 
-
-        # 2. Pega os parâmetros da URL
-        finalidade_param = request.query_params.get('finalidade')
-        proprietario_id = request.query_params.get('proprietario')
-
-        # 3. Filtra por Proprietário (Se enviado)
-        if proprietario_id:
-            try:
-                prop_id_int = int(proprietario_id)
-                queryset = queryset.filter(proprietario_id=prop_id_int)
-            except (ValueError, TypeError):
-                queryset = Imovel.objects.none()
-        
-        # 4. Filtra pelo *Status* do Imóvel (A_VENDA / PARA_ALUGAR)
-        if finalidade_param in [Imovel.Status.A_VENDA.value, Imovel.Status.PARA_ALUGAR.value]:
-            queryset = queryset.filter(status=finalidade_param)
-            
-        # 5. Exclui desativados
-        queryset = queryset.exclude(status=Imovel.Status.DESATIVADO)
-
-        # CORREÇÃO: Adicionado campos do proprietário para retorno inicial
-        dados_simplificados = queryset.values(
-            'id', 
-            'codigo_referencia', 
-            'titulo_anuncio', 
-            'logradouro', 
-            'bairro',
-            'cidade',
-            'valor_venda',      
-            'valor_aluguel',
-            'proprietario__nome', 
-            'proprietario__razao_social'
-        )
-        
-        data = []
-        for im in dados_simplificados:
-             # Determina o nome do proprietário para exibição
-             prop_nome = im['proprietario__nome'] or im['proprietario__razao_social'] or 'N/A'
-             
-             data.append({
-                "label": f"#{im['codigo_referencia'] or im['id']} - {im['titulo_anuncio'] or im['logradouro']}",
-                "value": im['id'],
-                # Campos extras para uso no frontend (Dropdown Rico)
-                "titulo_anuncio": im['titulo_anuncio'],
-                "codigo_referencia": im['codigo_referencia'],
-                "logradouro": im['logradouro'],
-                "bairro": im['bairro'],
-                "cidade": im['cidade'],
-                "proprietario_nome": prop_nome, # Retorna para frontend
-                "venda": im['valor_venda'],
-                "aluguel": im['valor_aluguel']
-             })
-        
-        return Response(data)
-    # ==================================================================
-    # FIM DA AÇÃO 'lista_simples'
-    # ==================================================================
+        queryset = self.get_queryset()
+        # Aqui usamos o serializer que criamos e importamos localmente
+        serializer = ImovelSimplificadoSerializer(queryset, many=True)
+        return Response(serializer.data)
 
     def _get_imovel_contexto_para_ia(self, imovel):
         """Helper para formatar os dados do imóvel para a IA."""

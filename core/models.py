@@ -69,6 +69,15 @@ class PerfilUsuario(models.Model):
     
     google_calendar_token = models.TextField(blank=True, null=True, verbose_name="Token de Acesso do Google Calendar")
 
+    # NOVO CAMPO: Assinatura Digital do Usuário (Corretor)
+    assinatura = models.ImageField(
+        upload_to='assinaturas_usuarios/', 
+        blank=True, 
+        null=True, 
+        verbose_name="Assinatura Digital",
+        help_text="Imagem da assinatura para uso automático em documentos."
+    )
+
     class Meta:
         verbose_name = "Perfil de Usuário"
         verbose_name_plural = "Perfis de Usuários"

@@ -212,19 +212,28 @@ class Tarefa(models.Model):
 class Visita(models.Model):
     imobiliaria = models.ForeignKey('core.Imobiliaria', on_delete=models.CASCADE)
     cliente = models.ForeignKey(Cliente, on_delete=models.CASCADE)
-    imovel = models.ForeignKey('app_imoveis.Imovel', on_delete=models.CASCADE)
+    
+    # ManyToManyField para múltiplos imóveis
+    imoveis = models.ManyToManyField('app_imoveis.Imovel', related_name='visitas', verbose_name="Imóveis Visitados")
+    
     data_visita = models.DateTimeField()
     observacoes = models.TextField(blank=True, null=True)
 
-    # --- NOVOS CAMPOS PARA ASSINATURA ---
+    # --- ASSINATURAS ---
     realizada = models.BooleanField(default=False, verbose_name="Visita Realizada")
-    assinatura_cliente = models.ImageField(upload_to='assinaturas_visitas/', blank=True, null=True, verbose_name="Assinatura do Cliente")
-    data_assinatura = models.DateTimeField(blank=True, null=True, verbose_name="Data da Assinatura")
     localizacao_assinatura = models.CharField(max_length=255, blank=True, null=True, help_text="Lat/Long ou endereço GPS no momento da assinatura")
-    # ------------------------------------
+    
+    # Assinatura Cliente
+    assinatura_cliente = models.ImageField(upload_to='assinaturas_visitas/', blank=True, null=True, verbose_name="Assinatura do Cliente")
+    data_assinatura = models.DateTimeField(blank=True, null=True, verbose_name="Data da Assinatura Cliente")
+
+    # Assinatura Corretor (NOVO)
+    assinatura_corretor = models.ImageField(upload_to='assinaturas_visitas/', blank=True, null=True, verbose_name="Assinatura do Corretor")
+    data_assinatura_corretor = models.DateTimeField(blank=True, null=True, verbose_name="Data da Assinatura Corretor")
+    # -------------------
 
     def __str__(self):
-        return f"Visita de {self.cliente} a {self.imovel}"
+        return f"Visita de {self.cliente} em {self.data_visita}"
 
 class Atividade(models.Model):
     TIPO_ATIVIDADE_CHOICES = [

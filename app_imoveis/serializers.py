@@ -87,3 +87,11 @@ class ContatoImovelSerializer(serializers.ModelSerializer):
         model = ContatoImovel
         fields = '__all__'
         read_only_fields = ('data_criacao',) # Garante que a data não pode ser alterada via API
+
+class ImovelSimplificadoSerializer(serializers.ModelSerializer):
+    """
+    Serializer leve para listagens em dropdowns (selects).
+    """
+    class Meta:
+        model = Imovel
+        fields = ['id', 'titulo_anuncio', 'codigo_referencia', 'logradouro', 'numero', 'bairro', 'cidade', 'valor_venda', 'valor_aluguel']

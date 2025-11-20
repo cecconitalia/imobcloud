@@ -50,7 +50,7 @@
       </div>
 
       <router-link :to="{ name: 'visita-nova' }" class="btn-add">
-        <i class="fas fa-plus"></i> <span class="mobile-hide">Agendar Visita</span>
+        <i class="fas fa-plus"></i> <span class="mobile-hide">Agendar</span>
       </router-link>
     </div>
 
@@ -87,16 +87,22 @@
            </div>
         </div>
         
-        <div class="card-body">
+        <div class="card-body" @click="abrirDetalhes(visita)" style="cursor: pointer;">
+          
           <div class="imovel-section">
-             <h4 class="imovel-title" :title="visita.imovel_obj?.titulo_anuncio || 'Imóvel'">
-                {{ visita.imovel_obj?.titulo_anuncio || 'Imóvel sem título' }}
+             <h4 class="imovel-title" :title="getTituloImovel(visita)">
+                {{ getTituloImovel(visita) }}
              </h4>
              <p class="imovel-address">
                 <i class="fas fa-map-marker-alt text-muted"></i> 
-                {{ visita.imovel_obj?.logradouro }}, {{ visita.imovel_obj?.numero }}
+                {{ getEnderecoImovel(visita) }}
              </p>
-             <small class="text-muted">{{ visita.imovel_obj?.bairro }} - {{ visita.imovel_obj?.cidade }}</small>
+             <small class="text-muted" v-if="visita.imoveis_obj && visita.imoveis_obj.length > 1">
+                 <i class="fas fa-layer-group"></i> Roteiro com {{ visita.imoveis_obj.length }} imóveis
+             </small>
+             <small class="text-muted" v-else>
+                 {{ visita.imoveis_obj?.[0]?.bairro }} - {{ visita.imoveis_obj?.[0]?.cidade }}
+             </small>
           </div>
 
           <div class="time-highlight">
@@ -121,22 +127,27 @@
         <div class="card-actions">
           <div class="actions-left">
             <button 
-                v-if="!visita.realizada"
-                @click="abrirModalAssinatura(visita)" 
+                @click="abrirDetalhes(visita)" 
                 class="btn-pill btn-sign"
-                title="Colher Assinatura no Local"
+                title="Gerir Assinaturas"
             >
                 <i class="fas fa-file-signature"></i> Assinar
             </button>
-            <span v-else class="signed-badge">
-                <i class="fas fa-file-contract"></i> Assinado
-            </span>
           </div>
 
           <div class="actions-right">
+              <button @click="abrirPDFVisita(visita.id)" class="btn-mini btn-pdf" title="Ficha de Visita (PDF)">
+                <i class="fas fa-file-pdf"></i>
+              </button>
+
+              <button @click="abrirDetalhes(visita)" class="btn-mini" title="Ver Detalhes Completos">
+                <i class="fas fa-eye"></i>
+              </button>
+              
               <router-link :to="`/visitas/editar/${visita.id}`" class="btn-mini" title="Editar">
                 <i class="fas fa-pen"></i>
               </router-link>
+              
               <button @click="handleDeletar(visita.id)" class="btn-mini btn-delete-mini" title="Cancelar">
                 <i class="fas fa-trash"></i>
               </button>
@@ -147,10 +158,18 @@
 
     <AssinaturaModal
         v-if="showAssinaturaModal"
-        :enderecoImovel="visitaParaAssinar?.imovel_obj?.logradouro"
+        :enderecoImovel="tituloModalAssinatura"
         :isSaving="isSavingSignature"
         @close="fecharModalAssinatura"
         @save="salvarAssinatura"
+    />
+
+    <VisitaDetalhesModal
+        v-if="showDetalhesModal"
+        :show="showDetalhesModal"
+        :visita="visitaSelecionada"
+        @close="fecharDetalhes"
+        @iniciar-visita="iniciarAssinaturaDeDetalhes"
     />
 
   </div>
@@ -161,8 +180,11 @@ import { ref, onMounted, computed } from 'vue';
 import apiClient from '@/services/api';
 import { format, isSameDay, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import AssinaturaModal from '@/components/AssinaturaModal.vue';
 import { useToast } from 'vue-toast-notification';
+
+// Componentes
+import AssinaturaModal from '@/components/AssinaturaModal.vue';
+import VisitaDetalhesModal from '@/components/VisitaDetalhesModal.vue';
 
 const visitas = ref<any[]>([]);
 const isLoading = ref(true);
@@ -171,10 +193,52 @@ const searchTerm = ref('');
 const filterStatus = ref('');
 const toast = useToast();
 
-// Estado do Modal
+// Estados dos Modais
 const showAssinaturaModal = ref(false);
 const visitaParaAssinar = ref<any>(null);
 const isSavingSignature = ref(false);
+
+const showDetalhesModal = ref(false);
+const visitaSelecionada = ref<any>(null);
+
+// Variáveis de controle para assinatura
+const imoveisParaSalvar = ref<number[]>([]);
+const tipoAssinaturaAtual = ref<'CORRETOR' | 'CLIENTE'>('CORRETOR');
+
+// --- Helpers de Exibição ---
+
+function getTituloImovel(visita: any) {
+    if (!visita?.imoveis_obj || visita.imoveis_obj.length === 0) {
+        return 'Nenhum imóvel vinculado';
+    }
+    const primeiro = visita.imoveis_obj[0];
+    const qtd = visita.imoveis_obj.length;
+    
+    if (qtd > 1) {
+        return `${primeiro.titulo_anuncio || 'Imóvel Principal'} (+${qtd - 1} outros)`;
+    }
+    return primeiro.titulo_anuncio || 'Imóvel sem título';
+}
+
+function getEnderecoImovel(visita: any) {
+    if (!visita?.imoveis_obj || visita.imoveis_obj.length === 0) {
+        return 'Endereço não disponível';
+    }
+    const primeiro = visita.imoveis_obj[0];
+    return `${primeiro.logradouro || ''}, ${primeiro.numero || ''}`;
+}
+
+const tituloModalAssinatura = computed(() => {
+    const base = visitaParaAssinar.value ? getTituloImovel(visitaParaAssinar.value) : '';
+    const quem = tipoAssinaturaAtual.value === 'CORRETOR' ? 'Corretor' : 'Cliente';
+    return `Assinatura do ${quem} - ${base}`;
+});
+
+// --- Ação PDF ---
+function abrirPDFVisita(visitaId: number) {
+    const url = `${apiClient.defaults.baseURL}/v1/visitas/${visitaId}/pdf/`;
+    window.open(url, '_blank');
+}
 
 // --- Computed Stats ---
 const stats = computed(() => {
@@ -200,17 +264,22 @@ const filteredVisitas = computed(() => {
         (filterStatus.value === 'REALIZADA' && visita.realizada) ||
         (filterStatus.value === 'PENDENTE' && !visita.realizada);
     
-    const textMatch = !searchLower ||
-        (visita.cliente_obj?.nome?.toLowerCase() || '').includes(searchLower) ||
-        (visita.imovel_obj?.titulo_anuncio?.toLowerCase() || '').includes(searchLower) ||
-        (visita.imovel_obj?.logradouro?.toLowerCase() || '').includes(searchLower) ||
-        (visita.imovel_obj?.bairro?.toLowerCase() || '').includes(searchLower);
-
+    let textMatch = false;
+    if (!searchLower) {
+        textMatch = true;
+    } else {
+        const clienteMatch = (visita.cliente_obj?.nome?.toLowerCase() || '').includes(searchLower);
+        const imovelMatch = visita.imoveis_obj?.some((im: any) => 
+            (im.titulo_anuncio?.toLowerCase() || '').includes(searchLower) ||
+            (im.logradouro?.toLowerCase() || '').includes(searchLower) ||
+            (im.bairro?.toLowerCase() || '').includes(searchLower)
+        );
+        textMatch = clienteMatch || imovelMatch;
+    }
     return statusMatch && textMatch;
   });
 });
 
-// --- Formatadores ---
 function formatarData(data: string) { 
     try { return format(parseISO(data), 'dd/MM/yyyy', { locale: ptBR }); } 
     catch { return '-'; }
@@ -220,7 +289,6 @@ function formatarHora(data: string) {
     catch { return '-'; }
 }
 
-// --- Ações de API ---
 async function fetchVisitas() {
   isLoading.value = true;
   error.value = null;
@@ -246,22 +314,53 @@ async function handleDeletar(visitaId: number) {
   }
 }
 
-// --- Lógica de Assinatura ---
-function abrirModalAssinatura(visita: any) {
+// --- Controle de Modais ---
+function abrirDetalhes(visita: any) {
+    visitaSelecionada.value = visita;
+    showDetalhesModal.value = true;
+}
+
+function fecharDetalhes() {
+    showDetalhesModal.value = false;
+    visitaSelecionada.value = null;
+}
+
+// Chamado pelo Modal de Detalhes quando clica em "Assinar"
+function iniciarAssinaturaDeDetalhes(payload: any) {
+    const { visitaId, imoveisIds, tipo } = payload;
+    const visitaObj = visitas.value.find(v => v.id === visitaId);
+    
+    if (visitaObj) {
+        imoveisParaSalvar.value = imoveisIds; // IDs selecionados/filtrados
+        tipoAssinaturaAtual.value = tipo; // 'CORRETOR' ou 'CLIENTE'
+        
+        fecharDetalhes();
+        abrirModalAssinatura(visitaObj, true);
+    }
+}
+
+function abrirModalAssinatura(visita: any, veioDoDetalhe = false) {
     visitaParaAssinar.value = visita;
+    // Se abriu direto (sem passar pelo detalhe), assume todos os imóveis e cliente por padrão
+    if (!veioDoDetalhe) {
+        if (visita.imoveis_obj) {
+            imoveisParaSalvar.value = visita.imoveis_obj.map((i: any) => i.id);
+        }
+        tipoAssinaturaAtual.value = 'CLIENTE'; // Padrão antigo
+    }
     showAssinaturaModal.value = true;
 }
 
 function fecharModalAssinatura() {
     showAssinaturaModal.value = false;
     visitaParaAssinar.value = null;
+    imoveisParaSalvar.value = [];
 }
 
 async function salvarAssinatura(base64Image: string) {
     if (!visitaParaAssinar.value) return;
     isSavingSignature.value = true;
 
-    // Geolocalização
     let localizacao = '';
     if (navigator.geolocation) {
         try {
@@ -270,7 +369,8 @@ async function salvarAssinatura(base64Image: string) {
             });
             localizacao = `${position.coords.latitude}, ${position.coords.longitude}`;
         } catch { 
-            localizacao = 'Localização indisponível'; 
+            // CORREÇÃO: Se falhar, envia vazio para não mostrar "Indisponível" no PDF
+            localizacao = ''; 
         }
     }
 
@@ -279,10 +379,24 @@ async function salvarAssinatura(base64Image: string) {
     const file = new File([blob], "assinatura.png", { type: "image/png" });
 
     const formData = new FormData();
-    formData.append('assinatura_cliente', file);
-    formData.append('realizada', 'true');
-    formData.append('data_assinatura', new Date().toISOString());
+    
+    // Decide qual campo de assinatura preencher
+    if (tipoAssinaturaAtual.value === 'CORRETOR') {
+        formData.append('assinatura_corretor', file);
+        formData.append('data_assinatura_corretor', new Date().toISOString());
+    } else {
+        formData.append('assinatura_cliente', file);
+        formData.append('data_assinatura', new Date().toISOString());
+        // A visita só conta como "realizada" quando o cliente assina
+        formData.append('realizada', 'true');
+    }
+
     if(localizacao) formData.append('localizacao_assinatura', localizacao);
+    
+    // Envia a lista de imóveis (para manter a seleção feita no modal)
+    imoveisParaSalvar.value.forEach(id => {
+        formData.append('imoveis', id.toString());
+    });
 
     try {
         const response = await apiClient.patch(`/v1/visitas/${visitaParaAssinar.value.id}/`, formData, {
@@ -294,9 +408,14 @@ async function salvarAssinatura(base64Image: string) {
             visitas.value[index] = { ...visitas.value[index], ...response.data };
         }
         
-        toast.success("Visita confirmada com sucesso!");
+        toast.success(`${tipoAssinaturaAtual.value === 'CORRETOR' ? 'Corretor' : 'Cliente'} assinou com sucesso!`);
         fecharModalAssinatura();
+        
+        // Reabre o detalhe para ver o resultado
+        abrirDetalhes(visitas.value[index]);
+
     } catch (error) {
+        console.error(error);
         toast.error("Erro ao salvar assinatura.");
     } finally {
         isSavingSignature.value = false;
@@ -310,7 +429,7 @@ onMounted(() => {
 
 <style scoped>
 /* ================================================== */
-/* 1. Layout Geral (Igual Contratos) */
+/* 1. Layout Geral */
 /* ================================================== */
 .page-container { padding: 0; }
 
@@ -464,6 +583,7 @@ onMounted(() => {
 }
 .btn-mini:hover { background-color: #f3f4f6; color: #374151; }
 .btn-delete-mini:hover { background-color: #fee2e2; color: #dc2626; }
+.btn-pdf:hover { background-color: #ffebeb; color: #dc3545; }
 
 /* Utils */
 .text-muted { color: #9ca3af; }

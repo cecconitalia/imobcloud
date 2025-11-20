@@ -18,15 +18,15 @@
                 <div class="form-grid">
                     
                     <div class="form-group full-width">
-                        <label>Imóvel a Visitar <span class="required">*</span></label>
+                        <label>Imóveis a Visitar <span class="required">*</span></label>
                         <v-select
-                            v-model="visita.imovel"
+                            v-model="visita.imoveis"
                             :options="imovelOptions"
                             label="label"
-                            placeholder="Pesquisar por código, título ou endereço..."
+                            multiple
+                            placeholder="Pesquisar e adicionar imóveis..."
                             class="style-chooser"
                             @search="onImovelSearch"
-                            @option:selected="onImovelSelected"
                         >
                             <template #option="option">
                                 <div class="option-content">
@@ -44,6 +44,7 @@
                                 <span class="no-results">Digite para buscar...</span>
                             </template>
                         </v-select>
+                        <small v-if="!isEditing" class="helper-text">Selecione todos os imóveis que serão visitados neste agendamento.</small>
                     </div>
 
                     <div class="form-group full-width">
@@ -117,7 +118,9 @@
                 </button>
                 <button type="submit" class="btn-primary" :disabled="isSubmitting">
                     <i v-if="isSubmitting" class="fas fa-spinner fa-spin"></i>
-                    <span v-else>{{ isEditing ? 'Atualizar Visita' : 'Confirmar Agendamento' }}</span>
+                    <span v-else>
+                        {{ isEditing ? 'Atualizar Agendamento' : 'Confirmar Agendamento Único' }}
+                    </span>
                 </button>
             </div>
           </form>
@@ -126,27 +129,25 @@
       
       <div class="right-column">
             
-            <div class="card info-card" :class="{ 'empty': !imovelSelecionado }">
+            <div class="card info-card" :class="{ 'empty': visita.imoveis.length === 0 }">
                  <div class="widget-header">
-                     <h3 class="widget-title"><i class="fas fa-home"></i> Imóvel Selecionado</h3>
+                     <h3 class="widget-title"><i class="fas fa-home"></i> Imóveis no Roteiro ({{ visita.imoveis.length }})</h3>
                  </div>
                  
-                 <div v-if="imovelSelecionado" class="info-content">
-                     <div class="info-main">
-                        <h4 class="info-title">{{ imovelSelecionado.titulo_anuncio || 'Imóvel sem título' }}</h4>
-                        <span class="info-code" v-if="imovelSelecionado.codigo">Cód: {{ imovelSelecionado.codigo }}</span>
+                 <div v-if="visita.imoveis.length > 0" class="info-content-list">
+                     <div v-for="imovel in visita.imoveis" :key="imovel.value" class="imovel-mini-item">
+                        <div class="info-main">
+                            <h4 class="info-title">{{ imovel.titulo_anuncio || 'Imóvel sem título' }}</h4>
+                            <span class="info-code" v-if="imovel.codigo">{{ imovel.codigo }}</span>
+                        </div>
+                        <p class="info-address">
+                            {{ imovel.logradouro || 'Logradouro N/A' }}
+                            <span v-if="imovel.bairro">, {{ imovel.bairro }}</span>
+                        </p>
                      </div>
-                     <p class="info-address">
-                        <i class="fas fa-map-marker-alt"></i>
-                        {{ imovelSelecionado.logradouro || 'Logradouro N/A' }}
-                        <span v-if="imovelSelecionado.numero">, {{ imovelSelecionado.numero }}</span>
-                        <br v-if="imovelSelecionado.bairro">
-                        <span v-if="imovelSelecionado.bairro">{{ imovelSelecionado.bairro }}</span>
-                        <span v-if="imovelSelecionado.cidade"> - {{ imovelSelecionado.cidade }}</span>
-                     </p>
                  </div>
                  <div v-else class="empty-state-widget">
-                    <p>Selecione um imóvel para ver os detalhes.</p>
+                    <p>Selecione um ou mais imóveis para criar o roteiro.</p>
                  </div>
             </div>
 
@@ -188,7 +189,6 @@ import 'vue-select/dist/vue-select.css';
 import { useToast } from 'vue-toast-notification';
 import { format, parseISO } from 'date-fns';
 
-// Interfaces
 interface SelectObject { 
     label: string; 
     value: number; 
@@ -205,15 +205,15 @@ const isEditing = computed(() => !!visitaId.value);
 const isLoadingData = ref(false);
 const isSubmitting = ref(false);
 
-// Dados do Formulário
+// Estado do Form
 const visita = ref<{
-    imovel: SelectObject | null,
+    imoveis: SelectObject[], // Agora é lista
     cliente: SelectObject | null,
     data: string,
     hora: string,
     observacoes: string
 }>({
-    imovel: null,
+    imoveis: [],
     cliente: null,
     data: '',
     hora: '',
@@ -222,12 +222,9 @@ const visita = ref<{
 
 const imovelOptions = ref<SelectObject[]>([]);
 const clienteOptions = ref<SelectObject[]>([]);
-const imovelSelecionado = ref<any>(null);
 const clienteSelecionado = ref<any>(null);
 
 const minDate = new Date().toISOString().split('T')[0];
-
-// --- Buscas Assíncronas ---
 
 let searchTimeout: NodeJS.Timeout | null = null;
 
@@ -274,11 +271,8 @@ async function onClienteSearch(search: string, loading: (l: boolean) => void) {
     }
 }
 
-// Handlers para Cards Laterais
-function onImovelSelected(option: any) { imovelSelecionado.value = option; }
 function onClienteSelected(option: any) { clienteSelecionado.value = option; }
 
-// --- Carregamento Inicial ---
 async function loadInitialData() {
     isLoadingData.value = true;
     try {
@@ -287,9 +281,10 @@ async function loadInitialData() {
             apiClient.get('/v1/clientes/lista-simples/')
         ]);
 
-        imovelOptions.value = imoveisRes.data.map((i: any) => ({
-            label: i.titulo_anuncio || `Imóvel ${i.codigo_referencia || i.id}`,
-            value: i.id,
+        const imoveisResults = Array.isArray(imoveisRes.data) ? imoveisRes.data : (imoveisRes.data.results || []);
+        imovelOptions.value = imoveisResults.map((i: any) => ({
+            label: i.label || i.titulo_anuncio || `Imóvel ${i.codigo_referencia || i.id}`,
+            value: i.value || i.id,
             titulo_anuncio: i.titulo_anuncio,
             codigo: i.codigo_referencia,
             logradouro: i.logradouro,
@@ -297,15 +292,15 @@ async function loadInitialData() {
             cidade: i.cidade
         }));
 
-        clienteOptions.value = clientesRes.data.map((c: any) => ({
-            label: c.nome_display || c.nome || c.razao_social || 'Cliente',
-            value: c.id,
+        const clientesResults = Array.isArray(clientesRes.data) ? clientesRes.data : (clientesRes.data.results || []);
+        clienteOptions.value = clientesResults.map((c: any) => ({
+            label: c.label || c.nome_display || c.nome || c.razao_social || 'Cliente',
+            value: c.value || c.id,
             telefone: c.telefone,
             email: c.email,
             documento: c.documento
         }));
 
-        // Se Edição
         if (isEditing.value && visitaId.value) {
             const visitaRes = await apiClient.get(`/v1/visitas/${visitaId.value}/`);
             const data = visitaRes.data;
@@ -315,16 +310,17 @@ async function loadInitialData() {
             visita.value.hora = format(dataHora, 'HH:mm');
             visita.value.observacoes = data.observacoes;
 
-            if (data.imovel_obj) {
-                const i = data.imovel_obj;
-                const opt = { 
-                    label: i.titulo_anuncio || 'Imóvel', value: i.id, 
-                    titulo_anuncio: i.titulo_anuncio, codigo: i.codigo_referencia,
-                    logradouro: i.logradouro, numero: i.numero, bairro: i.bairro, cidade: i.cidade 
-                };
-                visita.value.imovel = opt;
-                imovelSelecionado.value = opt;
-                if (!imovelOptions.value.find(o => o.value === i.id)) imovelOptions.value.unshift(opt);
+            // CARREGA LISTA DE IMÓVEIS DA VISITA (Agora é lista)
+            if (data.imoveis_obj && Array.isArray(data.imoveis_obj)) {
+                visita.value.imoveis = data.imoveis_obj.map((i: any) => {
+                    const opt = { 
+                        label: i.titulo_anuncio || 'Imóvel', value: i.id, 
+                        titulo_anuncio: i.titulo_anuncio, codigo: i.codigo_referencia,
+                        logradouro: i.logradouro, numero: i.numero, bairro: i.bairro, cidade: i.cidade 
+                    };
+                    if (!imovelOptions.value.find(o => o.value === i.id)) imovelOptions.value.unshift(opt);
+                    return opt;
+                });
             }
 
             if (data.cliente_obj) {
@@ -338,7 +334,6 @@ async function loadInitialData() {
                 if (!clienteOptions.value.find(o => o.value === c.id)) clienteOptions.value.unshift(opt);
             }
         }
-
     } catch (err) {
         console.error("Erro ao carregar dados:", err);
         toast.error("Falha ao carregar dados iniciais.");
@@ -347,39 +342,37 @@ async function loadInitialData() {
     }
 }
 
-// *** HELPER CRÍTICO ***
 function getId(item: any): number | null {
     if (!item) return null;
-    if (typeof item === 'object' && 'value' in item) return item.value; // Objeto v-select
-    if (typeof item === 'number') return item; // Já é ID
+    if (typeof item === 'object' && 'value' in item) return item.value; 
+    if (typeof item === 'number') return item;
     return null;
 }
 
 async function handleSubmit() {
-    // Valida e extrai ID
-    const imovelId = getId(visita.value.imovel);
-    const clienteId = getId(visita.value.cliente);
-
-    if (!imovelId) {
-        toast.warning("Por favor, selecione um Imóvel na lista.");
+    if (visita.value.imoveis.length === 0) {
+        toast.warning("Selecione pelo menos um imóvel.");
         return;
     }
+    const clienteId = getId(visita.value.cliente);
     if (!clienteId) {
-        toast.warning("Por favor, selecione um Cliente na lista.");
+        toast.warning("Selecione um cliente.");
         return;
     }
     if (!visita.value.data || !visita.value.hora) {
-        toast.warning("Informe a Data e Hora da visita.");
+        toast.warning("Informe a data e hora.");
         return;
     }
 
     isSubmitting.value = true;
     
+    // Extrai lista de IDs dos imóveis
+    const imoveisIds = visita.value.imoveis.map(i => getId(i)).filter(id => id !== null);
     const dataHoraCombinada = `${visita.value.data}T${visita.value.hora}:00`;
 
-    // Payload com IDs puros
+    // Payload único com lista de imóveis
     const payload = {
-        imovel: imovelId, 
+        imoveis: imoveisIds, // Enviando LISTA para o backend ManyToMany
         cliente: clienteId,
         data_visita: dataHoraCombinada,
         observacoes: visita.value.observacoes
@@ -388,20 +381,15 @@ async function handleSubmit() {
     try {
         if (isEditing.value) {
             await apiClient.put(`/v1/visitas/${visitaId.value}/`, payload);
-            toast.success("Visita atualizada com sucesso!");
+            toast.success("Agendamento atualizado!");
         } else {
             await apiClient.post('/v1/visitas/', payload);
-            toast.success("Visita agendada com sucesso!");
+            toast.success("Agendamento criado com sucesso!");
         }
         router.push({ name: 'visitas' });
     } catch (err: any) {
         console.error("Erro ao salvar:", err.response?.data || err);
-        let msg = "Erro ao salvar visita.";
-        if (err.response?.data && typeof err.response.data === 'object') {
-             const keys = Object.keys(err.response.data);
-             if (keys.length > 0) msg = `${keys[0]}: ${err.response.data[keys[0]]}`;
-        }
-        toast.error(msg);
+        toast.error("Erro ao salvar agendamento.");
     } finally {
         isSubmitting.value = false;
     }
@@ -415,106 +403,52 @@ onMounted(loadInitialData);
 </script>
 
 <style scoped>
-/* Layout Base */
-.page-container { 
-    padding: 0.5rem; 
-    background-color: #f4f7f6; 
-    min-height: 100vh;
-}
-
-/* Grid Principal */
-.main-content-grid { 
-    display: grid; 
-    grid-template-columns: 1fr 320px; 
-    gap: 1rem; 
-    align-items: start; 
-    margin-top: 0; 
-}
+/* (Mesmo estilo dos arquivos anteriores) */
+.page-container { padding: 0.5rem; background-color: #f4f7f6; min-height: 100vh; }
+.main-content-grid { display: grid; grid-template-columns: 1fr 320px; gap: 1rem; align-items: start; margin-top: 0; }
 @media (max-width: 992px) { .main-content-grid { grid-template-columns: 1fr; } }
-
-/* Cards Genéricos */
-.card {
-  background-color: #fff; 
-  border-radius: 10px; 
-  box-shadow: 0 4px 12px rgba(0,0,0,0.04);
-  padding: 1.5rem; 
-  border: 1px solid #eaedf0;
-}
-
-/* Formulário Esquerdo */
+.card { background-color: #fff; border-radius: 10px; box-shadow: 0 4px 12px rgba(0,0,0,0.04); padding: 1.5rem; border: 1px solid #eaedf0; }
 .form-card { min-height: 400px; }
 .compact-section { margin-bottom: 0; }
-.section-title {
-    font-size: 1.1rem; color: #2c3e50; margin-bottom: 1rem; padding-bottom: 0.5rem;
-    border-bottom: 2px solid #f0f2f5; font-weight: 700; display: flex; align-items: center; gap: 0.6rem;
-}
-
+.section-title { font-size: 1.1rem; color: #2c3e50; margin-bottom: 1rem; padding-bottom: 0.5rem; border-bottom: 2px solid #f0f2f5; font-weight: 700; display: flex; align-items: center; gap: 0.6rem; }
 .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
 .form-group { display: flex; flex-direction: column; gap: 0.3rem; }
 .full-width { grid-column: 1 / -1; }
-
 label { font-weight: 600; font-size: 0.8rem; color: #495057; }
 .required { color: #e74c3c; }
-
-/* Inputs & Estilos */
+.helper-text { font-size: 0.75rem; color: #6c757d; margin-top: 2px; }
 .input-wrapper { position: relative; }
-.input-icon {
-    position: absolute; left: 10px; top: 50%; transform: translateY(-50%); color: #adb5bd; font-size: 0.9rem; pointer-events: none;
-}
-.form-input, .form-textarea {
-    width: 100%; padding: 0.55rem 0.75rem; border: 1px solid #ced4da; border-radius: 6px;
-    font-size: 0.9rem; transition: border-color 0.2s; background-color: #fff; box-sizing: border-box;
-    font-family: inherit;
-}
+.input-icon { position: absolute; left: 10px; top: 50%; transform: translateY(-50%); color: #adb5bd; font-size: 0.9rem; pointer-events: none; }
+.form-input, .form-textarea { width: 100%; padding: 0.55rem 0.75rem; border: 1px solid #ced4da; border-radius: 6px; font-size: 0.9rem; transition: border-color 0.2s; background-color: #fff; box-sizing: border-box; font-family: inherit; }
 .form-input.has-icon { padding-left: 2.2rem; }
-.form-input:focus, .form-textarea:focus { 
-    border-color: #3498db; outline: none; box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.1);
-}
+.form-input:focus, .form-textarea:focus { border-color: #3498db; outline: none; box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.1); }
 .form-textarea { resize: vertical; min-height: 80px; }
-
-/* V-Select Custom */
-.style-chooser :deep(.vs__dropdown-toggle) {
-    border: 1px solid #ced4da; border-radius: 6px; padding: 4px 0 5px 0;
-}
+.style-chooser :deep(.vs__dropdown-toggle) { border: 1px solid #ced4da; border-radius: 6px; padding: 4px 0 5px 0; }
 .style-chooser :deep(.vs__search) { margin-top: 0; font-size: 0.9rem; }
-
-/* Footer Actions */
-.form-actions-footer {
-    display: flex; justify-content: flex-end; gap: 1rem; margin-top: 1.5rem; padding-top: 1rem; border-top: 1px solid #f0f2f5;
-}
-.btn-primary, .btn-secondary {
-    padding: 0.6rem 1.5rem; border-radius: 6px; border: none; font-weight: 600; cursor: pointer; font-size: 0.9rem; display: flex; align-items: center; gap: 0.5rem;
-}
+.form-actions-footer { display: flex; justify-content: flex-end; gap: 1rem; margin-top: 1.5rem; padding-top: 1rem; border-top: 1px solid #f0f2f5; }
+.btn-primary, .btn-secondary { padding: 0.6rem 1.5rem; border-radius: 6px; border: none; font-weight: 600; cursor: pointer; font-size: 0.9rem; display: flex; align-items: center; gap: 0.5rem; }
 .btn-primary { background-color: #007bff; color: white; }
 .btn-primary:hover { background-color: #0056b3; transform: translateY(-1px); }
 .btn-secondary { background-color: #6c757d; color: white; }
 .btn-secondary:hover { background-color: #5a6268; }
-
-/* Coluna Direita (Cards Informativos) */
 .info-card { padding: 1.2rem; margin-bottom: 1rem; border-left: 4px solid #007bff; }
 .info-card.empty { border-left-color: #e9ecef; }
-
 .widget-header { margin-bottom: 0.8rem; padding-bottom: 0.5rem; border-bottom: 1px solid #f0f2f5; }
 .widget-title { font-size: 0.95rem; font-weight: 700; margin: 0; color: #495057; }
-
+.info-content-list { display: flex; flex-direction: column; gap: 0.8rem; max-height: 300px; overflow-y: auto; }
+.imovel-mini-item { padding-bottom: 0.8rem; border-bottom: 1px solid #f0f2f5; }
+.imovel-mini-item:last-child { border-bottom: none; padding-bottom: 0; }
 .info-content { display: flex; flex-direction: column; gap: 0.5rem; }
-.info-title { font-size: 1rem; font-weight: 700; color: #2c3e50; margin: 0; line-height: 1.3; }
+.info-title { font-size: 0.95rem; font-weight: 700; color: #2c3e50; margin: 0; line-height: 1.3; }
 .info-code { background-color: #e9ecef; color: #495057; font-size: 0.7rem; padding: 2px 6px; border-radius: 4px; font-weight: 700; display: inline-block; margin-top: 4px; }
 .info-address { font-size: 0.85rem; color: #6c757d; line-height: 1.4; margin: 0; }
-.info-address i { color: #007bff; margin-right: 4px; }
-
 .contact-list { margin-top: 0.5rem; }
 .contact-item { font-size: 0.85rem; color: #343a40; margin: 4px 0; display: flex; align-items: center; gap: 8px; }
 .contact-item i { color: #adb5bd; width: 16px; text-align: center; }
-
 .empty-state-widget { text-align: center; color: #adb5bd; font-size: 0.85rem; padding: 1rem 0; font-style: italic; }
-
-/* Loading */
 .loading-state { text-align: center; padding: 4rem; color: #6c757d; }
 .spinner { border: 3px solid #e9ecef; border-top: 3px solid #007bff; border-radius: 50%; width: 40px; height: 40px; animation: spin 0.8s linear infinite; margin: 0 auto 1rem; }
 @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-
-/* V-Select Dropdown Slots */
 .option-content { display: flex; flex-direction: column; }
 .option-title { font-weight: 600; font-size: 0.9rem; color: #343a40; }
 .option-subtitle { font-size: 0.75rem; color: #6c757d; display: flex; align-items: center; }

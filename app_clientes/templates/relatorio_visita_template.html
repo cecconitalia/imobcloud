@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <title>Termo de Visita - {{ visita.id }}</title>
+    <style>
+        /* Configuração da Página A4 */
+        @page {
+            size: A4;
+            margin: 2cm 1.5cm 2cm 1.5cm;
+
+            @frame footer_frame {
+                -pdf-frame-content: footer_content;
+                left: 1.5cm; width: 18cm; top: 27.5cm; height: 1cm;
+            }
+        }
+
+        body {
+            font-family: Helvetica, Arial, sans-serif;
+            font-size: 10px;
+            color: #333;
+            line-height: 1.5;
+        }
+
+        table { width: 100%; border-collapse: collapse; }
+        td { vertical-align: top; }
+
+        /* Cabeçalho */
+        .header-container {
+            border-bottom: 2px solid #333;
+            padding-bottom: 10px;
+            margin-bottom: 20px;
+        }
+        .company-name { font-size: 14px; font-weight: bold; text-transform: uppercase; color: #000; }
+        .company-details { font-size: 9px; color: #555; margin-top: 2px; }
+        .doc-title { text-align: right; font-size: 12px; font-weight: bold; text-transform: uppercase; }
+        .doc-number { font-size: 9px; color: #666; text-align: right; }
+
+        /* Caixas de Dados */
+        .data-box { border: 1px solid #ccc; padding: 5px; margin-bottom: 10px; }
+        .box-title {
+            background-color: #f0f0f0; font-weight: bold; text-transform: uppercase; font-size: 9px;
+            padding: 2px 5px; margin: -5px -5px 5px -5px; border-bottom: 1px solid #ccc;
+        }
+        .label { font-weight: bold; color: #444; }
+        
+        /* Tabela de Imóveis */
+        .tbl-imoveis th {
+            background-color: #e9ecef; font-weight: bold; text-align: left;
+            border: 1px solid #ccc; padding: 4px; font-size: 9px;
+        }
+        .tbl-imoveis td { border: 1px solid #ccc; padding: 4px; font-size: 9px; }
+
+        /* Texto Legal */
+        .legal-text { font-size: 8px; text-align: justify; margin-top: 15px; color: #555; }
+        .legal-text p { margin-bottom: 5px; }
+
+        /* Assinaturas */
+        .signatures-table { margin-top: 30px; }
+        .signatures-table td {
+            width: 50%; padding: 0 15px; text-align: center; vertical-align: bottom;
+        }
+        
+        .sig-line { border-top: 1px solid #000; margin-top: 5px; padding-top: 2px; }
+        .sig-name { font-weight: bold; font-size: 9px; margin-top: 2px; text-transform: uppercase; }
+        .sig-role { font-size: 8px; color: #666; }
+
+        /* Assinatura Digital */
+        .digital-box {
+            border: 1px dashed #007bff; background-color: #f8faff;
+            padding: 5px; border-radius: 4px; display: inline-block;
+            width: 80%; margin-bottom: 5px;
+        }
+        .digital-img {
+            max-height: 30px; width: auto; display: block; margin: 0 auto;
+        }
+        .digital-meta { font-size: 7px; color: #007bff; margin-top: 2px; }
+
+        /* Rodapé */
+        #footer_content {
+            text-align: center; font-size: 8px; color: #999;
+            border-top: 1px solid #eee; padding-top: 2px;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="footer_content">
+        Gerado por ImobCloud em {{ data_impressao|date:"d/m/Y \à\s H:i" }} &bull; 
+        Página <pdf:pagenumber /> de <pdf:pagecount />
+    </div>
+
+    <div class="header-container">
+        <table>
+            <tr>
+                <td>
+                    <div class="company-name">{{ imobiliaria.nome }}</div>
+                    <div class="company-details">
+                        {% if imobiliaria.cnpj %}CNPJ: {{ imobiliaria.cnpj }}{% endif %}
+                        {% if imobiliaria.cnpj and imobiliaria.creci %} | {% endif %}
+                        {% if imobiliaria.creci %}CRECI: {{ imobiliaria.creci }}{% endif %}
+                        <br>
+                        {{ imobiliaria.email_contato }}
+                    </div>
+                </td>
+                <td>
+                    <div class="doc-title">Termo de Visita a Imóvel</div>
+                    <div class="doc-number">Ref. Visita #{{ visita.id }}</div>
+                </td>
+            </tr>
+        </table>
+    </div>
+
+    <div class="data-box">
+        <div class="box-title">Dados do Visitante</div>
+        <table>
+            <tr>
+                <td width="60%"><span class="label">Nome:</span> {{ cliente.nome }}</td>
+                <td width="40%"><span class="label">CPF/CNPJ:</span> {{ cliente.documento }}</td>
+            </tr>
+            <tr>
+                <td><span class="label">E-mail:</span> {{ cliente.email }}</td>
+                <td><span class="label">Telefone:</span> {{ cliente.telefone }}</td>
+            </tr>
+        </table>
+    </div>
+
+    <div class="data-box">
+        <div class="box-title">Dados do Agendamento</div>
+        <table>
+            <tr>
+                <td width="33%"><span class="label">Data:</span> {{ visita.data_visita|date:"d/m/Y" }}</td>
+                <td width="33%"><span class="label">Hora:</span> {{ visita.data_visita|date:"H:i" }}</td>
+                <td width="33%"><span class="label">Status:</span> {{ visita.realizada|yesno:"Realizada,Agendada" }}</td>
+            </tr>
+            {% if visita.observacoes %}
+            <tr>
+                <td colspan="3" style="padding-top:3px;">
+                    <span class="label">Obs:</span> {{ visita.observacoes }}
+                </td>
+            </tr>
+            {% endif %}
+        </table>
+    </div>
+
+    <div class="data-box">
+        <div class="box-title">Imóveis Visitados</div>
+        <table class="tbl-imoveis">
+            <thead>
+                <tr>
+                    <th width="15%">Código</th>
+                    <th width="40%">Imóvel / Referência</th>
+                    <th width="45%">Endereço</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for imovel in imoveis %}
+                <tr>
+                    <td>{{ imovel.id }}</td>
+                    <td>
+                        <b>{{ imovel.titulo_anuncio|default:"Imóvel sem título" }}</b><br>
+                        <small>{{ imovel.codigo_referencia|default:"-" }}</small>
+                    </td>
+                    <td>
+                        {{ imovel.logradouro }}, {{ imovel.numero }}
+                        {% if imovel.complemento %} - {{ imovel.complemento }}{% endif %}
+                        <br>
+                        {{ imovel.bairro }} - {{ imovel.cidade }}/{{ imovel.estado }}
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="3" style="text-align: center;">Nenhum imóvel registrado.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <div class="legal-text">
+        <p>
+            <strong>1. RECONHECIMENTO:</strong> O(A) VISITANTE declara ter visitado o(s) imóvel(is) acima, apresentados pela imobiliária <strong>{{ imobiliaria.nome }}</strong>.
+        </p>
+        <p>
+            <strong>2. INTERMEDIAÇÃO E HONORÁRIOS:</strong> O(A) VISITANTE reconhece que a intermediação de compra/locação destes imóveis é de responsabilidade desta imobiliária. Compromete-se a tratar qualquer negociação exclusivamente por seu intermédio. Caso venha a concretizar negócio diretamente com o proprietário ou por outro intermediário, utilizando-se das informações aqui obtidas, estará sujeito ao pagamento dos honorários de corretagem (Art. 722 a 729, Código Civil).
+        </p>
+        <p>
+            <strong>3. LGPD:</strong> Os dados aqui coletados destinam-se exclusivamente ao registro da prestação de serviço e segurança, conforme a Lei 13.709/2018.
+        </p>
+    </div>
+
+    <table class="signatures-table">
+        <tr>
+            <td>
+                {% if visita.assinatura_corretor %}
+                    <div class="digital-box" style="border-color: #333; background-color: #f9f9f9;">
+                        <img src="{{ visita.assinatura_corretor.path }}" class="digital-img" alt="Assinatura Corretor" />
+                        <div class="digital-meta">
+                            Assinado Digitalmente<br>
+                            {{ visita.data_assinatura_corretor|date:"d/m/Y H:i" }}
+                        </div>
+                    </div>
+                    <div class="sig-line"></div>
+                {% else %}
+                    <br><br><br><br>
+                    <div class="sig-line"></div>
+                {% endif %}
+                
+                <div class="sig-name">
+                    {{ corretor.get_full_name|default:corretor.username }}
+                </div>
+                <div class="sig-role">Corretor Responsável</div>
+            </td>
+
+            <td>
+                {% if visita.assinatura_cliente %}
+                    <div class="digital-box">
+                        <img src="{{ visita.assinatura_cliente.path }}" class="digital-img" alt="Assinatura" />
+                        <div class="digital-meta">
+                            Assinado Digitalmente<br>
+                            {{ visita.data_assinatura|date:"d/m/Y H:i" }}
+                            {% if visita.localizacao_assinatura and visita.localizacao_assinatura != 'Localização indisponível' %}
+                                <br>GPS: {{ visita.localizacao_assinatura }}
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div class="sig-line"></div>
+                {% else %}
+                    <br><br><br><br>
+                    <div class="sig-line"></div>
+                {% endif %}
+                
+                <div class="sig-name">{{ cliente.nome }}</div>
+                <div class="sig-role">Cliente / Visitante</div>
+            </td>
+        </tr>
+    </table>
+
+</body>
+</html>

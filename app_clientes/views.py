@@ -14,7 +14,7 @@ from django.shortcuts import get_object_or_404
 from django.utils.dateparse import parse_date
 from django.contrib.auth import get_user_model
 from rest_framework.views import APIView
-from django.http import HttpResponse, HttpResponseRedirect
+from django.http import HttpResponse, HttpResponseRedirect, Http404
 from django.urls import reverse
 from google_auth_oauthlib.flow import Flow
 import os
@@ -22,6 +22,12 @@ import json
 from django.conf import settings
 from django.core.files.storage import default_storage
 from django.db.models import Sum
+
+# Imports para PDF
+from django.template.loader import render_to_string
+from io import BytesIO
+from xhtml2pdf import pisa
+from datetime import date
 
 from core.models import PerfilUsuario, Notificacao, Imobiliaria
 from core.permissions import IsAdminOrSuperUser
@@ -219,24 +225,34 @@ class VisitaViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         if self.request.user.is_superuser:
-            return Visita.objects.all()
+            return Visita.objects.all().prefetch_related('imoveis', 'cliente')
         elif self.request.tenant:
-            return Visita.objects.filter(imobiliaria=self.request.tenant)
+            return Visita.objects.filter(imobiliaria=self.request.tenant).prefetch_related('imoveis', 'cliente')
         return Visita.objects.none()
 
     def perform_create(self, serializer):
-        imovel_id = self.request.data.get('imovel')
         cliente_id = self.request.data.get('cliente')
-        imovel = get_object_or_404(Imovel, pk=imovel_id)
         cliente = get_object_or_404(Cliente, pk=cliente_id)
         
-        if self.request.user.is_superuser:
-            imobiliaria_obj = imovel.imobiliaria
-            serializer.save(imobiliaria=imobiliaria_obj, cliente=cliente, imovel=imovel)
-        elif hasattr(self.request.user, 'perfil') and self.request.tenant:
-            serializer.save(imobiliaria=self.request.tenant, cliente=cliente, imovel=imovel)
-        else:
-            raise PermissionDenied("Não foi possível associar a visita. Tenant não identificado ou inválido.")
+        imobiliaria = None
+        if self.request.tenant:
+            imobiliaria = self.request.tenant
+        elif self.request.user.is_superuser:
+            imoveis_data = self.request.data.get('imoveis')
+            if imoveis_data and isinstance(imoveis_data, list) and len(imoveis_data) > 0:
+                try:
+                    primeiro_id = imoveis_data[0]
+                    imovel_obj = Imovel.objects.get(pk=primeiro_id)
+                    imobiliaria = imovel_obj.imobiliaria
+                except (Imovel.DoesNotExist, IndexError, ValueError):
+                    pass
+            if not imobiliaria and cliente.imobiliaria:
+                imobiliaria = cliente.imobiliaria
+        
+        if not imobiliaria:
+            raise PermissionDenied("Não foi possível associar a visita. Tenant/Imobiliária não identificada.")
+
+        serializer.save(imobiliaria=imobiliaria, cliente=cliente)
 
     def perform_update(self, serializer):
         if self.request.user.is_superuser:
@@ -520,3 +536,58 @@ class RelatoriosView(viewsets.ViewSet):
     
     def _get_relatorio_imobiliaria(self, tenant):
          return {"message": "Relatório de imobiliária a ser implementado."}
+
+# ====================================================================
+# VIEW PARA GERAR PDF DA VISITA (Ficha de Visita)
+# ====================================================================
+class GerarRelatorioVisitaPDFView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request, pk, *args, **kwargs):
+        # 1. Busca a visita
+        if request.user.is_superuser:
+            visita = get_object_or_404(Visita, pk=pk)
+        elif request.tenant:
+            visita = get_object_or_404(Visita, pk=pk, imobiliaria=request.tenant)
+        else:
+            return HttpResponse("Visita não encontrada ou acesso negado.", status=404)
+
+        # 2. Prepara os dados
+        imoveis = visita.imoveis.all()
+        cliente = visita.cliente
+        imobiliaria = visita.imobiliaria
+        
+        # PADRONIZADO: 'corretor' é o usuário logado
+        corretor = request.user
+        
+        # Assinatura do corretor da VISITA (se assinada) ou do PERFIL (para preview/manual)
+        # Se a visita já foi assinada pelo corretor, usamos essa imagem.
+        # Caso contrário, se o usuário logado tiver assinatura no perfil, passamos para exibir se necessário.
+        # No template, priorizamos visita.assinatura_corretor
+        
+        hoje = timezone.now()
+
+        context = {
+            'visita': visita,
+            'cliente': cliente,
+            'imobiliaria': imobiliaria,
+            'imoveis': imoveis,
+            'data_impressao': hoje,
+            'corretor': corretor, # Passado como 'corretor'
+            'logo_url': None
+        }
+
+        # 3. Renderiza o HTML
+        html_string = render_to_string('relatorio_visita_template.html', context)
+        
+        # 4. Gera o PDF
+        result = BytesIO()
+        pdf = pisa.pisaDocument(BytesIO(html_string.encode("UTF-8")), result, encoding='UTF-8')
+
+        if not pdf.err:
+            response = HttpResponse(result.getvalue(), content_type='application/pdf')
+            filename = f'ficha_visita_{visita.id}_{cliente.nome.replace(" ", "_")}.pdf'
+            response['Content-Disposition'] = f'inline; filename="{filename}"'
+            return response
+        else:
+            return HttpResponse(f"Erro ao gerar PDF: {pdf.err}", status=500)
