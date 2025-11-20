@@ -10,17 +10,15 @@ from django.utils import timezone
 from datetime import timedelta
 from django.shortcuts import get_object_or_404
 from django.contrib.auth import get_user_model
-from django.db.models import Sum
+# ADICIONADO: Importação de Q para consultas complexas
+from django.db.models import Sum, Q
 
-# --- NOVAS IMPORTAÇÕES PARA LOGOUT ---
 from rest_framework_simplejwt.tokens import RefreshToken
 
-# Importações dos modelos de outros apps
 from app_imoveis.models import Imovel
 from app_clientes.models import Cliente
 from app_contratos.models import Contrato, Pagamento
 
-# Importações locais do app 'core'
 from .models import PerfilUsuario, Imobiliaria, Notificacao
 from .serializers import (
     MyTokenObtainPairSerializer, 
@@ -29,26 +27,17 @@ from .serializers import (
     NotificacaoSerializer,
     ImobiliariaIntegracaoSerializer
 )
-# Importação do 'action'
 from rest_framework.decorators import action
 
-# Importar as permissões necessárias
 from .permissions import IsAdminOrSuperUser, IsCorretorOrReadOnly
 
 
 User = get_user_model()
 
 class MyTokenObtainPairView(TokenObtainPairView):
-    """
-    View existente para o login.
-    """
     serializer_class = MyTokenObtainPairSerializer
 
-# --- NOVA VIEW DE LOGOUT ADICIONADA ---
 class LogoutView(APIView):
-    """
-    View para invalidar o refresh token (fazer logout).
-    """
     permission_classes = [IsAuthenticated]
 
     def post(self, request):
@@ -59,46 +48,37 @@ class LogoutView(APIView):
             return Response(status=status.HTTP_205_RESET_CONTENT)
         except Exception as e:
             return Response(status=status.HTTP_400_BAD_REQUEST)
-# --- FIM DA VIEW DE LOGOUT ---
 
 
 class CorretorRegistrationViewSet(viewsets.ModelViewSet):
-    """
-    ViewSet para registro e gerenciamento de Corretores (Usuários).
-    """
     serializer_class = CorretorRegistrationSerializer
 
     def get_queryset(self):
-        # Permite que Admins listem todos ou que Corretores vejam a lista (para selecionar responsáveis)
-        # Se quiser restringir, mantenha a lógica de cargo do request.user
         if self.request.user.is_superuser or self.request.tenant:
             imobiliaria_id = self.request.tenant.id
             queryset = User.objects.filter(perfil__imobiliaria_id=imobiliaria_id)
             
-            # --- ADIÇÃO: FILTRO POR CARGO ---
-            # Permite ?cargo=Corretor na URL
+            # --- CORREÇÃO: FILTRO POR CARGO (ADAPTADO PARA BOOLEANOS) ---
             cargo = self.request.query_params.get('cargo')
             if cargo:
-                # Converte para maiúsculo (ex: 'Corretor' -> 'CORRETOR') para bater com o modelo
-                queryset = queryset.filter(perfil__cargo=cargo.upper())
+                cargo_upper = cargo.upper()
+                if cargo_upper == 'ADMIN':
+                    queryset = queryset.filter(perfil__is_admin=True)
+                elif cargo_upper == 'CORRETOR':
+                    queryset = queryset.filter(perfil__is_corretor=True)
             
             return queryset
             
         return User.objects.none()
 
     def get_serializer_class(self):
-        # Usa um serializer diferente para 'list' e 'retrieve' para não expor dados sensíveis
         if self.action == 'list' or self.action == 'retrieve':
             return CorretorDisplaySerializer
         return CorretorRegistrationSerializer
 
     def get_permissions(self):
-        """
-        Define permissões por ação.
-        """
         if self.action == 'create':
             permission_classes = [permissions.AllowAny]
-        # Alterado: 'list' permitido para Authenticated para carregar dropdowns
         elif self.action == 'list':
             permission_classes = [IsAuthenticated]
         elif self.action in ['update', 'partial_update', 'destroy', 'retrieve']:
@@ -107,47 +87,33 @@ class CorretorRegistrationViewSet(viewsets.ModelViewSet):
             permission_classes = [IsAuthenticated]
         else:
             permission_classes = [IsAuthenticated]
-            
-        # Instancia as classes de permissão
         return [permission() for permission in permission_classes]
 
     def perform_create(self, serializer):
-        # Define a imobiliária automaticamente baseado no subdomínio
         serializer.save(imobiliaria=self.request.tenant)
 
     @action(detail=False, methods=['get', 'put', 'patch'], url_path='me')
     def me(self, request, *args, **kwargs):
-        """
-        Permite que o usuário autenticado veja e atualize seu próprio perfil.
-        """
         user = request.user
         if request.method == 'GET':
             serializer = CorretorDisplaySerializer(user)
             return Response(serializer.data)
         
-        # Para PUT/PATCH (atualização)
         serializer = CorretorRegistrationSerializer(user, data=request.data, partial=True)
         if serializer.is_valid():
             serializer.save()
-            # Retornamos os dados atualizados usando o serializer de display
             display_serializer = CorretorDisplaySerializer(user)
             return Response(display_serializer.data)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
     @action(detail=False, methods=['get'], url_path='minhas-notificacoes')
     def minhas_notificacoes(self, request):
-        """
-        Retorna as notificações não lidas para o usuário logado.
-        """
         notificacoes = Notificacao.objects.filter(destinatario=request.user, lida=False)
         serializer = NotificacaoSerializer(notificacoes, many=True)
         return Response(serializer.data)
 
     @action(detail=False, methods=['post'], url_path='marcar-notificacoes-lidas')
     def marcar_notificacoes_lidas(self, request):
-        """
-        Marca notificações específicas como lidas.
-        """
         ids_notificacoes = request.data.get('ids', [])
         if not ids_notificacoes:
             return Response({"error": "Nenhum ID de notificação fornecido."}, status=status.HTTP_400_BAD_REQUEST)
@@ -166,12 +132,15 @@ class CorretorRegistrationViewSet(viewsets.ModelViewSet):
         para uso em dropdowns (ex: transferir oportunidade).
         """
         imobiliaria = request.tenant
+        
+        # --- CORREÇÃO: FILTRO USANDO Q OBJECTS PARA BOOLEANOS ---
+        # Lista qualquer usuário que seja Admin OU Corretor
         corretores = User.objects.filter(
-            perfil__imobiliaria=imobiliaria,
-            perfil__cargo__in=[PerfilUsuario.Cargo.ADMIN, PerfilUsuario.Cargo.CORRETOR]
+            perfil__imobiliaria=imobiliaria
+        ).filter(
+            Q(perfil__is_admin=True) | Q(perfil__is_corretor=True)
         ).values('id', 'first_name', 'last_name', 'email')
         
-        # Formata os dados para facilitar o uso no frontend
         data = [
             {
                 "id": corretor['id'],
@@ -184,42 +153,32 @@ class CorretorRegistrationViewSet(viewsets.ModelViewSet):
 
 
 class CorretorViewSet(viewsets.ReadOnlyModelViewSet):
-    """
-    ViewSet para visualização pública ou restrita de corretores (exemplo).
-    """
     queryset = User.objects.all()
     serializer_class = CorretorDisplaySerializer
-    permission_classes = [IsAdminOrSuperUser] # Apenas Admins podem ver
+    permission_classes = [IsAdminOrSuperUser]
 
 
 class DashboardStatsView(APIView):
-    """
-    View para buscar estatísticas rápidas para o Dashboard.
-    """
     permission_classes = [IsCorretorOrReadOnly]
 
     def get(self, request, *args, **kwargs):
         imobiliaria = request.tenant
         
-        # 1. Total de Imóveis (Ativos)
         total_imoveis = Imovel.objects.filter(
             imobiliaria=imobiliaria, 
             status__in=['A_VENDA', 'PARA_ALUGAR']
         ).count()
         
-        # 2. Total de Clientes (Ativos)
         total_clientes = Cliente.objects.filter(
             imobiliaria=imobiliaria,
             ativo=True
         ).count()
         
-        # 3. Contratos Ativos
         total_contratos_ativos = Contrato.objects.filter(
             imobiliaria=imobiliaria,
             status_contrato='ATIVO' 
         ).count()
         
-        # 4. Total a Receber (Próximos 30 dias)
         hoje = timezone.now().date()
         proximos_30_dias = hoje + timedelta(days=30)
         
@@ -242,17 +201,13 @@ class DashboardStatsView(APIView):
         return Response(stats)
     
 class IntegracaoRedesSociaisView(APIView):
-    """
-    View para a imobiliária (tenant) gerir as suas credenciais
-    de integração com Facebook e Instagram.
-    """
     permission_classes = [IsAuthenticated]
     serializer_class = ImobiliariaIntegracaoSerializer
 
     def get(self, request, *args, **kwargs):
         imobiliaria = request.tenant
-        # Apenas o admin da imobiliária ou o superusuário podem ver as credenciais
-        if not (request.user.is_superuser or (hasattr(request.user, 'perfil') and request.user.perfil.cargo == 'ADMIN')):
+        # --- CORREÇÃO: VERIFICAÇÃO DE PERMISSÃO ATUALIZADA ---
+        if not (request.user.is_superuser or (hasattr(request.user, 'perfil') and request.user.perfil.is_admin)):
             return Response({"error": "Acesso não autorizado."}, status=status.HTTP_403_FORBIDDEN)
             
         serializer = self.serializer_class(imobiliaria)
@@ -260,8 +215,8 @@ class IntegracaoRedesSociaisView(APIView):
 
     def put(self, request, *args, **kwargs):
         imobiliaria = request.tenant
-        # Apenas o admin da imobiliária ou o superusuário podem atualizar as credenciais
-        if not (request.user.is_superuser or (hasattr(request.user, 'perfil') and request.user.perfil.cargo == 'ADMIN')):
+        # --- CORREÇÃO: VERIFICAÇÃO DE PERMISSÃO ATUALIZADA ---
+        if not (request.user.is_superuser or (hasattr(request.user, 'perfil') and request.user.perfil.is_admin)):
             return Response({"error": "Acesso não autorizado."}, status=status.HTTP_403_FORBIDDEN)
 
         serializer = self.serializer_class(imobiliaria, data=request.data, partial=True)

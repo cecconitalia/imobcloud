@@ -4,7 +4,6 @@ from django.db import models
 from django.conf import settings
 from django.contrib.auth import get_user_model
 from simple_history.models import HistoricalRecords
-# Adicionado para validação no modelo
 from django.core.exceptions import ValidationError
 import re
 
@@ -41,9 +40,6 @@ class FunilEtapa(models.Model):
 # Modelos do CRM
 # ====================================================================
 
-# --------------------------------------------------------------------
-# MODELO CLIENTE - VERSÃO FINAL E COMPLETA
-# --------------------------------------------------------------------
 class Cliente(models.Model):
     TIPO_PESSOA_CHOICES = (
         ('FISICA', 'Pessoa Física'),
@@ -53,26 +49,21 @@ class Cliente(models.Model):
     
     imobiliaria = models.ForeignKey('core.Imobiliaria', on_delete=models.CASCADE, verbose_name="Imobiliária")
     
-    # Campo genérico para CPF ou CNPJ
     documento = models.CharField(max_length=18, verbose_name="CPF/CNPJ")
 
-    # Campos para Pessoa Física e Fantasia para PJ
     nome = models.CharField(max_length=200, verbose_name="Nome Completo / Nome Fantasia")
     rg = models.CharField(max_length=20, blank=True, null=True, verbose_name="RG")
     data_nascimento = models.DateField(null=True, blank=True, verbose_name="Data de Nascimento")
     estado_civil = models.CharField(max_length=50, blank=True, null=True, verbose_name="Estado Civil")
     profissao = models.CharField(max_length=100, blank=True, null=True, verbose_name="Profissão")
 
-    # Campos para Pessoa Jurídica
     razao_social = models.CharField(max_length=255, blank=True, null=True, verbose_name="Razão Social")
     inscricao_estadual = models.CharField(max_length=20, blank=True, null=True, verbose_name="Inscrição Estadual")
 
-    # Campos comuns
     foto_perfil = models.ImageField(upload_to='clientes_fotos/', blank=True, null=True, verbose_name="Foto de Perfil")
     email = models.EmailField(verbose_name="E-mail", blank=True, null=True)
     telefone = models.CharField(max_length=20, verbose_name="Telefone")
     
-    # Endereço
     logradouro = models.CharField(max_length=255, blank=True, null=True, verbose_name="Logradouro (Rua, Av.)")
     numero = models.CharField(max_length=10, blank=True, null=True, verbose_name="Número")
     complemento = models.CharField(max_length=255, blank=True, null=True, verbose_name="Complemento")
@@ -81,34 +72,28 @@ class Cliente(models.Model):
     estado = models.CharField(max_length=2, blank=True, null=True, verbose_name="Estado")
     cep = models.CharField(max_length=9, blank=True, null=True, verbose_name="CEP")
     
-    # Informações adicionais
     preferencias_imovel = models.TextField(blank=True, null=True, verbose_name="Preferências de Imóvel")
     observacoes = models.TextField(blank=True, null=True, verbose_name="Observações")
     
-    # --- NOVO CAMPO ADICIONADO PARA OS PERFIS ---
     perfil_cliente = models.JSONField(
         default=list, 
         blank=True, 
         verbose_name="Perfis do Cliente (Interessado, Proprietário, etc.)",
         help_text="Lista de perfis/funções do cliente."
     )
-    # --- FIM NOVO CAMPO ADICIONADO ---
     
-    # Controle
     ativo = models.BooleanField(default=True, verbose_name="Ativo")
     data_cadastro = models.DateTimeField(auto_now_add=True, verbose_name="Data de Cadastro")
     data_atualizacao = models.DateTimeField(auto_now=True, verbose_name="Última Atualização")
 
     def clean(self):
         super().clean()
-        # Limpa o documento para conter apenas números antes de validar
         if self.documento:
             self.documento = apenas_numeros(self.documento)
         
         if self.tipo_pessoa == 'FISICA':
             if len(self.documento) != 11:
                 raise ValidationError({'documento': 'CPF deve conter 11 dígitos.'})
-            # Garante que campos de PJ fiquem vazios
             self.razao_social = None 
             self.inscricao_estadual = None
         elif self.tipo_pessoa == 'JURIDICA':
@@ -118,7 +103,7 @@ class Cliente(models.Model):
                  raise ValidationError({'razao_social': 'Razão Social é obrigatória para Pessoa Jurídica.'})
 
     def save(self, *args, **kwargs):
-        self.full_clean()  # Chama a validação do `clean` antes de salvar
+        self.full_clean()
         super().save(*args, **kwargs)
         
     class Meta:
@@ -131,9 +116,6 @@ class Cliente(models.Model):
         if self.tipo_pessoa == 'JURIDICA' and self.razao_social:
             nome_display = self.razao_social
         return f"{nome_display} ({self.imobiliaria.nome})"
-# --------------------------------------------------------------------
-# DEMAIS MODELOS (Mantidos como originais)
-# --------------------------------------------------------------------
 
 class Oportunidade(models.Model):
     class Fases(models.TextChoices):
@@ -157,7 +139,6 @@ class Oportunidade(models.Model):
     cliente = models.ForeignKey(Cliente, on_delete=models.CASCADE, related_name='oportunidades')
 
     fase = models.CharField(max_length=20, choices=Fases.choices, default=Fases.LEAD)
-
     fonte = models.CharField(max_length=20, choices=Fontes.choices, null=True, blank=True, verbose_name="Fonte do Lead")
     
     responsavel = models.ForeignKey(
@@ -201,7 +182,6 @@ class Oportunidade(models.Model):
         Fases.PERDIDO: 0,
     }
 
-
 class Tarefa(models.Model):
     titulo = models.CharField(max_length=255)
     descricao = models.TextField(blank=True, null=True)
@@ -235,6 +215,13 @@ class Visita(models.Model):
     imovel = models.ForeignKey('app_imoveis.Imovel', on_delete=models.CASCADE)
     data_visita = models.DateTimeField()
     observacoes = models.TextField(blank=True, null=True)
+
+    # --- NOVOS CAMPOS PARA ASSINATURA ---
+    realizada = models.BooleanField(default=False, verbose_name="Visita Realizada")
+    assinatura_cliente = models.ImageField(upload_to='assinaturas_visitas/', blank=True, null=True, verbose_name="Assinatura do Cliente")
+    data_assinatura = models.DateTimeField(blank=True, null=True, verbose_name="Data da Assinatura")
+    localizacao_assinatura = models.CharField(max_length=255, blank=True, null=True, help_text="Lat/Long ou endereço GPS no momento da assinatura")
+    # ------------------------------------
 
     def __str__(self):
         return f"Visita de {self.cliente} a {self.imovel}"

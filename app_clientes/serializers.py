@@ -9,29 +9,49 @@ from django.contrib.auth import get_user_model
 User = get_user_model()
 
 # ===================================================================
-# Serializers Auxiliares (para representação em outras partes do sistema)
+# Serializers Auxiliares
 # ===================================================================
 
 class ResponsavelSimplificadoSerializer(serializers.ModelSerializer):
-    """ Exibe apenas o essencial do responsável para listagens. """
     class Meta:
         model = User
         fields = ['id', 'first_name', 'username']
 
-# ===================================================================
-# Serializers Principais das Entidades
-# ===================================================================
-
-class VisitaSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = Visita
-        fields = '__all__'
-
-# --- INÍCIO DA CORREÇÃO ---\
 class UsuarioSimplesSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
         fields = ['id', 'first_name', 'username']
+
+class ClienteSimplesSerializer(serializers.ModelSerializer):
+    """Para exibir dados básicos do cliente na visita"""
+    class Meta:
+        model = Cliente
+        fields = ['id', 'nome', 'razao_social']
+
+class ImovelSimplesSerializer(serializers.ModelSerializer):
+    """Para exibir dados básicos do imóvel na visita"""
+    class Meta:
+        model = Imovel
+        fields = ['id', 'titulo_anuncio', 'logradouro', 'numero', 'bairro', 'cidade', 'estado']
+
+# ===================================================================
+# Serializers Principais
+# ===================================================================
+
+class VisitaSerializer(serializers.ModelSerializer):
+    # --- CORREÇÃO CRÍTICA: Definir explicitamente os campos de escrita ---
+    # Isso resolve o conflito com o source='imovel' dos campos de leitura
+    cliente = serializers.PrimaryKeyRelatedField(queryset=Cliente.objects.all())
+    imovel = serializers.PrimaryKeyRelatedField(queryset=Imovel.objects.all())
+    
+    # Campos de leitura (Output: Objeto completo)
+    cliente_obj = ClienteSimplesSerializer(source='cliente', read_only=True)
+    imovel_obj = ImovelSimplesSerializer(source='imovel', read_only=True)
+
+    class Meta:
+        model = Visita
+        fields = '__all__'
+        read_only_fields = ['imobiliaria']
 
 class AtividadeSerializer(serializers.ModelSerializer):
     registrado_por_obj = UsuarioSimplesSerializer(source='registrado_por', read_only=True)
@@ -43,10 +63,8 @@ class AtividadeSerializer(serializers.ModelSerializer):
             'registrado_por', 'registrado_por_obj', 'cliente'
         ]
         read_only_fields = ['registrado_por']
-# --- FIM DA CORREÇÃO ---
 
 class TarefaSerializer(serializers.ModelSerializer):
-    """ Serializer para o modelo Tarefa. """
     class Meta:
         model = Tarefa
         fields = [
@@ -56,21 +74,10 @@ class TarefaSerializer(serializers.ModelSerializer):
         ]
         read_only_fields = ['responsavel']
 
-# --- SERIALIZER DE OPORTUNIDADE ATUALIZADO ---
 class OportunidadeSerializer(serializers.ModelSerializer):
-    """
-    Serializer definitivo para Oportunidade.
-    - Usa PrimaryKeyRelatedField para aceitar IDs para escrita (POST/PUT/PATCH).
-    - Sobrescreve 'to_representation' para mostrar dados completos para leitura (GET).
-    """
     PROBABILIDADE_POR_FASE = {
-        'LEAD': 10,
-        'CONTATO': 25,
-        'VISITA': 50,
-        'PROPOSTA': 75,
-        'NEGOCIACAO': 90,
-        'GANHO': 100,
-        'PERDIDO': 0,
+        'LEAD': 10, 'CONTATO': 25, 'VISITA': 50,
+        'PROPOSTA': 75, 'NEGOCIACAO': 90, 'GANHO': 100, 'PERDIDO': 0,
     }
 
     cliente = serializers.PrimaryKeyRelatedField(queryset=Cliente.objects.all())
@@ -110,12 +117,8 @@ class OportunidadeSerializer(serializers.ModelSerializer):
         return representation
 
 class ClienteSerializer(serializers.ModelSerializer):
-    # NOVO: Campo de leitura para garantir que o frontend tenha um nome para exibir
     nome_exibicao = serializers.SerializerMethodField()
-    
-    # --- NOVO CAMPO ADICIONADO ---
     perfil_cliente = serializers.JSONField(required=False)
-    # --- FIM NOVO CAMPO ADICIONADO ---
     
     class Meta:
         model = Cliente
@@ -125,42 +128,33 @@ class ClienteSerializer(serializers.ModelSerializer):
             'email', 'telefone', 'cep', 'logradouro', 'numero', 'complemento',
             'bairro', 'cidade', 'estado', 'ativo', 'observacoes', 'foto_perfil',
             'preferencias_imovel', 'imobiliaria', 'data_cadastro', 'data_atualizacao',
-            'nome_exibicao', 'perfil_cliente' # Inclui os novos campos
+            'nome_exibicao', 'perfil_cliente'
         ]
-        
         extra_kwargs = {
             'imobiliaria': {'read_only': True}
         }
 
     def get_nome_exibicao(self, obj: Cliente):
-        """ Retorna o nome mais apropriado para exibição na lista. """
         if obj.tipo_pessoa == 'JURIDICA' and obj.razao_social:
             return obj.razao_social
         return obj.nome if obj.nome else "Nome não disponível"
 
     def validate_documento(self, value):
-        """Limpa e valida o documento."""
         return apenas_numeros(value)
 
     def validate(self, data):
-        """
-        Validação customizada baseada no tipo de pessoa.
-        """
         tipo_pessoa = data.get('tipo_pessoa', getattr(self.instance, 'tipo_pessoa', None))
         documento = data.get('documento')
 
         if tipo_pessoa == 'FISICA':
             if documento and len(apenas_numeros(documento)) != 11:
                 raise serializers.ValidationError({"documento": "CPF inválido. Deve conter 11 dígitos."})
-        
         elif tipo_pessoa == 'JURIDICA':
             if documento and len(apenas_numeros(documento)) != 14:
                 raise serializers.ValidationError({"documento": "CNPJ inválido. Deve conter 14 dígitos."})
-            
             razao_social = data.get('razao_social', getattr(self.instance, 'razao_social', None))
             if not razao_social:
                 raise serializers.ValidationError({"razao_social": "Razão Social é obrigatória para Pessoa Jurídica."})
-
         return data
 
 class FunilEtapaSerializer(serializers.ModelSerializer):
@@ -169,10 +163,7 @@ class FunilEtapaSerializer(serializers.ModelSerializer):
         fields = ['id', 'titulo', 'ordem', 'probabilidade_fechamento', 'ativa', 'imobiliaria']
         read_only_fields = ['imobiliaria']
 
-# ===================================================================
-# Serializers para Relatórios (mantidos como estavam)
-# ===================================================================
-
+# Serializers de Relatórios
 class FunilVendasSerializer(serializers.Serializer):
     status = serializers.CharField(source='get_status_display')
     total = serializers.IntegerField()
@@ -192,11 +183,5 @@ class RelatorioCorretorSerializer(serializers.ModelSerializer):
         fields = ('id', 'nome_corretor', 'oportunidades_abertas', 'oportunidades_ganhas', 'oportunidades_perdidas')
 
 class RelatorioImobiliariaSerializer(serializers.Serializer):
-    sumario_mes_atual = serializers.DictField(
-        child=serializers.IntegerField()
-    )
-    oportunidades_por_mes = serializers.ListField(
-        child=serializers.DictField(
-            child=serializers.IntegerField()
-        )
-    )
+    sumario_mes_atual = serializers.DictField(child=serializers.IntegerField())
+    oportunidades_por_mes = serializers.ListField(child=serializers.DictField(child=serializers.IntegerField()))

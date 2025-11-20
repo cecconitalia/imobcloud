@@ -2,7 +2,6 @@
 
 from django.db import models
 from django.conf import settings
-# Adicionamos a importação do novo modelo que criamos
 from app_config_ia.models import OpcaoVozDaMarca
 
 class Imobiliaria(models.Model):
@@ -10,17 +9,13 @@ class Imobiliaria(models.Model):
     subdominio = models.CharField(max_length=255, unique=True)
     email_contato = models.EmailField(max_length=254, blank=True, null=True, verbose_name="Email para Notificações")
     
-    # --- CAMPOS ADICIONADOS ---
     cnpj = models.CharField(max_length=18, blank=True, null=True, verbose_name="CNPJ")
     creci = models.CharField(max_length=20, blank=True, null=True, verbose_name="CRECI")
-    # --- FIM DA ADIÇÃO ---
 
     facebook_page_id = models.CharField(max_length=255, blank=True, null=True, verbose_name="ID da Página do Facebook")
     facebook_page_access_token = models.CharField(max_length=512, blank=True, null=True, verbose_name="Token de Acesso da Página do Facebook")
     instagram_business_account_id = models.CharField(max_length=255, blank=True, null=True, verbose_name="ID da Conta Business do Instagram")
 
-    # --- NOVO CAMPO ADICIONADO ---
-    # Este campo irá guardar a preferência de tom de voz para a IA.
     voz_da_marca_preferida = models.ForeignKey(
         OpcaoVozDaMarca,
         on_delete=models.SET_NULL,
@@ -28,9 +23,7 @@ class Imobiliaria(models.Model):
         blank=True,
         help_text="A voz da marca que a IA usará para as publicações desta imobiliária."
     )
-    # --- FIM DO NOVO CAMPO ---
     
-    # ADICIONADO: Campo para a cor principal do site
     cor_primaria = models.CharField(
         max_length=7,
         default="#007bff",
@@ -45,10 +38,8 @@ class Imobiliaria(models.Model):
         return self.nome
 
 class PerfilUsuario(models.Model):
-    class Cargo(models.TextChoices):
-        ADMIN = 'ADMIN', 'Administrador'
-        CORRETOR = 'CORRETOR', 'Corretor'
-        
+    # Removemos a classe Cargo e o campo cargo choices
+    
     user = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='perfil')
     
     imobiliaria = models.ForeignKey(
@@ -59,12 +50,10 @@ class PerfilUsuario(models.Model):
         related_name='usuarios_imobiliaria'
     )
 
-    cargo = models.CharField(
-        max_length=10,
-        choices=Cargo.choices,
-        default=Cargo.CORRETOR,
-        verbose_name="Cargo"
-    )
+    # --- NOVOS CAMPOS DE PAPÉIS (Permite múltiplos) ---
+    is_admin = models.BooleanField(default=False, verbose_name="É Administrador")
+    is_corretor = models.BooleanField(default=True, verbose_name="É Corretor")
+    # --------------------------------------------------
 
     creci = models.CharField(max_length=20, blank=True, null=True, verbose_name="CRECI")
     telefone = models.CharField(max_length=20, blank=True, null=True, verbose_name="Telefone")
@@ -84,8 +73,18 @@ class PerfilUsuario(models.Model):
         verbose_name = "Perfil de Usuário"
         verbose_name_plural = "Perfis de Usuários"
 
+    @property
+    def cargo_display(self):
+        """Propriedade auxiliar para exibir os cargos numa string (para compatibilidade)"""
+        cargos = []
+        if self.is_admin:
+            cargos.append("Administrador")
+        if self.is_corretor:
+            cargos.append("Corretor")
+        return " / ".join(cargos) if cargos else "Utilizador"
+
     def __str__(self):
-        return f"Perfil de {self.user.username} ({self.imobiliaria.nome if self.imobiliaria else 'Nenhuma Imobiliária'})"
+        return f"Perfil de {self.user.username} ({self.cargo_display})"
 
 class Notificacao(models.Model):
     destinatario = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='notificacoes')

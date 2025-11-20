@@ -40,8 +40,8 @@ const router = useRouter();
 async function fetchNotificacoes() {
   isLoading.value = true;
   try {
-    // A CORREÇÃO ESTÁ AQUI: URL corrigido para remover a palavra 'core'
-    const response = await apiClient.get('/v1/corretores/minhas-notificacoes/');
+    // CORREÇÃO: Endpoint atualizado para a nova estrutura
+    const response = await apiClient.get('/v1/core/usuarios/minhas-notificacoes/');
     notificacoes.value = response.data;
     unreadCount.value = response.data.filter((n: Notificacao) => !n.lida).length;
   } catch (error) {
@@ -53,9 +53,9 @@ async function fetchNotificacoes() {
 
 async function marcarComoLida(notificacaoId: number) {
   try {
-    // A CORREÇÃO ESTÁ AQUI: URL corrigido para remover a palavra 'core'
-    await apiClient.post(`/v1/notificacoes/${notificacaoId}/marcar-como-lida/`);
-    fetchNotificacoes(); // Recarrega as notificações
+    // CORREÇÃO: Endpoint atualizado
+    await apiClient.post(`/v1/core/usuarios/marcar-notificacoes-lidas/`, { ids: [notificacaoId] });
+    fetchNotificacoes(); 
   } catch (error) {
     console.error("Erro ao marcar notificação como lida:", error);
   }

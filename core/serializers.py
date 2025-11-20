@@ -18,14 +18,26 @@ class MyTokenObtainPairSerializer(TokenObtainPairSerializer):
         # Adiciona o nome do usuário para ser usado no frontend
         data['user_name'] = self.user.first_name or self.user.username
 
+        # Lógica para determinar o cargo
+        cargo = 'USER'
+        
+        # Superusuários são sempre ADMIN, independentemente do perfil
+        if self.user.is_superuser:
+             cargo = 'ADMIN'
+        elif hasattr(self.user, 'perfil') and self.user.perfil:
+             if self.user.perfil.is_admin:
+                 cargo = 'ADMIN'
+             elif self.user.perfil.is_corretor:
+                 cargo = 'CORRETOR'
+        
+        data['cargo'] = cargo
+
+        # Dados da Imobiliária
         if hasattr(self.user, 'perfil') and self.user.perfil and self.user.perfil.imobiliaria:
             data['subdomain'] = self.user.perfil.imobiliaria.subdominio
-            data['cargo'] = self.user.perfil.cargo
             data['imobiliaria_name'] = self.user.perfil.imobiliaria.nome
         else:
             data['subdomain'] = None
-            # Define 'ADMIN' como padrão para superusuários que não têm um perfil
-            data['cargo'] = 'ADMIN' if self.user.is_superuser else None
             data['imobiliaria_name'] = 'Superuser' if self.user.is_superuser else 'N/A'
 
         return data
@@ -41,7 +53,8 @@ class PerfilUsuarioSerializer(serializers.ModelSerializer):
     class Meta:
         model = PerfilUsuario
         fields = [
-            'cargo', 'creci', 'telefone', 'endereco_logradouro', 'endereco_numero',
+            'is_admin', 'is_corretor', 
+            'creci', 'telefone', 'endereco_logradouro', 'endereco_numero',
             'endereco_bairro', 'endereco_cidade', 'endereco_estado', 'endereco_cep',
             'observacoes', 'google_json_file', 'google_calendar_token'
         ]
@@ -103,10 +116,6 @@ class CorretorDisplaySerializer(serializers.ModelSerializer):
         fields = ['id', 'username', 'first_name', 'email', 'perfil']
 
 class ImobiliariaIntegracaoSerializer(serializers.ModelSerializer):
-    """
-    Serializer focado apenas nas credenciais de integração de redes sociais
-    da imobiliária.
-    """
     class Meta:
         model = Imobiliaria
         fields = [
@@ -115,7 +124,6 @@ class ImobiliariaIntegracaoSerializer(serializers.ModelSerializer):
             'instagram_business_account_id',
         ]
         
-# ADICIONADO: NOVO SERIALIZER PARA A VISIBILIDADE PÚBLICA
 class ImobiliariaPublicSerializer(serializers.ModelSerializer):
     class Meta:
         model = Imobiliaria

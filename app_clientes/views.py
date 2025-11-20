@@ -34,7 +34,6 @@ from .serializers import (
     AtividadeSerializer,
     FunilEtapaSerializer,
 )
-# Importar o serializer do app 'app_contratos'
 from app_contratos.serializers import ClienteSimplificadoSerializer
 from ImobCloud.utils.google_calendar_api import agendar_tarefa_no_calendario
 from app_imoveis.models import Imovel
@@ -42,7 +41,7 @@ from app_imoveis.models import Imovel
 User = get_user_model()
 
 # ====================================================================
-# VIEWS DO GOOGLE CALENDAR (Mantidas como originais)
+# VIEWS DO GOOGLE CALENDAR
 # ====================================================================
 SCOPES = ['https://www.googleapis.com/auth/calendar.events']
 CREDENTIALS_DIR = os.path.join(settings.MEDIA_ROOT, 'google_credentials')
@@ -115,7 +114,7 @@ class GoogleCalendarAuthCallbackView(APIView):
             return HttpResponse(f"Erro ao processar o callback: {e}", status=400)
 
 # ====================================================================
-# VIEWS DO CRM (Com correções)
+# VIEWS DO CRM
 # ====================================================================
 
 class ClienteViewSet(viewsets.ModelViewSet):
@@ -123,10 +122,7 @@ class ClienteViewSet(viewsets.ModelViewSet):
     serializer_class = ClienteSerializer
     permission_classes = [permissions.IsAuthenticated]
     filter_backends = [filters.SearchFilter]
-    
-    # ATUALIZADO: Adicionado 'telefone' para busca
     search_fields = ['nome', 'documento', 'razao_social', 'email', 'telefone']
-    
     parser_classes = (MultiPartParser, FormParser)
 
     def get_queryset(self):
@@ -172,13 +168,15 @@ class ClienteViewSet(viewsets.ModelViewSet):
     def perform_update(self, serializer):
         if self.request.user.is_superuser:
             serializer.save()
-        elif hasattr(self.request.user, 'perfil') and self.request.user.perfil.cargo in [PerfilUsuario.Cargo.ADMIN, PerfilUsuario.Cargo.CORRETOR] and serializer.instance.imobiliaria == self.request.tenant:
+        # CORREÇÃO: Verifica permissões booleanas
+        elif hasattr(self.request.user, 'perfil') and (self.request.user.perfil.is_admin or self.request.user.perfil.is_corretor) and serializer.instance.imobiliaria == self.request.tenant:
             serializer.save()
         else:
             raise PermissionDenied("Você não tem permissão para atualizar este cliente.")
 
     def perform_destroy(self, instance):
-        if self.request.user.is_superuser or (hasattr(self.request.user, 'perfil') and self.request.user.perfil.cargo in [PerfilUsuario.Cargo.ADMIN, PerfilUsuario.Cargo.CORRETOR] and instance.imobiliaria == self.request.tenant):
+        # CORREÇÃO: Verifica permissões booleanas
+        if self.request.user.is_superuser or (hasattr(self.request.user, 'perfil') and (self.request.user.perfil.is_admin or self.request.user.perfil.is_corretor) and instance.imobiliaria == self.request.tenant):
             instance.ativo = False
             instance.save()
         else:
@@ -186,41 +184,25 @@ class ClienteViewSet(viewsets.ModelViewSet):
 
     @action(detail=False, methods=['get'], url_path='lista-simples')
     def lista_simples(self, request):
-        """
-        Retorna uma lista simplificada de TODOS os clientes 
-        (para Inquilinos, Fiadores, etc).
-        """
         queryset = self.get_queryset() 
         serializer = ClienteSimplificadoSerializer(queryset, many=True)
         return Response(serializer.data)
 
-    # ==================================================================
-    # FILTRO DE PROPRIETÁRIOS POR TIPO DE CONTRATO (VENDA/ALUGUEL)
-    # ==================================================================
     @action(detail=False, methods=['get'], url_path='lista-proprietarios')
     def lista_proprietarios(self, request):
-        """
-        Retorna uma lista simplificada de clientes que são proprietários, 
-        FILTRADOS pelo status (A_VENDA/PARA_ALUGAR) do imóvel associado.
-        """
         base_queryset = self.get_queryset()
-        finalidade = request.query_params.get('finalidade') # Recebe 'A_VENDA' ou 'PARA_ALUGAR'
+        finalidade = request.query_params.get('finalidade') 
         
         if not finalidade:
             return Response([], status=status.HTTP_400_BAD_REQUEST)
         
-        # Filtra clientes que:
-        # 1. Tenham o perfil 'PROPRIETARIO'
-        # 2. Tenham imóveis (related_name 'imoveis_propriedade')
-        # 3. Cujo campo 'status' corresponda à finalidade enviada.
         queryset = base_queryset.filter(
             perfil_cliente__contains=['PROPRIETARIO'],
-            imoveis_propriedade__status=finalidade # <-- Filtra pelo campo STATUS do Imóvel
+            imoveis_propriedade__status=finalidade 
         ).distinct() 
         
         serializer = ClienteSimplificadoSerializer(queryset, many=True)
         return Response(serializer.data)
-    # ==================================================================
 
     @action(detail=True, methods=['get'])
     def atividades(self, request, pk=None):
@@ -300,9 +282,6 @@ class AtividadeViewSet(viewsets.ModelViewSet):
     def perform_create(self, serializer):
         serializer.save(registrado_por=self.request.user)
 
-# ====================================================================
-# VIEWS DE OPORTUNIDADE E OUTRAS (Mantidas como originais)
-# ====================================================================
 
 class OportunidadeViewSet(viewsets.ModelViewSet):
     queryset = Oportunidade.objects.all().select_related('cliente', 'imovel', 'responsavel')
@@ -313,7 +292,7 @@ class OportunidadeViewSet(viewsets.ModelViewSet):
     search_fields = [
         'titulo', 
         'cliente__nome', 
-        'cliente__razao_social', # Para PJ
+        'cliente__razao_social', 
         'imovel__logradouro', 
         'imovel__bairro'
     ]
@@ -327,7 +306,11 @@ class OportunidadeViewSet(viewsets.ModelViewSet):
         
         elif self.request.tenant:
             queryset = base_queryset.filter(imobiliaria=self.request.tenant)
-            if hasattr(user, 'perfil') and user.perfil.cargo == PerfilUsuario.Cargo.CORRETOR:
+            
+            # --- CORREÇÃO CRÍTICA AQUI ---
+            # Se tem perfil E NÃO é admin, filtra apenas as suas oportunidades.
+            # Se for admin (is_admin=True), pula esse if e vê tudo.
+            if hasattr(user, 'perfil') and not user.perfil.is_admin:
                 queryset = queryset.filter(responsavel=user)
         
         else:
@@ -445,6 +428,12 @@ class TarefaViewSet(viewsets.ModelViewSet):
             return Tarefa.objects.all()
 
         queryset = Tarefa.objects.filter(oportunidade__imobiliaria=tenant)
+        
+        # Filtro por Oportunidade (importante para o form de edição)
+        oportunidade_id = self.request.query_params.get('oportunidade')
+        if oportunidade_id:
+            queryset = queryset.filter(oportunidade_id=oportunidade_id)
+            
         return queryset
 
     def perform_create(self, serializer):
