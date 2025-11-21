@@ -41,7 +41,7 @@
                         label="label"
                         placeholder="Pesquisar cliente..."
                         :clearable="false"
-                        :disabled="isLoadingClientes"
+                        :disabled="isLoadingClientes || clienteCriadoAutomaticamente"
                         class="style-chooser"
                         @search="onClienteSearch"
                     >
@@ -57,6 +57,9 @@
                             <span class="no-results">Digite para buscar...</span>
                         </template>
                     </v-select>
+                    <small v-if="clienteCriadoAutomaticamente" class="helper-text text-success">
+                        <i class="fas fa-check-circle"></i> Cliente criado e pré-selecionado automaticamente.
+                    </small>
                     </div>
 
                     <div class="form-group">
@@ -173,7 +176,7 @@
                 <button type="button" @click="handleCancel" class="btn-secondary">
                     Cancelar
                 </button>
-                <button type="submit" class="btn-primary" :disabled="isSubmitting">
+                <button type="submit" class="btn-primary" :disabled="isSubmitting || !oportunidade.cliente_id">
                 <i v-if="isSubmitting" class="fas fa-spinner fa-spin"></i>
                 <span v-else>{{ isEditing ? 'Salvar' : 'Criar' }}</span>
                 </button>
@@ -236,7 +239,7 @@ import { useRoute, useRouter } from 'vue-router';
 import apiClient from '@/services/api';
 import vSelect from 'vue-select';
 import 'vue-select/dist/vue-select.css';
-import MoneyInput from '@/components/MoneyInput.vue'; // Importação do Componente
+import MoneyInput from '@/components/MoneyInput.vue'; 
 import ClienteAtividades from '@/components/ClienteAtividades.vue';
 import TarefaModal from '@/components/TarefaModal.vue';
 import { format, parseISO, isPast } from 'date-fns';
@@ -277,6 +280,8 @@ const tarefas = ref<Tarefa[]>([]);
 const showTarefaModal = ref(false);
 const tarefaParaEditarId = ref<number | null>(null);
 
+const clienteCriadoAutomaticamente = ref(false);
+
 const fasesFunil = ref<FaseFunilSelecao[]>([
   { id: 'LEAD', titulo: 'Novo Lead' },
   { id: 'CONTATO', titulo: 'Primeiro Contato' },
@@ -295,7 +300,7 @@ const oportunidade = ref({
   fase_funil_id: 'LEAD',
   responsavel_id: null as number | null,
   valor_estimado: null as number | null,
-  fonte: null,
+  fonte: null as string | null,
   informacoes_adicionais: '',
 });
 
@@ -305,6 +310,7 @@ function getDataFromResponse(response: any) {
     return []; 
 }
 
+// --- Funções de Busca (Inalteradas) ---
 let clienteSearchTimeout: NodeJS.Timeout | null = null;
 async function onClienteSearch(search: string, loading: (l: boolean) => void) {
     if (search.length >= 2) {
@@ -349,6 +355,68 @@ async function onImovelSearch(search: string, loading: (l: boolean) => void) {
     }
 }
 
+/**
+ * Verifica se o cliente existe por email/nome. Se não existir, cria um novo
+ * cliente Lead e retorna o ID.
+ */
+async function checkOrCreateClient(leadData: { nome: string, email: string, telefone: string }): Promise<number | null> {
+    try {
+        // 1. Tenta buscar cliente pelo email
+        console.log("Tentando buscar cliente com email:", leadData.email);
+        const searchResponse = await apiClient.get(`/v1/clientes/?search=${leadData.email}`);
+        const foundClients = getDataFromResponse(searchResponse);
+
+        if (foundClients.length > 0) {
+            console.log("Cliente encontrado. Usando cliente existente:", foundClients[0].id);
+            // Cliente encontrado, retorna o ID do primeiro resultado
+            return foundClients[0].id;
+        }
+
+        // 2. Cliente não encontrado, cria um novo
+        console.log("Cliente não encontrado. Criando novo cliente Lead...");
+        
+        // CORREÇÃO CRÍTICA: Usar 11 dígitos numéricos fixos para satisfazer a validação do Django/modelo Cliente.
+        const uniqueDocumento = '00000000000'; // 11 zeros
+        
+        console.log("Documento temporário a ser enviado:", uniqueDocumento); 
+        
+        const newClientPayload = {
+            nome: leadData.nome,
+            email: leadData.email,
+            telefone: leadData.telefone,
+            tipo_pessoa: 'FISICA',
+            documento: uniqueDocumento, 
+            perfil_cliente: ['INTERESSADO'] 
+        };
+        
+        // POST para criação do cliente
+        const createResponse = await apiClient.post('/v1/clientes/', newClientPayload);
+        const newClientId = createResponse.data.id;
+        
+        console.log("Cliente criado com sucesso. ID:", newClientId);
+
+        // Adiciona o novo cliente na lista de opções para pré-selecionar
+        clienteOptions.value.unshift({
+            label: leadData.nome,
+            value: newClientId,
+            email: leadData.email,
+            telefone: leadData.telefone,
+            documento: newClientPayload.documento
+        });
+        clienteCriadoAutomaticamente.value = true;
+
+        return newClientId;
+
+    } catch (e: any) {
+        // Exibe o erro de forma mais detalhada para o usuário, se possível
+        const errorDetails = JSON.stringify(e.response?.data, null, 2) || e.message;
+        console.error("Erro ao verificar ou criar cliente automaticamente:", errorDetails);
+        alert(`Falha ao criar cliente automático. Por favor, cadastre-o manualmente. Detalhes: ${errorDetails}`);
+        return null; 
+    }
+}
+
+
 async function loadInitialData() {
   isLoadingData.value = true;
   isLoadingClientes.value = true;
@@ -364,6 +432,19 @@ async function loadInitialData() {
     if (isEditing.value && oportunidadeId.value) {
       promises.push(apiClient.get(`/v1/clientes/oportunidades/${oportunidadeId.value}/`));
       promises.push(apiClient.get(`/v1/tarefas/?oportunidade=${oportunidadeId.value}`));
+    }
+
+    // --- VERIFICAÇÃO DE PARÂMETROS DE ORIGEM (TRIAGEM DE LEADS) ---
+    const query = route.query;
+    const origemImovelId = query.imovel_id ? String(query.imovel_id) : null;
+    const contatoNome = query.contato_nome ? String(query.contato_nome) : null;
+    const contatoEmail = query.contato_email ? String(query.contato_email) : null;
+    const contatoMensagem = query.mensagem ? String(query.mensagem) : null;
+    const contatoTelefone = query.contato_telefone ? String(query.contato_telefone) : null;
+    
+    if (origemImovelId) {
+        // Se viemos de um lead de imóvel específico, buscamos os detalhes desse imóvel
+        promises.push(apiClient.get(`/v1/imoveis/${origemImovelId}/`));
     }
 
     const results = await Promise.all(promises);
@@ -385,7 +466,7 @@ async function loadInitialData() {
 
     const imoveisRaw = getDataFromResponse(results[2]);
     imovelOptions.value = imoveisRaw.map((i: any) => ({
-        label: i.label || `${i.titulo_anuncio} (${i.codigo_referencia})`,
+        label: i.label || `${i.titulo_anuncio || 'Imóvel'} (${i.codigo_referencia || 'S/Cód'})`,
         value: i.id,
         titulo_anuncio: i.titulo_anuncio,
         codigo_referencia: i.codigo_referencia,
@@ -395,6 +476,7 @@ async function loadInitialData() {
         proprietario_nome: i.proprietario_nome
     }));
 
+    // Lógica de Edição
     if (isEditing.value && results.length > 3) {
       const opData = results[3].data;
       const clienteObj = opData.cliente;
@@ -405,6 +487,7 @@ async function loadInitialData() {
       const imovelId = (imovelObj && typeof imovelObj === 'object') ? imovelObj.id : imovelObj;
       const responsavelId = (responsavelObj && typeof responsavelObj === 'object') ? responsavelObj.id : responsavelObj;
 
+      // Adiciona às opções se não existir (para edição)
       if (clienteId && !clienteOptions.value.find(c => c.value === clienteId)) {
           const nome = (clienteObj && typeof clienteObj === 'object') ? (clienteObj.nome_completo || 'Cliente') : 'Cliente';
           clienteOptions.value.unshift({ label: nome, value: clienteId });
@@ -437,6 +520,50 @@ async function loadInitialData() {
           tarefas.value = getDataFromResponse(results[4]);
       }
     } 
+    // Lógica de Criação via "Gerar Lead" (Pré-preenchimento e Criação Automática de Cliente)
+    else if (!isEditing.value && origemImovelId && contatoEmail && contatoNome) {
+        
+        // 1. Cria ou Busca o Cliente Automaticamente
+        const leadClientData = {
+            nome: contatoNome,
+            email: contatoEmail,
+            telefone: contatoTelefone || '',
+        };
+
+        const clientID = await checkOrCreateClient(leadClientData);
+        
+        // 2. Prepara dados da Oportunidade
+        const imovelDetail = results[results.length - 1].data;
+        
+        // Formata o objeto do imóvel
+        const imovelOption = {
+            label: `${imovelDetail.titulo_anuncio || 'Imóvel'} (${imovelDetail.codigo_referencia || 'S/Cód'})`,
+            value: imovelDetail.id,
+            titulo_anuncio: imovelDetail.titulo_anuncio,
+            codigo_referencia: imovelDetail.codigo_referencia,
+            logradouro: imovelDetail.logradouro,
+            bairro: imovelDetail.bairro
+        };
+
+        // Adiciona na lista e seleciona o imóvel
+        if (!imovelOptions.value.find(i => i.value === imovelDetail.id)) {
+            imovelOptions.value.unshift(imovelOption);
+        }
+
+        // 3. Preenche o formulário
+        oportunidade.value.imovel_interesse_id = imovelDetail.id;
+        oportunidade.value.cliente_id = clientID; // ID do cliente criado/encontrado
+        oportunidade.value.titulo = `Lead Site - ${contatoNome} (${imovelDetail.codigo_referencia})`;
+        
+        // Adiciona a mensagem original nas observações
+        let obs = contatoMensagem ? `Mensagem Original: "${contatoMensagem}"` : 'Contato via formulário do site.';
+        obs += `\n\nDados do Contato:\nEmail: ${contatoEmail}\nTel: ${contatoTelefone || 'N/A'}`;
+        oportunidade.value.informacoes_adicionais = obs;
+
+        oportunidade.value.fonte = 'SITE';
+        oportunidade.value.fase_funil_id = 'CONTATO'; // Sugerir fase 2 (Primeiro Contato)
+
+    }
 
   } catch (error) {
     console.error('Erro ao carregar dados:', error);
@@ -449,6 +576,13 @@ async function loadInitialData() {
 
 async function handleSubmit() {
   isSubmitting.value = true;
+  // Bloqueia se não houver cliente ID (garante que o cliente foi criado/selecionado)
+  if (!oportunidade.value.cliente_id) {
+       alert("É obrigatório vincular um Cliente a esta oportunidade.");
+       isSubmitting.value = false;
+       return;
+  }
+  
   try {
     const apiPayload = {
         titulo: oportunidade.value.titulo,
@@ -461,10 +595,22 @@ async function handleSubmit() {
         informacoes_adicionais: oportunidade.value.informacoes_adicionais
     };
 
+    let response;
     if (isEditing.value && oportunidadeId.value) {
-      await apiClient.patch(`/v1/clientes/oportunidades/${oportunidadeId.value}/`, apiPayload);
+      response = await apiClient.patch(`/v1/clientes/oportunidades/${oportunidadeId.value}/`, apiPayload);
     } else {
-      await apiClient.post('/v1/clientes/oportunidades/', apiPayload);
+      response = await apiClient.post('/v1/clientes/oportunidades/', apiPayload);
+      
+      // Se foi criado a partir de um contato (Lead Site), arquivamos o contato original
+      const contatoIdOriginal = route.query.contato_id;
+      if (contatoIdOriginal) {
+          try {
+              await apiClient.post(`/v1/contatos/${contatoIdOriginal}/arquivar/`);
+              console.log("Contato original arquivado com sucesso.");
+          } catch (e) {
+              console.error("Erro silencioso ao arquivar contato original:", e);
+          }
+      }
     }
     router.push('/funil-vendas');
   } catch (error: any) {
@@ -482,7 +628,7 @@ async function handleSubmit() {
 
 function handleCancel() { router.push('/funil-vendas'); }
 
-// --- Funções de Tarefa ---
+// --- Funções de Tarefa (Inalteradas) ---
 function abrirModalNovaTarefa() { tarefaParaEditarId.value = null; showTarefaModal.value = true; }
 function abrirModalEditarTarefa(tarefa: any) { tarefaParaEditarId.value = tarefa.id; showTarefaModal.value = true; }
 function fecharModalTarefa() { showTarefaModal.value = false; tarefaParaEditarId.value = null; }
@@ -628,4 +774,7 @@ label { font-weight: 600; font-size: 0.8rem; color: #495057; }
 .option-title { font-weight: 600; font-size: 0.9rem; color: #343a40; }
 .option-subtitle { font-size: 0.75rem; color: #6c757d; display: flex; align-items: center; gap: 5px; }
 .badge-code { background-color: #e9ecef; color: #495057; padding: 0 4px; border-radius: 4px; font-size: 0.7rem; font-weight: 700; }
+
+.helper-text { font-size: 0.75rem; margin-top: 0.3rem; }
+.text-success { color: #28a745; }
 </style>

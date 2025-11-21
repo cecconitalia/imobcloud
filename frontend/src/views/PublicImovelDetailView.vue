@@ -207,9 +207,9 @@ async function fetchImovelDetail() {
 async function handleContatoSubmit() {
     isSubmittingContato.value = true;
     try {
-        // CORREÇÃO: Adicionado o prefixo completo '/api/v1/' para o ContatoImovelViewSet, 
-        // pois ele está mapeado como rota interna no Django.
-        await publicApiClient.post('/api/v1/imoveis/contatos/', contatoForm.value);
+        // CORREÇÃO FINAL: Usar a rota pública definida no backend. 
+        // A rota anterior era '/api/v1/imoveis/contatos/', o que era bloqueado pelo middleware.
+        await publicApiClient.post('/public/contatos/', contatoForm.value);
         contatoSuccess.value = true;
         contatoForm.value.nome = '';
         contatoForm.value.email = '';

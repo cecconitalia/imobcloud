@@ -10,15 +10,17 @@ from .views import (
     ImovelPublicListView,
     ImovelPublicDetailView,
     ImovelIAView,
-    AutorizacaoReportView, # <-- IMPORTAÇÃO ADICIONADA
-    AutorizacaoReportPDFView, # <-- IMPORTAÇÃO ADICIONADA
+    AutorizacaoReportView,
+    AutorizacaoReportPDFView,
 )
 
 # Cria um router para ViewSets
 router = DefaultRouter()
 router.register(r'imoveis', ImovelViewSet)
 router.register(r'imoveis/imagens', ImagemImovelViewSet)
-router.register(r'imoveis/contatos', ContatoImovelViewSet)
+
+# CORREÇÃO: Alterado de 'imoveis/contatos' para 'contatos' para bater com a chamada do frontend (/api/v1/contatos/)
+router.register(r'contatos', ContatoImovelViewSet)
 
 # Padrões de URL da API Interna (Prefixados com /api/v1/ no urls.py principal)
 urlpatterns = [

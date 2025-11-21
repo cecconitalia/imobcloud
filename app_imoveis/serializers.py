@@ -81,12 +81,23 @@ class ImovelPublicSerializer(ImovelSerializer):
         ]
         # read_only_fields são herdados implicitamente
 
+# NOVO SERIALIZER PARA AS INFORMAÇÕES RESUMIDAS DO IMÓVEL NO CONTATO
+class ImovelResumoSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Imovel
+        fields = ['id', 'codigo_referencia', 'tipo']
+
 
 class ContatoImovelSerializer(serializers.ModelSerializer):
+    # CORREÇÃO: Usa o novo serializer para aninhar os detalhes do imóvel no campo 'imovel_obj'
+    imovel_obj = ImovelResumoSerializer(source='imovel', read_only=True)
+    
     class Meta:
         model = ContatoImovel
-        fields = '__all__'
-        read_only_fields = ('data_criacao',) # Garante que a data não pode ser alterada via API
+        # Inclui todos os campos do modelo + o campo aninhado 'imovel_obj'
+        fields = [field.name for field in ContatoImovel._meta.fields] + ['imovel_obj']
+        # CORREÇÃO: 'data_criacao' alterado para 'data_contato'
+        read_only_fields = ('data_contato',) 
 
 class ImovelSimplificadoSerializer(serializers.ModelSerializer):
     """

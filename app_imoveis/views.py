@@ -648,6 +648,7 @@ class ContatoImovelViewSet(viewsets.ModelViewSet):
     serializer_class = ContatoImovelSerializer
 
     def get_permissions(self):
+        # Permite acesso irrestrito para CRIAR (POST)
         if self.action in ['list', 'retrieve', 'update', 'partial_update', 'destroy', 'arquivar']:
             self.permission_classes = [permissions.IsAuthenticated]
         else: # create
@@ -655,11 +656,13 @@ class ContatoImovelViewSet(viewsets.ModelViewSet):
         return super().get_permissions()
 
     def get_queryset(self):
-        base_queryset = ContatoImovel.objects.filter(arquivado=False)
+        # CORREÇÃO: Adicionar select_related('imovel') para popular o imovel_obj no serializer
+        base_queryset = ContatoImovel.objects.filter(arquivado=False).select_related('imovel')
+        
         if self.request.user.is_superuser:
-            return base_queryset.all().order_by('-data_criacao')
+            return base_queryset.all().order_by('-data_contato')
         elif self.request.user.is_authenticated and self.request.tenant:
-            return base_queryset.filter(imovel__imobiliaria=self.request.tenant).order_by('-data_criacao')
+            return base_queryset.filter(imovel__imobiliaria=self.request.tenant).order_by('-data_contato')
         return ContatoImovel.objects.none()
 
     def perform_create(self, serializer):
@@ -681,7 +684,8 @@ class ContatoImovelViewSet(viewsets.ModelViewSet):
 
             oportunidade_associada = Oportunidade.objects.filter(imovel=contato.imovel).first()
             if oportunidade_associada and oportunidade_associada.responsavel:
-                destinatario_notificacao = oportunidade_associada.responsavel.user
+                # CORREÇÃO: O responsável já é o objeto User.
+                destinatario_notificacao = oportunidade_associada.responsavel 
                 Notificacao.objects.create(
                     destinatario=destinatario_notificacao,
                     mensagem=f"Novo contato de '{contato.nome}' para o imóvel '{contato.imovel.titulo_anuncio or contato.imovel.logradouro}'.",

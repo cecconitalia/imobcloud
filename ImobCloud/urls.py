@@ -12,6 +12,8 @@ from core.views import MyTokenObtainPairView, LogoutView
 
 # Views públicas (IMÓVEIS, DETALHE DE IMÓVEL, DETALHE DE IMOBILIÁRIA, BUSCA IA)
 from app_imoveis.views import ImovelPublicListView, ImovelPublicDetailView, ImobiliariaPublicDetailView, ImovelIAView 
+# NOVO: Importar ContatoImovelViewSet
+from app_imoveis.views import ContatoImovelViewSet 
 
 urlpatterns = [
     # Rota de administração do Django
@@ -26,6 +28,10 @@ urlpatterns = [
     
     # Rota de busca por IA (também é pública)
     path('public/imoveis/busca-ia/', ImovelIAView.as_view(), name='imovel-busca-ia'),
+    
+    # NOVO: Rota Pública para Criação de Contato (POST)
+    # A ação 'create' do ViewSet permite acesso irrestrito (permissions.AllowAny)
+    path('public/contatos/', ContatoImovelViewSet.as_view({'post': 'create'}), name='contato-public-create'),
 
     # --- ROTAS DA API (Para o painel de gestão) ---
     path('api/v1/token/', MyTokenObtainPairView.as_view(), name='token_obtain_pair'),
