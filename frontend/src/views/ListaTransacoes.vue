@@ -66,12 +66,12 @@
           </button>
 
           <div class="right-actions">
-              <button @click="toggleReportMode" class="btn-report" title="Gerar Relatório para Impressão">
-                  <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
-                  Gerar Relatório
-              </button>
-              <button @click="limparFiltros" class="btn-text">Limpar</button>
-              <button @click="aplicarFiltros" class="btn-primary">Filtrar</button>
+            <button @click="toggleReportMode" class="btn-report" title="Gerar Relatório para Impressão">
+                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
+                Gerar Relatório
+            </button>
+            <button @click="limparFiltros" class="btn-text">Limpar</button>
+            <button @click="aplicarFiltros" class="btn-primary">Filtrar</button>
           </div>
         </div>
       </div>
@@ -93,58 +93,72 @@
           <table class="modern-table">
             <thead>
               <tr>
-                <th>Descrição / Cliente</th>
-                <th>Vencimento</th>
+                <th>Data</th>
                 <th>Categoria</th>
+                <th>Histórico</th>
+                <th>Cliente</th>
                 <th>Conta</th>
                 <th>Valor</th>
-                <th>Status</th>
                 <th class="actions-col">Ações</th>
               </tr>
             </thead>
             <tbody>
               <tr v-for="t in transacoes" :key="t.id" :class="getRowClass(t)">
+                
+                <td class="date-cell">
+                  <div>{{ formatarData(t.data_transacao) }}</div>
+                </td>
+                
+                <td>{{ t.categoria_nome || '-' }}</td>
+                
                 <td>
                   <div class="desc-cell">
                     <span class="desc-text">{{ t.descricao }}</span>
-                    <span class="cliente-subtext" v-if="t.cliente_nome && t.cliente_nome !== 'Cliente não informado'">
-                      👤 {{ t.cliente_nome }}
+                    <span class="cliente-subtext" v-if="t.data_vencimento || t.data_pagamento">
+                        <span v-if="t.data_vencimento">Vencto: {{ formatarData(t.data_vencimento) }}</span>
+                        <span v-if="t.data_pagamento"> / Pg: {{ formatarData(t.data_pagamento) }}</span>
                     </span>
                   </div>
                 </td>
-                <td class="date-cell">
-                  <div>{{ formatarData(t.data_vencimento) }}</div>
-                  <div class="sub-date" v-if="t.data_pagamento">Pg: {{ formatarData(t.data_pagamento) }}</div>
+                
+                <td>
+                    <span v-if="t.cliente_nome && t.cliente_nome !== 'Cliente não informado'">
+                        {{ t.cliente_nome }}
+                    </span>
+                    <span v-else>-</span>
                 </td>
-                <td>{{ t.categoria_nome || '-' }}</td>
+                
                 <td>{{ t.conta_nome || '-' }}</td>
+                
                 <td class="value-cell" :class="t.tipo === 'RECEITA' ? 'text-green' : 'text-red'">
                   {{ t.tipo === 'RECEITA' ? '+' : '-' }} {{ formatarValor(t.valor) }}
                 </td>
-                <td>
-                  <span class="status-badge" :class="t.status.toLowerCase()">
-                    {{ t.status === 'PAGO' ? 'Pago' : t.status === 'PENDENTE' ? 'Pendente' : 'Atrasado' }}
-                  </span>
-                </td>
+                
                 <td class="actions-cell actions-col">
-                  <button @click="editarTransacao(t.id)" class="btn-icon edit" title="Editar">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
-                  </button>
-                  <button @click="confirmarExclusao(t.id)" class="btn-icon delete" title="Excluir">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
-                  </button>
+                  <div class="action-buttons">
+                    <button @click="editarTransacao(t.id)" class="btn-icon edit" title="Editar">
+                      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="icon-svg">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0115.75 21H5.25A2.25 2.25 0 013 18.75V8.25A2.25 2.25 0 015.25 6H10" />
+                      </svg>
+                    </button>
+                    <button @click="confirmarExclusao(t.id)" class="btn-icon delete" title="Excluir">
+                      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="icon-svg">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />
+                      </svg>
+                    </button>
+                  </div>
                 </td>
               </tr>
             </tbody>
             <tfoot>
               <tr class="footer-row">
-                <td colspan="4" class="footer-label">Totais (Filtro Aplicado):</td>
-                <td colspan="3">
+                <td colspan="5" class="footer-label">Totais (Filtro Aplicado):</td> 
+                <td colspan="2">
                   <div class="footer-sums">
                     <span class="sum-item text-green" title="Total Receitas">+ {{ formatarValor(totaisGerais.receitas) }}</span>
                     <span class="sum-item text-red" title="Total Despesas">- {{ formatarValor(totaisGerais.despesas) }}</span>
                     <span class="sum-item sum-total" :class="totaisGerais.saldo >= 0 ? 'text-blue' : 'text-red'" title="Saldo Líquido">
-                       = {{ formatarValor(totaisGerais.saldo) }}
+                        = {{ formatarValor(totaisGerais.saldo) }}
                     </span>
                   </div>
                 </td>
@@ -268,10 +282,10 @@ import { ptBR } from 'date-fns/locale';
 interface Categoria { id: number; nome: string; }
 interface Conta { id: number; nome: string; }
 interface Transacao {
-  id: number; descricao: string; valor: number;
-  data_transacao?: string | null; data_pagamento?: string | null; data_vencimento: string;
-  tipo: 'RECEITA' | 'DESPESA'; status: 'PENDENTE' | 'PAGO' | 'ATRASADO' | 'CANCELADO';
-  categoria_nome?: string; conta_nome?: string; cliente_nome?: string;
+    id: number; descricao: string; valor: number;
+    data_transacao?: string | null; data_pagamento?: string | null; data_vencimento: string;
+    tipo: 'RECEITA' | 'DESPESA'; status: 'PENDENTE' | 'PAGO' | 'ATRASADO' | 'CANCELADO';
+    categoria_nome?: string; conta_nome?: string; cliente_nome?: string;
 }
 interface Totais { receitas: number; despesas: number; saldo: number; nome_imobiliaria?: string; } 
 
@@ -291,7 +305,7 @@ const totalPages = ref(1);
 const pageSize = 20;
 
 const filtros = reactive({
-  search: '', tipo: '', status: '', data_inicio: '', data_fim: '', categoria: '', conta: '',
+    search: '', tipo: '', status: '', data_inicio: '', data_fim: '', categoria: '', conta: '',
 });
 
 const dataHoje = computed(() => format(new Date(), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR }));
@@ -314,16 +328,16 @@ const resumoFiltrosTexto = computed(() => {
     if (filtros.status) partes.push(`Status: ${filtros.status}`);
     if (filtros.tipo) partes.push(`Tipo: ${filtros.tipo}`);
     if (filtros.search) partes.push(`Busca: "${filtros.search}"`);
-    return partes.length > 0 ? partes.join('  •  ') : 'Todos os registos (Sem filtros)';
+    return partes.length > 0 ? partes.join('  •  ') : 'Todos os registos (Sem filtros)';
 });
 
 // --- Helpers ---
 function formatarValor(valor: number): string {
-  return Number(valor).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+    return Number(valor).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 }
 function formatarData(data: string | null | undefined): string {
-  if (!data) return '-';
-  try { return format(new Date(data + 'T00:00:00'), 'dd/MM/yy', { locale: ptBR }); } catch { return data; }
+    if (!data) return '-';
+    try { return format(new Date(data + 'T00:00:00'), 'dd/MM/yy', { locale: ptBR }); } catch { return data; }
 }
 function getRowClass(t: Transacao): string {
     if (t.status === 'PENDENTE' || t.status === 'ATRASADO') {
@@ -419,23 +433,23 @@ async function fetchResumo() {
 }
 
 async function fetchTransacoes(page = 1) {
-  isLoading.value = true;
-  error.value = null;
-  try {
-     const params = new URLSearchParams({ page: page.toString(), page_size: pageSize.toString() });
-     if (filtros.search) params.append('search', filtros.search);
-     if (filtros.tipo) params.append('tipo', filtros.tipo);
-     if (filtros.status) params.append('status', filtros.status);
-     if (filtros.data_inicio) params.append('data_inicio', filtros.data_inicio);
-     if (filtros.data_fim) params.append('data_fim', filtros.data_fim);
-     if (filtros.categoria) params.append('categoria', filtros.categoria);
-     if (filtros.conta) params.append('conta', filtros.conta);
+    isLoading.value = true;
+    error.value = null;
+    try {
+        const params = new URLSearchParams({ page: page.toString(), page_size: pageSize.toString() });
+        if (filtros.search) params.append('search', filtros.search);
+        if (filtros.tipo) params.append('tipo', filtros.tipo);
+        if (filtros.status) params.append('status', filtros.status);
+        if (filtros.data_inicio) params.append('data_inicio', filtros.data_inicio);
+        if (filtros.data_fim) params.append('data_fim', filtros.data_fim);
+        if (filtros.categoria) params.append('categoria', filtros.categoria);
+        if (filtros.conta) params.append('conta', filtros.conta);
 
-    const response = await apiClient.get<{ count: number; results: Transacao[] }>(`/v1/financeiro/transacoes/?${params.toString()}`);
-    transacoes.value = response.data.results;
-    totalPages.value = Math.ceil(response.data.count / pageSize);
-    currentPage.value = page;
-  } catch (err) { error.value = 'Não foi possível carregar.'; } finally { isLoading.value = false; }
+        const response = await apiClient.get<{ count: number; results: Transacao[] }>(`/v1/financeiro/transacoes/?${params.toString()}`);
+        transacoes.value = response.data.results;
+        totalPages.value = Math.ceil(response.data.count / pageSize);
+        currentPage.value = page;
+    } catch (err) { error.value = 'Não foi possível carregar.'; } finally { isLoading.value = false; }
 }
 
 function aplicarFiltros() { fetchTransacoes(1); fetchResumo(); }
@@ -451,8 +465,8 @@ onMounted(() => { fetchFilterOptions(); aplicarFiltros(); });
 
 <style scoped>
 .page-container {
-  max-width: 1200px; margin: 0 auto; padding-bottom: 40px;
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; color: #334155;
+    max-width: 1200px; margin: 0 auto; padding-bottom: 40px;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; color: #334155;
 }
 
 /* --- Estilos Modo LISTAGEM --- */
@@ -474,14 +488,17 @@ onMounted(() => { fetchFilterOptions(); aplicarFiltros(); });
 .btn-text { background: none; border: none; color: #64748b; cursor: pointer; font-weight: 500; }
 
 .modern-table { width: 100%; border-collapse: collapse; text-align: left; }
-.modern-table th { background-color: #f8fafc; padding: 12px 16px; font-size: 0.85rem; font-weight: 600; color: #64748b; border-bottom: 1px solid #e2e8f0; text-transform: uppercase; }
-.modern-table td { padding: 16px; border-bottom: 1px solid #f1f5f9; font-size: 0.95rem; vertical-align: middle; }
+/* Font size reduzido para TH */
+.modern-table th { background-color: #f8fafc; padding: 10px 16px; font-size: 0.8rem; font-weight: 600; color: #64748b; border-bottom: 1px solid #e2e8f0; text-transform: uppercase; }
+/* Font size reduzido para TD */
+.modern-table td { padding: 8px 16px; border-bottom: 1px solid #f1f5f9; font-size: 0.85rem; vertical-align: middle; }
 .desc-cell { display: flex; flex-direction: column; }
 .desc-text { font-weight: 500; color: #1e293b; }
-.cliente-subtext { font-size: 0.8rem; color: #64748b; margin-top: 2px; }
+/* Font size sub-texto reduzido */
+.cliente-subtext { font-size: 0.75rem; color: #64748b; margin-top: 2px; }
 .value-cell { font-weight: 600; font-family: 'Courier New', monospace; white-space: nowrap; }
 .text-green { color: #16a34a; } .text-red { color: #dc2626; } .text-blue { color: #2563eb; }
-.status-badge { padding: 4px 10px; border-radius: 20px; font-size: 0.75rem; font-weight: 700; text-transform: uppercase; }
+.status-badge { padding: 4px 10px; border-radius: 20px; font-size: 0.7rem; font-weight: 700; text-transform: uppercase; }
 .status-badge.pago { background: #dcfce7; color: #166534; }
 .status-badge.pendente { background: #fffbeb; color: #b45309; }
 .status-badge.atrasado { background: #fee2e2; color: #991b1b; }
@@ -494,7 +511,50 @@ onMounted(() => { fetchFilterOptions(); aplicarFiltros(); });
 .btn-page { padding: 8px 16px; border: 1px solid #cbd5e1; background: white; border-radius: 6px; cursor: pointer; }
 
 /* ========================= */
-/* ESTILOS MODO RELATÓRIO    */
+/* ESTILOS BOTÕES DE AÇÃO (Ícones Modernos) */
+/* ========================= */
+.action-buttons {
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+}
+
+.btn-icon {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 6px;
+  border-radius: 6px;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.btn-icon .icon-svg {
+  width: 18px;
+  height: 18px;
+}
+
+.btn-icon.edit {
+  color: #3b82f6; /* Azul moderno */
+}
+.btn-icon.edit:hover {
+  background-color: #eff6ff;
+  transform: translateY(-1px);
+}
+
+.btn-icon.delete {
+  color: #ef4444; /* Vermelho moderno */
+}
+.btn-icon.delete:hover {
+  background-color: #fef2f2;
+  transform: translateY(-1px);
+}
+
+
+/* ========================= */
+/* ESTILOS MODO RELATÓRIO    */
 /* ========================= */
 .report-preview-container {
     position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
@@ -509,17 +569,17 @@ onMounted(() => { fetchFilterOptions(); aplicarFiltros(); });
 .btn-print-action { background: #2563eb; display: flex; gap: 8px; align-items: center; }
 
 .report-sheet {
-  background: white; width: 210mm; min-height: 297mm; padding: 15mm; box-shadow: 0 0 20px rgba(0,0,0,0.3);
-  font-family: 'Times New Roman', serif; color: #000;
-  flex-shrink: 0; 
-  margin-bottom: 40px;
+    background: white; width: 210mm; min-height: 297mm; padding: 15mm; box-shadow: 0 0 20px rgba(0,0,0,0.3);
+    font-family: 'Times New Roman', serif; color: #000;
+    flex-shrink: 0; 
+    margin-bottom: 40px;
 }
 .report-header { text-align: center; margin-bottom: 20px; }
 .report-header h1 { margin: 0; font-size: 24px; text-transform: uppercase; }
 .report-header h2 { margin: 5px 0 15px; font-size: 18px; font-weight: normal; color: #555; }
 .report-meta { 
-  font-size: 12px; color: #666; border-top: 1px solid #eee; border-bottom: 1px solid #eee; padding: 10px 0; text-align: left; 
-  display: flex; flex-direction: column; gap: 5px;
+    font-size: 12px; color: #666; border-top: 1px solid #eee; border-bottom: 1px solid #eee; padding: 10px 0; text-align: left; 
+    display: flex; flex-direction: column; gap: 5px;
 }
 .meta-row { display: flex; gap: 5px; align-items: baseline; }
 .meta-label { white-space: nowrap; }
@@ -529,7 +589,7 @@ onMounted(() => { fetchFilterOptions(); aplicarFiltros(); });
 .report-table th { border-bottom: 2px solid #000; text-align: left; padding: 5px; font-weight: bold; }
 .report-table td { border-bottom: 1px solid #ddd; padding: 6px 5px; vertical-align: top; }
 .rep-desc { font-weight: bold; } .rep-cli { font-style: italic; color: #444; }
-.text-right { text-align: right; } .text-center { text-align: center; }
+.text-right { text-align: right; } .text-center { text-center: center; }
 
 .report-footer { margin-top: 30px; border-top: 2px solid #000; padding-top: 10px; }
 .report-summary { display: flex; flex-direction: column; align-items: flex-end; font-size: 14px; gap: 5px; }
@@ -539,14 +599,14 @@ onMounted(() => { fetchFilterOptions(); aplicarFiltros(); });
 
 /* --- PRINT CSS ROBUSTO --- */
 @media print {
-  body { visibility: hidden; overflow: visible !important; height: auto !important; }
-  .report-preview-container {
-    visibility: visible !important; position: absolute !important; top: 0 !important; left: 0 !important;
-    width: 100% !important; height: auto !important; background: white !important;
-    padding: 0 !important; margin: 0 !important; z-index: 99999 !important; display: block !important;
-  }
-  .report-preview-container * { visibility: visible !important; }
-  .report-controls { display: none !important; }
-  .report-sheet { width: 100% !important; margin: 0 !important; padding: 0 !important; box-shadow: none !important; }
+    body { visibility: hidden; overflow: visible !important; height: auto !important; }
+    .report-preview-container {
+        visibility: visible !important; position: absolute !important; top: 0 !important; left: 0 !important;
+        width: 100% !important; height: auto !important; background: white !important;
+        padding: 0 !important; margin: 0 !important; z-index: 99999 !important; display: block !important;
+    }
+    .report-preview-container * { visibility: visible !important; }
+    .report-controls { display: none !important; }
+    .report-sheet { width: 100% !important; margin: 0 !important; padding: 0 !important; box-shadow: none !important; }
 }
 </style>

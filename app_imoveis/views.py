@@ -13,7 +13,7 @@ from django.shortcuts import get_object_or_404
 from django.http import HttpResponse, QueryDict, Http404 
 from django.template.loader import render_to_string
 from django.utils import timezone
-from django.db.models import Count, Q, Case, When, Value, CharField, Max, F, ExpressionWrapper, fields
+from django.db.models import Count, Q, Case, When, Value, CharField, Max, F, ExpressionWrapper, fields, Sum 
 from datetime import date, timedelta
 from io import BytesIO
 from xhtml2pdf import pisa
@@ -1014,17 +1014,16 @@ class ImobiliariaPublicDetailView(RetrieveAPIView):
 
 # --- INÍCIO DA IMPLEMENTAÇÃO DO RELATÓRIO DE AUTORIZAÇÕES (JSON + PDF) ---
 
-def _get_autorizacao_queryset(tenant, query_params): # CORREÇÃO: Adicionado 'tenant'
+def _get_autorizacao_queryset(tenant, query_params): 
     """
     Helper reutilizável para buscar e filtrar o queryset de autorizações.
+    Aplica os filtros vindos de query_params.
     """
-    # CORREÇÃO: Filtra pela imobiliária atual (tenant)
+    # Filtra pela imobiliária atual (tenant)
     queryset = Imovel.objects.filter(
         imobiliaria=tenant
     ).select_related('proprietario')
-    # CORREÇÃO: Removido o filtro data_fim_autorizacao__isnull=False inicial
-    # para permitir que imóveis sem data apareçam como "Ativos/Indefinidos"
-
+    
     today = date.today()
     
     dias_timedelta = ExpressionWrapper(
@@ -1046,48 +1045,99 @@ def _get_autorizacao_queryset(tenant, query_params): # CORREÇÃO: Adicionado 't
         dias = int(validade_dias)
         
         if dias > 0:
-            data_limite = today + timedelta(days=dias)
-            queryset = queryset.filter(data_fim_autorizacao__lte=data_limite, data_fim_autorizacao__gte=today)
+            # Filtro para datas futuras, até o limite de dias
+            queryset = queryset.filter(data_fim_autorizacao__lte=today + timedelta(days=dias), data_fim_autorizacao__gte=today)
         elif dias == 0:
+             # Filtro para expirados (dias < 0)
              queryset = queryset.filter(data_fim_autorizacao__lt=today)
-    # CORREÇÃO: Tratamento de validade='ativas' (inclui sem data ou data futura)
-    elif validade_dias == 'ativas':
-         queryset = queryset.filter(Q(data_fim_autorizacao__gte=today) | Q(data_fim_autorizacao__isnull=True))
+    
+    # Se 'validade_dias' não está presente, a queryset inicial é mantida para que o 
+    # frontend (Vue) possa aplicar seu próprio pós-filtro (ativos/expirados)
 
     queryset = queryset.order_by('data_fim_autorizacao')
 
     data_list = []
+    
+    # Calcula os totais (Soma dos valores de venda/aluguel) para o box de sumário
+    total_valor_venda = queryset.filter(status__in=[Imovel.Status.A_VENDA, Imovel.Status.PARA_ALUGAR]).aggregate(
+        sum_venda=Sum('valor_venda'),
+        sum_aluguel=Sum('valor_aluguel')
+    )
+    
+    # Adiciona anotação de tipo para uso na listagem
+    queryset = queryset.annotate(
+        tipo_imovel_display=Case(
+            *[When(tipo=c[0], then=Value(c[1])) for c in Imovel.TipoImovel.choices],
+            output_field=CharField()
+        )
+    )
+
+    # Inicializa contadores de status para o sumário (já calculados no frontend, mas útil aqui)
+    total_imoveis = 0
+    total_expirados = 0
+    total_valor = Decimal(0)
+
     for imovel in queryset:
-        # Tratamento para data nula (sem prazo definido)
-        if imovel.dias_restantes:
+        
+        if imovel.data_fim_autorizacao and imovel.dias_restantes:
              dias_restantes = imovel.dias_restantes.days
         else:
-             dias_restantes = 9999 # Valor alto para representar "sem risco imediato"
+             # Se sem data de fim, ou valor indefinido, consideramos ativo/sem risco
+             dias_restantes = 9999 
         
         status_risco = 'Ativo'
         
         if imovel.data_fim_autorizacao and dias_restantes < 0:
              status_risco = 'Expirado'
+             total_expirados += 1
         elif imovel.data_fim_autorizacao and dias_restantes <= 30:
              status_risco = 'Risco (30 dias)'
         elif imovel.data_fim_autorizacao and dias_restantes <= 90:
              status_risco = 'Atenção (90 dias)'
-        # Se não tiver data (dias_restantes=9999), fica como 'Ativo'
+        
+        total_imoveis += 1
+        
+        valor = imovel.valor_venda or imovel.valor_aluguel
+        
+        if valor is not None:
+             total_valor += valor
+        
+        # Lógica de formatação de moeda BRL (R$ 1.234.567,89)
+        valor_formatado = 'N/A'
+        if valor is not None:
+             try:
+                 valor_str = f"{Decimal(valor):,.2f}"
+                 # Troca separador de milhar (ponto) por vírgula e decimal (vírgula) por ponto temporariamente
+                 valor_str = valor_str.replace('.', 'TEMP').replace(',', '.').replace('TEMP', ',')
+                 valor_formatado = f"R$ {valor_str}"
+             except Exception:
+                 valor_formatado = 'N/A'
+
 
         data_list.append({
             'id': imovel.id,
             'codigo_referencia': imovel.codigo_referencia,
             'titulo_anuncio': imovel.titulo_anuncio,
             'proprietario': imovel.proprietario.nome if imovel.proprietario else 'N/A',
-            'data_captacao': imovel.data_captacao,
-            'data_fim_autorizacao': imovel.data_fim_autorizacao,
-            'dias_restantes': dias_restantes if imovel.data_fim_autorizacao else None, # Retorna None se sem data
+            'cidade': imovel.cidade, 
+            'data_captacao': imovel.data_captacao, # Campo: Data de Captação
+            'tipo_imovel': imovel.get_tipo_display(), # Campo: Tipo do Imóvel
+            'data_fim_autorizacao': imovel.data_fim_autorizacao, 
+            'dias_restantes': dias_restantes if imovel.data_fim_autorizacao else None, 
             'status_risco': status_risco,
             'exclusividade': "Sim" if imovel.possui_exclusividade else "Não",
             'comissao': imovel.comissao_percentual,
-            'valor_venda': imovel.valor_venda or imovel.valor_aluguel,
+            'valor_formatado': valor_formatado,
         })
-    return data_list
+        
+    # Adiciona dados de sumário ao final da lista para fácil acesso no template
+    sumario_data = {
+        'total_imoveis': total_imoveis,
+        'total_expirados': total_expirados,
+        'total_valor_geral': f"R$ {total_valor:,.2f}".replace('.', 'TEMP').replace(',', '.').replace('TEMP', ',') if total_valor else 'R$ 0,00'
+    }
+    
+    return {'list': data_list, 'summary': sumario_data}
 
 
 class AutorizacaoReportView(APIView):
@@ -1101,8 +1151,9 @@ class AutorizacaoReportView(APIView):
         if not tenant:
              return Response({"error": "Tenant não identificado."}, status=400)
 
-        data = _get_autorizacao_queryset(tenant, request.query_params) # Passa o tenant
-        return Response(data, status=status.HTTP_200_OK)
+        # RETORNA DADOS FILTRADOS PELOS query_params (usado pelo Vue para a tabela)
+        data = _get_autorizacao_queryset(tenant, request.query_params) 
+        return Response(data['list'], status=status.HTTP_200_OK) 
 
 
 class AutorizacaoReportPDFView(APIView):
@@ -1113,26 +1164,43 @@ class AutorizacaoReportPDFView(APIView):
         if not tenant and request.user.is_superuser:
             tenant = Imobiliaria.objects.first()
 
-        data = _get_autorizacao_queryset(tenant, request.query_params) # Passa o tenant
+        # O helper agora retorna um dict com 'list' e 'summary'
+        data_structure = _get_autorizacao_queryset(tenant, request.query_params) 
+        data = data_structure['list']
+        summary = data_structure['summary']
         
         validade_dias_param = request.query_params.get('validade_dias')
         exclusividade_param = request.query_params.get('exclusividade')
         
+        # Ajusta o título com base nos filtros
         titulo_relatorio = "Relatório de Autorizações"
         if validade_dias_param == '0':
             titulo_relatorio = "Relatório de Autorizações Expiradas"
         elif validade_dias_param:
             titulo_relatorio = f"Relatório de Autorizações Vencendo em {validade_dias_param} Dias"
         else:
-            titulo_relatorio = "Relatório de Autorizações Ativas"
+            titulo_relatorio = "Relatório de Autorizações Ativas/Indefinidas"
             
         if exclusividade_param == 'true':
             titulo_relatorio += " (Apenas Exclusivos)"
         elif exclusividade_param == 'false':
              titulo_relatorio += " (Apenas Não Exclusivos)"
+             
+        # PÓS-FILTRO PARA ALINHAR COM A LÓGICA DO FRONTEND (principalmente o card de 31-90 dias)
+        status_filtro_frontend = request.query_params.get('statusFiltro') 
+
+        if status_filtro_frontend == 'expirados' and validade_dias_param != '0':
+            data = [item for item in data if item['dias_restantes'] is not None and item['dias_restantes'] < 0]
+        elif status_filtro_frontend == 'ativos' and validade_dias_param is not None and validade_dias_param.isdigit() and int(validade_dias_param) > 30 and request.query_params.get('cardFilter') == 'warning90':
+            data = [item for item in data if item['dias_restantes'] is not None and item['dias_restantes'] > 30 and item['dias_restantes'] <= 90]
+        # Garante que, se o filtro principal é 'ativos', os expirados não apareçam
+        elif status_filtro_frontend == 'ativos' and not validade_dias_param:
+            data = [item for item in data if item['dias_restantes'] is None or item['dias_restantes'] >= 0]
+
 
         context = {
             'data': data,
+            'summary': summary, # Passa o sumário
             'titulo_relatorio': titulo_relatorio,
             'data_geracao': date.today(),
             'imobiliaria': request.tenant, 
@@ -1145,7 +1213,7 @@ class AutorizacaoReportPDFView(APIView):
         if not pdf.err:
             response = HttpResponse(result.getvalue(), content_type='application/pdf')
             filename = f'relatorio_autorizacoes_{date.today().isoformat()}.pdf'
-            response['Content-Disposition'] = f'attachment; filename="{filename}"'
+            response['Content-Disposition'] = f'inline; filename="{filename}"' 
             return response
         else:
             print(f"Erro ao gerar PDF do relatório: {pdf.err}")

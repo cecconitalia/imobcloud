@@ -3,10 +3,43 @@
     <h1>Relatório de Autorizações</h1>
     <p class="description">Monitore a validade dos contratos e a exclusividade dos imóveis.</p>
 
+    <div class="stats-grid">
+      <div class="stat-card total clickable" @click="applyFilterFromCard('total')">
+        <div class="stat-icon"><i class="fas fa-file-contract"></i></div>
+        <div class="stat-info">
+          <span class="stat-value">{{ stats.total }}</span>
+          <span class="stat-label">Total de Contratos</span>
+        </div>
+      </div>
+
+      <div class="stat-card expired clickable" @click="applyFilterFromCard('expired')">
+        <div class="stat-icon"><i class="fas fa-exclamation-circle"></i></div>
+        <div class="stat-info">
+          <span class="stat-value">{{ stats.expired }}</span>
+          <span class="stat-label">Contratos Expirados</span>
+        </div>
+      </div>
+
+      <div class="stat-card risk clickable" @click="applyFilterFromCard('risk30')">
+        <div class="stat-icon"><i class="fas fa-clock"></i></div>
+        <div class="stat-info">
+          <span class="stat-value">{{ stats.risk30 }}</span>
+          <span class="stat-label">Risco Imediato (0-30 dias)</span>
+        </div>
+      </div>
+
+      <div class="stat-card warning clickable" @click="applyFilterFromCard('warning90')">
+        <div class="stat-icon"><i class="fas fa-calendar-alt"></i></div>
+        <div class="stat-info">
+          <span class="stat-value">{{ stats.risk90 }}</span>
+          <span class="stat-label">Atenção (31-90 dias)</span>
+        </div>
+      </div>
+    </div>
     <div class="filters">
       <div class="filter-group">
         <label for="validade">Contratos a Vencer</label>
-        <select id="validade" v-model="validadeDias" @change="fetchReportData">
+        <select id="validade" v-model="validadeDias" @change="fetchReportData()">
           <option value="">Todos os Ativos</option>
           <option value="30">Vencimento em 30 dias</option>
           <option value="90">Vencimento em 90 dias</option>
@@ -16,7 +49,7 @@
 
       <div class="filter-group">
         <label for="exclusividade">Tipo de Contrato</label>
-        <select id="exclusividade" v-model="exclusividade" @change="fetchReportData">
+        <select id="exclusividade" v-model="exclusividade" @change="fetchReportData()">
           <option value="">Todos</option>
           <option value="true">Apenas Exclusivos</option>
           <option value="false">Apenas Não Exclusivos</option>
@@ -24,7 +57,7 @@
       </div>
        <div class="filter-group">
         <label for="expirados">Status</label>
-        <select id="expirados" v-model="statusFiltro" @change="fetchReportData">
+        <select id="expirados" v-model="statusFiltro" @change="fetchReportData()">
           <option value="ativos">Apenas Ativos/Risco</option>
           <option value="expirados">Apenas Expirados</option>
         </select>
@@ -36,7 +69,7 @@
           Gerar PDF
         </button>
       </div>
-      </div>
+    </div>
     
     <div v-if="isLoading" class="loading-message">
       <i class="fas fa-spinner fa-spin"></i> A carregar dados do relatório...
@@ -86,18 +119,28 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue';
 import apiClient from '@/services/api';
-// Assumindo que você tem os ícones FontAwesome (como indicado nos arquivos anteriores)
 import '@fortawesome/fontawesome-free/css/all.css'; 
 
 const isLoading = ref(false);
-const reportData = ref<any[]>([]);
+const reportData = ref<any[]>([]); 
+const rawReportData = ref<any[]>([]); // Dados brutos para o dashboard
+
+// Tipagem do Card Filter
+type CardFilterType = 'total' | 'expired' | 'risk30' | 'warning90' | undefined;
+
+// Estatísticas para os cards
+const stats = ref({
+  total: 0,
+  expired: 0,
+  risk30: 0,
+  risk90: 0
+});
 
 // Filtros
 const validadeDias = ref('');
 const exclusividade = ref('');
 const statusFiltro = ref('ativos');
 
-// Tipos para auxiliar o TypeScript (Opcional, mas útil)
 interface AutorizacaoItem {
   id: number;
   codigo_referencia: string;
@@ -110,41 +153,69 @@ interface AutorizacaoItem {
   comissao: number;
 }
 
-// --- FUNÇÃO PARA PEGAR OS PARÂMETROS DE FILTRO (REUTILIZÁVEL) ---
 const getApiParams = () => {
-    let diasFiltro = validadeDias.value;
-    
     const params: { [key: string]: string | undefined } = {
       exclusividade: exclusividade.value || undefined,
     };
     
     if (statusFiltro.value === 'expirados') {
-        params.validade_dias = '0'; // '0' é o código para buscar expirados na API
-    } else if (validadeDias.value !== '') {
+        params.validade_dias = '0';
+    } 
+    else if (validadeDias.value !== '') {
         params.validade_dias = validadeDias.value;
     }
-    // Se statusFiltro for 'ativos' e validadeDias for '', nenhum 'validade_dias' é enviado,
-    // e a API (conforme _get_autorizacao_queryset) retornará todos os ativos.
     
     return params;
 }
 
+const calculateStats = (data: AutorizacaoItem[]) => {
+  stats.value = {
+    total: data.length,
+    // Filtramos apenas onde a data de fim da autorização existe para calcular risco
+    expired: data.filter(i => i.dias_restantes !== null && i.dias_restantes < 0).length,
+    risk30: data.filter(i => i.dias_restantes !== null && i.dias_restantes >= 0 && i.dias_restantes <= 30).length,
+    risk90: data.filter(i => i.dias_restantes !== null && i.dias_restantes > 30 && i.dias_restantes <= 90).length
+  };
+};
 
-const fetchReportData = async () => {
+const fetchDashboardData = async () => {
+  try {
+    // Chamada sem parâmetros para o backend retornar todos os status e datas
+    const response = await apiClient.get('/v1/imoveis/relatorio/autorizacoes/');
+    const allData = response.data as AutorizacaoItem[];
+    rawReportData.value = allData;
+    calculateStats(allData);
+  } catch (error) {
+    console.error('Erro ao buscar dados completos para o dashboard:', error);
+  }
+};
+
+
+/**
+ * Busca os dados de autorização, aplicando os filtros selecionados, para a Tabela.
+ * @param cardFilter Se presente, aplica um filtro adicional específico para cards.
+ */
+const fetchReportData = async (cardFilter?: CardFilterType) => {
   isLoading.value = true;
   try {
+    // 1. Pega os parâmetros do SELECT
     const params = getApiParams();
     
+    // 2. Chama a API com os filtros da tabela
     const response = await apiClient.get('/v1/imoveis/relatorio/autorizacoes/', { params });
     
     let filteredData = response.data as AutorizacaoItem[];
     
-    // Pós-filtro no cliente para garantir que a API (que usa validade_dias=0 para expirados)
-    // se alinhe com o seletor de status.
+    // 3. Pós-filtro padrão do cliente (mantém apenas ativos OU apenas expirados)
     if (statusFiltro.value === 'expirados') {
-       filteredData = filteredData.filter(item => item.dias_restantes < 0);
+       filteredData = filteredData.filter(item => item.dias_restantes !== null && item.dias_restantes < 0);
     } else { // statusFiltro === 'ativos'
-       filteredData = filteredData.filter(item => item.dias_restantes >= 0);
+       filteredData = filteredData.filter(item => item.dias_restantes === null || item.dias_restantes >= 0);
+    }
+
+    // 4. FILTRO ESPECÍFICO DE CARD (para ranges complexos como 31-90 dias)
+    if (cardFilter === 'warning90') {
+        filteredData = filteredData.filter(item => item.dias_restantes !== null && item.dias_restantes > 30 && item.dias_restantes <= 90);
     }
     
     reportData.value = filteredData;
@@ -158,30 +229,53 @@ const fetchReportData = async () => {
   }
 };
 
-// --- MÉTODO PARA DOWNLOAD DO PDF ---
+
+/**
+ * Manipulador de clique para os cards do dashboard.
+ * Seta os selects para o estado desejado e chama o fetch.
+ */
+const applyFilterFromCard = (type: CardFilterType) => {
+  // Reseta filtros não relacionados à validade para o estado 'Todos'
+  exclusividade.value = '';
+  
+  if (type === 'total') {
+    statusFiltro.value = 'ativos';
+    validadeDias.value = '';
+  } else if (type === 'expired') {
+    statusFiltro.value = 'expirados';
+    validadeDias.value = ''; 
+  } else if (type === 'risk30') {
+    statusFiltro.value = 'ativos'; 
+    validadeDias.value = '30';
+  } else if (type === 'warning90') {
+    statusFiltro.value = 'ativos'; 
+    validadeDias.value = '90'; 
+  }
+  
+  // Chama a função de busca, passando o tipo de filtro do card
+  fetchReportData(type);
+};
+
+// --- MÉTODO PARA DOWNLOAD DO PDF (AGORA ABRE EM NOVA ABA) ---
 const downloadPDF = async () => {
   isLoading.value = true;
   try {
-    // 1. Pega os mesmos parâmetros de filtro atuais
     const params = getApiParams();
     
-    // 2. Chama o novo endpoint de PDF
     const response = await apiClient.get('/v1/imoveis/relatorio/autorizacoes/pdf/', { 
       params,
-      responseType: 'blob' // Muito importante: informa ao Axios para esperar um arquivo
+      responseType: 'blob' // Informa ao Axios para esperar um arquivo binário
     });
 
-    // 3. Cria um link temporário e simula o clique para baixar
-    const url = window.URL.createObjectURL(new Blob([response.data]));
-    const link = document.createElement('a');
-    link.href = url;
-    link.setAttribute('download', `relatorio_autorizacoes_${new Date().toISOString().split('T')[0]}.pdf`);
-    document.body.appendChild(link);
-    link.click();
+    // 1. Cria um objeto URL para o Blob (o PDF)
+    const url = window.URL.createObjectURL(new Blob([response.data], { type: 'application/pdf' }));
     
-    // 4. Limpa
-    link.remove();
-    window.URL.revokeObjectURL(url);
+    // 2. ABRE O PDF EM UMA NOVA ABA PARA VISUALIZAÇÃO
+    window.open(url, '_blank');
+
+    // 3. Limpa a URL do objeto após um pequeno atraso. 
+    // Isso é uma boa prática para liberar memória.
+    setTimeout(() => window.URL.revokeObjectURL(url), 100);
 
   } catch (error) {
     console.error('Erro ao gerar PDF do relatório:', error);
@@ -194,16 +288,13 @@ const downloadPDF = async () => {
 
 const formatDate = (dateString: string) => {
   if (!dateString) return 'N/A';
-  // Use 'pt-BR' para garantir o formato correto de data
   const data = new Date(dateString);
-  // Adiciona o fuso horário (se não houver) para evitar que a data mude
   const dataUTC = new Date(data.valueOf() + data.getTimezoneOffset() * 60000);
   return dataUTC.toLocaleDateString('pt-BR');
 };
 
 const formatPercent = (value: number | null) => {
     if (value === null || value === undefined) return 'N/A';
-    // Formatação BRL para percentual (ex: 8.00 -> 8,00 %)
     return value.toFixed(2).replace('.', ',') + ' %';
 };
 
@@ -223,7 +314,11 @@ const getStatusClass = (status: string) => {
   }
 };
 
-onMounted(fetchReportData);
+onMounted(async () => {
+    // Carrega o dashboard e a tabela inicialmente
+    await fetchDashboardData();
+    await fetchReportData();
+});
 </script>
 
 <style scoped>
@@ -242,16 +337,90 @@ h1 {
   margin-bottom: 20px;
 }
 
+/* --- ESTILOS DOS CARDS (DASHBOARD) --- */
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 20px;
+  margin-bottom: 30px;
+}
+
+.stat-card {
+  background-color: white;
+  border-radius: 10px;
+  padding: 20px;
+  display: flex;
+  align-items: center;
+  box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+  transition: transform 0.2s;
+  border-left: 5px solid #ccc;
+}
+
+.stat-card.clickable {
+    cursor: pointer;
+}
+
+.stat-card.clickable:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 6px 10px rgba(0,0,0,0.15);
+}
+
+.stat-icon {
+  font-size: 2rem;
+  margin-right: 20px;
+  opacity: 0.8;
+}
+
+.stat-info {
+  display: flex;
+  flex-direction: column;
+}
+
+.stat-value {
+  font-size: 1.8rem;
+  font-weight: bold;
+  line-height: 1.2;
+}
+
+.stat-label {
+  font-size: 0.9rem;
+  color: #6c757d;
+}
+
+/* Cores Específicas dos Cards */
+.stat-card.total {
+  border-left-color: #007bff; /* Azul */
+}
+.stat-card.total .stat-icon { color: #007bff; }
+
+.stat-card.expired {
+  border-left-color: #dc3545; /* Vermelho */
+}
+.stat-card.expired .stat-icon { color: #dc3545; }
+.stat-card.expired .stat-value { color: #dc3545; }
+
+.stat-card.risk {
+  border-left-color: #ffc107; /* Amarelo */
+}
+.stat-card.risk .stat-icon { color: #ffc107; }
+
+.stat-card.warning {
+  border-left-color: #0d6efd; /* Azul Claro/Padrão */
+}
+.stat-card.warning .stat-icon { color: #0d6efd; }
+
+/* ------------------------------------- */
+
 .filters {
   display: flex;
-  flex-wrap: wrap; /* Permite quebrar linha em telas menores */
+  flex-wrap: wrap; 
   gap: 20px;
   margin-bottom: 30px;
   padding: 15px;
   border: 1px solid #e0e0e0;
   border-radius: 8px;
   background-color: #f8f9fa;
-  align-items: flex-end; /* Alinha os itens na parte inferior */
+  align-items: flex-end; 
 }
 
 .filter-group label {
@@ -270,13 +439,12 @@ h1 {
   min-width: 150px;
 }
 
-/* Estilo para o botão de PDF */
 .filter-group-action {
-  margin-left: auto; /* Joga o botão para a direita */
+  margin-left: auto;
 }
 
 .btn-pdf {
-  background-color: #dc3545; /* Cor vermelha para PDF */
+  background-color: #dc3545;
   color: white;
   border: none;
   padding: 8px 15px;
@@ -299,7 +467,6 @@ h1 {
 .btn-pdf i {
   font-size: 0.9rem;
 }
-
 
 .table-wrapper {
   overflow-x: auto;
@@ -331,17 +498,16 @@ tbody tr:hover {
   background-color: #e9ecef;
 }
 
-/* Classes de Risco na Tabela */
 .expired {
-  background-color: #f8d7da !important; /* Vermelho claro */
+  background-color: #f8d7da !important;
   color: #721c24;
 }
 .risk {
-  background-color: #fff3cd !important; /* Amarelo claro */
+  background-color: #fff3cd !important;
   color: #856404;
 }
 .warning {
-  background-color: #cfe2ff !important; /* Azul claro */
+  background-color: #cfe2ff !important;
   color: #0d6efd;
 }
 .negative-days {
@@ -349,7 +515,6 @@ tbody tr:hover {
     color: #dc3545;
 }
 
-/* Estilos para os spans de status */
 .status-expired {
   font-weight: bold;
   color: white;
@@ -401,7 +566,6 @@ tbody tr:hover {
     margin-right: 10px;
 }
 
-/* Corrigindo o link do router para não ficar roxo (visitado) */
 td a {
     color: #0056b3;
     text-decoration: none;

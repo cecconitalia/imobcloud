@@ -19,6 +19,7 @@ from django.utils.dateparse import parse_date
 from rest_framework.views import APIView
 from decimal import Decimal 
 from datetime import timedelta, date 
+import math
 
 from app_clientes.models import Cliente
 
@@ -28,6 +29,15 @@ except ImportError:
     def apenas_numeros(text):
         if text is None: return ''
         return ''.join(filter(str.isdigit, str(text)))
+
+# --- FUNÇÃO DE SEGURANÇA PARA SERIALIZAÇÃO ---
+def safe_float_conversion(value):
+    """Converte valores Decimal ou None para float, prevenindo erros de serialização."""
+    if value is None:
+        return 0.0
+    if isinstance(value, Decimal):
+        return float(value)
+    return value
 
 # --- Paginação Padrão ---
 class StandardResultsSetPagination(PageNumberPagination):
@@ -143,7 +153,8 @@ class TransacaoViewSet(viewsets.ModelViewSet):
                     Q(cliente__razao_social__icontains=search)
                 )
 
-        return queryset.order_by('-data_vencimento', '-id')
+        # ORDENAÇÃO: ÚLTIMO REGISTRO (ID mais alto = mais novo)
+        return queryset.order_by('-id')
 
     def perform_create(self, serializer):
         serializer.save(imobiliaria=self.request.tenant)
@@ -228,17 +239,17 @@ class TransacaoViewSet(viewsets.ModelViewSet):
             total_despesas=Sum(Case(When(tipo='DESPESA', then='valor'), default=0, output_field=DecimalField()))
         )
         
-        receitas = aggregates['total_receitas'] or 0
-        despesas = aggregates['total_despesas'] or 0
+        receitas = aggregates['total_receitas'] or Decimal(0)
+        despesas = aggregates['total_despesas'] or Decimal(0)
         
         # Pega o nome da imobiliária do tenant atual
         nome_imobiliaria = getattr(request.tenant, 'nome', 'Imobiliária')
         
         return Response({
-            'receitas': receitas,
-            'despesas': despesas,
-            'saldo': receitas - despesas,
-            'nome_imobiliaria': nome_imobiliaria  # <--- CAMPO NOVO
+            'receitas': safe_float_conversion(receitas),
+            'despesas': safe_float_conversion(despesas),
+            'saldo': safe_float_conversion(receitas - despesas),
+            'nome_imobiliaria': nome_imobiliaria 
         })
 
     @action(detail=False, methods=['get'], url_path='a-receber')
@@ -275,24 +286,24 @@ class TransacaoViewSet(viewsets.ModelViewSet):
 
         return Response({
             'a_receber': {
-                'pendente': aggregates['a_receber_pendente'] or 0,
-                'pago_mes_atual': aggregates['a_receber_pago_mes'] or 0
+                'pendente': safe_float_conversion(aggregates['a_receber_pendente']),
+                'pago_mes_atual': safe_float_conversion(aggregates['a_receber_pago_mes'])
             },
             'a_pagar': {
-                'pendente': aggregates['a_pagar_pendente'] or 0,
-                'pago_mes_atual': aggregates['a_pagar_pago_mes'] or 0
+                'pendente': safe_float_conversion(aggregates['a_pagar_pendente']),
+                'pago_mes_atual': safe_float_conversion(aggregates['a_pagar_pago_mes'])
             },
-            'saldo_previsto': (aggregates['a_receber_pendente'] or 0) - (aggregates['a_pagar_pendente'] or 0)
+            'saldo_previsto': safe_float_conversion((aggregates['a_receber_pendente'] or 0) - (aggregates['a_pagar_pendente'] or 0))
         })
 
     @action(detail=False, methods=['get'], url_path='contas-pendentes-stats')
     def contas_pendentes_stats(self, request):
         queryset = self.get_queryset()
-        total_a_receber = queryset.filter(tipo='RECEITA', status__in=['PENDENTE', 'ATRASADO']).aggregate(total=Sum('valor'))['total'] or 0
-        total_a_pagar = queryset.filter(tipo='DESPESA', status__in=['PENDENTE', 'ATRASADO']).aggregate(total=Sum('valor'))['total'] or 0
+        total_a_receber = queryset.filter(tipo='RECEITA', status__in=['PENDENTE', 'ATRASADO']).aggregate(total=Sum('valor'))['total'] or Decimal(0)
+        total_a_pagar = queryset.filter(tipo='DESPESA', status__in=['PENDENTE', 'ATRASADO']).aggregate(total=Sum('valor'))['total'] or Decimal(0)
         return Response({
-            'total_a_receber': total_a_receber,
-            'total_a_pagar': total_a_pagar
+            'total_a_receber': safe_float_conversion(total_a_receber),
+            'total_a_pagar': safe_float_conversion(total_a_pagar)
         })
 
 class DREViewAPI(APIView):
@@ -321,10 +332,17 @@ class DREViewAPI(APIView):
         total_receitas = sum(item['total'] for item in receitas if item['total'])
         total_despesas = sum(item['total'] for item in despesas if item['total'])
         
+        # Converte as listas de resultados para que os campos 'total' sejam float
+        def convert_list(data_list):
+            return [{
+                'categoria__nome': item['categoria__nome'], 
+                'total': safe_float_conversion(item['total'])
+            } for item in data_list]
+
         return Response({
-            'receitas_por_categoria': list(receitas),
-            'despesas_por_categoria': list(despesas),
-            'total_receitas': total_receitas,
-            'total_despesas': total_despesas,
-            'lucro_liquido': total_receitas - total_despesas,
+            'receitas_por_categoria': convert_list(receitas),
+            'despesas_por_categoria': convert_list(despesas),
+            'total_receitas': safe_float_conversion(total_receitas),
+            'total_despesas': safe_float_conversion(total_despesas),
+            'lucro_liquido': safe_float_conversion(total_receitas - total_despesas),
         })

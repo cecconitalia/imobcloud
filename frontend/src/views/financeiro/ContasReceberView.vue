@@ -23,7 +23,6 @@
 
     <div class="filter-card card">
         <h5 class="filter-header">Filtros de Busca</h5>
-        
         <div class="quick-filters">
             <button @click="setQuickFilter('currentMonth')" class="quick-filter-btn">Mês Atual</button>
             <button @click="setQuickFilter('next30Days')" class="quick-filter-btn">Próximos 30 Dias</button>
@@ -74,18 +73,16 @@
         <table class="styled-table">
           <thead>
             <tr>
-              <th>Vencimento</th>
-              <th>Cliente</th>
+              <th>Vencimento</th> <th>Cliente</th>
               <th>Descrição</th>
               <th class="text-right">Valor</th>
               <th class="text-center">Status</th>
-              <th class="text-center" style="width: 130px;">Ações</th> 
+              <th class="text-center" style="width: 140px;">Ações</th> 
               </tr>
           </thead>
           <tbody>
             <tr v-for="transacao in transacoes" :key="transacao.id" class="table-row">
-              <td>{{ formatarData(transacao.data_vencimento) }}</td>
-              <td>{{ transacao.cliente_nome || 'N/A' }}</td>
+              <td>{{ formatarData(transacao.data_vencimento) }}</td> <td>{{ transacao.cliente_nome || 'N/A' }}</td>
               <td>{{ transacao.descricao }}</td>
               <td class="text-right text-success">{{ formatarValor(transacao.valor) }}</td>
               <td class="text-center">
@@ -96,18 +93,17 @@
               <td class="action-column">
                 <button 
                   v-if="transacao.status !== 'PAGO'" 
-                  @click="updateStatus(transacao.id, 'PAGO')" 
+                  @click="abrirModalPagamento(transacao)" 
                   class="btn-action btn-solid-success" 
-                  title="Marcar como Pago Agora"
+                  title="Baixar Recebimento"
                   :disabled="transacao.isUpdating"
                 >
-                  <span v-if="transacao.isUpdating">...</span>
-                  <span v-else>Pagar</span>
+                  Receber
                 </button>
 
                 <button 
                   v-else 
-                  @click="updateStatus(transacao.id, 'PENDENTE')" 
+                  @click="reverterPagamento(transacao)" 
                   class="btn-action btn-outline-danger" 
                   title="Reverter para Pendente"
                   :disabled="transacao.isUpdating"
@@ -133,11 +129,72 @@
         Nenhuma conta a receber encontrada com os filtros atuais.
       </div>
     </div>
+
+    <div v-if="showModal" class="modal-overlay" @click.self="fecharModal">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h3>Baixar Conta a Receber</h3>
+          <button class="close-btn" @click="fecharModal">&times;</button>
+        </div>
+        
+        <div class="modal-body" v-if="selectedTransacao">
+          <div class="info-row">
+            <label>Descrição:</label>
+            <span>{{ selectedTransacao.descricao }}</span>
+          </div>
+          <div class="info-row">
+            <label>Valor:</label>
+            <span class="val-highlight text-success">{{ formatarValor(selectedTransacao.valor) }}</span>
+          </div>
+          <div class="info-row">
+            <label>Vencimento:</label>
+            <span>{{ formatarData(selectedTransacao.data_vencimento) }}</span>
+          </div>
+
+          <hr class="modal-divider">
+
+          <div class="form-group">
+            <label for="data_pagamento">Data do Recebimento</label>
+            <input type="date" id="data_pagamento" v-model="formPagamento.data_pagamento" class="form-control">
+          </div>
+
+          <div class="form-group">
+            <label for="forma_pagamento">Forma de Pagamento</label>
+            <select id="forma_pagamento" v-model="formPagamento.forma_pagamento" class="form-control">
+                <option value="" disabled>Selecione...</option>
+                <option v-for="forma in listaFormasPagamento" :key="forma.id" :value="forma.id">
+                    {{ forma.nome }}
+                </option>
+            </select>
+          </div>
+          
+          <div class="form-group">
+            <label for="conta_bancaria">Conta de Entrada (Opcional)</label>
+            <select id="conta_bancaria" v-model="formPagamento.conta" class="form-control">
+                <option :value="null">Manter atual / Não alterar</option>
+                <option v-for="conta in listaContas" :key="conta.id" :value="conta.id">
+                    {{ conta.nome }}
+                </option>
+            </select>
+          </div>
+
+        </div>
+
+        <div class="modal-footer">
+          <button class="btn-secondary" @click="fecharModal">Cancelar</button>
+          <button class="btn-primary" @click="confirmarRecebimento" :disabled="isProcessing">
+            <span v-if="isProcessing">Processando...</span>
+            <span v-else>Confirmar Recebimento</span>
+          </button>
+        </div>
+      </div>
+    </div>
+
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue';
+import { ref, onMounted, reactive } from 'vue';
 import apiClient from '@/services/api';
 import { format, startOfMonth, endOfMonth, addDays } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -147,14 +204,15 @@ import { useRouter } from 'vue-router';
 interface TransacaoReceber {
     id: number;
     data_vencimento: string;
+    data_transacao: string; // Mantido na interface para compatibilidade com o backend
     cliente_nome?: string;
     descricao: string;
     valor: number;
     status: 'PENDENTE' | 'ATRASADO' | 'PAGO' | string;
+    conta?: number; // ID da conta atual
     isUpdating?: boolean; 
 }
 
-// Interface para a resposta paginada do Django REST Framework
 interface PaginatedResponse<T> {
     count: number;
     next: string | null;
@@ -176,14 +234,29 @@ interface Filters {
     cliente_id?: number | string | null; 
 }
 
-const router = useRouter();
+interface FormaPagamento { id: number; nome: string; }
+interface Conta { id: number; nome: string; }
 
-// Estados Reativos
+// --- State ---
+const router = useRouter();
 const transacoes = ref<TransacaoReceber[]>([]);
 const totalCount = ref(0);
 const stats = ref<StatsFinanceiro | null>(null); 
 const isLoading = ref(true);
 const error = ref<string | null>(null);
+
+// Dados Modal
+const showModal = ref(false);
+const selectedTransacao = ref<TransacaoReceber | null>(null);
+const isProcessing = ref(false);
+const listaFormasPagamento = ref<FormaPagamento[]>([]);
+const listaContas = ref<Conta[]>([]);
+
+const formPagamento = reactive({
+    data_pagamento: '',
+    forma_pagamento: '' as number | '',
+    conta: null as number | null
+});
 
 const filters = ref<Filters>({
     status: '',
@@ -217,33 +290,81 @@ const getStatusClass = (status: string): string => {
   }
 };
 
-// --- Ações ---
-async function updateStatus(id: number, newStatus: 'PAGO' | 'PENDENTE') {
-    const transacaoToUpdate = transacoes.value.find(t => t.id === id);
-    if (!transacaoToUpdate) return;
+// --- Ações do Modal ---
+
+// 1. Abrir Modal
+const abrirModalPagamento = (transacao: TransacaoReceber) => {
+    selectedTransacao.value = transacao;
+    // Reseta form
+    formPagamento.data_pagamento = format(new Date(), 'yyyy-MM-dd');
+    formPagamento.forma_pagamento = ''; 
+    formPagamento.conta = transacao.conta || null;
     
-    transacaoToUpdate.isUpdating = true;
+    showModal.value = true;
+};
 
+// 2. Fechar Modal
+const fecharModal = () => {
+    showModal.value = false;
+    selectedTransacao.value = null;
+    isProcessing.value = false;
+};
+
+// 3. Confirmar Recebimento
+const confirmarRecebimento = async () => {
+    if (!selectedTransacao.value) return;
+    
+    isProcessing.value = true;
     try {
-        const payload: { status: string; data_pagamento?: string | null } = { status: newStatus };
-
-        if (newStatus === 'PAGO') {
-            payload.data_pagamento = format(new Date(), 'yyyy-MM-dd');
-        } else {
-            payload.data_pagamento = null;
+        const id = selectedTransacao.value.id;
+        const payload: any = {
+            status: 'PAGO',
+            data_pagamento: formPagamento.data_pagamento
+        };
+        
+        if (formPagamento.forma_pagamento) {
+            payload.forma_pagamento = formPagamento.forma_pagamento;
+        }
+        if (formPagamento.conta) {
+            payload.conta = formPagamento.conta;
         }
 
         await apiClient.patch(`/v1/financeiro/transacoes/${id}/`, payload);
-        alert(`Transação atualizada para ${newStatus}!`);
+        
+        alert('Recebimento registrado com sucesso!');
+        fecharModal();
+        fetchData(false);
+        
+    } catch (err) {
+        console.error("Erro ao baixar recebimento:", err);
+        alert('Erro ao registrar recebimento. Verifique os dados.');
+    } finally {
+        isProcessing.value = false;
+    }
+};
+
+// --- Ação Reverter (Sem Modal) ---
+const reverterPagamento = async (transacao: TransacaoReceber) => {
+    if (!confirm(`Deseja reverter o recebimento de "${transacao.descricao}" para PENDENTE?`)) {
+        return;
+    }
+    
+    transacao.isUpdating = true;
+    try {
+        await apiClient.patch(`/v1/financeiro/transacoes/${transacao.id}/`, { 
+            status: 'PENDENTE',
+            data_pagamento: null 
+        });
         fetchData(false); 
     } catch (err) {
-        console.error(`Erro ao atualizar status:`, err);
-        alert('Erro ao atualizar o status.');
+        console.error(`Erro ao reverter:`, err);
+        alert('Erro ao reverter o status.');
     } finally {
-        transacaoToUpdate.isUpdating = false;
+        transacao.isUpdating = false;
     }
-}
+};
 
+// --- Filtros ---
 const setQuickFilter = (period: 'currentMonth' | 'next30Days') => {
     const today = new Date();
     let startDate: Date;
@@ -276,7 +397,6 @@ const resetFilters = () => {
     fetchData(true);
 };
 
-
 // --- Data Fetching ---
 async function fetchData(isFilterChange: boolean = false) {
   if (!isFilterChange) {
@@ -285,7 +405,7 @@ async function fetchData(isFilterChange: boolean = false) {
   error.value = null;
 
   try {
-    // 1. Fetch Estatísticas
+    // 1. Fetch Stats
     const statsResponse = await apiClient.get<StatsFinanceiro>('/v1/financeiro/transacoes/stats/');
     stats.value = statsResponse.data;
 
@@ -297,21 +417,18 @@ async function fetchData(isFilterChange: boolean = false) {
     if (filters.value.data_vencimento_fim) { params.data_vencimento_fim = filters.value.data_vencimento_fim; }
     
     if (filters.value.cliente_search) {
-        params.cliente_search = filters.value.cliente_search;
+        params.search = filters.value.cliente_search; // Usa 'search' no backend
     } else if (filters.value.cliente_id) {
         params.cliente_id = filters.value.cliente_id;
     }
     
-    // Adiciona paginação para garantir retorno consistente
-    params.page_size = 50; 
+    params.page_size = 50; // Paginação consistente
 
-    // CORREÇÃO AQUI: Tipagem correta da resposta paginada
     const transacoesResponse = await apiClient.get<PaginatedResponse<TransacaoReceber>>(
       '/v1/financeiro/transacoes/a-receber/', 
       { params: params }
     );
 
-    // CORREÇÃO AQUI: Acessa .results em vez de .data diretamente
     const results = transacoesResponse.data.results || []; 
     totalCount.value = transacoesResponse.data.count || 0;
 
@@ -319,205 +436,85 @@ async function fetchData(isFilterChange: boolean = false) {
 
   } catch (err) {
     console.error("Erro ao carregar contas a receber:", err);
-    error.value = "Não foi possível carregar os dados. Tente recarregar a página.";
+    error.value = "Não foi possível carregar os dados. Verifique a conexão.";
   } finally {
     isLoading.value = false;
   }
 }
 
+// Carrega dados auxiliares para o modal
+async function fetchAuxiliaryData() {
+    try {
+        const [formasRes, contasRes] = await Promise.all([
+            apiClient.get('/v1/financeiro/formas-pagamento/'),
+            apiClient.get('/v1/financeiro/contas/')
+        ]);
+        listaFormasPagamento.value = Array.isArray(formasRes.data) ? formasRes.data : (formasRes.data.results || []);
+        listaContas.value = Array.isArray(contasRes.data) ? contasRes.data : (contasRes.data.results || []);
+    } catch (err) {
+        console.warn("Erro ao carregar auxiliares:", err);
+    }
+}
+
 onMounted(() => {
-  fetchData();
+  resetFilters();
+  fetchAuxiliaryData();
 });
 </script>
 
 <style scoped>
 /* ======================================= */
-/* ESTILOS GERAIS/BOTÕES                   */
+/* ESTILOS GERAIS                          */
 /* ======================================= */
 .page-container { padding: 0; }
 
 .btn-primary {
-    background-color: #007bff;
-    color: white;
-    padding: 0.4rem 0.8rem;
-    border-radius: 4px;
-    text-decoration: none;
-    font-weight: 500;
-    transition: background-color 0.3s;
-    font-size: 0.9rem;
+    background-color: #007bff; color: white; padding: 0.4rem 0.8rem; border-radius: 4px;
+    text-decoration: none; font-weight: 500; font-size: 0.9rem; border: none; cursor: pointer;
 }
 .btn-primary:hover { background-color: #0056b3; }
 .btn-secondary {
-    background-color: #6c757d;
-    color: white;
-    padding: 0.4rem 0.8rem;
-    border: none;
-    border-radius: 4px;
-    cursor: pointer;
-    font-weight: 500;
-    transition: background-color 0.3s;
-    font-size: 0.9rem;
+    background-color: #6c757d; color: white; padding: 0.4rem 0.8rem; border: none;
+    border-radius: 4px; cursor: pointer; font-weight: 500; font-size: 0.9rem;
 }
 .btn-secondary:hover { background-color: #5a6268; }
+.align-bottom { align-self: flex-end; height: 36px; display: flex; align-items: center; }
+.card { background: white; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
 
-.align-bottom {
-    align-self: flex-end; 
-    height: 36px; 
-    padding-top: 0;
-    padding-bottom: 0;
-    display: flex;
-    align-items: center;
-}
-.card {
-    background: white; 
-    border-radius: 8px;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1), 0 1px 2px rgba(0, 0, 0, 0.06); 
-}
-
-/* ======================================= */
-/* SUMMARY CARDS                           */
-/* ======================================= */
-.summary-grid {
-    margin-top: 0; 
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-    gap: 1rem;
-    margin-bottom: 0.75rem; 
-}
-.summary-card {
-    padding: 1rem;
-    border-radius: 8px; 
-    background-color: #fcfcfc;
-    border-left: 5px solid;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05); 
-}
-.card-title {
-    margin: 0 0 0.4rem 0;
-    font-size: 0.9rem; 
-    color: #6c757d; 
-    font-weight: 500;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-} 
-.card-value {
-    margin: 0; 
-    font-size: 1.8rem;
-    font-weight: 700; 
-    color: #343a40; 
-}
-
+/* SUMMARY CARDS */
+.summary-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1rem; margin-bottom: 0.75rem; }
+.summary-card { padding: 1rem; border-radius: 8px; background-color: #fcfcfc; border-left: 5px solid; box-shadow: 0 4px 12px rgba(0,0,0,0.05); }
+.card-title { margin: 0 0 0.4rem 0; font-size: 0.9rem; color: #6c757d; font-weight: 500; text-transform: uppercase; } 
+.card-value { margin: 0; font-size: 1.8rem; font-weight: 700; color: #343a40; }
 .pending-revenue { border-color: #ffc107; } 
 .received-month { border-color: #28a745; } 
-.card-positive { border-color: #17a2b8; } 
-.card-negative { border-color: #dc3545; }
-.card-positive .card-value { color: #17a2b8; }
-.card-negative .card-value { color: #dc3545; }
+.card-positive { border-color: #17a2b8; } .card-negative { border-color: #dc3545; }
+.card-positive .card-value { color: #17a2b8; } .card-negative .card-value { color: #dc3545; }
 
-/* ======================================= */
-/* FILTROS                                 */
-/* ======================================= */
-.filter-card {
-    padding: 0.75rem 1.5rem;
-    margin-bottom: 0.5rem;
-}
-.filter-header {
-    margin-top: 0;
-    margin-bottom: 0.75rem; 
-    font-size: 1rem; 
-    color: #343a40;
-    border-bottom: 1px solid #e9ecef;
-    padding-bottom: 0.5rem;
-    font-weight: 600;
-}
-.quick-filters {
-    margin-bottom: 0.75rem;
-    display: flex;
-    gap: 0.5rem;
-}
-.quick-filter-btn {
-    background-color: #e9ecef;
-    color: #495057;
-    border: 1px solid #e9ecef;
-    border-radius: 4px;
-    padding: 0.3rem 0.6rem;
-    font-size: 0.8rem;
-    cursor: pointer;
-    transition: background-color 0.2s;
-}
+/* FILTROS */
+.filter-card { padding: 0.75rem 1.5rem; margin-bottom: 0.5rem; }
+.filter-header { margin: 0 0 0.75rem 0; font-size: 1rem; border-bottom: 1px solid #e9ecef; padding-bottom: 0.5rem; font-weight: 600; }
+.quick-filters { margin-bottom: 0.75rem; display: flex; gap: 0.5rem; }
+.quick-filter-btn { background-color: #e9ecef; border: 1px solid #e9ecef; border-radius: 4px; padding: 0.3rem 0.6rem; cursor: pointer; }
 .quick-filter-btn:hover { background-color: #dee2e6; }
-
-.filter-controls {
-    display: flex;
-    gap: 0.75rem;
-    align-items: flex-end; 
-    flex-wrap: wrap; 
-}
-.filter-group {
-    display: flex;
-    flex-direction: column;
-    min-width: 140px;
-}
+.filter-controls { display: flex; gap: 0.75rem; align-items: flex-end; flex-wrap: wrap; }
+.filter-group { display: flex; flex-direction: column; min-width: 140px; }
 .filter-cliente { min-width: 200px; flex-grow: 1; }
-.filter-group label {
-    font-size: 0.8rem;
-    color: #6c757d; 
-    margin-bottom: 0.25rem;
-    font-weight: 500;
-}
-.filter-group select, .filter-group input {
-    padding: 0.4rem 0.5rem;
-    border: 1px solid #ced4da;
-    border-radius: 4px;
-    font-size: 0.9rem;
-    height: 36px;
-    background-color: #ffffff;
-}
+.filter-group label { font-size: 0.8rem; color: #6c757d; margin-bottom: 0.25rem; }
+.filter-group input, .filter-group select { padding: 0.4rem; border: 1px solid #ced4da; border-radius: 4px; height: 36px; }
 
-/* ======================================= */
-/* TABELA E AÇÕES                          */
-/* ======================================= */
-.table-card {
-    padding: 1rem; 
-    overflow-x: auto; 
-    margin-top: 0.5rem;
-}
+/* TABELA */
+.table-card { padding: 1rem; overflow-x: auto; margin-top: 0.5rem; }
 .styled-table { width: 100%; border-collapse: collapse; }
-.styled-table th {
-    padding: 0.75rem 1rem;
-    text-align: left; 
-    border-bottom: 2px solid #dee2e6;
-    color: #495057; 
-    background-color: #f8f9fa;
-    font-weight: 600; 
-    font-size: 0.9rem;
-}
-.styled-table td {
-    padding: 0.6rem 1rem;
-    border-bottom: 1px solid #f1f1f1;
-    vertical-align: middle; 
-    font-size: 0.9rem;
-}
-.styled-table tbody tr:hover {
-    background-color: #fefefe;
-    box-shadow: inset 3px 0 0 0 #007bff;
-}
+.styled-table th { padding: 0.75rem 1rem; text-align: left; border-bottom: 2px solid #dee2e6; background-color: #f8f9fa; color: #495057; font-size: 0.9rem; }
+.styled-table td { padding: 0.6rem 1rem; border-bottom: 1px solid #f1f1f1; font-size: 0.9rem; vertical-align: middle; }
+.styled-table tbody tr:hover { background-color: #fefefe; }
+.text-success { color: #198754; font-weight: bold; } 
+.text-right { text-align: right; } .text-center { text-align: center; }
 
-.action-column {
-    text-align: center;
-    display: flex;
-    gap: 5px;
-    justify-content: center;
-}
-.btn-action {
-    padding: 0.3rem 0.6rem;
-    border-radius: 4px;
-    cursor: pointer;
-    font-size: 0.75rem; 
-    font-weight: 600;
-    text-decoration: none;
-    min-width: 55px;
-    display: flex; align-items: center; justify-content: center;
-}
+/* BOTOES ACAO */
+.action-column { display: flex; gap: 5px; justify-content: center; }
+.btn-action { padding: 0.3rem 0.6rem; border-radius: 4px; font-size: 0.75rem; cursor: pointer; min-width: 55px; display: flex; justify-content: center; align-items: center; text-decoration: none; }
 .btn-action:disabled { opacity: 0.6; cursor: not-allowed; }
 
 .btn-solid-success { background-color: #28a745; color: white !important; border: 1px solid #28a745; }
@@ -529,12 +526,28 @@ onMounted(() => {
 .btn-outline-info { background-color: transparent; color: #17a2b8 !important; border: 1px solid #17a2b8; min-width: 30px; }
 .btn-outline-info:hover { background-color: #17a2b8; color: white !important; }
 
-.status-badge { padding: 0.2rem 0.5rem; border-radius: 10px; font-size: 0.7rem; font-weight: 700; }
+/* STATUS */
+.status-badge { padding: 0.2rem 0.5rem; border-radius: 10px; font-size: 0.7rem; font-weight: 700; color: white; }
 .status-pending { background-color: #ffc107; color: #3c3c3c; } 
 .status-overdue { background-color: #dc3545; color: white; } 
 .status-paid { background-color: #28a745; color: white; }    
 
-.text-success { color: #198754; font-weight: bold; } 
-.loading-state, .error-message, .no-data-message { padding: 1.5rem; text-align: center; }
+/* MODAL */
+.modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.5); display: flex; justify-content: center; align-items: center; z-index: 1000; }
+.modal-content { background: white; padding: 20px; border-radius: 8px; width: 400px; max-width: 90%; box-shadow: 0 4px 15px rgba(0,0,0,0.2); }
+.modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
+.modal-header h3 { margin: 0; font-size: 1.2rem; color: #333; }
+.close-btn { background: none; border: none; font-size: 1.5rem; cursor: pointer; color: #666; }
+.modal-body { font-size: 0.95rem; }
+.info-row { display: flex; justify-content: space-between; margin-bottom: 8px; }
+.info-row label { color: #666; font-weight: 500; }
+.val-highlight { font-weight: bold; font-size: 1.1rem; }
+.modal-divider { border: 0; border-top: 1px solid #eee; margin: 15px 0; }
+.form-group { margin-bottom: 15px; }
+.form-group label { display: block; margin-bottom: 5px; font-weight: 500; color: #444; }
+.form-control { width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px; font-size: 1rem; }
+.modal-footer { display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px; }
+
+.loading-state, .error-message, .no-data-message { padding: 1.5rem; text-align: center; color: #666; }
 .pagination-info { margin-top: 1rem; text-align: center; font-size: 0.85rem; color: #6c757d; }
 </style>

@@ -6,10 +6,12 @@ from rest_framework.response import Response
 from django.db.models import Sum, Count, Q, Case, When, Value, CharField, F
 from django.utils import timezone
 from datetime import timedelta
+from decimal import Decimal # Importado Decimal
 
 from .models import Aluguel
 from .serializers import AluguelSerializer
-from app_contratos.models import Contrato, Pagamento # ADICIONADO: Importar o modelo Pagamento
+from app_contratos.models import Contrato, Pagamento 
+from app_financeiro.models import Transacao # Importado Transacao
 
 class AluguelViewSet(viewsets.ModelViewSet):
     queryset = Aluguel.objects.all()
@@ -34,7 +36,12 @@ class DashboardStatsView(APIView):
 
         hoje = timezone.now().date()
         inicio_mes = hoje.replace(day=1)
-        fim_mes = (inicio_mes + timedelta(days=32)).replace(day=1) - timedelta(days=1)
+        
+        # Calcula o último dia do mês atual
+        if hoje.month == 12:
+            fim_mes = hoje.replace(day=31)
+        else:
+            fim_mes = hoje.replace(month=hoje.month + 1, day=1) - timedelta(days=1)
 
         # 1. Obter contratos de aluguel ativos
         contratos_ativos = Contrato.objects.filter(
@@ -43,24 +50,43 @@ class DashboardStatsView(APIView):
             tipo_contrato='ALUGUEL'
         )
 
-        # 2. Calcular estatísticas gerais a partir dos contratos
+        # 2. Calcular Total de Contratos Ativos
         total_contratos_ativos = contratos_ativos.count()
-        valor_total_alugueis_ativos = contratos_ativos.aggregate(Sum('valor_total'))['valor_total__sum'] or 0
-
-        # 3. CORRIGIDO: Consultar o modelo Pagamento para obter pendências
-        pagamentos_pendentes_mes = Pagamento.objects.filter(
+        
+        # 3. Aluguéis Pendentes (a vencer) no MÊS ATUAL
+        alugueis_a_vencer = Pagamento.objects.filter(
             contrato__in=contratos_ativos,
             data_vencimento__gte=inicio_mes,
             data_vencimento__lte=fim_mes,
             status='PENDENTE'
         ).count()
+        
+        # 4. Calcular Valor Recebido (Transações PAGAS no Mês Atual)
+        # SOMA O VALOR E CONVERTE PARA FLOAT para evitar erro de serialização do JSON
+        valor_recebido_mes = Transacao.objects.filter(
+            imobiliaria=tenant,
+            tipo='RECEITA',
+            contrato__tipo_contrato='ALUGUEL',
+            status='PAGO',
+            data_pagamento__gte=inicio_mes,
+            data_pagamento__lte=fim_mes
+        ).aggregate(Sum('valor'))['valor__sum']
+        
+        # Garante que seja float(0) se for None
+        valor_recebido_mes = float(valor_recebido_mes) if valor_recebido_mes is not None else 0.0
 
-        # 4. CORRIGIDO: Consultar o modelo Pagamento para obter próximos vencimentos
+        # 5. Aluguéis Atrasados (Pagamentos com status ATRASADO)
+        alugueis_atrasados = Pagamento.objects.filter(
+            contrato__in=contratos_ativos,
+            status='ATRASADO'
+        ).count()
+
+        # 6. Próximos vencimentos (Próximos 7 dias)
         proximos_vencimentos = Pagamento.objects.filter(
             contrato__in=contratos_ativos,
             data_vencimento__gte=hoje,
             data_vencimento__lte=hoje + timedelta(days=7),
-            status='PENDENTE'
+            status__in=['PENDENTE', 'ATRASADO']
         ).annotate(
             inquilino_nome=Case(
                 When(contrato__inquilino__tipo_pessoa='JURIDICA', then=F('contrato__inquilino__razao_social')),
@@ -79,10 +105,11 @@ class DashboardStatsView(APIView):
         ).order_by('data_vencimento')
 
         data = {
-            'total_contratos_ativos': total_contratos_ativos,
-            'valor_total_alugueis_ativos': valor_total_alugueis_ativos,
-            'alugueis_pendentes_mes': pagamentos_pendentes_mes, # Nome da variável atualizado para clareza
-            'proximos_vencimentos': list(proximos_vencimentos)
+            'contratos_ativos': total_contratos_ativos,
+            'alugueis_a_vencer': alugueis_a_vencer,
+            'alugueis_atrasados': alugueis_atrasados,
+            'valor_recebido_mes': valor_recebido_mes, # Agora é um float
+            'proximos_alugueis': list(proximos_vencimentos)
         }
 
         return Response(data)
