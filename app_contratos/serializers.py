@@ -1,4 +1,4 @@
-# C:\wamp64\www\imobcloud\app_contratos\serializers.py
+# C:\wamp64\www\ImobCloud\app_contratos\serializers.py
 
 from rest_framework import serializers
 from .models import Contrato, Pagamento, ModeloContrato 
@@ -8,7 +8,7 @@ from django.db import transaction
 from app_financeiro.models import FormaPagamento 
 from decimal import Decimal
 
-# (Serializers Auxiliares e ModeloContratoSerializer permanecem inalterados)
+# (Outros serializers auxiliares permanecem inalterados...)
 class ImovelSimplificadoSerializer(serializers.ModelSerializer):
     endereco_completo = serializers.SerializerMethodField()
     class Meta:
@@ -59,7 +59,6 @@ class ModeloContratoSerializer(serializers.ModelSerializer):
                 })
         return data
 
-# (ContratoSerializer de LEITURA permanece inalterado)
 class ContratoSerializer(serializers.ModelSerializer):
     imovel_detalhes = ImovelSimplificadoSerializer(source='imovel', read_only=True)
     inquilino_detalhes = ClienteSimplificadoSerializer(source='inquilino', read_only=True)
@@ -187,37 +186,33 @@ class ContratoCriacaoSerializer(serializers.ModelSerializer):
     def validate(self, data):
         instance = self.instance 
 
-        # --- CORREÇÃO: BLOQUEIO DE EDIÇÃO PARA CONTRATOS ATIVOS ---
-        # Impede que campos financeiros sejam alterados se o contrato já estiver ATIVO,
-        # pois isso causaria dessincronia com o módulo financeiro.
+        # ==================================================================
+        # === REGRA DE NEGÓCIO: BLOQUEIO DE EDIÇÃO (APENAS PARA VENDA)   ===
+        # ==================================================================
         if instance and instance.status_contrato == Contrato.Status.ATIVO:
-            campos_bloqueados = [
-                'aluguel', 
-                'valor_total', 
-                'data_primeiro_vencimento', 
-                'duracao_meses',
-                'imovel',
-                'inquilino',
-                'proprietario'
-            ]
-            for campo in campos_bloqueados:
-                # Se o campo foi enviado e é diferente do atual
-                if campo in data:
-                    valor_novo = data[campo]
-                    valor_atual = getattr(instance, campo)
-                    
-                    # Tratamento especial para chaves estrangeiras (comparar objetos ou IDs)
-                    if hasattr(valor_atual, 'pk'): # É um objeto relacionado (Imovel, Cliente)
-                         if valor_novo != valor_atual:
-                             raise serializers.ValidationError({
-                                 campo: "Não é possível alterar este campo pois o contrato já está ATIVO e gerou financeiro. Cancele o contrato e crie um novo."
-                             })
-                    else: # Campo simples (Decimal, Date, Int)
-                        if valor_novo != valor_atual:
-                             raise serializers.ValidationError({
-                                 campo: "Não é possível alterar valores financeiros ou datas cruciais em um contrato ATIVO."
-                             })
-        # ------------------------------------------------------------
+            # Se for VENDA, mantém o bloqueio total
+            if instance.tipo_contrato == Contrato.TipoContrato.VENDA:
+                view = self.context.get('view')
+                if not view or view.action != 'ativar':
+                    raise serializers.ValidationError(
+                        "Este contrato de Venda já está ATIVO e finalizado. Não é possível editá-lo."
+                    )
+            # Se for ALUGUEL, a edição é permitida (Passa direto)
+        # ==================================================================
+
+        # ==================================================================
+        # === REGRA DE NEGÓCIO: IMPEDIR STATUS 'ATIVO' VIA FORMULÁRIO    ===
+        # ==================================================================
+        status_enviado = data.get('status_contrato')
+        if status_enviado == Contrato.Status.ATIVO:
+            view = self.context.get('view')
+            # Só permite status ATIVO se for através da endpoint específica de ativação
+            if not view or view.action != 'ativar':
+                raise serializers.ValidationError({
+                    "status_contrato": "Não é permitido salvar como ATIVO diretamente. "
+                    "Salve como RASCUNHO e utilize o botão 'Ativar' na tela de detalhes."
+                })
+        # ==================================================================
 
         imovel = data.get('imovel', instance.imovel if instance else None)
         proprietario = data.get('proprietario', instance.proprietario if instance else None)

@@ -38,13 +38,14 @@ const emit = defineEmits(['update:modelValue']);
 // --- Refs ---
 const inputRef = ref<HTMLInputElement | null>(null);
 
-// --- Formatação Nativa (A solução robusta) ---
+// --- Formatação Nativa (CORRIGIDO) ---
+// Alterado de 'currency' para 'decimal' para não forçar o símbolo R$.
+// O símbolo agora é controlado totalmente pela prop 'prefix'.
 const formatter = computed(() => {
   return new Intl.NumberFormat('pt-BR', {
-    style: 'currency',
-    currency: 'BRL',
-    maximumFractionDigits: props.precision,
+    style: 'decimal', // Usamos decimal para ter controle total do prefixo
     minimumFractionDigits: props.precision,
+    maximumFractionDigits: props.precision,
   });
 });
 
@@ -57,16 +58,10 @@ const formatValue = (value: number | null): string => {
     return '';
   }
   
-  // Remove o prefixo padrão "R$" do Intl.NumberFormat se já tivermos um
-  // (Isso evita "R$ R$ 600.000,00")
-  let formatted = formatter.value.format(value);
+  // Formata apenas o número (ex: "5,00" ou "1.000,00")
+  const formatted = formatter.value.format(value);
   
-  if (props.prefix.trim() === 'R$') {
-     // O Intl já adiciona "R$", então removemos o nosso prefixo para evitar duplicidade
-     // Mas se o prefixo for customizado (ex: "%"), mantemos.
-     formatted = formatted.replace(/^R\$\s*/, '');
-  }
-  
+  // Monta a string final com prefixo e sufixo customizáveis
   return `${props.prefix}${formatted}${props.suffix}`;
 };
 

@@ -134,15 +134,33 @@
           <div class="form-grid-3col">
             <div class="form-group">
               <label for="valor_total">Valor Total da Venda *</label>
-              <MoneyInput v-model.number="contrato.valor_total" class="form-input-money" @change="calcularComissaoInicial" required />
+              <MoneyInput 
+                v-model.number="contrato.valor_total" 
+                class="form-input-money" 
+                @change="calcularComissaoValor" 
+                required 
+              />
             </div>
+            
             <div class="form-group">
               <label for="comissao_venda_percentual">% Comissão (Base)</label>
-              <input type="number" id="comissao_venda_percentual" v-model.number="contrato.comissao_venda_percentual" @input="calcularComissaoInicial" step="0.01" min="0" max="100">
+              <input 
+                type="number" 
+                id="comissao_venda_percentual" 
+                v-model.number="contrato.comissao_venda_percentual" 
+                @input="calcularComissaoValor" 
+                step="0.01" min="0" max="100"
+              >
             </div>
+            
             <div class="form-group">
               <label for="valor_comissao_acordado">Valor Acordado Comissão (R$) *</label>
-              <MoneyInput v-model.number="contrato.valor_comissao_acordado" class="form-input-money" required />
+              <MoneyInput 
+                v-model.number="contrato.valor_comissao_acordado" 
+                class="form-input-money" 
+                @change="calcularPercentualComissao"
+                required 
+              />
               <p class="help-text">Este valor será lançado em Contas a Receber.</p>
             </div>
           </div>
@@ -201,14 +219,30 @@
             
             <div class="form-group">
                 <label for="status_contrato">Status do Contrato *</label>
-                <select id="status_contrato" v-model="contrato.status_contrato" required>
+                <select 
+                  id="status_contrato" 
+                  v-model="contrato.status_contrato" 
+                  required 
+                  :disabled="contrato.tipo_contrato === 'VENDA' && contrato.status_contrato !== 'RASCUNHO'"
+                >
                   <option value="RASCUNHO">Rascunho</option>
+                  
                   <option value="ATIVO">Ativo</option>
-                  <option value="CONCLUIDO">Concluído</option>
-                  <option value="RESCINDIDO">Rescindido</option>
-                  <option value="CANCELADO">Cancelado</option>
+                  
+                  <option v-if="isEditing" value="RESCINDIDO">Rescindido</option>
+                  <option v-if="isEditing" value="CONCLUIDO">Concluído</option>
+                  <option v-if="isEditing" value="CANCELADO">Cancelado</option>
                 </select>
-                <p class="help-text">Ao salvar como ATIVO, o financeiro será gerado/lançado.</p>
+                
+                <p class="help-text" v-if="contrato.tipo_contrato === 'VENDA' && contrato.status_contrato === 'ATIVO'">
+                    Contrato de Venda finalizado. Status bloqueado.
+                </p>
+                <p class="help-text" v-else-if="!isEditing">
+                    Recomendado iniciar como Rascunho.
+                </p>
+                <p class="help-text" v-else>
+                    Alterar para ATIVO gera o financeiro.
+                </p>
             </div>
             </div>
           <div class="form-group">
@@ -252,9 +286,6 @@ interface ContratoData {
   id?: number;
   imobiliaria?: number;
   tipo_contrato: 'ALUGUEL' | 'VENDA' | '';
-  // ==========================================================
-  // === TIPO DE STATUS ATUALIZADO                        ===
-  // ==========================================================
   status_contrato: 'RASCUNHO' | 'ATIVO' | 'CONCLUIDO' | 'RESCINDIDO' | 'CANCELADO';
   
   modelo_utilizado: number | null; 
@@ -264,7 +295,6 @@ interface ContratoData {
   proprietario: number | null; 
   fiadores: number[];
   
-  // (Resto da interface inalterada)
   aluguel: number | null;
   duracao_meses: number | null;
   taxa_administracao_percentual: number;
@@ -300,9 +330,7 @@ const contratoId = route.params.id as string;
 // Definição inicial do Contrato
 const contrato = ref<ContratoData>({
   tipo_contrato: 'ALUGUEL',
-  // ==========================================================
-  status_contrato: 'RASCUNHO', // <--- Padrão atualizado
-  // ==========================================================
+  status_contrato: 'RASCUNHO',
   
   modelo_utilizado: null, 
   imovel: null,
@@ -327,8 +355,6 @@ const contrato = ref<ContratoData>({
   formas_pagamento: []
 });
 
-// (Restante do <script setup> inalterado)
-
 // LISTAS FILTRADAS
 const todosClientesOptions = ref<ClienteOption[]>([]); 
 const proprietarioOptions = ref<ClienteOption[]>([]); 
@@ -352,21 +378,34 @@ const tipoContratoLabel = computed(() => {
   }
   return { principal: 'Inquilino', outraParte: 'Inquilino' };
 });
-const calcularComissaoInicial = () => {
-  if (isEditing.value && contrato.value.valor_comissao_acordado) {
-  }
-  if (contrato.value.tipo_contrato === 'VENDA' && contrato.value.valor_total && contrato.value.comissao_venda_percentual) {
+
+// =======================================================================
+// === NOVAS FUNÇÕES DE CÁLCULO (Bidirecionais)                        ===
+// =======================================================================
+
+const calcularComissaoValor = () => {
+  if (contrato.value.tipo_contrato === 'VENDA' && contrato.value.valor_total) {
     const valorTotal = Number(contrato.value.valor_total);
     const percentual = Number(contrato.value.comissao_venda_percentual);
+    
     if (!isNaN(valorTotal) && !isNaN(percentual)) {
-        if (!contrato.value.valor_comissao_acordado) {
-             contrato.value.valor_comissao_acordado = parseFloat((valorTotal * (percentual / 100)).toFixed(2));
-        }
-    } else {
-        contrato.value.valor_comissao_acordado = null;
+        contrato.value.valor_comissao_acordado = parseFloat((valorTotal * (percentual / 100)).toFixed(2));
     }
   }
 };
+
+const calcularPercentualComissao = () => {
+    if (contrato.value.tipo_contrato === 'VENDA' && contrato.value.valor_total && contrato.value.valor_comissao_acordado) {
+        const valorTotal = Number(contrato.value.valor_total);
+        const valorComissao = Number(contrato.value.valor_comissao_acordado);
+        
+        if (!isNaN(valorTotal) && !isNaN(valorComissao) && valorTotal > 0) {
+            contrato.value.comissao_venda_percentual = parseFloat(((valorComissao / valorTotal) * 100).toFixed(2));
+        }
+    }
+};
+// =======================================================================
+
 const handleDataAssinaturaChange = () => {
   if (contrato.value.tipo_contrato === 'VENDA') {
     contrato.value.data_inicio = contrato.value.data_assinatura;
@@ -379,7 +418,8 @@ const handleTipoChange = () => {
     proprietarioOptions.value = [];
     imovelOptions.value = [];
     modeloContratoOptions.value = []; 
-    calcularComissaoInicial();
+    
+    // Reseta valores ao mudar o tipo
     if (contrato.value.tipo_contrato === 'ALUGUEL') {
         contrato.value.valor_total = null;
         contrato.value.valor_comissao_acordado = null;
@@ -394,6 +434,8 @@ const handleTipoChange = () => {
         contrato.value.data_primeiro_vencimento = null;
         contrato.value.data_fim = null;
         contrato.value.data_inicio = contrato.value.data_assinatura;
+        // Inicializa cálculo se houver dados residuais
+        calcularComissaoValor();
     }
 };
 
@@ -409,11 +451,12 @@ async function fetchInitialDependencies() {
     error.value = 'Não foi possível carregar a lista de clientes para Inquilino/Fiadores.';
   }
 }
+
 async function fetchProprietarioOptions(tipo: 'ALUGUEL' | 'VENDA' | '') {
     if (!tipo) return;
     isLoadingProprietarios.value = true;
-    const finalidade = tipo === 'VENDA' ? 'A_VENDA' : 'PARA_ALUGAR';
-    const params = { finalidade: finalidade };
+    const status_filter = tipo === 'VENDA' ? 'A_VENDA' : 'PARA_ALUGAR';
+    const params = { finalidade: status_filter }; 
     try {
         const proprietarioRes = await apiClient.get('/v1/clientes/lista-proprietarios/', { params: params });
         const options: ClienteOption[] = proprietarioRes.data.map((c: ProprietarioSerializerResponse) => ({
@@ -438,20 +481,29 @@ async function fetchProprietarioOptions(tipo: 'ALUGUEL' | 'VENDA' | '') {
         isLoadingProprietarios.value = false;
     }
 }
+
 async function fetchImovelOptions(tipo: 'ALUGUEL' | 'VENDA' | '', proprietarioId: number | null) {
   if (!tipo || !proprietarioId) { 
       imovelOptions.value = [];
       return;
   }
   isLoadingImoveis.value = true;
-  const finalidade = tipo === 'VENDA' ? 'A_VENDA' : 'PARA_ALUGAR';
+  
+  const statusImovel = tipo === 'VENDA' ? 'A_VENDA' : 'PARA_ALUGAR';
   const imovelParams: Record<string, any> = { 
-      finalidade: finalidade,
+      status: statusImovel, 
       proprietario: proprietarioId, 
   };
+  
   try {
     const imovelRes = await apiClient.get('/v1/imoveis/lista-simples/', { params: imovelParams });
-    const options: ImovelOption[] = imovelRes.data;
+    const options: ImovelOption[] = imovelRes.data.map((i: any) => ({
+        label: `#${i.codigo_referencia} - ${i.titulo_anuncio || i.logradouro}`,
+        value: i.id,
+        aluguel: i.valor_aluguel,
+        venda: i.valor_venda
+    }));
+
     if (isEditing.value && selectedImovel.value) {
          if (contrato.value.proprietario === proprietarioId) {
             const exists = options.some(opt => opt.value === selectedImovel.value!.value);
@@ -472,6 +524,7 @@ async function fetchImovelOptions(tipo: 'ALUGUEL' | 'VENDA' | '', proprietarioId
     isLoadingImoveis.value = false;
   }
 }
+
 async function fetchModeloContratoOptions(tipo: 'ALUGUEL' | 'VENDA' | '') {
   if (!tipo) {
     modeloContratoOptions.value = [];
@@ -516,6 +569,19 @@ async function fetchContrato() {
   try {
     const response = await apiClient.get(`/v1/contratos/${contratoId}/`); 
     const data = response.data;
+
+    // ==========================================================
+    // === REGRA DE NEGÓCIO: BLOQUEIO DE ACESSO À EDIÇÃO      ===
+    // ==========================================================
+    // Bloqueia apenas se for VENDA e estiver ATIVO. 
+    // Contratos de ALUGUEL podem ser editados.
+    if (data.status_contrato === 'ATIVO' && data.tipo_contrato === 'VENDA') {
+        alert("Este contrato de Venda já está ATIVO e finalizado. Não é possível editá-lo.\nVocê será redirecionado para a lista.");
+        router.push({ name: 'contratos' });
+        return;
+    }
+    // ==========================================================
+
     const fiadorIds = (data.fiadores || []).map((f: any) => (typeof f === 'object' ? f.id : f));
     if (data.proprietario_detalhes) {
       selectedProprietario.value = {
@@ -643,9 +709,8 @@ watch(
         if (!contrato.value.valor_total) {
             contrato.value.valor_total = selectedImovel.venda ? parseFloat(String(selectedImovel.venda)) : null;
         }
-        if (!contrato.value.valor_comissao_acordado) {
-             calcularComissaoInicial();
-        }
+        // Recalcula a comissão inicial com base no valor do imóvel selecionado
+        calcularComissaoValor();
       }
     }
   }

@@ -14,8 +14,7 @@ logger = logging.getLogger(__name__)
 def gerenciar_financeiro_por_status(sender, instance, **kwargs):
     """
     NOTA: Este signal está desativado.
-    A lógica de geração financeira foi movida para o ContratoCriacaoSerializer
-    para lidar corretamente com o contexto da requisição 'ativar'.
+    A lógica de geração financeira foi movida para o ContratoCriacaoSerializer.
     """
     return # Desativa o signal
 
@@ -32,7 +31,6 @@ def atualizar_datas_baseado_no_status(sender, instance, **kwargs):
             status_anterior = obj_anterior.status_contrato
             status_novo = instance.status_contrato
 
-            # Se o contrato está sendo ativado
             if status_novo == Contrato.Status.ATIVO and status_anterior != Contrato.Status.ATIVO:
                 if not instance.data_assinatura:
                     instance.data_assinatura = timezone.now().date()
@@ -40,9 +38,8 @@ def atualizar_datas_baseado_no_status(sender, instance, **kwargs):
                     instance.data_inicio = instance.data_assinatura
                     
         except sender.DoesNotExist:
-            pass # Objeto novo, o form cuida disso
+            pass 
             
-    # Se for um objeto novo (sem PK)
     else:
         if instance.status_contrato == Contrato.Status.ATIVO:
             if not instance.data_assinatura:
@@ -54,8 +51,8 @@ def atualizar_datas_baseado_no_status(sender, instance, **kwargs):
 @receiver(pre_save, sender=Contrato)
 def limpar_financeiro_se_cancelado(sender, instance, **kwargs):
     """
-    Se o contrato for movido para CANCELADO ou RESCINDIDO,
-    ele deve limpar quaisquer transações PENDENTES futuras.
+    Se o contrato for movido para RASCUNHO, CANCELADO ou RESCINDIDO,
+    ele deve limpar quaisquer transações PENDENTES ou ATRASADAS para permitir regeneração.
     """
     if not instance.pk:
         return # Ação apenas para contratos existentes
@@ -65,10 +62,12 @@ def limpar_financeiro_se_cancelado(sender, instance, **kwargs):
         status_anterior = obj_anterior.status_contrato
         status_novo = instance.status_contrato
         
-        novos_status_cancelamento = [
+        # Status que disparam a limpeza
+        novos_status_limpeza = [
             Contrato.Status.RESCINDIDO,
             Contrato.Status.CONCLUIDO,
             Contrato.Status.CANCELADO,
+            Contrato.Status.RASCUNHO, 
         ]
         
         status_validos_anteriores = [
@@ -76,30 +75,40 @@ def limpar_financeiro_se_cancelado(sender, instance, **kwargs):
             Contrato.Status.ATIVO,
         ]
         
-        # Se o status MUDOU de (Rascunho ou Ativo) PARA (Cancelado, Rescindido, Concluido)
-        if status_novo in novos_status_cancelamento and status_anterior in status_validos_anteriores:
+        # Se o status MUDOU de (Rascunho/Ativo) PARA (Limpeza)
+        # OU se permaneceu em RASCUNHO (edição de rascunho)
+        should_clean = (status_novo in novos_status_limpeza and status_anterior in status_validos_anteriores)
+        
+        if should_clean:
             
             # ==========================================================
-            # === CORREÇÃO: Usando string 'PENDENTE' para Transacao  ===
+            # === CORREÇÃO: Remove também ATRASADO, mantém PAGO      ===
             # ==========================================================
-            transacoes_pendentes = Transacao.objects.filter(
-                contrato=instance,
-                status='PENDENTE' # <-- CORRIGIDO
+            # Removemos qualquer conta que não esteja efetivamente PAGA.
+            # Isso resolve o problema de contas vencidas bloqueando a regeneração.
+            
+            transacoes_para_remover = Transacao.objects.filter(
+                contrato=instance
+            ).exclude(
+                status__in=['PAGO', 'CONCILIADO'] 
             )
-            # ==========================================================
+            # Nota: Se a sua Transacao não tiver 'CONCILIADO', o exclude funciona igual.
+            # Alternativa explícita: status__in=['PENDENTE', 'ATRASADO']
             
-            if transacoes_pendentes.exists():
-                count = transacoes_pendentes.count()
-                transacoes_pendentes.delete()
-                logger.info(f"Signal: Contrato {instance.id} movido para {status_novo}. {count} transações pendentes foram removidas.")
+            if transacoes_para_remover.exists():
+                count = transacoes_para_remover.count()
+                transacoes_para_remover.delete()
+                logger.info(f"Signal: Contrato {instance.id} resetado/cancelado. {count} transações não-pagas foram removidas.")
 
-            # Deleta Pagamentos PENDENTES (do modelo antigo, se houver)
-            pagamentos_pendentes = Pagamento.objects.filter(
-                contrato=instance,
-                status='PENDENTE'
+            # Mesma lógica para Pagamentos (espelho)
+            pagamentos_para_remover = Pagamento.objects.filter(
+                contrato=instance
+            ).exclude(
+                status='PAGO'
             )
-            if pagamentos_pendentes.exists():
-                pagamentos_pendentes.delete()
+            
+            if pagamentos_para_remover.exists():
+                pagamentos_para_remover.delete()
 
     except sender.DoesNotExist:
-        pass # Objeto novo
+        pass

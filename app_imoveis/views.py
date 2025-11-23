@@ -349,6 +349,16 @@ class ImovelViewSet(viewsets.ModelViewSet):
     permission_classes = [permissions.IsAuthenticated]
     filter_backends = [filters.SearchFilter]
     
+    # ==========================================================
+    # === CORREÇÃO PARA CONFLITO DE ROTAS SEM ALTERAR URLS.PY ===
+    # ==========================================================
+    # Definimos que o lookup (ID do imóvel) deve ser APENAS numérico.
+    # Isso impede que a URL 'imoveis/imagens/' seja casada com esta view
+    # (pois 'imagens' não é um número), permitindo que o Django continue
+    # procurando e encontre a rota correta definida posteriormente.
+    lookup_value_regex = r'\d+' 
+    # ==========================================================
+
     search_fields = [
         'logradouro', 'cidade', 'titulo_anuncio', 'codigo_referencia', 'bairro',
         'proprietario__nome', 'proprietario__razao_social', 'proprietario__documento'
@@ -362,22 +372,22 @@ class ImovelViewSet(viewsets.ModelViewSet):
         else:
             return Imovel.objects.none()
 
-        if self.action == 'lista_simples':
-            return base_queryset 
-
+        # CORREÇÃO: Removemos o bloqueio do 'lista_simples' para permitir os filtros.
+        
         status_param = self.request.query_params.get('status', None)
         
         if status_param:
              if status_param in Imovel.Status.values:
                 base_queryset = base_queryset.filter(status=status_param)
-        elif self.action == 'list': 
+        elif self.action in ['list', 'lista_simples']: 
+             # Filtra desativados por padrão tanto na listagem normal quanto na simples
              base_queryset = base_queryset.exclude(status=Imovel.Status.DESATIVADO)
 
         finalidade = self.request.query_params.get('finalidade', None) 
         tipo = self.request.query_params.get('tipo', None)
         cidade = self.request.query_params.get('cidade', None)
         bairro = self.request.query_params.get('bairro', None)
-        proprietario_id = self.request.query_params.get('proprietario', None)
+        proprietario_id = self.request.query_params.get('proprietario', None) # Agora este filtro é processado
 
         if finalidade: base_queryset = base_queryset.filter(finalidade=finalidade)
         if tipo: base_queryset = base_queryset.filter(tipo=tipo)
