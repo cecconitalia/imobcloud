@@ -1,22 +1,34 @@
 <template>
   <div class="imoveis-container">
 
-    <div v-if="sumarioImoveis" class="summary-cards">
-      <div class="card" @click="setFilter('status', 'A_VENDA')" :class="{ active: filters.status === 'A_VENDA' }">
-        <p class="card-value">{{ sumarioImoveis.a_venda }}</p>
-        <p class="card-label">Imóveis à Venda</p>
+    <div v-if="sumarioImoveis" class="dashboard-grid">
+      <div class="stat-card stat-a-venda" @click="setFilter('status', 'A_VENDA')" :class="{ active: filters.status === 'A_VENDA' }">
+        <div class="stat-icon"><i class="fas fa-hand-holding-usd"></i></div>
+        <div class="stat-info">
+            <h3>À Venda</h3>
+            <p>{{ sumarioImoveis.a_venda }}</p>
+        </div>
       </div>
-      <div class="card" @click="setFilter('status', 'PARA_ALUGAR')" :class="{ active: filters.status === 'PARA_ALUGAR' }">
-        <p class="card-value">{{ sumarioImoveis.para_alugar }}</p>
-        <p class="card-label">Imóveis para Alugar</p>
+      <div class="stat-card stat-para-alugar" @click="setFilter('status', 'PARA_ALUGAR')" :class="{ active: filters.status === 'PARA_ALUGAR' }">
+        <div class="stat-icon"><i class="fas fa-home"></i></div>
+        <div class="stat-info">
+            <h3>Para Alugar</h3>
+            <p>{{ sumarioImoveis.para_alugar }}</p>
+        </div>
       </div>
-      <div class="card" @click="setFilter('status', 'VENDIDO_OU_ALUGADO')" :class="{ active: filters.status === 'VENDIDO_OU_ALUGADO' }">
-        <p class="card-value">{{ sumarioImoveis.vendidos_e_alugados }}</p>
-        <p class="card-label">Vendidos/Alugados (Mês)</p>
+      <div class="stat-card stat-concluidos" @click="setFilter('status', 'VENDIDO_OU_ALUGADO')" :class="{ active: filters.status === 'VENDIDO_OU_ALUGADO' }">
+        <div class="stat-icon"><i class="fas fa-check-circle"></i></div>
+        <div class="stat-info">
+            <h3>Fechados (Mês)</h3>
+            <p>{{ sumarioImoveis.vendidos_e_alugados }}</p>
+        </div>
       </div>
-      <div class="card" @click="setFilter('status', '')" :class="{ active: filters.status === '' && !searchQuery }">
-        <p class="card-value">{{ imoveis.length }}</p>
-        <p class="card-label">Total de Imóveis</p>
+      <div class="stat-card stat-total" @click="setFilter('status', '')" :class="{ active: filters.status === '' && !searchQuery }">
+        <div class="stat-icon"><i class="fas fa-warehouse"></i></div>
+        <div class="stat-info">
+            <h3>Total na Carteira</h3>
+            <p>{{ imoveis.length }}</p>
+        </div>
       </div>
     </div>
     <div class="search-and-filter-bar">
@@ -67,56 +79,132 @@
       </div>
 
     <div v-if="isLoading" class="loading-message">
+      <div class="spinner"></div>
       A carregar imóveis...
     </div>
-    <div v-else-if="filteredImoveis.length === 0" class="empty-message">
-      Nenhum imóvel encontrado para os filtros e pesquisa aplicados.
+    <div v-else-if="filteredImoveis.length === 0" class="empty-message card">
+      <div class="empty-icon"><i class="fas fa-folder-open"></i></div>
+      <p>Nenhum imóvel encontrado para os filtros e pesquisa aplicados.</p>
     </div>
+    
     <div v-else class="imoveis-grid">
       <div v-for="imovel in filteredImoveis" :key="imovel.id" class="imovel-card">
-        <div class="card-image-container" @click="editImovel(imovel.id)">
-          <img 
-            :src="getPrincipalImage(imovel.imagens)" 
-            alt="Imagem do Imóvel" 
-            class="imovel-image"
-          />
-          <span :class="['status-badge', getStatusClass(imovel.status)]">
-            {{ formatStatus(imovel.status) }}
-          </span>
+        
+        <div class="card-top-bar" @click="editImovel(imovel.id)">
+           <div class="badges-left">
+               <span class="imovel-id">#{{ imovel.codigo_referencia }}</span>
+               <span :class="['tipo-badge', imovel.finalidade === 'VENDA' ? 'tipo-venda' : 'tipo-aluguel']">
+                  {{ imovel.finalidade }} ({{ imovel.tipo }})
+               </span>
+           </div>
+           <div class="badges-right">
+               <span :class="['status-pill', getStatusClass(imovel.status)]">
+                  <i :class="getStatusIcon(imovel.status)"></i>
+                  {{ formatStatus(imovel.status) }}
+               </span>
+           </div>
         </div>
-        <div class="card-content">
-          <div class="card-header-content">
-            <h3 class="card-title">{{ imovel.titulo_anuncio || 'Imóvel sem título' }}</h3>
-            <span class="card-codigo">#{{ imovel.codigo_referencia }}</span>
+        
+        <div class="card-body">
+          <div class="imovel-section" @click="editImovel(imovel.id)">
+             <div class="card-image-container">
+                 <img 
+                    :src="getPrincipalImage(imovel.imagens)" 
+                    alt="Imagem do Imóvel" 
+                    class="imovel-image"
+                 />
+             </div>
+             
+             <div class="imovel-info-text">
+                <h4 class="imovel-title" :title="imovel.titulo_anuncio">
+                    {{ imovel.titulo_anuncio || 'Imóvel sem título' }}
+                </h4>
+                <p class="imovel-address">
+                    <i class="fas fa-map-marker-alt text-muted"></i> 
+                    {{ imovel.bairro }}, {{ imovel.cidade }} - {{ imovel.estado }}
+                </p>
+                <p class="imovel-address">
+                    <i class="fas fa-ruler-combined text-muted"></i> 
+                    {{ imovel.area_total }} m² | 
+                    <i class="fas fa-bed text-muted ml-10"></i> {{ imovel.quartos }} Qts / {{ imovel.suites }} Suítes
+                </p>
+             </div>
           </div>
-          <div class="card-details">
-            <p><strong>Tipo:</strong> {{ imovel.tipo }}</p>
-            <p><strong>Finalidade:</strong> {{ imovel.finalidade }}</p>
-            <p><strong>Localização:</strong> {{ imovel.bairro }}, {{ imovel.cidade }}</p>
-            <p v-if="imovel.valor_venda"><strong>Valor de Venda:</strong> {{ formatCurrency(imovel.valor_venda) }}</p>
-            <p v-if="imovel.valor_aluguel"><strong>Valor de Aluguel:</strong> {{ formatCurrency(imovel.valor_aluguel) }}</p>
-            <p><strong>Área:</strong> {{ imovel.area_total }} m²</p>
-            <p><strong>Quartos:</strong> {{ imovel.quartos }} | <strong>Suítes:</strong> {{ imovel.suites }}</p>
+
+          <div class="datas-grid">
+             <div class="data-col">
+                <span class="data-label">Captação</span>
+                <div class="data-value text-muted">
+                    <i class="far fa-calendar-alt"></i> {{ formatarData(imovel.data_captacao) }}
+                </div>
+             </div>
+             <div class="data-divider"></div>
+             <div class="data-col">
+                <span class="data-label">Exclusividade</span>
+                <div class="data-value" :class="imovel.possui_exclusividade ? 'text-danger' : 'text-muted'">
+                    <i :class="imovel.possui_exclusividade ? 'fas fa-lock' : 'fas fa-unlock'"></i> 
+                    {{ imovel.possui_exclusividade ? 'SIM' : 'NÃO' }}
+                </div>
+             </div>
+          </div>
+
+          <div class="pessoas-container">
+              <div class="pessoa-row">
+                 <div class="pessoa-avatar avatar-proprietario">
+                    <i class="fas fa-user-shield"></i>
+                 </div>
+                 <div class="pessoa-info">
+                    <span class="pessoa-role role-proprietario">Proprietário</span>
+                    <span class="pessoa-name" :title="imovel.proprietario_detalhes?.nome_display">
+                        {{ imovel.proprietario_detalhes?.nome_display || '—' }}
+                    </span>
+                 </div>
+              </div>
           </div>
         </div>
+        
+        <div class="valor-footer">
+           <span class="valor-label">{{ imovel.status === 'A_VENDA' ? 'Valor Venda' : 'Valor Aluguel' }}</span>
+           <span class="valor-amount">{{ imovel.valor_venda ? formatCurrency(imovel.valor_venda) : formatCurrency(imovel.valor_aluguel) }}</span>
+        </div>
+
         <div class="card-actions">
-          <button @click="editImovel(imovel.id)" class="btn-edit">
-            <i class="fas fa-edit"></i> Editar
-          </button>
-          <button @click="confirmInativar(imovel.id)" class="btn-delete">
-            <i class="fas fa-trash-alt"></i> Inativar
-          </button>
+          <div class="actions-left">
+            <button
+                @click="editImovel(imovel.id)"
+                class="btn-pill btn-edit-detail"
+            >
+                <i class="fas fa-edit"></i> Editar Dados
+            </button>
+            <button
+                @click="router.push({ name: 'imovel-imagens', params: { id: imovel.id } })"
+                class="btn-pill btn-images"
+            >
+                <i class="fas fa-images"></i> Imagens
+            </button>
+          </div>
+
+          <div class="actions-right">
+              <button @click="handleVisualizarAutorizacao(imovel.id)" class="btn-mini btn-info" title="Autorização PDF">
+                <i class="fas fa-file-pdf"></i>
+              </button>
+              <button @click="confirmInativar(imovel.id)" class="btn-mini btn-delete-mini" title="Inativar/Excluir">
+                <i class="fas fa-trash-alt"></i>
+              </button>
+          </div>
         </div>
       </div>
     </div>
-  </div>
+    </div>
 </template>
 
 <script setup lang="ts">
 import { ref, onMounted, computed, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import apiClient from '@/services/api';
-import { formatCurrency, formatStatus } from '@/utils/formatters';
+import { formatCurrency } from '@/utils/formatters';
+import { format, parseISO } from 'date-fns';
+import { ptBR } from 'date-fns/locale';
 
 const router = useRouter();
 const imoveis = ref<any[]>([]);
@@ -128,22 +216,19 @@ const filters = ref({
   status: '',
 });
 
-// VARIÁVEL PARA O SUMÁRIO MANTIDA
 const sumarioImoveis = ref<any>(null); 
-// FIM
-
 const defaultImage = 'https://via.placeholder.com/400x300.png?text=Sem+imagem';
 let debounceTimeout: number | undefined = undefined;
+
+
+// --- FUNÇÕES DE API ---
 
 async function fetchImoveis() {
   isLoading.value = true;
   try {
     const response = await apiClient.get('/v1/imoveis/');
     imoveis.value = response.data;
-    
-    // CÁLCULO DO SUMÁRIO MANTIDO
     calculateSummary(imoveis.value);
-
   } catch (error) {
     console.error("Erro ao carregar imóveis:", error);
   } finally {
@@ -151,10 +236,47 @@ async function fetchImoveis() {
   }
 }
 
-// FUNÇÃO DE CÁLCULO DO SUMÁRIO MANTIDA
+async function inativarImovel(id: number) {
+  try {
+    await apiClient.patch(`/v1/imoveis/${id}/`, { status: 'DESATIVADO' });
+    
+    const index = imoveis.value.findIndex(imovel => imovel.id === id);
+    if (index !== -1) {
+      imoveis.value[index].status = 'DESATIVADO';
+    }
+    calculateSummary(imoveis.value);
+    alert('Imóvel inativado com sucesso!');
+  } catch (error) {
+    console.error("Erro ao inativar imóvel:", error);
+    alert('Ocorreu um erro ao inativar o imóvel.');
+  }
+}
+
+async function handleVisualizarAutorizacao(imovelId: number) {
+  try {
+    const response = await apiClient.get(
+      `/v1/imoveis/${imovelId}/gerar-autorizacao-pdf/`,
+      { responseType: 'blob' }
+    );
+    const file = new Blob([response.data], { type: 'application/pdf' });
+    const fileURL = URL.createObjectURL(file);
+    window.open(fileURL, '_blank');
+    setTimeout(() => URL.revokeObjectURL(fileURL), 10000);
+
+  } catch (error: any) {
+    console.error('Erro ao visualizar PDF:', error.response?.data || error);
+    alert("Falha ao gerar o PDF da Autorização.");
+  }
+}
+
+// --- LÓGICA DE FILTROS/SUMÁRIO ---
+
 function calculateSummary(list: any[]) {
+    // Conta os ativos
     const a_venda = list.filter(i => i.status === 'A_VENDA').length;
     const para_alugar = list.filter(i => i.status === 'PARA_ALUGAR').length;
+    
+    // Contagem de vendidos/alugados no mês (simulação simplificada, a API deveria fazer a data)
     const vendidos_e_alugados = list.filter(i => i.status === 'VENDIDO' || i.status === 'ALUGADO').length; 
 
     sumarioImoveis.value = {
@@ -164,46 +286,20 @@ function calculateSummary(list: any[]) {
     };
 }
 
-// FUNÇÃO DE FILTRO PELO CARD MANTIDA
+// Filtro rápido pelos cards do dashboard
 function setFilter(key: 'tipo' | 'finalidade' | 'status', value: string) {
-    if (key === 'status' && value === 'VENDIDO_OU_ALUGADO') {
-        if (filters.value.status === 'VENDIDO_OU_ALUGADO') {
-            filters.value.status = '';
+    if (key === 'status') {
+        if (filters.value.status === value) {
+            filters.value.status = ''; // Limpa o filtro se já estiver ativo
         } else {
-            filters.value.status = 'VENDIDO_OU_ALUGADO';
+            filters.value.status = value;
         }
     } else {
         if (filters.value[key] === value) {
-            filters.value[key] = ''; // Limpa o filtro se clicar novamente
+            filters.value[key] = ''; // Limpa o filtro se já estiver ativo
         } else {
             filters.value[key] = value;
         }
-    }
-}
-
-
-function getPrincipalImage(imagens: any[]): string {
-  if (!imagens || imagens.length === 0) {
-    return defaultImage;
-  }
-  const principal = imagens.find(img => img.principal);
-  return principal ? principal.imagem : imagens[0].imagem;
-}
-
-function getStatusClass(status: string) {
-    switch (status) {
-        case 'A_VENDA':
-        case 'PARA_ALUGAR':
-            return 'status-ativo';
-        case 'VENDIDO':
-        case 'ALUGADO':
-            return 'status-concluido';
-        case 'EM_CONSTRUCAO':
-            return 'status-pendente';
-        case 'DESATIVADO':
-            return 'status-inativo';
-        default:
-            return '';
     }
 }
 
@@ -235,6 +331,63 @@ const filteredImoveis = computed(() => {
   });
 });
 
+
+// --- FUNÇÕES DE FORMATO E UI ---
+
+function getPrincipalImage(imagens: any[]): string {
+  if (!imagens || imagens.length === 0) {
+    return defaultImage;
+  }
+  const principal = imagens.find(img => img.principal);
+  return principal ? principal.imagem : imagens[0].imagem;
+}
+
+function getStatusClass(status: string) {
+    switch (status) {
+        case 'A_VENDA':
+        case 'PARA_ALUGAR':
+            return 'status-ativo';
+        case 'VENDIDO':
+        case 'ALUGADO':
+            return 'status-concluido';
+        case 'EM_CONSTRUCAO':
+            return 'status-pendente';
+        case 'DESATIVADO':
+            return 'status-inativo';
+        default:
+            return 'status-default';
+    }
+}
+
+function getStatusIcon(status: string) {
+  switch (status) {
+    case 'A_VENDA': return 'fas fa-tag';
+    case 'PARA_ALUGAR': return 'fas fa-building';
+    case 'VENDIDO': return 'fas fa-flag-checkered';
+    case 'ALUGADO': return 'fas fa-key';
+    case 'EM_CONSTRUCAO': return 'fas fa-hard-hat';
+    case 'DESATIVADO': return 'fas fa-trash-alt';
+    default: return 'fas fa-info-circle';
+  }
+}
+
+const formatStatus = (status: string) => {
+  switch (status) {
+    case 'A_VENDA': return 'À Venda';
+    case 'PARA_ALUGAR': return 'Alugar';
+    case 'VENDIDO': return 'Vendido';
+    case 'ALUGADO': return 'Alugado';
+    case 'EM_CONSTRUCAO': return 'Em Obra';
+    case 'DESATIVADO': return 'Inativo';
+    default: return status;
+  }
+};
+
+function formatarData(data: string | null | undefined): string {
+  if (!data) return '—';
+  try { return format(parseISO(data), 'dd/MM/yy', { locale: ptBR }); } catch { return 'Inválida'; }
+}
+
 function goToCreateImovel() {
   router.push({ name: 'imovel-novo' });
 }
@@ -244,30 +397,12 @@ function editImovel(id: number) {
 }
 
 function confirmInativar(id: number) {
-  if (confirm('Tem certeza que deseja inativar este imóvel? Ele continuará existindo, mas não estará disponível para venda/aluguel.')) {
+  if (confirm('Tem certeza que deseja INATIVAR este imóvel? Ele continuará existindo no sistema, mas será removido do site e da lista principal.')) {
     inativarImovel(id);
   }
 }
 
-async function inativarImovel(id: number) {
-  try {
-    await apiClient.patch(`/v1/imoveis/${id}/`, { status: 'DESATIVADO' });
-    
-    const index = imoveis.value.findIndex(imovel => imovel.id === id);
-    if (index !== -1) {
-      imoveis.value[index].status = 'DESATIVADO';
-    }
-
-    // Reacalcula o sumário após a alteração
-    calculateSummary(imoveis.value);
-
-    alert('Imóvel inativado com sucesso!');
-  } catch (error) {
-    console.error("Erro ao inativar imóvel:", error);
-    alert('Ocorreu um erro ao inativar o imóvel.');
-  }
-}
-
+// --- Watchers & Mounted ---
 onMounted(() => {
   fetchImoveis();
 });
@@ -277,255 +412,231 @@ watch([filters.value, searchQuery], () => {
         clearTimeout(debounceTimeout);
     }
     debounceTimeout = setTimeout(() => {
-         // Apenas para que o watch seja executado e reaja a mudanças, o computed já filtra
+         // Não precisa de lógica aqui pois o computed já é reativo a essas mudanças
     }, 500);
 }, { deep: true });
 
 </script>
 
 <style scoped>
+/* ================================================== */
+/* 1. Layout Geral */
+/* ================================================== */
 .imoveis-container {
   padding: 0;
   background-color: transparent;
 }
+.empty-message { text-align: center; padding: 4rem 2rem; color: #6c757d; }
+.empty-icon { font-size: 3rem; color: #dee2e6; margin-bottom: 1rem; }
+.loading-message {
+  text-align: center; padding: 2rem;
+  font-size: 1.2rem; color: #6c757d;
+}
+.spinner {
+  border: 3px solid #e9ecef; border-top: 3px solid #0d6efd; border-radius: 50%;
+  width: 40px; height: 40px; animation: spin 0.8s linear infinite; margin: 0 auto 1rem;
+}
+@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
 
-/* ESTILOS DO DASHBOARD (MANTIDOS) */
-.summary-cards {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: 1.5rem;
-  margin-bottom: 2rem;
+/* ================================================== */
+/* 2. Dashboard Stats (Layout ContratosView) */
+/* ================================================== */
+.dashboard-grid {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 1.25rem; margin-bottom: 2rem;
 }
-.card {
-  background-color: #fff;
-  padding: 1.5rem;
-  border-radius: 8px;
-  box-shadow: 0 4px 6px rgba(0,0,0,0.05);
-  text-align: center;
-  cursor: pointer;
-  border: 2px solid transparent;
-  transition: all 0.2s;
-  display: flex; 
-  flex-direction: column;
-  justify-content: center;
+.stat-card {
+  background-color: #fff; border: none; border-radius: 12px; padding: 1.5rem;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.04); display: flex; align-items: center; gap: 1rem;
+  transition: transform 0.2s ease, box-shadow 0.2s ease; cursor: pointer;
 }
-.card:hover {
-    transform: translateY(-5px);
-    box-shadow: 0 8px 12px rgba(0,0,0,0.1);
-}
-.card.active {
-    border-color: #007bff;
-    box-shadow: 0 6px 10px rgba(0, 123, 255, 0.2);
-}
-.card-value {
-  font-size: 2.5rem;
-  font-weight: bold;
-  margin: 0;
-  color: #007bff;
-}
-.card-label {
-  margin: 0.5rem 0 0 0;
-  color: #6c757d;
-  font-size: 0.9rem;
-}
-/* FIM ESTILOS DO DASHBOARD */
+.stat-card:hover { transform: translateY(-3px); box-shadow: 0 6px 15px rgba(0, 0, 0, 0.08); }
+.stat-card.active { border: 2px solid #007bff; }
 
+.stat-icon {
+    width: 50px; height: 50px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 1.5rem;
+    font-weight: 700;
+}
+.stat-info h3 { font-size: 0.8rem; color: #616161; font-weight: 600; margin: 0; text-transform: uppercase; letter-spacing: 0.5px; }
+.stat-info p { font-size: 1.55rem; font-weight: 700; color: #212121; margin: 0; line-height: 1.2; }
+
+/* Cores específicas para o Imóvel Dashboard */
+.stat-a-venda .stat-icon { background-color: #E3F2FD; color: #2196F3; } /* Azul Claro */
+.stat-a-venda .stat-info p { color: #1976D2; }
+
+.stat-para-alugar .stat-icon { background-color: #E0F2F1; color: #00838F; } /* Verde Água */
+.stat-para-alugar .stat-info p { color: #00695C; }
+
+.stat-concluidos .stat-icon { background-color: #FBEFF2; color: #C2185B; } /* Rosa */
+.stat-concluidos .stat-info p { color: #880E4F; }
+
+.stat-total .stat-icon { background-color: #F5F5F5; color: #424242; } /* Cinza Escuro */
+.stat-total .stat-info p { color: #212121; }
+
+
+/* ================================================== */
+/* 3. Search & Filter Bar (Padrão ContratosView) */
+/* ================================================== */
 .search-and-filter-bar {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 1rem;
-  margin-bottom: 1.5rem; 
-  align-items: center;
-  background-color: transparent;
-  padding: 0;
-  border-radius: 0;
-  box-shadow: none;
+  display: flex; flex-wrap: wrap; gap: 1rem; margin-bottom: 1.5rem;
+  align-items: center; background-color: transparent; padding: 0; box-shadow: none;
 }
-
 .search-input {
-  padding: 10px;
-  border: 1px solid #ccc;
-  border-radius: 5px;
-  width: 100%;
-  max-width: 350px;
-  box-sizing: border-box;
-  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif;
+  padding: 10px; border: 1px solid #ccc; border-radius: 5px; width: 100%; max-width: 350px; box-sizing: border-box; font-family: inherit;
 }
-
-.filter-group {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-}
-
-.filter-group label {
-  font-weight: 500;
-  color: #555;
-  white-space: nowrap;
-}
-
+.filter-group { display: flex; align-items: center; gap: 0.5rem; }
+.filter-group label { font-weight: 500; color: #555; white-space: nowrap; }
 .filter-group select {
-  padding: 8px 12px;
-  border: 1px solid #ccc;
-  border-radius: 5px;
-  font-size: 0.95rem;
-  background-color: #f8f9fa;
-  min-width: 120px;
-  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif;
+  padding: 8px 12px; border: 1px solid #ccc; border-radius: 5px; font-size: 0.95rem;
+  background-color: #f8f9fa; min-width: 120px; font-family: inherit;
 }
-
-/* CORREÇÃO: Estilo do botão para alinhar no far-right da barra de filtros */
 .btn-add {
-  background-color: #007bff; /* Cor primária padrão */
-  color: white;
-  padding: 10px 15px;
-  border: none;
-  border-radius: 5px;
-  cursor: pointer;
-  font-weight: bold;
-  transition: background-color 0.3s ease;
-  font-size: 0.95rem;
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  margin-left: auto; /* IMPORTANTE: Empurra o botão para a direita */
-  width: auto;
-  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif;
+  background-color: #007bff; color: white; padding: 10px 15px; border: none; border-radius: 5px;
+  cursor: pointer; font-weight: bold; transition: background-color 0.3s ease; font-size: 0.95rem;
+  display: flex; align-items: center; gap: 0.5rem; margin-left: auto; width: auto; text-decoration: none;
+  font-family: inherit;
+}
+.btn-add:hover { background-color: #0056b3; }
+@media (max-width: 768px) {
+  .search-and-filter-bar { flex-direction: column; align-items: stretch; }
+  .search-input { max-width: 100%; }
+  .filter-group { flex-direction: column; align-items: stretch; }
+  .btn-add { margin-left: 0; justify-content: center; }
 }
 
-.btn-add:hover {
-  background-color: #0056b3;
-}
-/* FIM CORREÇÃO */
 
+/* ================================================== */
+/* 4. Grid de Imóveis (Novo Layout de Card Contratos) */
+/* ================================================== */
 .imoveis-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
-  gap: 1.5rem;
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+  gap: 1.5rem; padding-bottom: 2rem;
 }
 
 .imovel-card {
-  background-color: #ffffff;
-  border-radius: 8px;
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.07);
-  transition: transform 0.3s ease, box-shadow 0.3s ease;
-  overflow: hidden;
-  display: flex;
-  flex-direction: column;
+  background-color: #fff; border-radius: 12px; border: 1px solid rgba(0,0,0,0.06);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.03); display: flex; flex-direction: column;
+  transition: all 0.3s ease; position: relative; overflow: hidden;
 }
+.imovel-card:hover { transform: translateY(-3px); box-shadow: 0 8px 18px rgba(0,0,0,0.06); }
 
-.imovel-card:hover {
-  transform: translateY(-5px);
-  box-shadow: 0 6px 12px rgba(0, 0, 0, 0.1);
+
+/* Header (ID e Tipo) */
+.card-top-bar {
+    padding: 0.85rem 1.25rem; display: flex; justify-content: space-between; align-items: center;
+    border-bottom: 1px solid #f0f2f5; background: #fff; cursor: pointer;
 }
+.badges-left, .badges-right { display: flex; align-items: center; gap: 8px; }
+
+.imovel-id {
+    font-size: 0.75rem; font-weight: 800; color: #374151;
+    background: #f3f4f6; padding: 3px 8px; border-radius: 6px;
+}
+.tipo-badge {
+    font-size: 0.7rem; font-weight: 700; text-transform: uppercase;
+    padding: 3px 8px; border-radius: 6px; color: #495057; background-color: #f8f9fa; border: 1px solid #e5e7eb;
+}
+.status-pill {
+    padding: 0.35em 0.85em; border-radius: 50px; font-size: 0.7rem; font-weight: 700;
+    text-transform: uppercase; display: flex; align-items: center; gap: 5px;
+}
+/* Status Colors (Mapeamento do Imóvel) */
+.status-ativo { background-color: #d1fae5; color: #065f46; } /* Verde para Ativo/Venda/Aluguel */
+.status-concluido { background-color: #e0f2fe; color: #1e40af; } /* Azul para Vendido/Alugado */
+.status-pendente { background-color: #fef3c7; color: #92400e; } /* Amarelo para Em Construção */
+.status-inativo { background-color: #f3f4f6; color: #6b7280; } /* Cinza para Desativado */
+
+
+/* Body - Imagem e Detalhes */
+.card-body { padding: 0; flex-grow: 1; display: flex; flex-direction: column; }
+
+.imovel-section { 
+    display: flex; padding: 1.25rem 1.25rem 0.75rem; cursor: pointer; 
+}
+.imovel-info-text { flex-grow: 1; min-width: 0; }
 
 .card-image-container {
-  position: relative;
-  width: 100%;
-  height: 180px;
-  overflow: hidden;
-  cursor: pointer;
+    width: 100px; height: 100px; border-radius: 8px; overflow: hidden; margin-right: 1rem;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.08); flex-shrink: 0;
 }
+.imovel-image { width: 100%; height: 100%; object-fit: cover; }
 
-.imovel-image {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
+
+.imovel-title {
+    font-size: 1.05rem; font-weight: 700; color: #111827; margin: 0 0 0.25rem 0;
+    line-height: 1.4; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
-
-.status-badge {
-  position: absolute;
-  top: 8px;
-  right: 8px;
-  padding: 4px 8px;
-  border-radius: 16px;
-  color: white;
-  font-weight: bold;
-  font-size: 0.75em;
+.imovel-address {
+    font-size: 0.85rem; color: #6b7280; margin: 0;
+    display: flex; align-items: center; gap: 6px;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
+.ml-10 { margin-left: 10px; }
 
-.status-badge.status-ativo { background-color: #28a745; }
-.status-badge.status-concluido { background-color: #007bff; }
-.status-badge.status-pendente { background-color: #ffc107; color: #333; }
-.status-badge.status-inativo { background-color: #6c757d; }
 
-.card-content {
-  padding: 1rem;
-  flex-grow: 1;
+/* Datas/Autorização */
+.datas-grid {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 0.6rem 1.25rem; background-color: #f8fafc; border-top: 1px solid #f1f5f9; border-bottom: 1px solid #f1f5f9;
 }
+.data-col { display: flex; flex-direction: column; gap: 2px; }
+.data-label { font-size: 0.65rem; color: #9ca3af; font-weight: 600; text-transform: uppercase; }
+.data-value { font-size: 0.85rem; font-weight: 600; color: #374151; display: flex; align-items: center; gap: 6px; }
+.data-divider { width: 1px; height: 24px; background-color: #e2e8f0; }
+.text-muted { color: #9ca3af; }
+.text-danger { color: #ef4444; }
 
-.card-header-content {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 0.4rem;
+
+/* Pessoas Grid (Proprietário) */
+.pessoas-container { padding: 1rem 1.25rem; display: flex; flex-direction: column; gap: 0.5rem; }
+.pessoa-row { display: flex; align-items: center; gap: 0.85rem; }
+
+.pessoa-avatar {
+    width: 36px; height: 36px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 0.9rem; flex-shrink: 0;
 }
+.avatar-proprietario { background-color: #f3e8ff; color: #9333ea; }
+.role-proprietario { color: #9333ea; }
 
-.card-title {
-  font-size: 1.1rem;
-  margin: 0;
-  color: #333;
-  font-weight: 600;
+.pessoa-info { display: flex; flex-direction: column; overflow: hidden; }
+.pessoa-role { font-size: 0.7rem; font-weight: 700; text-transform: uppercase; margin-bottom: 1px; }
+.pessoa-name { font-size: 0.9rem; color: #1f2937; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+
+/* Footer Values */
+.valor-footer {
+    margin-top: auto; padding: 0.85rem 1.25rem;
+    display: flex; justify-content: space-between; align-items: center;
+    background-color: #111827; color: #fff; 
 }
+.valor-label { font-size: 0.75rem; color: #9ca3af; font-weight: 500; text-transform: uppercase; }
+.valor-amount { font-size: 1.1rem; font-weight: 700; color: #fff; }
 
-.card-codigo {
-  font-size: 0.85rem;
-  font-weight: 600;
-  color: #6c757d;
-}
 
-.card-details p {
-  margin: 0.3rem 0;
-  font-size: 0.85rem;
-  color: #666;
-}
-
-.card-details strong {
-  color: #333;
-}
-
+/* Actions */
 .card-actions {
-  display: flex;
-  justify-content: space-around;
-  padding: 0.8rem;
-  border-top: 1px solid #f0f0f0;
-  gap: 0.8rem;
+    padding: 0.85rem 1.25rem; background-color: #fff;
+    display: flex; justify-content: space-between; align-items: center; gap: 1rem;
 }
+.actions-left { display: flex; gap: 0.5rem; }
+.actions-right { display: flex; gap: 0.25rem; }
 
-.btn-edit, .btn-delete {
-  flex-grow: 1;
-  padding: 8px;
-  border: none;
-  border-radius: 4px;
-  cursor: pointer;
-  font-weight: bold;
-  transition: background-color 0.3s ease;
-  font-size: 0.9rem;
-  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif;
+/* Action Buttons */
+.btn-pill {
+    border: none; border-radius: 6px; padding: 0.4rem 0.85rem; font-size: 0.8rem; font-weight: 600;
+    cursor: pointer; display: inline-flex; align-items: center; gap: 6px; transition: all 0.2s;
 }
+.btn-edit-detail { background-color: #eff6ff; color: #1e40af; }
+.btn-edit-detail:hover { background-color: #dbeafe; }
 
-.btn-edit {
-  background-color: #17a2b8;
-  color: white;
-}
+.btn-images { background-color: #f0fdf4; color: #16a34a; }
+.btn-images:hover { background-color: #dcfce7; }
 
-.btn-edit:hover {
-  background-color: #138496;
+.btn-mini {
+    width: 32px; height: 32px; border-radius: 6px; border: 1px solid transparent; background: transparent;
+    color: #9ca3af; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: all 0.2s;
 }
-
-.btn-delete {
-  background-color: #dc3545;
-  color: white;
-}
-
-.btn-delete:hover {
-  background-color: #c82333;
-}
-
-.loading-message, .empty-message {
-  text-align: center;
-  padding: 2rem;
-  font-size: 1.2rem;
-  color: #6c757d;
-}
+.btn-mini:hover { background-color: #f3f4f6; color: #374151; }
+.btn-delete-mini:hover { background-color: #fee2e2; color: #dc2626; }
+.btn-info { color: #17a2b8; }
+.btn-info:hover { background-color: #e0faff; }
 </style>

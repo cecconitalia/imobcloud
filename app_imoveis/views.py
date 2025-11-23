@@ -37,10 +37,10 @@ from .serializers import (
     ImovelPublicSerializer, 
     ContatoImovelSerializer, 
     ImagemImovelSerializer,
-    ImovelSimplificadoSerializer # Importação adicionada aqui
+    ImovelSimplificadoSerializer 
 )
 from core.models import Imobiliaria, PerfilUsuario, Notificacao
-from app_clientes.models import Oportunidade
+from app_clientes.models import Cliente, Oportunidade 
 from app_config_ia.models import ModeloDePrompt
 from core.serializers import ImobiliariaPublicSerializer
 
@@ -56,7 +56,7 @@ except Exception as e:
 
 
 # ===================================================================
-# VIEWS PÚBLICAS (Mantidas como estavam)
+# VIEWS PÚBLICAS
 # ===================================================================
 
 class ImovelPublicListView(ListAPIView):
@@ -340,7 +340,7 @@ class ImovelIAView(APIView):
 
 
 # ===================================================================
-# VIEWS INTERNAS (Para o painel administrativo, requerem login)
+# VIEWS INTERNAS
 # ===================================================================
 
 class ImovelViewSet(viewsets.ModelViewSet):
@@ -349,14 +349,12 @@ class ImovelViewSet(viewsets.ModelViewSet):
     permission_classes = [permissions.IsAuthenticated]
     filter_backends = [filters.SearchFilter]
     
-    # CORREÇÃO: Adicionado campos do proprietário para busca
     search_fields = [
         'logradouro', 'cidade', 'titulo_anuncio', 'codigo_referencia', 'bairro',
         'proprietario__nome', 'proprietario__razao_social', 'proprietario__documento'
     ] 
 
     def get_queryset(self):
-        # 1. Filtro base por Tenant
         if self.request.user.is_superuser:
              base_queryset = Imovel.objects.all()
         elif self.request.tenant:
@@ -364,11 +362,9 @@ class ImovelViewSet(viewsets.ModelViewSet):
         else:
             return Imovel.objects.none()
 
-        # 2. NÃO aplicar filtros de query param se for a action 'lista_simples'
         if self.action == 'lista_simples':
             return base_queryset 
 
-        # 3. Aplicar filtros de query param para as actions normais (list, retrieve, etc.)
         status_param = self.request.query_params.get('status', None)
         
         if status_param:
@@ -382,7 +378,6 @@ class ImovelViewSet(viewsets.ModelViewSet):
         cidade = self.request.query_params.get('cidade', None)
         bairro = self.request.query_params.get('bairro', None)
         proprietario_id = self.request.query_params.get('proprietario', None)
-
 
         if finalidade: base_queryset = base_queryset.filter(finalidade=finalidade)
         if tipo: base_queryset = base_queryset.filter(tipo=tipo)
@@ -420,22 +415,13 @@ class ImovelViewSet(viewsets.ModelViewSet):
         else:
              raise PermissionDenied("Você não tem permissão para inativar este imóvel.")
 
-    # ==================================================================
-    # AÇÃO 'lista_simples'
-    # ==================================================================
     @action(detail=False, methods=['get'], url_path='lista-simples')
     def lista_simples(self, request):
-        """
-        Retorna uma lista simplificada de imóveis para uso em dropdowns.
-        """
         queryset = self.get_queryset()
-        # Aqui usamos o serializer que criamos e importamos localmente
         serializer = ImovelSimplificadoSerializer(queryset, many=True)
         return Response(serializer.data)
 
     def _get_imovel_contexto_para_ia(self, imovel):
-        """Helper para formatar os dados do imóvel para a IA."""
-        
         contexto = []
         contexto.append(f"Tipo de Imóvel: {imovel.get_tipo_display()}")
         contexto.append(f"Finalidade: {imovel.get_finalidade_display()}") 
@@ -665,10 +651,89 @@ class ContatoImovelViewSet(viewsets.ModelViewSet):
             return base_queryset.filter(imovel__imobiliaria=self.request.tenant).order_by('-data_contato')
         return ContatoImovel.objects.none()
 
+    @transaction.atomic 
     def perform_create(self, serializer):
         contato = serializer.save()
+        imovel = contato.imovel
+        imobiliaria = imovel.imobiliaria
+        
+        cliente_para_oportunidade = None
+        oportunidade = None
+
+        # 1. Tentar encontrar ou criar o Cliente (Lead Provisório)
+        cliente_por_email = Cliente.objects.filter(imobiliaria=imobiliaria, email__iexact=contato.email).first()
+
+        if cliente_por_email:
+            cliente_para_oportunidade = cliente_por_email
+            
+        else:
+            # Cliente novo: cria o registro
+            documento_provisorio = f"99999{contato.id:06d}"[:11].ljust(11, '0') 
+
+            try:
+                novo_cliente = Cliente.objects.create(
+                    imobiliaria=imobiliaria,
+                    tipo_pessoa='FISICA', 
+                    documento=documento_provisorio, 
+                    nome=contato.nome,
+                    email=contato.email,
+                    telefone=contato.telefone,
+                    preferencias_imovel=f"Interesse pelo imóvel #{imovel.codigo_referencia or imovel.id}. Mensagem: {contato.mensagem}",
+                    perfil_cliente=['Interessado', 'Lead'],
+                    ativo=True
+                )
+                cliente_para_oportunidade = novo_cliente
+            except Exception as e:
+                print(f"ERRO CRÍTICO AO CRIAR CLIENTE PARA O LEAD: {e}")
+                cliente_para_oportunidade = None 
+
+        
+        # 2. Criar a Oportunidade
+        if cliente_para_oportunidade:
+             oportunidade_existente = Oportunidade.objects.filter(
+                 imobiliaria=imobiliaria,
+                 imovel=imovel,
+                 cliente=cliente_para_oportunidade
+             ).exclude(fase__in=[Oportunidade.Fases.GANHO, Oportunidade.Fases.PERDIDO]).first()
+             
+             if not oportunidade_existente:
+                 oportunidade = Oportunidade.objects.create(
+                     imobiliaria=imobiliaria,
+                     imovel=imovel,
+                     cliente=cliente_para_oportunidade,
+                     fase=Oportunidade.Fases.LEAD,
+                     fonte=Oportunidade.Fontes.SITE,
+                     titulo=f"Lead Site: {imovel.titulo_anuncio or imovel.tipo} ({contato.nome})",
+                     valor_estimado=imovel.valor_venda or imovel.valor_aluguel,
+                     informacoes_adicionais=f"Mensagem do Lead: {contato.mensagem}"
+                 )
+                 
+                 # 3. Notificação no Painel
+                 responsavel = oportunidade.responsavel
+                 if not responsavel:
+                     admin_perfil = PerfilUsuario.objects.filter(
+                         imobiliaria=imobiliaria, 
+                         is_admin=True
+                     ).select_related('user').first()
+                     
+                     if admin_perfil:
+                         responsavel = admin_perfil.user
+                     else:
+                          responsavel = None 
+
+                 if responsavel:
+                     Notificacao.objects.create(
+                         destinatario=responsavel,
+                         mensagem=f"Novo Lead do Site! Cliente: {contato.nome}. Oportunidade criada: {oportunidade.titulo}.",
+                         link=f"/funil-vendas?id={oportunidade.id}" 
+                     )
+             else:
+                 oportunidade = oportunidade_existente
+            
+             self.created_oportunidade_id = oportunidade.id
+             self.created_cliente_id = cliente_para_oportunidade.id 
+                 
         try:
-            imobiliaria = contato.imovel.imobiliaria
             if hasattr(imobiliaria, 'email_contato') and imobiliaria.email_contato:
                 destinatario_email = imobiliaria.email_contato
                 assunto = f"Novo Contato para o Imóvel: {contato.imovel.titulo_anuncio or contato.imovel.logradouro}"
@@ -677,22 +742,44 @@ class ContatoImovelViewSet(viewsets.ModelViewSet):
 
                 mensagem_corpo = f"""
                 Você recebeu um novo contato através do site!
-                ...
+                Nome: {contato.nome}
+                Email: {contato.email}
+                Telefone: {contato.telefone}
+                Imóvel: {contato.imovel.titulo_anuncio} ({contato.imovel.codigo_referencia})
+                Mensagem: {contato.mensagem}
+                
                 """
+                if oportunidade:
+                    mensagem_corpo += f"Uma oportunidade (ID: {oportunidade.id}) foi criada automaticamente no funil. "
+                    mensagem_corpo += f"Link para a Oportunidade: {base_url_painel}/oportunidades/editar/{oportunidade.id}\n"
+                
+                mensagem_corpo += f"Acesse o painel para ver os detalhes do Imóvel: {link_imovel_painel}"
+                
                 remetente = settings.DEFAULT_FROM_EMAIL
                 send_mail(assunto, mensagem_corpo, remetente, [destinatario_email], fail_silently=False)
 
-            oportunidade_associada = Oportunidade.objects.filter(imovel=contato.imovel).first()
-            if oportunidade_associada and oportunidade_associada.responsavel:
-                # CORREÇÃO: O responsável já é o objeto User.
-                destinatario_notificacao = oportunidade_associada.responsavel 
-                Notificacao.objects.create(
-                    destinatario=destinatario_notificacao,
-                    mensagem=f"Novo contato de '{contato.nome}' para o imóvel '{contato.imovel.titulo_anuncio or contato.imovel.logradouro}'.",
-                    link=f"/contatos" 
-                )
         except Exception as e:
             print(f"ERRO AO ENVIAR NOTIFICAÇÕES DE CONTATO: {e}")
+
+    def create(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        self.perform_create(serializer)
+        
+        oportunidade_id = getattr(self, 'created_oportunidade_id', None)
+        cliente_id = getattr(self, 'created_cliente_id', None)
+
+        if oportunidade_id:
+             return Response({
+                 'status': 'success',
+                 'message': 'Lead, Cliente e Oportunidade criados com sucesso.',
+                 'oportunidade_id': oportunidade_id,
+                 'cliente_id': cliente_id, 
+                 'redirect_url': f'/oportunidades/editar/{oportunidade_id}?cliente_id={cliente_id}' 
+             }, status=status.HTTP_201_CREATED)
+        else:
+             headers = self.get_success_headers(serializer.data)
+             return Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)
 
     @action(detail=True, methods=['post'], permission_classes=[permissions.IsAuthenticated])
     def arquivar(self, request, pk=None):
@@ -927,14 +1014,16 @@ class ImobiliariaPublicDetailView(RetrieveAPIView):
 
 # --- INÍCIO DA IMPLEMENTAÇÃO DO RELATÓRIO DE AUTORIZAÇÕES (JSON + PDF) ---
 
-def _get_autorizacao_queryset(query_params):
+def _get_autorizacao_queryset(tenant, query_params): # CORREÇÃO: Adicionado 'tenant'
     """
     Helper reutilizável para buscar e filtrar o queryset de autorizações.
-    Usado tanto pela API JSON quanto pela geração de PDF.
     """
+    # CORREÇÃO: Filtra pela imobiliária atual (tenant)
     queryset = Imovel.objects.filter(
-        data_fim_autorizacao__isnull=False
+        imobiliaria=tenant
     ).select_related('proprietario')
+    # CORREÇÃO: Removido o filtro data_fim_autorizacao__isnull=False inicial
+    # para permitir que imóveis sem data apareçam como "Ativos/Indefinidos"
 
     today = date.today()
     
@@ -961,22 +1050,29 @@ def _get_autorizacao_queryset(query_params):
             queryset = queryset.filter(data_fim_autorizacao__lte=data_limite, data_fim_autorizacao__gte=today)
         elif dias == 0:
              queryset = queryset.filter(data_fim_autorizacao__lt=today)
-    else:
-        queryset = queryset.filter(data_fim_autorizacao__gte=today)
+    # CORREÇÃO: Tratamento de validade='ativas' (inclui sem data ou data futura)
+    elif validade_dias == 'ativas':
+         queryset = queryset.filter(Q(data_fim_autorizacao__gte=today) | Q(data_fim_autorizacao__isnull=True))
 
     queryset = queryset.order_by('data_fim_autorizacao')
 
     data_list = []
     for imovel in queryset:
-        dias_restantes = imovel.dias_restantes.days
+        # Tratamento para data nula (sem prazo definido)
+        if imovel.dias_restantes:
+             dias_restantes = imovel.dias_restantes.days
+        else:
+             dias_restantes = 9999 # Valor alto para representar "sem risco imediato"
         
         status_risco = 'Ativo'
-        if dias_restantes < 0:
+        
+        if imovel.data_fim_autorizacao and dias_restantes < 0:
              status_risco = 'Expirado'
-        elif dias_restantes <= 30:
+        elif imovel.data_fim_autorizacao and dias_restantes <= 30:
              status_risco = 'Risco (30 dias)'
-        elif dias_restantes <= 90:
+        elif imovel.data_fim_autorizacao and dias_restantes <= 90:
              status_risco = 'Atenção (90 dias)'
+        # Se não tiver data (dias_restantes=9999), fica como 'Ativo'
 
         data_list.append({
             'id': imovel.id,
@@ -985,7 +1081,7 @@ def _get_autorizacao_queryset(query_params):
             'proprietario': imovel.proprietario.nome if imovel.proprietario else 'N/A',
             'data_captacao': imovel.data_captacao,
             'data_fim_autorizacao': imovel.data_fim_autorizacao,
-            'dias_restantes': dias_restantes,
+            'dias_restantes': dias_restantes if imovel.data_fim_autorizacao else None, # Retorna None se sem data
             'status_risco': status_risco,
             'exclusividade': "Sim" if imovel.possui_exclusividade else "Não",
             'comissao': imovel.comissao_percentual,
@@ -998,7 +1094,14 @@ class AutorizacaoReportView(APIView):
     permission_classes = [permissions.IsAuthenticated] 
 
     def get(self, request, *args, **kwargs):
-        data = _get_autorizacao_queryset(request.query_params)
+        tenant = request.tenant
+        if not tenant and request.user.is_superuser:
+            tenant = Imobiliaria.objects.first()
+            
+        if not tenant:
+             return Response({"error": "Tenant não identificado."}, status=400)
+
+        data = _get_autorizacao_queryset(tenant, request.query_params) # Passa o tenant
         return Response(data, status=status.HTTP_200_OK)
 
 
@@ -1006,7 +1109,11 @@ class AutorizacaoReportPDFView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def get(self, request, *args, **kwargs):
-        data = _get_autorizacao_queryset(request.query_params)
+        tenant = request.tenant
+        if not tenant and request.user.is_superuser:
+            tenant = Imobiliaria.objects.first()
+
+        data = _get_autorizacao_queryset(tenant, request.query_params) # Passa o tenant
         
         validade_dias_param = request.query_params.get('validade_dias')
         exclusividade_param = request.query_params.get('exclusividade')

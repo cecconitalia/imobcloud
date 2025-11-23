@@ -58,7 +58,7 @@
                         </template>
                     </v-select>
                     <small v-if="clienteCriadoAutomaticamente" class="helper-text text-success">
-                        <i class="fas fa-check-circle"></i> Cliente criado e pré-selecionado automaticamente.
+                        <i class="fas fa-check-circle"></i> Cliente criado/selecionado automaticamente.
                     </small>
                     </div>
 
@@ -358,6 +358,7 @@ async function onImovelSearch(search: string, loading: (l: boolean) => void) {
 /**
  * Verifica se o cliente existe por email/nome. Se não existir, cria um novo
  * cliente Lead e retorna o ID.
+ * CORREÇÃO: Agora filtra estritamente pelo e-mail para evitar selecionar o cliente errado.
  */
 async function checkOrCreateClient(leadData: { nome: string, email: string, telefone: string }): Promise<number | null> {
     try {
@@ -366,19 +367,32 @@ async function checkOrCreateClient(leadData: { nome: string, email: string, tele
         const searchResponse = await apiClient.get(`/v1/clientes/?search=${leadData.email}`);
         const foundClients = getDataFromResponse(searchResponse);
 
-        if (foundClients.length > 0) {
-            console.log("Cliente encontrado. Usando cliente existente:", foundClients[0].id);
-            // Cliente encontrado, retorna o ID do primeiro resultado
-            return foundClients[0].id;
+        // CORREÇÃO: Filtrar pelo e-mail exato, pois a busca do backend pode ser "fuzzy" (contém)
+        const exactMatch = foundClients.find((c: any) => 
+            c.email && c.email.toLowerCase() === leadData.email.toLowerCase()
+        );
+
+        if (exactMatch) {
+            console.log("Cliente exato encontrado:", exactMatch.nome);
+            
+            // IMPORTANTE: Adicionar este cliente encontrado à lista de opções do formulário
+            // para garantir que o nome apareça corretamente no v-select
+            const optionExiste = clienteOptions.value.find(o => o.value === exactMatch.id);
+            if (!optionExiste) {
+                clienteOptions.value.unshift({
+                    label: exactMatch.nome || exactMatch.razao_social || 'Cliente Encontrado',
+                    value: exactMatch.id,
+                    email: exactMatch.email,
+                    telefone: exactMatch.telefone,
+                    documento: exactMatch.documento
+                });
+            }
+            return exactMatch.id;
         }
 
         // 2. Cliente não encontrado, cria um novo
-        console.log("Cliente não encontrado. Criando novo cliente Lead...");
-        
-        // CORREÇÃO CRÍTICA: Usar 11 dígitos numéricos fixos para satisfazer a validação do Django/modelo Cliente.
+        console.log("Cliente exato não encontrado. Criando novo cliente Lead...");
         const uniqueDocumento = '00000000000'; // 11 zeros
-        
-        console.log("Documento temporário a ser enviado:", uniqueDocumento); 
         
         const newClientPayload = {
             nome: leadData.nome,
@@ -389,12 +403,9 @@ async function checkOrCreateClient(leadData: { nome: string, email: string, tele
             perfil_cliente: ['INTERESSADO'] 
         };
         
-        // POST para criação do cliente
         const createResponse = await apiClient.post('/v1/clientes/', newClientPayload);
         const newClientId = createResponse.data.id;
         
-        console.log("Cliente criado com sucesso. ID:", newClientId);
-
         // Adiciona o novo cliente na lista de opções para pré-selecionar
         clienteOptions.value.unshift({
             label: leadData.nome,
@@ -408,10 +419,9 @@ async function checkOrCreateClient(leadData: { nome: string, email: string, tele
         return newClientId;
 
     } catch (e: any) {
-        // Exibe o erro de forma mais detalhada para o usuário, se possível
         const errorDetails = JSON.stringify(e.response?.data, null, 2) || e.message;
         console.error("Erro ao verificar ou criar cliente automaticamente:", errorDetails);
-        alert(`Falha ao criar cliente automático. Por favor, cadastre-o manualmente. Detalhes: ${errorDetails}`);
+        alert(`Falha ao criar cliente automático. Detalhes: ${errorDetails}`);
         return null; 
     }
 }
@@ -442,8 +452,10 @@ async function loadInitialData() {
     const contatoMensagem = query.mensagem ? String(query.mensagem) : null;
     const contatoTelefone = query.contato_telefone ? String(query.contato_telefone) : null;
     
+    // NOVA LEITURA: ID DO CLIENTE FORNECIDO PELO BACKEND (Se disponível)
+    const queryClienteId = query.cliente_id ? String(query.cliente_id) : null;
+    
     if (origemImovelId) {
-        // Se viemos de um lead de imóvel específico, buscamos os detalhes desse imóvel
         promises.push(apiClient.get(`/v1/imoveis/${origemImovelId}/`));
     }
 
@@ -487,7 +499,6 @@ async function loadInitialData() {
       const imovelId = (imovelObj && typeof imovelObj === 'object') ? imovelObj.id : imovelObj;
       const responsavelId = (responsavelObj && typeof responsavelObj === 'object') ? responsavelObj.id : responsavelObj;
 
-      // Adiciona às opções se não existir (para edição)
       if (clienteId && !clienteOptions.value.find(c => c.value === clienteId)) {
           const nome = (clienteObj && typeof clienteObj === 'object') ? (clienteObj.nome_completo || 'Cliente') : 'Cliente';
           clienteOptions.value.unshift({ label: nome, value: clienteId });
@@ -520,22 +531,51 @@ async function loadInitialData() {
           tarefas.value = getDataFromResponse(results[4]);
       }
     } 
-    // Lógica de Criação via "Gerar Lead" (Pré-preenchimento e Criação Automática de Cliente)
+    // Lógica de Criação via "Gerar Lead"
     else if (!isEditing.value && origemImovelId && contatoEmail && contatoNome) {
         
-        // 1. Cria ou Busca o Cliente Automaticamente
-        const leadClientData = {
-            nome: contatoNome,
-            email: contatoEmail,
-            telefone: contatoTelefone || '',
-        };
+        let clientID: number | null = null;
 
-        const clientID = await checkOrCreateClient(leadClientData);
+        // 1. CORREÇÃO PRINCIPAL: Prioriza o ID vindo do backend se existir
+        if (queryClienteId) {
+            clientID = parseInt(queryClienteId);
+            console.log("Usando ID de cliente fornecido pela URL:", clientID);
+            
+            // Tenta buscar dados completos deste cliente para garantir que o label no select fique correto
+            try {
+                 const clienteJaNaLista = clienteOptions.value.find(c => c.value === clientID);
+                 if (!clienteJaNaLista) {
+                     const clientDetailResp = await apiClient.get(`/v1/clientes/${clientID}/`);
+                     const cData = clientDetailResp.data;
+                     const nomeDisplay = cData.nome || cData.razao_social || 'Cliente Selecionado';
+                     
+                     clienteOptions.value.unshift({
+                        label: nomeDisplay,
+                        value: clientID,
+                        documento: cData.documento,
+                        telefone: cData.telefone,
+                        email: cData.email
+                     });
+                 }
+                 clienteCriadoAutomaticamente.value = true; 
+            } catch (err) {
+                console.error("Erro ao buscar detalhes do cliente pré-selecionado:", err);
+            }
+
+        } else {
+            // Fallback: Se não veio ID na URL, tenta a lógica antiga (busca por email)
+            // Mas agora checkOrCreateClient filtra por correspondência EXATA
+            const leadClientData = {
+                nome: contatoNome,
+                email: contatoEmail,
+                telefone: contatoTelefone || '',
+            };
+            clientID = await checkOrCreateClient(leadClientData);
+        }
         
-        // 2. Prepara dados da Oportunidade
+        // 2. Prepara dados da Oportunidade (Imóvel)
         const imovelDetail = results[results.length - 1].data;
         
-        // Formata o objeto do imóvel
         const imovelOption = {
             label: `${imovelDetail.titulo_anuncio || 'Imóvel'} (${imovelDetail.codigo_referencia || 'S/Cód'})`,
             value: imovelDetail.id,
@@ -545,23 +585,21 @@ async function loadInitialData() {
             bairro: imovelDetail.bairro
         };
 
-        // Adiciona na lista e seleciona o imóvel
         if (!imovelOptions.value.find(i => i.value === imovelDetail.id)) {
             imovelOptions.value.unshift(imovelOption);
         }
 
         // 3. Preenche o formulário
         oportunidade.value.imovel_interesse_id = imovelDetail.id;
-        oportunidade.value.cliente_id = clientID; // ID do cliente criado/encontrado
+        oportunidade.value.cliente_id = clientID; 
         oportunidade.value.titulo = `Lead Site - ${contatoNome} (${imovelDetail.codigo_referencia})`;
         
-        // Adiciona a mensagem original nas observações
         let obs = contatoMensagem ? `Mensagem Original: "${contatoMensagem}"` : 'Contato via formulário do site.';
         obs += `\n\nDados do Contato:\nEmail: ${contatoEmail}\nTel: ${contatoTelefone || 'N/A'}`;
         oportunidade.value.informacoes_adicionais = obs;
 
         oportunidade.value.fonte = 'SITE';
-        oportunidade.value.fase_funil_id = 'CONTATO'; // Sugerir fase 2 (Primeiro Contato)
+        oportunidade.value.fase_funil_id = 'CONTATO'; 
 
     }
 
@@ -576,7 +614,6 @@ async function loadInitialData() {
 
 async function handleSubmit() {
   isSubmitting.value = true;
-  // Bloqueia se não houver cliente ID (garante que o cliente foi criado/selecionado)
   if (!oportunidade.value.cliente_id) {
        alert("É obrigatório vincular um Cliente a esta oportunidade.");
        isSubmitting.value = false;
@@ -601,15 +638,11 @@ async function handleSubmit() {
     } else {
       response = await apiClient.post('/v1/clientes/oportunidades/', apiPayload);
       
-      // Se foi criado a partir de um contato (Lead Site), arquivamos o contato original
       const contatoIdOriginal = route.query.contato_id;
       if (contatoIdOriginal) {
           try {
               await apiClient.post(`/v1/contatos/${contatoIdOriginal}/arquivar/`);
-              console.log("Contato original arquivado com sucesso.");
-          } catch (e) {
-              console.error("Erro silencioso ao arquivar contato original:", e);
-          }
+          } catch (e) { console.error(e); }
       }
     }
     router.push('/funil-vendas');

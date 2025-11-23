@@ -1,34 +1,69 @@
 <template>
   <div class="page-container">
     
-    <div class="header-bar">
-        <h2 class="page-subtitle">Contatos de Leads Recebidos pelo Site</h2>
+    <div v-if="!isLoading" class="dashboard-grid">
+      
+      <div class="stat-card stat-total-oportunidades">
+        <div class="stat-icon"><i class="fas fa-inbox"></i></div>
+        <div class="stat-info">
+            <h3>Total Pendentes</h3>
+            <p>{{ totalContatosAbertos }}</p>
+        </div>
+      </div>
+      
+      <div class="stat-card stat-valor-aberto">
+        <div class="stat-icon"><i class="fas fa-archive"></i></div>
+        <div class="stat-info">
+            <h3>Total Arquivados</h3>
+            <p>{{ totalArquivados }}</p> 
+        </div>
+      </div>
+      
+      <div class="stat-card stat-taxa-fechamento">
+        <div class="stat-icon"><i class="fas fa-calendar-check"></i></div>
+        <div class="stat-info">
+            <h3>Último Recebido</h3>
+            <p>{{ contatoMaisRecente }}</p>
+        </div>
+      </div>
+      
+      <div class="stat-card stat-probabilidade-media">
+        <div class="stat-icon"><i class="fas fa-bullseye"></i></div>
+        <div class="stat-info">
+            <h3>Total Geral de Leads</h3>
+            <p>{{ totalGeral }}</p>
+        </div>
+      </div>
     </div>
-
     <div class="search-and-filter-bar">
       <input 
         type="text" 
-        v-model="filtro" 
+        v-model="filtro.search" 
         placeholder="Buscar por nome, email ou imóvel..." 
         class="search-input"
+        @input="debouncedFilter"
       />
       
       <div class="filter-group">
         <label for="status">Status:</label>
-        <select id="status" disabled>
-          <option value="">Abertos (Padrão)</option>
+        <select id="status" v-model="filtro.status" >
+          <option value="abertos">Abertos</option>
+          <option value="arquivados">Arquivados</option>
+          <option value="todos">Todos</option>
         </select>
       </div>
 
-      <div class="filter-group">
-        <label for="tipo">Tipo:</label>
-        <select id="tipo" disabled>
-          <option value="">Leads (Padrão)</option>
+      <div class="filter-group mobile-hide">
+        <label for="tipo">Período:</label>
+        <select id="tipo" v-model="filtro.periodo" @change="fetchContatos">
+          <option value="todos">Todo Período</option>
+          <option value="30d">Últimos 30 Dias</option>
+          <option value="90d">Últimos 90 Dias</option>
         </select>
       </div>
 
       <div class="btn-add">
-        <i class="fas fa-inbox"></i> <span class="mobile-hide">{{ contatos.length }} Pendentes</span>
+        <i class="fas fa-inbox"></i> <span class="mobile-hide">{{ totalContatosAbertos }} Pendentes</span>
       </div>
     </div>
 
@@ -38,7 +73,7 @@
     </div>
     <div v-else-if="error" class="error-message card">{{ error }}</div>
     
-    <div v-else-if="contatos.length > 0" class="contatos-grid">
+    <div v-else-if="filteredContatos.length > 0" class="contatos-grid">
       <div 
         v-for="contato in filteredContatos" 
         :key="contato.id" 
@@ -52,8 +87,9 @@
                </span>
            </div>
            <div class="badges-right">
-               <span class="status-pill status-rascunho">
-                  <i class="fas fa-star"></i> NOVO
+               <span class="status-pill status-rascunho" :class="{ 'status-arquivado': contato.arquivado }">
+                  <i :class="contato.arquivado ? 'fas fa-archive' : 'fas fa-star'"></i> 
+                  {{ contato.arquivado ? 'ARQUIVADO' : 'NOVO' }}
                </span>
            </div>
         </div>
@@ -97,18 +133,25 @@
         <div class="card-actions">
           <div class="actions-left">
             <button 
+                v-if="!contato.arquivado"
                 @click="handleGerarOportunidade(contato)"
                 class="btn-pill btn-ativar"
             >
                 <i class="fas fa-funnel-dollar"></i> Gerar Lead
             </button>
+            <span v-else class="text-success-muted">Lead Processado</span>
           </div>
 
           <div class="actions-right">
               <button class="btn-mini btn-info" @click="handleResponder(contato)" title="Responder por Email">
                 <i class="fas fa-reply"></i>
               </button>
-              <button @click="handleArquivar(contato)" class="btn-mini btn-delete-mini" title="Arquivar">
+              <button 
+                  v-if="!contato.arquivado"
+                  @click="handleArquivar(contato)" 
+                  class="btn-mini btn-delete-mini" 
+                  title="Arquivar"
+              >
                 <i class="fas fa-archive"></i>
               </button>
           </div>
@@ -124,11 +167,12 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, computed } from 'vue';
+import { ref, onMounted, computed, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import apiClient from '@/services/api';
-import { format, parseISO } from 'date-fns';
+import { format, parseISO, isPast } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import { debounce } from 'lodash';
 
 interface ImovelResumo {
   id: number;
@@ -151,16 +195,54 @@ interface Contato {
 
 const router = useRouter();
 const contatos = ref<Contato[]>([]);
+const contatosOriginais = ref<Contato[]>([]); // Fonte de verdade com TODOS os contatos
 const isLoading = ref(true);
 const error = ref<string | null>(null);
-const filtro = ref('');
+
+// FILTRO
+const filtro = ref({
+    search: '',
+    status: 'abertos', // 'abertos', 'arquivados', 'todos'
+    periodo: 'todos' // 'todos', '30d', '90d'
+});
+
+// DASHBOARD STATS (Calculados localmente)
+const totalArquivados = computed(() => contatosOriginais.value.filter(c => c.arquivado).length);
+const totalGeral = computed(() => contatosOriginais.value.length);
+const totalContatosAbertos = computed(() => contatosOriginais.value.filter(c => !c.arquivado).length);
+
+// COMPUTED DATA
+const contatoMaisRecente = computed(() => {
+    if (contatosOriginais.value.length === 0) return 'N/A';
+    
+    const maisRecente = contatosOriginais.value.reduce((latest, contato) => {
+        const dataContato = parseISO(contato.data_contato);
+        return dataContato > latest ? dataContato : latest;
+    }, parseISO('2000-01-01T00:00:00Z'));
+
+    return format(maisRecente, 'dd/MM/yy HH:mm', { locale: ptBR });
+});
+
+// --- FUNÇÕES DE API ---
 
 async function fetchContatos() {
   isLoading.value = true;
   error.value = null;
+
   try {
-    const response = await apiClient.get<Contato[]>('/v1/contatos/');
-    contatos.value = response.data;
+    // A API será chamada para obter todos os itens que correspondem ao filtro de busca e período.
+    // O filtro de status é aplicado localmente.
+    
+    const searchParams: any = {
+        search: filtro.value.search || undefined,
+        // PARÂMETRO NECESSÁRIO NO BACKEND PARA OBTER ARQUIVADOS E NÃO ARQUIVADOS
+        arquivado: 'todos', 
+        periodo: filtro.value.periodo !== 'todos' ? filtro.value.periodo : undefined
+    };
+    
+    const response = await apiClient.get<Contato[]>('/v1/contatos/', { params: searchParams });
+    contatosOriginais.value = response.data; // contatosOriginais agora contém TUDO (Abertos e Arquivados)
+
   } catch (err: any) {
     console.error("Erro ao buscar contatos:", err);
     error.value = err.response?.data?.detail || 'Não foi possível carregar os contatos.';
@@ -169,19 +251,38 @@ async function fetchContatos() {
   }
 }
 
-onMounted(fetchContatos);
 
+// Implementação do filtro de busca (local)
 const filteredContatos = computed(() => {
-  return contatos.value.filter(contato => {
-    const searchLower = filtro.value.toLowerCase().trim();
-    return !searchLower ||
-      (contato.nome.toLowerCase()).includes(searchLower) ||
-      (contato.email.toLowerCase()).includes(searchLower) ||
-      (contato.telefone?.toLowerCase() || '').includes(searchLower) ||
-      (contato.imovel_obj?.codigo_referencia?.toLowerCase() || '').includes(searchLower) ||
-      (contato.mensagem.toLowerCase()).includes(searchLower);
-  });
+    // 1. Filtro de Status (localmente, usando contatosOriginais)
+    let listaFiltrada = contatosOriginais.value;
+
+    if (filtro.value.status === 'abertos') {
+        listaFiltrada = listaFiltrada.filter(c => !c.arquivado);
+    } else if (filtro.value.status === 'arquivados') {
+        listaFiltrada = listaFiltrada.filter(c => c.arquivado);
+    }
+    // 'todos' usa listaFiltrada sem filtro de status inicial
+
+    // 2. Filtro de Busca (Search) - O search já foi aplicado via API em fetchContatos
+    // Mas se o usuário filtrou primeiro por status e depois digita algo, o filtro local deve ser aplicado.
+    const searchLower = filtro.value.search.toLowerCase().trim();
+    if (!searchLower) return listaFiltrada;
+
+    return listaFiltrada.filter(contato => 
+        (contato.nome.toLowerCase()).includes(searchLower) ||
+        (contato.email.toLowerCase()).includes(searchLower) ||
+        (contato.telefone?.toLowerCase() || '').includes(searchLower) ||
+        (contato.imovel_obj?.codigo_referencia?.toLowerCase() || '').includes(searchLower) ||
+        (contato.mensagem.toLowerCase()).includes(searchLower)
+    );
 });
+
+// Debounce para o filtro de busca
+const debouncedFilter = debounce(fetchContatos, 300);
+
+
+// --- FUNÇÕES DE AÇÃO ---
 
 function formatarData(data: string | null): string {
   if (!data) return '—';
@@ -204,7 +305,12 @@ async function handleArquivar(contato: Contato) {
   }
   try {
     await apiClient.post(`/v1/contatos/${contato.id}/arquivar/`);
-    contatos.value = contatos.value.filter(c => c.id !== contato.id);
+    // Atualiza o estado local para forçar a re-renderização
+    const index = contatosOriginais.value.findIndex(c => c.id === contato.id);
+    if(index !== -1) {
+        contatosOriginais.value[index].arquivado = true;
+    }
+    
   } catch(err) {
       console.error("Erro ao arquivar contato:", err);
       alert(`Ocorreu um erro ao arquivar o contato de ${contato.nome}.`);
@@ -224,35 +330,79 @@ function handleGerarOportunidade(contato: Contato) {
         }
     });
 }
+
+onMounted(fetchContatos);
+
+// A watch no filtro de status e período deve chamar fetchContatos para atualizar a lista de origem
+watch(() => filtro.value.status, () => {}); // A mudança do computed já resolve, mas o fetchContatos deve ser chamado se status=todos
+watch(() => filtro.value.periodo, fetchContatos); 
+// A busca (search) é tratada pelo debouncedFilter, que chama fetchContatos.
+
 </script>
 
 <style scoped>
 /* ================================================== */
-/* 1. Layout Geral (Padrão ContratosView) */
+/* 1. Layout Geral e Estilos Base */
 /* ================================================== */
-.page-container { padding: 0; }
+.page-container { padding: 0 0 2rem 0; }
 .header-bar {
-    margin-bottom: 1rem;
-    padding-bottom: 0.5rem;
-    border-bottom: 1px solid #e9ecef;
+    margin-bottom: 1rem; padding-bottom: 0.5rem; border-bottom: 1px solid #e9ecef;
 }
-.page-subtitle {
-    font-size: 1.1rem;
-    font-weight: 600;
-    color: #495057;
-    margin: 0;
-}
-.main-card, .loading-message.card, .error-message.card, .empty-state.card {
+.page-subtitle { font-size: 1.1rem; font-weight: 600; color: #495057; margin: 0; }
+.card {
   background-color: #fff; border-radius: 10px; box-shadow: 0 4px 12px rgba(0,0,0,0.04); 
   padding: 1.5rem; border: 1px solid #eaedf0;
 }
 
 /* ================================================== */
-/* 2. Search & Filter Bar (Padrão ContratosView) */
+/* 2. Dashboard Cards (Novo Estilo Sóbrio) */
+/* ================================================== */
+.dashboard-grid {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 1.25rem; margin-bottom: 1.5rem; padding: 0 0.5rem;
+}
+.stat-card {
+  background-color: #ffffff; border-radius: 12px; padding: 1.5rem;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.04); display: flex; align-items: center; gap: 1rem;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+.stat-card:hover { transform: translateY(-3px); box-shadow: 0 6px 15px rgba(0, 0, 0, 0.08); }
+.stat-icon {
+    width: 50px; height: 50px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 1.5rem;
+    font-weight: 700;
+}
+.stat-info h3 { font-size: 0.8rem; color: #616161; font-weight: 600; margin: 0; text-transform: uppercase; letter-spacing: 0.5px; }
+.stat-info p { font-size: 1.55rem; font-weight: 700; color: #212121; margin: 0; line-height: 1.2; }
+
+/* Paleta Sóbria */
+/* Total Pendentes - Azul (Volume) */
+.stat-total-oportunidades .stat-icon { background-color: #E0F7FA; color: #00838F; } 
+.stat-total-oportunidades .stat-info p { color: #00838F; }
+
+/* Total Arquivados - Cinza (Fechado/Arquivo) */
+.stat-valor-aberto .stat-icon { background-color: #F5F5F5; color: #616161; } 
+.stat-valor-aberto .stat-info p { color: #616161; }
+
+/* Último Recebido - Roxo/Índigo (Tempo) */
+.stat-taxa-fechamento .stat-icon { background-color: #F0F4FF; color: #5C6BC0; }
+.stat-taxa-fechamento .stat-info p { color: #3F51B5; }
+
+/* Total Geral - Laranja (Visão Geral) */
+.stat-probabilidade-media .stat-icon { background-color: #FFF3E0; color: #FF9800; }
+.stat-probabilidade-media .stat-info p { color: #FF6F00; } 
+
+
+@media (max-width: 768px) {
+  .dashboard-grid { grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); }
+}
+
+
+/* ================================================== */
+/* 3. Search & Filter Bar (Padrão ContratosView) */
 /* ================================================== */
 .search-and-filter-bar {
   display: flex; flex-wrap: wrap; gap: 1rem; margin-bottom: 1.5rem;
-  align-items: center; background-color: transparent; padding: 0; box-shadow: none;
+  align-items: center; background-color: transparent; padding: 0 0.5rem; box-shadow: none;
 }
 .search-input {
   padding: 10px; border: 1px solid #ccc; border-radius: 5px; width: 100%; max-width: 350px; box-sizing: border-box; font-family: system-ui, sans-serif;
@@ -278,7 +428,7 @@ function handleGerarOportunidade(contato: Contato) {
 }
 
 /* ================================================== */
-/* 3. Grid de Contatos (NOVA ESTRUTURA) */
+/* 4. Grid de Contatos (Padrão) */
 /* ================================================== */
 .contatos-grid {
   display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
@@ -313,6 +463,7 @@ function handleGerarOportunidade(contato: Contato) {
     text-transform: uppercase; display: flex; align-items: center; gap: 5px;
 }
 .status-rascunho { background-color: #fef3c7; color: #92400e; } /* Amarelo para Novo Lead */
+.status-arquivado { background-color: #f3f4f6; color: #6b7280; } /* Cinza para Arquivado */
 
 
 /* Body - Informações do Cliente/Imóvel */
@@ -387,6 +538,13 @@ function handleGerarOportunidade(contato: Contato) {
     color: #007bff; text-decoration: none; font-weight: 500;
 }
 .link-imovel:hover { text-decoration: underline; }
+
+.text-success-muted {
+    font-size: 0.8rem;
+    color: #388e3c;
+    font-weight: 500;
+    font-style: italic;
+}
 
 /* Mensagens de estado */
 .error-message { color: #dc3545; background-color: #f8d7da; border: 1px solid #f5c6cb; }

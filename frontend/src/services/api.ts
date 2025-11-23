@@ -40,13 +40,13 @@ export const setupInterceptors = (router: Router) => {
             
             // ==================================================================
             // CORREÇÃO APLICADA:
-            // Logout automático APENAS no 401 (Não Autorizado / Token Expirado).
-            // O erro 403 (Proibido/Sem Permissão de Negócio) deve ser tratado
-            // pelo componente para mostrar a mensagem de erro ao usuário.
+            // Incluído o tratamento para o erro 403, que é o status retornado 
+            // pelo middleware do Django para token expirado/inválido em 
+            // endpoints protegidos (além do 401).
             // ==================================================================
-            if (error.response && error.response.status === 401) {
+            if (error.response && (error.response.status === 401 || error.response.status === 403)) {
                 
-                console.log("Token expirado ou inválido (401). Redirecionando para login.");
+                console.log("Token expirado, inválido (401/403) ou usuário anônimo. Redirecionando para login.");
                 
                 // 1. Limpar tokens locais para encerrar a sessão
                 localStorage.removeItem('authToken');
@@ -58,11 +58,12 @@ export const setupInterceptors = (router: Router) => {
                     router.replace({ name: 'login' });
                 }
 
-                return Promise.reject(new Error("Sessão encerrada (401). Por favor, faça login novamente."));
+                // Rejeita a promessa com uma mensagem mais clara para o console
+                return Promise.reject(new Error("Sessão encerrada (401/403). Por favor, faça login novamente."));
             }
 
-            // Para outros erros (403, 404, 500), rejeita a promessa para que
-            // o componente (VisitasView) possa capturar e mostrar a mensagem.
+            // Para outros erros (404, 500, ou 403 de permissão genuína de negócio
+            // que deve ser tratada pelo componente), rejeita a promessa.
             return Promise.reject(error);
         }
     );

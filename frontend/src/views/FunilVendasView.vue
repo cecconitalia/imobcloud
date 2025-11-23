@@ -2,28 +2,28 @@
   <div class="page-container">
     
     <div v-if="!isLoading" class="dashboard-grid">
-      <div class="stat-card">
+      <div class="stat-card stat-total-oportunidades">
         <div class="stat-icon"><i class="fas fa-chart-line"></i></div>
         <div class="stat-info">
             <h3>Total de Oportunidades</h3>
             <p>{{ totalOportunidades }}</p>
         </div>
       </div>
-      <div class="stat-card stat-ativo">
-        <div class="stat-icon"><i class="fas fa-dollar-sign"></i></div>
+      <div class="stat-card stat-valor-aberto">
+        <div class="stat-icon"><i class="fas fa-hand-holding-usd"></i></div>
         <div class="stat-info">
-            <h3>Valor Total Estimado</h3>
-            <p>{{ formatarValor(totalValorFunil) }}</p>
+            <h3>Valor Estimado em Aberto</h3>
+            <p>{{ formatarValor(valorEstimadoAberto) }}</p>
         </div>
       </div>
-      <div class="stat-card">
+      <div class="stat-card stat-taxa-fechamento">
         <div class="stat-icon"><i class="fas fa-percent"></i></div>
         <div class="stat-info">
             <h3>Taxa de Fechamento</h3>
             <p>{{ taxaFechamento }}%</p>
         </div>
       </div>
-      <div class="stat-card">
+      <div class="stat-card stat-probabilidade-media">
         <div class="stat-icon"><i class="fas fa-sync-alt"></i></div>
         <div class="stat-info">
             <h3>Probabilidade Média</h3>
@@ -154,6 +154,8 @@ const error = ref<string | null>(null);
 const corretores = ref<any[]>([]);
 const cardsRecolhidos = ref(false);
 
+const valorEstimadoAberto = ref(0);
+
 // Definição FIXA das fases
 const funilFases = ref([
   { id: 'LEAD', titulo: 'Lead' }, 
@@ -181,15 +183,10 @@ const filtro = ref({
 });
 
 // --- COMPUTADOS ---
+
 const oportunidadesFiltradas = computed(() => oportunidades.value);
 
 const totalOportunidades = computed(() => oportunidades.value.length);
-const totalValorFunil = computed(() => {
-  return oportunidades.value.reduce((sum, op) => {
-    const valor = op.valor_estimado ? parseFloat(op.valor_estimado) : 0;
-    return sum + valor;
-  }, 0);
-});
 
 const taxaFechamento = computed(() => {
   const negociosGanhos = funilData.value['GANHO']?.length || 0;
@@ -205,7 +202,7 @@ const probabilidadeMedia = computed(() => {
   return (totalProbabilidade / oportunidades.value.length).toFixed(2);
 });
 
-// --- MÉTODOS ---
+// --- MÉTODOS DE DADOS ---
 
 const onFaseChange = async (event: any, novaFaseId: string) => {
     if (event.added) {
@@ -217,12 +214,58 @@ const onFaseChange = async (event: any, novaFaseId: string) => {
             if(index !== -1) {
                 oportunidades.value[index].fase = novaFaseId; 
             }
+            fetchValorEstimadoAberto(); // Atualiza o valor estimado após a mudança de fase
         } catch (error) {
             console.error('Erro ao mover a oportunidade:', error);
             fetchOportunidades(); 
         }
     }
 };
+
+async function fetchValorEstimadoAberto() {
+    try {
+        const response = await api.get('/v1/relatorios/', { 
+            params: { tipo: 'valor_estimado_aberto' }
+        }); 
+        valorEstimadoAberto.value = response.data.valor_total_aberto || 0;
+    } catch (err) {
+        console.error("Erro ao buscar valor estimado aberto:", err);
+    }
+}
+
+
+async function fetchOportunidades() {
+  isLoading.value = true;
+  try {
+    const params = {
+        search: filtro.value.search || undefined,
+        responsavel: filtro.value.responsavel || undefined,
+    };
+    
+    const response = await api.get('/v1/clientes/oportunidades/', { params }); 
+    oportunidades.value = response.data;
+
+    const responsaveisMap = new Map();
+    oportunidades.value.forEach(op => {
+        if (op.responsavel && !responsaveisMap.has(op.responsavel.id)) {
+            responsaveisMap.set(op.responsavel.id, op.responsavel);
+        }
+    });
+    corretores.value = Array.from(responsaveisMap.values());
+
+    fetchValorEstimadoAberto();
+
+  } catch (err) {
+    console.error("Erro ao buscar oportunidades:", err);
+    error.value = "Não foi possível carregar o funil.";
+  } finally {
+    isLoading.value = false;
+  }
+}
+
+const debouncedFetchOportunidades = debounce(fetchOportunidades, 300);
+
+// --- MÉTODOS DE UI E FORMATAÇÃO ---
 
 function toggleCardsRecolhidos() {
     cardsRecolhidos.value = !cardsRecolhidos.value;
@@ -250,40 +293,11 @@ watch(oportunidadesFiltradas, (novaLista) => {
   funilData.value = agrupado;
 }, { immediate: true });
 
-async function fetchOportunidades() {
-  isLoading.value = true;
-  try {
-    const params = {
-        search: filtro.value.search || undefined,
-        responsavel: filtro.value.responsavel || undefined,
-    };
-    
-    const response = await api.get('/v1/clientes/oportunidades/', { params }); 
-    oportunidades.value = response.data;
-
-    const responsaveisMap = new Map();
-    oportunidades.value.forEach(op => {
-        if (op.responsavel && !responsaveisMap.has(op.responsavel.id)) {
-            responsaveisMap.set(op.responsavel.id, op.responsavel);
-        }
-    });
-    corretores.value = Array.from(responsaveisMap.values());
-
-  } catch (err) {
-    console.error("Erro ao buscar oportunidades:", err);
-    error.value = "Não foi possível carregar o funil.";
-  } finally {
-    isLoading.value = false;
-  }
-}
-
-const debouncedFetchOportunidades = debounce(fetchOportunidades, 300);
-
 function formatarValor(valor: number | string | null | undefined): string {
     if (valor === null || valor === undefined) return 'R$ -';
     const num = typeof valor === 'string' ? parseFloat(valor) : valor;
     if (isNaN(num)) return 'R$ -'; 
-    return num.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+    return num.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', minimumFractionDigits: 2 });
 }
 
 function formatarValorCompacto(valor: number): string {
@@ -311,27 +325,65 @@ onMounted(() => {
 }
 
 /* ================================================== */
-/* 2. Dashboard Stats (PADRÃO CONTRATOS) */
+/* 2. Dashboard Stats (CORES MELHORADAS) */
 /* ================================================== */
 .dashboard-grid {
-  display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  display: grid; 
+  grid-template-columns: repeat(4, 1fr); 
   gap: 1.25rem; margin-bottom: 1.5rem; padding: 0 0.5rem;
   flex-shrink: 0; 
 }
 .stat-card {
-  background-color: #fff; border: none; border-radius: 12px; padding: 1.5rem;
+  background-color: #ffffff; 
+  border: none; border-radius: 12px; padding: 1.5rem;
   box-shadow: 0 4px 15px rgba(0, 0, 0, 0.04); display: flex; align-items: center; gap: 1rem;
-  transition: transform 0.2s ease;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
-.stat-card:hover { transform: translateY(-3px); }
+.stat-card:hover { 
+  transform: translateY(-3px); 
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.08);
+}
 .stat-icon {
-    width: 50px; height: 50px; border-radius: 12px; background-color: #e7f1ff; color: #0d6efd;
+    width: 50px; height: 50px; border-radius: 12px; 
     display: flex; align-items: center; justify-content: center; font-size: 1.5rem;
+    background-color: #e0e0e0; 
+    color: #424242;
 }
-.stat-ativo .stat-icon { background-color: #d1e7dd; color: #198754; }
-.stat-info h3 { font-size: 0.8rem; color: #6c757d; font-weight: 600; margin: 0; text-transform: uppercase; }
-.stat-info p { font-size: 1.5rem; font-weight: 700; color: #212529; margin: 0; }
-.stat-ativo p { color: #198754; }
+
+.stat-info h3 { 
+  font-size: 0.8rem; color: #616161; 
+  font-weight: 600; margin: 0; text-transform: uppercase; letter-spacing: 0.5px;
+}
+.stat-info p { 
+  font-size: 1.55rem; font-weight: 700; color: #212121; 
+  margin: 0; line-height: 1.2;
+}
+
+/* --- Cores Sóbrias/Minimalistas --- */
+
+/* Total Oportunidades - Azul/Cyan (Sóbrio) */
+.stat-total-oportunidades .stat-icon { background-color: #E0F7FA; color: #00BCD4; } 
+.stat-total-oportunidades .stat-info p { color: #00838F; } /* Dark Cyan */
+
+/* Valor Estimado em Aberto - Âmbar/Laranja (Sóbrio) */
+.stat-valor-aberto .stat-icon { background-color: #FFF8E1; color: #FFB300; } 
+.stat-valor-aberto .stat-info p { color: #FF6F00; } /* Dark Amber */
+
+/* Taxa de Fechamento - Verde (Sóbrio) */
+.stat-taxa-fechamento .stat-icon { background-color: #E8F5E9; color: #4CAF50; }
+.stat-taxa-fechamento .stat-info p { color: #388E3C; } /* Dark Green */
+
+/* Probabilidade Média - Roxo (Sóbrio) */
+.stat-probabilidade-media .stat-icon { background-color: #F3E5F5; color: #9C27B0; }
+.stat-probabilidade-media .stat-info p { color: #6A1B9A; } /* Dark Purple */
+
+
+@media (max-width: 1200px) {
+  .dashboard-grid { grid-template-columns: repeat(2, 1fr); }
+}
+@media (max-width: 768px) {
+  .dashboard-grid { grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); }
+}
 
 /* ================================================== */
 /* 3. Filtros (PADRÃO CONTRATOS) */
@@ -368,7 +420,7 @@ onMounted(() => {
 /* ================================================== */
 /* 4. Kanban Board */
 /* ================================================== */
-.loading-state { text-align: center; padding: 2rem; color: #6c757d; font-size: 0.9rem; }
+.loading-message { text-align: center; padding: 2rem; color: #6c757d; font-size: 0.9rem; }
 .spinner {
   border: 3px solid #e9ecef; border-top: 3px solid #0d6efd; border-radius: 50%;
   width: 30px; height: 30px; animation: spin 0.8s linear infinite; margin: 0 auto 0.5rem;
@@ -381,25 +433,22 @@ onMounted(() => {
   padding: 0 0.5rem 0.5rem 0.5rem;
   width: 100%;
   flex-grow: 1;
-  overflow: hidden; /* Sem scroll da página */
-  /* Alinhamento quando em modo resumo */
+  overflow: hidden; 
   align-items: flex-start; 
 }
 
-/* Coluna: Flex 1 para dividir espaço igualmente (sem scroll horizontal) */
 .funil-coluna {
   background-color: #e9ecef; border-radius: 6px;
   flex: 1; 
-  min-width: 0; /* Permite encolher */
+  min-width: 0; 
   display: flex; flex-direction: column; 
   height: 100%;
   border: 1px solid #dee2e6;
   transition: height 0.3s ease;
 }
 
-/* MODO RESUMO (Recolhido) */
 .funil-board-container.layout-resumo .funil-coluna {
-    height: auto; /* Altura mínima apenas para o cabeçalho */
+    height: auto; 
     min-height: 50px;
 }
 
@@ -424,12 +473,10 @@ onMounted(() => {
   font-size: 0.65rem; font-weight: bold; min-width: 18px; text-align: center; margin-left: 4px; flex-shrink: 0;
 }
 
-/* Corpo da Coluna (Com Cards) */
 .coluna-body { 
     padding: 0.3rem; 
     overflow-y: auto; 
     flex-grow: 1;
-    /* Scrollbar invisível */
     -ms-overflow-style: none;  
     scrollbar-width: none;  
 }
@@ -438,7 +485,7 @@ onMounted(() => {
 .oportunidade-list { min-height: 50px; height: 100%; }
 
 /* ================================================== */
-/* 5. Cards */
+/* 5. Cards de Oportunidade */
 /* ================================================== */
 .oportunidade-card-link { text-decoration: none; color: inherit; display: block; margin-bottom: 0.3rem; }
 .oportunidade-card {
@@ -479,7 +526,6 @@ onMounted(() => {
   .filter-group { flex-direction: column; align-items: stretch; }
   .btn-add { margin-left: 0; justify-content: center; }
   
-  /* No mobile, permite scroll horizontal para usabilidade */
   .funil-board-container { height: calc(100vh - 400px); overflow-x: auto; }
   .funil-coluna { min-width: 200px; flex: 0 0 200px; } 
 }

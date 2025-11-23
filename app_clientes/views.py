@@ -21,7 +21,7 @@ import os
 import json
 from django.conf import settings
 from django.core.files.storage import default_storage
-from django.db.models import Sum
+from django.db.models import Sum # Importação necessária para a soma
 
 # Imports para PDF
 from django.template.loader import render_to_string
@@ -257,26 +257,9 @@ class VisitaViewSet(viewsets.ModelViewSet):
 
     def perform_update(self, serializer):
         # VALIDAÇÃO: Impede edição se já houver assinaturas (exceto updates internos de assinatura)
-        # Nota: O patch de assinatura também passa por aqui, então precisamos ter cuidado.
-        # Mas o serializer normal valida os campos. Se for apenas um PATCH de assinatura, ok.
-        # Se for uma edição de dados da visita (data, obs, imoveis) E já estiver assinado, bloqueia.
-        
-        # Como simplificação, se já estiver assinado, bloqueamos qualquer alteração que não seja do sistema.
-        # Se o frontend enviar um update normal e tiver assinatura, bloqueamos.
         instance = serializer.instance
         
-        # Verifica se está tentando alterar dados da visita E já tem assinatura
-        # (Permitimos apenas se for o próprio processo de assinatura que está enviando os dados agora)
-        
-        # A lógica mais segura: Se já tem assinatura cliente OU corretor, 
-        # só pode salvar se estivermos ADICIONANDO a outra assinatura.
-        # Mas para simplificar a regra de negócio "não pode editar":
-        
         if (instance.assinatura_cliente or instance.assinatura_corretor):
-             # Verifica se os dados sendo salvos são APENAS a nova assinatura que falta
-             # Se o request contém 'assinatura_cliente' ou 'assinatura_corretor', deixamos passar (é o ato de assinar)
-             # Caso contrário (ex: mudando data, mudando cliente), bloqueia.
-             
              dados = self.request.data
              eh_processo_assinatura = 'assinatura_cliente' in dados or 'assinatura_corretor' in dados
              
@@ -547,6 +530,8 @@ class RelatoriosView(viewsets.ViewSet):
             data = self._get_desempenho_corretores(tenant) 
         elif relatorio_tipo == 'imobiliaria':
             data = self._get_relatorio_imobiliaria(tenant)
+        elif relatorio_tipo == 'valor_estimado_aberto': # NOVO TIPO
+            data = self._get_valor_estimado_aberto(tenant)
         else:
             return Response({"error": "Tipo de relatório inválido."}, status=status.HTTP_400_BAD_REQUEST)
         
@@ -565,6 +550,39 @@ class RelatoriosView(viewsets.ViewSet):
     
     def _get_relatorio_imobiliaria(self, tenant):
          return {"message": "Relatório de imobiliária a ser implementado."}
+         
+    # ====================================================================
+    # NOVO: Valor Estimado de Leads em Aberto
+    # ====================================================================
+    def _get_valor_estimado_aberto(self, tenant):
+        """Calcula a soma dos valores estimados para oportunidades que não são GANHO nem PERDIDO."""
+        
+        # Fases em aberto: LEAD, CONTATO, VISITA, PROPOSTA, NEGOCIACAO
+        fases_abertas = [
+            Oportunidade.Fases.LEAD, 
+            Oportunidade.Fases.CONTATO, 
+            Oportunidade.Fases.VISITA, 
+            Oportunidade.Fases.PROPOSTA, 
+            Oportunidade.Fases.NEGOCIACAO
+        ]
+        
+        # Filtra por imobiliária E fase em aberto
+        abertas_queryset = Oportunidade.objects.filter(
+            imobiliaria=tenant,
+            fase__in=fases_abertas
+        )
+        
+        # Soma o valor estimado
+        soma = abertas_queryset.aggregate(
+            valor_total_aberto=Sum('valor_estimado')
+        )
+        
+        # Retorna o resultado (usando 0 se for None)
+        valor_total = soma['valor_total_aberto'] if soma['valor_total_aberto'] else 0.00
+        
+        return {
+            "valor_total_aberto": valor_total
+        }
 
 # ====================================================================
 # VIEW PARA GERAR PDF DA VISITA (Ficha de Visita)
