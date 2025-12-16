@@ -42,9 +42,19 @@ class ModeloContratoSerializer(serializers.ModelSerializer):
             'padrao', 'data_cadastro', 'data_atualizacao'
         ]
         read_only_fields = ('imobiliaria', 'data_cadastro', 'data_atualizacao')
+
     def validate(self, data):
         if data.get('padrao', False):
-            imobiliaria = self.context['request'].user.perfil.imobiliaria
+            # CORREÇÃO AQUI: Acesso seguro à imobiliária
+            user = self.context['request'].user
+            imobiliaria = getattr(user, 'imobiliaria', None)
+            if hasattr(user, 'perfil') and user.perfil:
+                imobiliaria = user.perfil.imobiliaria
+            
+            if not imobiliaria:
+                 # Fallback ou erro se não tiver imobiliária
+                 pass 
+
             tipo_contrato = data.get('tipo_contrato')
             query = ModeloContrato.objects.filter(
                 imobiliaria=imobiliaria,
@@ -178,8 +188,14 @@ class ContratoCriacaoSerializer(serializers.ModelSerializer):
         read_only_fields = ('imobiliaria', 'data_cadastro', 'excluido')
         
     def validate_modelo_utilizado(self, value):
-        imobiliaria_usuario = self.context['request'].user.perfil.imobiliaria
-        if value and value.imobiliaria != imobiliaria_usuario:
+        # CORREÇÃO AQUI: Acesso seguro à imobiliária
+        user = self.context['request'].user
+        imobiliaria_usuario = getattr(user, 'imobiliaria', None)
+        
+        if hasattr(user, 'perfil') and user.perfil:
+            imobiliaria_usuario = user.perfil.imobiliaria
+            
+        if value and imobiliaria_usuario and value.imobiliaria != imobiliaria_usuario:
             raise serializers.ValidationError("Este modelo de contrato não pertence à sua imobiliária.")
         return value
 

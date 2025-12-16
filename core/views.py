@@ -52,20 +52,33 @@ class LogoutView(APIView):
 
 class CorretorRegistrationViewSet(viewsets.ModelViewSet):
     serializer_class = CorretorRegistrationSerializer
+    # O queryset deve usar o modelo PerfilUsuario (que é o User)
+    queryset = User.objects.all()
 
     def get_queryset(self):
-        if self.request.user.is_superuser or self.request.tenant:
+        # Usuário autenticado é necessário para qualquer consulta que não seja Superuser
+        if not self.request.user.is_authenticated:
+            return User.objects.none()
+
+        # O superuser vê todos os usuários
+        if self.request.user.is_superuser:
+             # Retorna todos os usuários (exceto o Superuser? Depende da regra de negócio)
+             return User.objects.all()
+
+        # Se for um usuário de imobiliária (tenant)
+        if self.request.tenant:
             imobiliaria_id = self.request.tenant.id
-            queryset = User.objects.filter(perfil__imobiliaria_id=imobiliaria_id)
+            # FILTRA PELO CAMPO DIRETO imobiliaria_id
+            queryset = User.objects.filter(imobiliaria_id=imobiliaria_id)
             
-            # --- CORREÇÃO: FILTRO POR CARGO (ADAPTADO PARA BOOLEANOS) ---
+            # --- CORREÇÃO: FILTRO POR CARGO (ACESSANDO DIRETAMENTE) ---
             cargo = self.request.query_params.get('cargo')
             if cargo:
                 cargo_upper = cargo.upper()
                 if cargo_upper == 'ADMIN':
-                    queryset = queryset.filter(perfil__is_admin=True)
+                    queryset = queryset.filter(is_admin=True) # ACESSO DIRETO
                 elif cargo_upper == 'CORRETOR':
-                    queryset = queryset.filter(perfil__is_corretor=True)
+                    queryset = queryset.filter(is_corretor=True) # ACESSO DIRETO
             
             return queryset
             
@@ -90,6 +103,7 @@ class CorretorRegistrationViewSet(viewsets.ModelViewSet):
         return [permission() for permission in permission_classes]
 
     def perform_create(self, serializer):
+        # O campo imobiliaria é passado no create do serializer via self.context
         serializer.save(imobiliaria=self.request.tenant)
 
     @action(detail=False, methods=['get', 'put', 'patch'], url_path='me')
@@ -99,6 +113,7 @@ class CorretorRegistrationViewSet(viewsets.ModelViewSet):
             serializer = CorretorDisplaySerializer(user)
             return Response(serializer.data)
         
+        # O serializer agora lida com os campos do PerfilUsuario diretamente
         serializer = CorretorRegistrationSerializer(user, data=request.data, partial=True)
         if serializer.is_valid():
             serializer.save()
@@ -133,12 +148,11 @@ class CorretorRegistrationViewSet(viewsets.ModelViewSet):
         """
         imobiliaria = request.tenant
         
-        # --- CORREÇÃO: FILTRO USANDO Q OBJECTS PARA BOOLEANOS ---
-        # Lista qualquer usuário que seja Admin OU Corretor
+        # --- CORREÇÃO: FILTRO USANDO CAMPOS DIRETOS ---
         corretores = User.objects.filter(
-            perfil__imobiliaria=imobiliaria
+            imobiliaria=imobiliaria
         ).filter(
-            Q(perfil__is_admin=True) | Q(perfil__is_corretor=True)
+            Q(is_admin=True) | Q(is_corretor=True) # ACESSO DIRETO
         ).values('id', 'first_name', 'last_name', 'email')
         
         data = [
@@ -160,6 +174,7 @@ class CorretorViewSet(viewsets.ReadOnlyModelViewSet):
 
 class DashboardStatsView(APIView):
     permission_classes = [IsCorretorOrReadOnly]
+    # Nenhuma alteração significativa na lógica de stats
 
     def get(self, request, *args, **kwargs):
         imobiliaria = request.tenant
@@ -206,8 +221,8 @@ class IntegracaoRedesSociaisView(APIView):
 
     def get(self, request, *args, **kwargs):
         imobiliaria = request.tenant
-        # --- CORREÇÃO: VERIFICAÇÃO DE PERMISSÃO ATUALIZADA ---
-        if not (request.user.is_superuser or (hasattr(request.user, 'perfil') and request.user.perfil.is_admin)):
+        # --- CORREÇÃO: VERIFICAÇÃO DE PERMISSÃO ACESSANDO is_admin DIRETAMENTE ---
+        if not (request.user.is_superuser or request.user.is_admin):
             return Response({"error": "Acesso não autorizado."}, status=status.HTTP_403_FORBIDDEN)
             
         serializer = self.serializer_class(imobiliaria)
@@ -215,8 +230,8 @@ class IntegracaoRedesSociaisView(APIView):
 
     def put(self, request, *args, **kwargs):
         imobiliaria = request.tenant
-        # --- CORREÇÃO: VERIFICAÇÃO DE PERMISSÃO ATUALIZADA ---
-        if not (request.user.is_superuser or (hasattr(request.user, 'perfil') and request.user.perfil.is_admin)):
+        # --- CORREÇÃO: VERIFICAÇÃO DE PERMISSÃO ACESSANDO is_admin DIRETAMENTE ---
+        if not (request.user.is_superuser or request.user.is_admin):
             return Response({"error": "Acesso não autorizado."}, status=status.HTTP_403_FORBIDDEN)
 
         serializer = self.serializer_class(imobiliaria, data=request.data, partial=True)

@@ -15,9 +15,10 @@ class TenantIdentificationMiddleware(MiddlewareMixin):
         host = request.get_host().split(':')[0]
         request.tenant = None 
         
+        # O Django pode não ter populado o request.user ainda no início do middleware
         user_info = f"User: {request.user.username}" if hasattr(request, 'user') and request.user.is_authenticated else "User: Anonymous"
-        auth_info = f"Auth: {request.user.is_authenticated}" if hasattr(request, 'user') else "Auth: False"
-        super_info = f"Super: {request.user.is_superuser}" if hasattr(request, 'user') else "Super: False"
+        auth_info = f"Auth: {hasattr(request, 'user') and request.user.is_authenticated}"
+        super_info = f"Super: {hasattr(request, 'user') and request.user.is_superuser}"
         print(f"\nDEBUG MW Start: {user_info}, {auth_info}, {super_info}, Host: {host}, Path: {request.path}")
 
         identified_by_user_or_jwt = False 
@@ -39,6 +40,7 @@ class TenantIdentificationMiddleware(MiddlewareMixin):
                     user_id = decoded_token.get(api_settings.USER_ID_CLAIM)
                     if user_id:
                         user_from_token = User.objects.get(pk=user_id)
+                        # Força o cache do usuário na requisição
                         request._cached_user = user_from_token 
                         request.user = user_from_token 
                         user = user_from_token
@@ -51,7 +53,7 @@ class TenantIdentificationMiddleware(MiddlewareMixin):
                     print(f"ERRO ao processar token JWT: {e}.")
         
         # --- Bloco de Definição de Tenant (APÓS autenticar) ---
-        if user:
+        if user and user.is_authenticated:
             identified_by_user_or_jwt = True
             if user.is_superuser:
                 is_superuser = True
@@ -69,27 +71,27 @@ class TenantIdentificationMiddleware(MiddlewareMixin):
                         print(f"AVISO MW Superuser: 'X-Tenant-ID' ({tenant_id_header}) formato inválido. Tenant remains None.")
                 else:
                     print(f"DEBUG MW Superuser: Nenhum header 'X-Tenant-ID' enviado. Tenant remains None.")
-            else: # Usuário Comum
+            else: # Usuário Comum (PerfilUsuario)
                 try:
-                    perfil = user.perfil 
-                    if perfil.imobiliaria:
-                        user_identified_tenant = perfil.imobiliaria
+                    # CORREÇÃO CRÍTICA: ACESSA O CAMPO IMOBILIARIA DIRETAMENTE DO USUÁRIO
+                    if user.imobiliaria:
+                        user_identified_tenant = user.imobiliaria
                         request.tenant = user_identified_tenant 
                         print(f"DEBUG MW Tenant: Usuário normal. Tenant: {user_identified_tenant.nome}")
                     else:
-                        print(f"AVISO: Usuário '{user.username}' logado, mas sem imobiliária no perfil.")
-                except PerfilUsuario.DoesNotExist:
-                    print(f"AVISO: Usuário '{user.username}' logado, mas sem PerfilUsuario associado.")
+                        print(f"AVISO: Usuário '{user.username}' logado, mas sem imobiliária associada.")
                 except Exception as e:
-                    print(f"ERRO ao carregar imobiliária do perfil do usuário: {e}.")
+                    # Captura erros se o campo 'imobiliaria' não for encontrado ou se houver outro problema
+                    print(f"ERRO ao carregar imobiliária do usuário: {e}.")
 
-        print(f"DEBUG MW Path: After User/JWT check. Current Tenant: {request.tenant.nome if request.tenant else 'None'}. User status: {'Authenticated' if user else 'Anonymous'}.")
 
-        # --- CORREÇÃO: LÓGICA DE SAÍDA (EARLY EXIT) ---
+        print(f"DEBUG MW Path: After User/JWT check. Current Tenant: {request.tenant.nome if request.tenant else 'None'}. User status: {'Authenticated' if user and user.is_authenticated else 'Anonymous'}.")
+
+        # --- LÓGICA DE SAÍDA (EARLY EXIT) ---
 
         public_paths = [
             '/api/v1/public/',
-            '/public/', # <<< CAMINHO PÚBLICO CORRETO ADICIONADO PARA EVITAR 403
+            '/public/', 
             '/admin/',
             '/media/', 
             
@@ -109,7 +111,7 @@ class TenantIdentificationMiddleware(MiddlewareMixin):
             return None 
 
         # Se NÃO for público E NÃO for autenticado, bloqueia
-        if not is_public_path and not identified_by_user_or_jwt:
+        if not is_public_path and not (user and user.is_authenticated):
             print(f"ERRO MW: Usuário anônimo tentando acessar path privado ({request.path}). Bloqueando.")
             return HttpResponseForbidden("Autenticação necessária.")
 
@@ -137,7 +139,7 @@ class TenantIdentificationMiddleware(MiddlewareMixin):
             print(f"DEBUG MW Final Check: Tenant '{request.tenant.nome}' verificado para usuário normal. Exiting early.")
             return None
         
-        # === Lógica de Fallback (Subdomínio/Query Param para Anônimos) ===
+        # === Lógica de Fallback (Subdomínio/Query Param para Anônimos/Usuários sem Tenant) ===
         
         print(f"DEBUG MW Path: Falling back to Subdomain/QueryParam logic for Anonymous user on non-public path.")
         
@@ -171,8 +173,13 @@ class TenantIdentificationMiddleware(MiddlewareMixin):
                  except Exception as e:
                      print(f"ERRO Fallback (Query Param): {e}.")
              else:
-                print("ERRO MW Fallback: Anônimo em path privado sem identificação de tenant. Bloqueando.")
-                return HttpResponseForbidden("Acesso não autorizado ou imobiliária não identificada.") 
+                # CORREÇÃO: Usuário autenticado sem tenant, ou anônimo em path privado
+                if identified_by_user_or_jwt:
+                    print(f"AVISO MW Fallback: Usuário autenticado '{user.username}' sem tenant associado e sem subdomínio/param. Bloqueando.")
+                    return HttpResponseForbidden("Imobiliária não associada ao usuário ou não identificada via subdomínio.")
+                else:
+                    print("ERRO MW Fallback: Anônimo em path privado sem identificação de tenant. Bloqueando.")
+                    return HttpResponseForbidden("Acesso não autorizado ou imobiliária não identificada.") 
 
         if request.tenant:
              print(f"DEBUG MW End (Fallback): Final request.tenant: {request.tenant.nome}. Permitting.")

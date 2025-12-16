@@ -1,0 +1,351 @@
+WARNING 2025-12-16 15:14:05,306 log 35048 51624 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2025-12-16 15:14:05,307 log 35048 63124 Forbidden: /api/v1/imoveis/
+WARNING 2025-12-16 15:14:10,381 log 35048 63124 Unauthorized: /api/v1/token/
+WARNING 2025-12-16 15:14:11,166 log 35048 26992 Forbidden: /favicon.ico
+WARNING 2025-12-16 15:14:15,811 log 35048 26992 Forbidden: /favicon.ico
+WARNING 2025-12-16 15:14:21,069 log 35048 63124 Unauthorized: /api/v1/token/
+WARNING 2025-12-16 15:15:04,965 log 19260 55252 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2025-12-16 15:15:06,013 log 19260 19356 Unauthorized: /api/v1/token/
+WARNING 2025-12-16 15:16:05,200 log 19260 19356 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2025-12-16 15:17:25,533 log 26692 50600 Not Found: /favicon.ico
+ERROR 2025-12-16 15:17:28,517 log 26692 50600 Internal Server Error: /admin/core/imobiliaria/3/change/
+Traceback (most recent call last):
+  File "C:\wamp64\www\imobcloud\venv\Lib\site-packages\django\contrib\admin\options.py", line 840, in get_form
+    return modelform_factory(self.model, **defaults)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\wamp64\www\imobcloud\venv\Lib\site-packages\django\forms\models.py", line 654, in modelform_factory
+    return type(form)(class_name, (form,), form_class_attrs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\wamp64\www\imobcloud\venv\Lib\site-packages\django\forms\models.py", line 334, in __new__
+    raise FieldError(message)
+django.core.exceptions.FieldError: Unknown field(s) (facebook_user_access_token, telefone) specified for Imobiliaria
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "C:\wamp64\www\imobcloud\venv\Lib\site-packages\django\core\handlers\exception.py", line 55, in inner
+    response = get_response(request)
+               ^^^^^^^^^^^^^^^^^^^^^
+  File "C:\wamp64\www\imobcloud\venv\Lib\site-packages\django\core\handlers\base.py", line 197, in _get_response
+    response = wrapped_callback(request, *callback_args, **callback_kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\wamp64\www\imobcloud\venv\Lib\site-packages\django\contrib\admin\options.py", line 719, in wrapper
+    return self.admin_site.admin_view(view)(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\wamp64\www\imobcloud\venv\Lib\site-packages\django\utils\decorators.py", line 192, in _view_wrapper
+    result = _process_exception(request, e)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\wamp64\www\imobcloud\venv\Lib\site-packages\django\utils\decorators.py", line 190, in _view_wrapper
+    response = view_func(request, *args, **kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\wamp64\www\imobcloud\venv\Lib\site-packages\django\views\decorators\cache.py", line 80, in _view_wrapper
+    response = view_func(request, *args, **kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\wamp64\www\imobcloud\venv\Lib\site-packages\django\contrib\admin\sites.py", line 246, in inner
+    return view(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\wamp64\www\imobcloud\venv\Lib\site-packages\django\contrib\admin\options.py", line 1987, in change_view
+    return self.changeform_view(request, object_id, form_url, extra_context)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\wamp64\www\imobcloud\venv\Lib\site-packages\django\utils\decorators.py", line 48, in _wrapper
+    return bound_method(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\wamp64\www\imobcloud\venv\Lib\site-packages\django\utils\decorators.py", line 192, in _view_wrapper
+    result = _process_exception(request, e)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\wamp64\www\imobcloud\venv\Lib\site-packages\django\utils\decorators.py", line 190, in _view_wrapper
+    response = view_func(request, *args, **kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\wamp64\www\imobcloud\venv\Lib\site-packages\django\contrib\admin\options.py", line 1840, in changeform_view
+    return self._changeform_view(request, object_id, form_url, extra_context)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\wamp64\www\imobcloud\venv\Lib\site-packages\django\contrib\admin\options.py", line 1878, in _changeform_view
+    ModelForm = self.get_form(
+                ^^^^^^^^^^^^^^
+  File "C:\wamp64\www\imobcloud\venv\Lib\site-packages\django\contrib\admin\options.py", line 842, in get_form
+    raise FieldError(
+django.core.exceptions.FieldError: Unknown field(s) (facebook_user_access_token, telefone) specified for Imobiliaria. Check fields/fieldsets/exclude attributes of class ImobiliariaAdmin.
+WARNING 2025-12-16 15:18:05,512 log 26692 40460 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2025-12-16 15:19:05,214 log 26692 40460 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2025-12-16 15:20:48,628 log 48788 28972 Unauthorized: /api/v1/token/
+WARNING 2025-12-16 15:22:42,612 log 48788 28972 Unauthorized: /api/v1/token/
+WARNING 2025-12-16 15:22:57,350 log 48788 28972 Unauthorized: /api/v1/token/
+WARNING 2025-12-16 15:23:38,555 log 48788 28972 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2025-12-16 15:23:38,732 log 48788 28972 Forbidden: /api/v1/stats/
+WARNING 2025-12-16 15:23:38,870 log 48788 14908 Forbidden: /api/v1/financeiro/transacoes/stats/
+WARNING 2025-12-16 15:23:38,905 log 48788 30452 Forbidden: /api/v1/alugueis/dashboard-stats/
+WARNING 2025-12-16 15:23:47,076 log 48788 30452 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2025-12-16 15:23:47,228 log 48788 28972 Forbidden: /api/v1/financeiro/transacoes/stats/
+WARNING 2025-12-16 15:23:47,299 log 48788 14908 Forbidden: /api/v1/stats/
+WARNING 2025-12-16 15:23:47,327 log 48788 1308 Forbidden: /api/v1/alugueis/dashboard-stats/
+WARNING 2025-12-16 15:24:39,916 log 20416 23760 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2025-12-16 15:24:44,062 log 20416 23760 Unauthorized: /api/v1/token/
+WARNING 2025-12-16 15:24:46,762 log 20416 23760 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2025-12-16 15:24:49,933 log 20416 23760 Unauthorized: /api/v1/token/
+WARNING 2025-12-16 15:25:03,316 log 20416 23760 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2025-12-16 15:25:03,319 log 20416 44448 Forbidden: /api/v1/stats/
+WARNING 2025-12-16 15:25:03,516 log 20416 23760 Forbidden: /api/v1/financeiro/transacoes/stats/
+WARNING 2025-12-16 15:25:03,544 log 20416 44448 Forbidden: /api/v1/alugueis/dashboard-stats/
+WARNING 2025-12-16 15:25:39,198 log 20416 44448 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2025-12-16 15:25:47,204 log 20416 44448 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2025-12-16 15:26:03,030 log 20416 44448 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2025-12-16 15:26:06,871 log 20416 44448 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2025-12-16 15:26:07,064 log 20416 23760 Forbidden: /api/v1/stats/
+WARNING 2025-12-16 15:26:07,217 log 20416 44448 Forbidden: /api/v1/financeiro/transacoes/stats/
+WARNING 2025-12-16 15:26:07,256 log 20416 52812 Forbidden: /api/v1/alugueis/dashboard-stats/
+WARNING 2025-12-16 15:26:39,222 log 20416 52812 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2025-12-16 15:26:47,211 log 20416 52812 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2025-12-16 15:27:03,216 log 20416 52812 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2025-12-16 15:27:07,205 log 20416 52812 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2025-12-16 16:50:15,071 log 52836 15416 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2025-12-16 16:50:15,951 log 52836 54120 Forbidden: /api/v1/financeiro/transacoes/stats/
+WARNING 2025-12-16 16:50:15,999 log 52836 44936 Forbidden: /api/v1/stats/
+WARNING 2025-12-16 16:50:16,437 log 52836 34004 Forbidden: /api/v1/alugueis/dashboard-stats/
+WARNING 2025-12-16 16:51:15,501 log 37808 13176 Not Found: /api/contratos/contratos/
+WARNING 2025-12-16 16:51:15,684 log 37808 13176 Not Found: /api/vistorias/vistorias/
+WARNING 2025-12-16 16:54:21,652 log 37808 60468 Not Found: /favicon.ico
+WARNING 2025-12-16 16:55:03,952 log 37808 5080 Not Found: /api/contratos/contratos/
+WARNING 2025-12-16 16:55:05,074 log 37808 5080 Not Found: /api/vistorias/vistorias/
+WARNING 2025-12-16 16:55:14,634 log 37808 26348 Not Found: /api/contratos/contratos/
+WARNING 2025-12-16 16:55:14,885 log 37808 26348 Not Found: /api/vistorias/vistorias/
+WARNING 2025-12-16 16:55:26,444 log 37808 26348 Not Found: /api/contratos/contratos/
+WARNING 2025-12-16 16:55:26,663 log 37808 26348 Not Found: /api/vistorias/vistorias/
+WARNING 2025-12-16 17:06:43,975 log 37808 43996 Not Found: /api/contratos/contratos/
+WARNING 2025-12-16 17:06:44,236 log 37808 43996 Not Found: /api/vistorias/vistorias/
+WARNING 2025-12-16 17:06:48,751 log 37808 2940 Not Found: /api/contratos/contratos/
+WARNING 2025-12-16 17:06:48,894 log 37808 22696 Not Found: /api/vistorias/vistorias/
+WARNING 2025-12-16 17:16:56,951 log 37808 1472 Not Found: /api/contratos/contratos/
+WARNING 2025-12-16 17:16:58,547 log 37808 1472 Not Found: /api/vistorias/vistorias/
+WARNING 2025-12-16 17:17:05,379 log 37808 1472 Not Found: /api/contratos/contratos/
+WARNING 2025-12-16 17:17:05,428 log 37808 34924 Not Found: /api/vistorias/vistorias/
+WARNING 2025-12-16 17:17:46,972 log 37808 1472 Not Found: /api/vistorias/vistorias/
+WARNING 2025-12-16 17:17:46,985 log 37808 34924 Not Found: /api/contratos/contratos/
+WARNING 2025-12-16 17:20:09,053 log 37808 34924 Not Found: /api/contratos/contratos/
+WARNING 2025-12-16 17:20:09,093 log 37808 1472 Not Found: /api/vistorias/vistorias/
+WARNING 2025-12-16 17:20:54,772 log 37808 34924 Not Found: /api/contratos/contratos/
+WARNING 2025-12-16 17:20:54,784 log 37808 1472 Not Found: /api/vistorias/vistorias/
+WARNING 2025-12-16 17:23:02,083 log 37808 34924 Not Found: /api/vistorias/vistorias/
+WARNING 2025-12-16 17:23:02,109 log 37808 1472 Not Found: /api/contratos/contratos/
+WARNING 2025-12-16 17:51:21,243 log 37808 13036 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2025-12-16 17:51:21,319 log 37808 13036 Forbidden: /api/v1/stats/
+WARNING 2025-12-16 17:51:21,325 log 37808 13036 Forbidden: /api/v1/financeiro/transacoes/stats/
+WARNING 2025-12-16 17:51:21,330 log 37808 13036 Forbidden: /api/v1/alugueis/dashboard-stats/
+WARNING 2025-12-16 17:52:21,818 log 37808 13036 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2025-12-16 17:53:21,319 log 37808 13036 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2025-12-16 17:54:21,272 log 37808 13036 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2025-12-16 17:55:21,256 log 37808 13036 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2025-12-16 17:56:21,258 log 37808 13036 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2025-12-16 17:57:21,308 log 37808 13036 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2025-12-16 17:58:21,244 log 37808 13036 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2025-12-16 17:59:21,250 log 37808 13036 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2025-12-16 18:00:21,893 log 37808 22308 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2025-12-16 18:01:21,497 log 37808 22308 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2025-12-16 18:02:21,241 log 37808 22308 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2025-12-16 18:03:21,223 log 37808 22308 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2025-12-16 18:04:21,244 log 37808 22308 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2025-12-16 18:05:05,463 log 37808 52376 Not Found: /api/contratos/contratos/
+WARNING 2025-12-16 18:05:05,514 log 37808 59844 Not Found: /api/vistorias/vistorias/
+WARNING 2025-12-16 18:32:49,417 log 37808 19172 Not Found: /api/vistorias/vistorias/
+WARNING 2025-12-16 18:32:49,516 log 37808 20296 Not Found: /api/vistorias/vistorias/
+WARNING 2025-12-16 18:32:49,551 log 37808 54372 Not Found: /api/contratos/contratos/
+WARNING 2025-12-16 18:34:57,886 log 37808 13160 Not Found: /api/v1/contratos/contratos/
+WARNING 2025-12-16 18:34:57,974 log 37808 54372 Not Found: /api/v1/vistorias/vistorias/
+WARNING 2025-12-16 18:35:24,093 log 53788 62076 Not Found: /api/v1/contratos/contratos/
+WARNING 2025-12-16 18:35:24,307 log 53788 14364 Not Found: /api/v1/vistorias/vistorias/
+WARNING 2025-12-16 18:36:00,528 log 53788 62076 Not Found: /api/v1/contratos/contratos/
+WARNING 2025-12-16 18:36:00,570 log 53788 61860 Not Found: /api/v1/vistorias/vistorias/
+WARNING 2025-12-16 18:43:13,127 log 22692 55508 Not Found: /api/v1/contratos/contratos/
+WARNING 2025-12-16 18:47:54,400 log 22620 63368 Not Found: /api/v1/contratos/contratos/
+WARNING 2025-12-16 18:48:51,888 log 22620 22468 Not Found: /api/v1/contratos/contratos/
+WARNING 2025-12-16 18:49:15,087 log 41128 31388 Not Found: /api/v1/contratos/contratos/
+WARNING 2025-12-16 18:52:45,307 log 57760 18956 Not Found: /api/v1/contratos/dashboard-stats/
+WARNING 2025-12-16 18:53:33,834 log 57760 40704 Not Found: /favicon.ico
+WARNING 2025-12-16 18:55:06,642 log 57760 49696 Not Found: /api/v1/contratos/dashboard-stats/
+WARNING 2025-12-16 18:58:15,439 log 15312 51712 Not Found: /api/v1/contratos/dashboard-stats/
+WARNING 2025-12-16 18:58:18,772 log 15312 51712 Not Found: /api/v1/contratos/dashboard-stats/
+WARNING 2025-12-16 18:58:23,435 log 15312 57208 Not Found: /api/v1/contratos/dashboard-stats/
+WARNING 2025-12-16 18:58:42,818 log 46392 38640 Not Found: /api/v1/contratos/dashboard-stats/
+WARNING 2025-12-16 18:59:02,816 log 46392 24376 Not Found: /api/v1/contratos/dashboard-stats/
+WARNING 2025-12-16 19:12:56,375 log 53696 30744 Not Found: /api/v1/contratos/contratos/
+ERROR 2025-12-16 19:15:24,047 log 53696 9720 Internal Server Error: /api/v1/contratos/
+Traceback (most recent call last):
+  File "C:\wamp64\www\imobcloud\venv\Lib\site-packages\django\core\handlers\exception.py", line 55, in inner
+    response = get_response(request)
+               ^^^^^^^^^^^^^^^^^^^^^
+  File "C:\wamp64\www\imobcloud\venv\Lib\site-packages\django\core\handlers\base.py", line 197, in _get_response
+    response = wrapped_callback(request, *callback_args, **callback_kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\wamp64\www\imobcloud\venv\Lib\site-packages\django\views\decorators\csrf.py", line 65, in _view_wrapper
+    return view_func(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\wamp64\www\imobcloud\venv\Lib\site-packages\rest_framework\viewsets.py", line 124, in view
+    return self.dispatch(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\wamp64\www\imobcloud\venv\Lib\site-packages\rest_framework\views.py", line 509, in dispatch
+    response = self.handle_exception(exc)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\wamp64\www\imobcloud\venv\Lib\site-packages\rest_framework\views.py", line 469, in handle_exception
+    self.raise_uncaught_exception(exc)
+  File "C:\wamp64\www\imobcloud\venv\Lib\site-packages\rest_framework\views.py", line 480, in raise_uncaught_exception
+    raise exc
+  File "C:\wamp64\www\imobcloud\venv\Lib\site-packages\rest_framework\views.py", line 506, in dispatch
+    response = handler(request, *args, **kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\wamp64\www\imobcloud\venv\Lib\site-packages\rest_framework\mixins.py", line 20, in create
+    serializer.is_valid(raise_exception=True)
+  File "C:\wamp64\www\imobcloud\venv\Lib\site-packages\rest_framework\serializers.py", line 223, in is_valid
+    self._validated_data = self.run_validation(self.initial_data)
+                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\wamp64\www\imobcloud\venv\Lib\site-packages\rest_framework\serializers.py", line 442, in run_validation
+    value = self.to_internal_value(data)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\wamp64\www\imobcloud\venv\Lib\site-packages\rest_framework\serializers.py", line 501, in to_internal_value
+    validated_value = validate_method(validated_value)
+                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\wamp64\www\imobcloud\app_contratos\serializers.py", line 181, in validate_modelo_utilizado
+    imobiliaria_usuario = self.context['request'].user.perfil.imobiliaria
+                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AttributeError: 'PerfilUsuario' object has no attribute 'perfil'
+WARNING 2025-12-16 19:20:36,848 log 25616 20572 Not Found: /api/vistorias/vistorias/1/
+WARNING 2025-12-16 19:34:53,267 log 25616 23888 Not Found: /api/vistorias/vistorias/2/
+WARNING 2025-12-16 19:44:37,580 log 53844 21256 Not Found: /api/vistorias/vistorias/2/
+WARNING 2025-12-16 19:49:22,375 log 53844 40792 Not Found: /api/vistorias/vistorias/4/
+WARNING 2025-12-16 19:49:41,952 log 53844 40792 Not Found: /api/vistorias/vistorias/4/
+WARNING 2025-12-16 19:59:21,225 log 53844 40792 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2025-12-16 19:59:21,298 log 53844 40792 Forbidden: /api/v1/stats/
+WARNING 2025-12-16 19:59:21,298 log 53844 40792 Forbidden: /api/v1/financeiro/transacoes/stats/
+WARNING 2025-12-16 19:59:21,312 log 53844 40792 Forbidden: /api/v1/alugueis/dashboard-stats/
+WARNING 2025-12-16 20:00:21,622 log 53844 62028 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2025-12-16 20:01:21,224 log 53844 62028 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2025-12-16 20:02:21,243 log 53844 62028 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2025-12-16 20:03:21,232 log 53844 62028 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2025-12-16 20:04:21,230 log 53844 62028 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2025-12-16 20:05:21,247 log 53844 62028 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2025-12-16 20:06:21,225 log 53844 62028 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2025-12-16 20:07:21,224 log 53844 62028 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2025-12-16 20:08:21,236 log 53844 62028 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2025-12-16 20:09:21,224 log 53844 62028 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2025-12-16 20:10:21,222 log 53844 62028 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2025-12-16 20:11:21,224 log 53844 62028 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+ERROR 2025-12-16 20:11:51,814 log 45484 31080 Internal Server Error: /api/v1/vistorias/vistorias/1/gerar-laudo/
+WARNING 2025-12-16 20:11:52,688 log 45484 17372 Not Found: /favicon.ico
+WARNING 2025-12-16 20:12:13,334 log 45484 31420 Forbidden: /api/v1/contratos/
+WARNING 2025-12-16 20:12:13,335 log 45484 29728 Forbidden: /api/v1/vistorias/vistorias/
+WARNING 2025-12-16 20:12:13,404 log 45484 29728 Forbidden: /api/v1/stats/
+WARNING 2025-12-16 20:12:13,405 log 45484 31420 Forbidden: /api/v1/financeiro/transacoes/stats/
+WARNING 2025-12-16 20:12:13,446 log 45484 29728 Forbidden: /api/v1/alugueis/dashboard-stats/
+ERROR 2025-12-16 20:12:34,845 log 45484 17372 Internal Server Error: /api/v1/vistorias/vistorias/5/gerar-laudo/
+ERROR 2025-12-16 20:13:24,450 log 45484 17372 Internal Server Error: /api/v1/vistorias/vistorias/5/gerar-laudo/
+ERROR 2025-12-16 20:13:43,031 log 45484 17372 Internal Server Error: /api/v1/vistorias/vistorias/5/gerar-laudo/
+ERROR 2025-12-16 20:13:53,905 log 45484 17372 Internal Server Error: /api/v1/vistorias/vistorias/5/gerar-laudo/
+ERROR 2025-12-16 20:14:50,703 log 45484 17372 Internal Server Error: /api/v1/vistorias/vistorias/5/gerar-laudo/
+ERROR 2025-12-16 20:15:36,197 log 55808 21640 Internal Server Error: /api/v1/vistorias/vistorias/5/gerar-laudo/
+WARNING 2025-12-16 20:18:36,562 log 55808 3360 Forbidden: /api/v1/relatorios/
+WARNING 2025-12-16 20:18:45,443 log 55808 32440 Forbidden: /api/v1/relatorios/
+ERROR 2025-12-16 20:19:19,299 log 26608 8920 Internal Server Error: /api/v1/vistorias/vistorias/5/gerar-laudo/
+ERROR 2025-12-16 20:21:54,536 log 42544 12972 Internal Server Error: /api/v1/vistorias/vistorias/5/gerar-laudo/
+WARNING 2025-12-16 20:26:08,872 log 59288 35304 Not Found: /api/vistorias/vistorias/5/
+ERROR 2025-12-16 20:28:18,770 log 24540 12212 Internal Server Error: /api/v1/vistorias/vistorias/5/gerar-laudo/
+ERROR 2025-12-16 20:28:24,592 log 24540 49040 Internal Server Error: /api/v1/vistorias/vistorias/5/gerar-laudo/
+WARNING 2025-12-16 20:29:38,694 util 13116 25972 getSize: Not a float '100%'
+ERROR 2025-12-16 20:31:51,883 log 45148 50816 Internal Server Error: /api/v1/vistorias/vistorias/5/gerar-laudo/
+ERROR 2025-12-16 20:50:28,766 log 59776 10628 Internal Server Error: /api/v1/vistorias/vistorias/5/
+Traceback (most recent call last):
+  File "C:\wamp64\www\imobcloud\venv\Lib\site-packages\django\db\backends\utils.py", line 105, in _execute
+    return self.cursor.execute(sql, params)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+psycopg2.errors.UndefinedColumn: ERRORE:  la colonna app_vistorias_vistoria.assinatura_locatario non esiste
+LINE 1: ...", "app_vistorias_vistoria"."realizado_por_nome", "app_visto...
+                                                             ^
+
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "C:\wamp64\www\imobcloud\venv\Lib\site-packages\django\core\handlers\exception.py", line 55, in inner
+    response = get_response(request)
+               ^^^^^^^^^^^^^^^^^^^^^
+  File "C:\wamp64\www\imobcloud\venv\Lib\site-packages\django\core\handlers\base.py", line 197, in _get_response
+    response = wrapped_callback(request, *callback_args, **callback_kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\wamp64\www\imobcloud\venv\Lib\site-packages\django\views\decorators\csrf.py", line 65, in _view_wrapper
+    return view_func(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\wamp64\www\imobcloud\venv\Lib\site-packages\rest_framework\viewsets.py", line 124, in view
+    return self.dispatch(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\wamp64\www\imobcloud\venv\Lib\site-packages\rest_framework\views.py", line 509, in dispatch
+    response = self.handle_exception(exc)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\wamp64\www\imobcloud\venv\Lib\site-packages\rest_framework\views.py", line 469, in handle_exception
+    self.raise_uncaught_exception(exc)
+  File "C:\wamp64\www\imobcloud\venv\Lib\site-packages\rest_framework\views.py", line 480, in raise_uncaught_exception
+    raise exc
+  File "C:\wamp64\www\imobcloud\venv\Lib\site-packages\rest_framework\views.py", line 506, in dispatch
+    response = handler(request, *args, **kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\wamp64\www\imobcloud\venv\Lib\site-packages\rest_framework\mixins.py", line 56, in retrieve
+    instance = self.get_object()
+               ^^^^^^^^^^^^^^^^^
+  File "C:\wamp64\www\imobcloud\venv\Lib\site-packages\rest_framework\generics.py", line 100, in get_object
+    obj = get_object_or_404(queryset, **filter_kwargs)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\wamp64\www\imobcloud\venv\Lib\site-packages\rest_framework\generics.py", line 19, in get_object_or_404
+    return _get_object_or_404(queryset, *filter_args, **filter_kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\wamp64\www\imobcloud\venv\Lib\site-packages\django\shortcuts.py", line 90, in get_object_or_404
+    return queryset.get(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\wamp64\www\imobcloud\venv\Lib\site-packages\django\db\models\query.py", line 629, in get
+    num = len(clone)
+          ^^^^^^^^^^
+  File "C:\wamp64\www\imobcloud\venv\Lib\site-packages\django\db\models\query.py", line 366, in __len__
+    self._fetch_all()
+  File "C:\wamp64\www\imobcloud\venv\Lib\site-packages\django\db\models\query.py", line 1949, in _fetch_all
+    self._result_cache = list(self._iterable_class(self))
+                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\wamp64\www\imobcloud\venv\Lib\site-packages\django\db\models\query.py", line 91, in __iter__
+    results = compiler.execute_sql(
+              ^^^^^^^^^^^^^^^^^^^^^
+  File "C:\wamp64\www\imobcloud\venv\Lib\site-packages\django\db\models\sql\compiler.py", line 1623, in execute_sql
+    cursor.execute(sql, params)
+  File "C:\wamp64\www\imobcloud\venv\Lib\site-packages\django\db\backends\utils.py", line 122, in execute
+    return super().execute(sql, params)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\wamp64\www\imobcloud\venv\Lib\site-packages\django\db\backends\utils.py", line 79, in execute
+    return self._execute_with_wrappers(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\wamp64\www\imobcloud\venv\Lib\site-packages\django\db\backends\utils.py", line 92, in _execute_with_wrappers
+    return executor(sql, params, many, context)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\wamp64\www\imobcloud\venv\Lib\site-packages\django\db\backends\utils.py", line 100, in _execute
+    with self.db.wrap_database_errors:
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\wamp64\www\imobcloud\venv\Lib\site-packages\django\db\utils.py", line 91, in __exit__
+    raise dj_exc_value.with_traceback(traceback) from exc_value
+  File "C:\wamp64\www\imobcloud\venv\Lib\site-packages\django\db\backends\utils.py", line 105, in _execute
+    return self.cursor.execute(sql, params)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+django.db.utils.ProgrammingError: ERRORE:  la colonna app_vistorias_vistoria.assinatura_locatario non esiste
+LINE 1: ...", "app_vistorias_vistoria"."realizado_por_nome", "app_visto...
+                                                             ^
+
+WARNING 2025-12-16 20:51:46,448 log 35284 57628 Not Found: /api/vistorias/vistorias/5/
+WARNING 2025-12-16 20:59:47,470 log 30644 51992 Bad Request: /api/v1/vistorias/vistorias/5/
+WARNING 2025-12-16 21:07:38,019 log 43436 34620 Bad Request: /api/v1/vistorias/vistorias/5/
+WARNING 2025-12-16 21:10:32,490 log 43436 34620 Bad Request: /api/v1/vistorias/vistorias/5/
+WARNING 2025-12-16 21:10:47,594 log 43436 34620 Bad Request: /api/v1/vistorias/vistorias/5/
+WARNING 2025-12-16 21:13:08,982 log 43436 34620 Unsupported Media Type: /api/v1/vistorias/fotos/upload-lote/
+WARNING 2025-12-16 21:15:19,727 log 43436 62412 Unsupported Media Type: /api/v1/vistorias/fotos/upload-lote/
+WARNING 2025-12-16 21:18:52,271 log 43436 62412 Forbidden: /api/v1/vistorias/itens/
+WARNING 2025-12-16 21:19:03,427 log 43436 34268 Forbidden: /api/v1/stats/
+WARNING 2025-12-16 21:19:03,434 log 43436 15696 Forbidden: /api/v1/financeiro/transacoes/stats/
+WARNING 2025-12-16 21:19:03,435 log 43436 62412 Forbidden: /api/v1/alugueis/dashboard-stats/
+WARNING 2025-12-16 21:21:43,988 util 43436 62412 getSize: Not a float '45%'
+WARNING 2025-12-16 21:34:23,683 log 52712 58164 Bad Request: /api/v1/vistorias/vistorias/7/
+WARNING 2025-12-16 21:34:28,735 log 52712 58164 Bad Request: /api/v1/vistorias/vistorias/7/
+WARNING 2025-12-16 21:34:36,558 log 52712 2200 Bad Request: /api/v1/vistorias/vistorias/7/
+WARNING 2025-12-16 21:35:00,526 log 52712 54676 Bad Request: /api/v1/vistorias/vistorias/7/
+WARNING 2025-12-16 21:36:02,217 log 52712 54676 Bad Request: /api/v1/vistorias/vistorias/7/
+ERROR 2025-12-16 21:42:36,485 log 55884 46168 Internal Server Error: /api/v1/vistorias/vistorias/7/gerar-laudo/
+ERROR 2025-12-16 21:42:43,061 log 55884 46168 Internal Server Error: /api/v1/vistorias/vistorias/7/gerar-laudo/

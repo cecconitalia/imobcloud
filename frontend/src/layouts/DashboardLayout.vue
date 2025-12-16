@@ -48,7 +48,8 @@
           </a>
           <ul class="submenu">
             <li><router-link to="/contratos" active-class="active">Gerenciar Contratos</router-link></li>
-            </ul>
+            <li><router-link to="/vistorias" active-class="active">Gerenciar Vistorias</router-link></li>
+          </ul>
         </li>
 
         <li class="nav-section-title"><span class="nav-text">Gestão</span></li>
@@ -154,37 +155,34 @@ const router = useRouter();
 const route = useRoute();
 
 const isSidebarOpen = ref(false);
-const openMenu = ref<string | null>(null); // ESTADO PARA O MENU ABERTO
+const openMenu = ref<string | null>(null);
 
-// Função para alternar a sidebar
+// --- Lógica de Sidebar e Menu ---
+
 const toggleSidebar = () => {
   isSidebarOpen.value = !isSidebarOpen.value;
   if (!isSidebarOpen.value) {
-    openMenu.value = null; // Fecha submenus ao fechar a sidebar
+    openMenu.value = null;
   }
 };
 
-// Função para alternar os submenus
 const toggleMenu = (menuName: string) => {
   if (openMenu.value === menuName) {
-    openMenu.value = null; // Fecha o menu se já estiver aberto
+    openMenu.value = null;
   } else {
-    openMenu.value = menuName; // Abre o novo menu
+    openMenu.value = menuName;
   }
 };
 
-// Função para verificar se o menu está aberto
 const isMenuOpen = (menuName: string) => {
   return openMenu.value === menuName;
 };
 
-// Observador para fechar sidebar e menus ao navegar
+// Observador para fechar sidebar ao navegar
 watch(route, () => {
   if (isSidebarOpen.value) {
     isSidebarOpen.value = false;
   }
-  // Opcional: Fechar submenus ao navegar se desejar
-  // openMenu.value = null; 
 });
 
 const logout = () => {
@@ -193,6 +191,8 @@ const logout = () => {
   localStorage.removeItem('userCargo');
   router.push('/login');
 };
+// --- Fim da Lógica de Sidebar e Menu ---
+
 </script>
 
 <style scoped>
@@ -226,12 +226,15 @@ const logout = () => {
   top: 0;
   left: 0;
   z-index: 1001;
+  /* GARANTE QUE INICIA ESCONDIDO EM TODAS AS TELAS */
   transform: translateX(-100%);
   transition: transform var(--transition-speed) var(--transition-easing);
+  box-shadow: 4px 0 15px rgba(0, 0, 0, 0.05); /* Sombra suave para dar destaque quando abrir */
 }
+
+/* QUANDO ABERTO, MOVE PARA DENTRO DA TELA */
 .dashboard-layout.sidebar-open .sidebar {
   transform: translateX(0);
-  box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);
 }
 
 .sidebar-header {
@@ -260,8 +263,7 @@ const logout = () => {
   flex-grow: 1;
 }
 
-/* --- LÓGICA DA ANIMAÇÃO EM CASCATA (MODIFICADO) --- */
-/* Aplica animação apenas aos LIs de nível superior (filhos diretos) */
+/* --- LÓGICA DA ANIMAÇÃO EM CASCATA --- */
 .sidebar-nav > li {
   opacity: 0;
   transform: translateX(-15px);
@@ -298,10 +300,10 @@ const logout = () => {
   font-size: 0.95rem;
   white-space: nowrap;
   transition: background-color 0.2s, color 0.2s;
-  position: relative; /* Adicionado para o caret */
+  position: relative;
 }
 .sidebar-nav a:hover { background-color: #f8f9fa; }
-/* Aplica estilo ativo apenas para links diretos */
+
 .sidebar-nav > li > a.router-link-active.router-link-exact-active,
 .sidebar-nav > li > a.router-link-active {
   background-color: #e9ecef;
@@ -315,7 +317,7 @@ const logout = () => {
   margin-right: 1rem;
   color: #718096;
 }
-/* Aplica estilo ativo aos ícones apenas para links diretos */
+
 .sidebar-nav > li > a.router-link-active.router-link-exact-active i,
 .sidebar-nav > li > a.router-link-active i {
   color: #007bff;
@@ -374,7 +376,7 @@ const logout = () => {
   list-style: none;
   padding: 0;
   margin: 0;
-  background-color: #f8f9fa; /* Fundo ligeiramente diferente */
+  background-color: #f8f9fa;
   max-height: 0;
   overflow: hidden;
   opacity: 0;
@@ -382,15 +384,13 @@ const logout = () => {
   transition: max-height 0.4s ease-in-out, opacity 0.3s ease-in-out, visibility 0.4s, padding 0.4s ease-in-out;
 }
 .nav-item-dropdown.open .submenu {
-  max-height: 500px; /* Altura máxima para animação */
+  max-height: 500px;
   opacity: 1;
   visibility: visible;
   padding: 0.5rem 0;
 }
-/* Estilo dos links do submenu */
 .submenu a {
   height: 44px;
-  /* (Padding Pai) + (Largura Icone Pai) + (Margem Icone Pai) */
   padding-left: calc(24px + 25px + 1rem);
   font-size: 0.9rem;
   font-weight: 500;
@@ -399,14 +399,12 @@ const logout = () => {
 .submenu a:hover {
   background-color: #f1f3f5;
 }
-/* Estilo ativo para links DENTRO do submenu */
 .submenu a.router-link-active.router-link-exact-active,
 .submenu a.router-link-active {
-  background-color: transparent; /* Sem fundo diferente */
+  background-color: transparent;
   color: #0056b3;
   font-weight: 600;
 }
-/* --- FIM DOS NOVOS ESTILOS DE SUBMENU --- */
 
 
 /* --- OVERLAY --- */
@@ -424,12 +422,11 @@ const logout = () => {
 /* --- CONTENT WRAPPER --- */
 .content-wrapper {
   width: 100%; height: 100vh; display: flex; flex-direction: column;
-  transition: filter var(--transition-speed) ease, transform var(--transition-speed) ease;
+  transition: margin-left var(--transition-speed) ease, filter var(--transition-speed) ease;
+  margin-left: 0; /* Padrão sem sidebar */
 }
-.dashboard-layout.sidebar-open .content-wrapper {
-    filter: blur(4px) brightness(0.9);
-    transform: scale(0.99);
-}
+
+/* REMOVIDO AQUI: O BLOCO @MEDIA QUE FIXAVA O MENU EM 1024PX FOI EXCLUÍDO */
 
 .content-header {
   display: flex; justify-content: space-between; align-items: center;
@@ -449,26 +446,27 @@ const logout = () => {
 }
 .sidebar-toggle-button:hover { background-color: #e9ecef; }
 .hamburger-box {
-    width: 22px; height: 16px; position: relative;
+  width: 22px; height: 16px; position: relative;
 }
 .hamburger-bar {
-    display: block; position: absolute;
-    width: 100%; height: 2px;
-    background-color: #4a5568; border-radius: 2px;
-    left: 0;
-    transition: all 0.25s ease-in-out;
+  display: block; position: absolute;
+  width: 100%; height: 2px;
+  background-color: #4a5568; border-radius: 2px;
+  left: 0;
+  transition: all 0.25s ease-in-out;
 }
 .hamburger-bar:nth-child(1) { top: 0; }
 .hamburger-bar:nth-child(2) { top: 50%; transform: translateY(-50%); }
 .hamburger-bar:nth-child(3) { bottom: 0; }
+
 .dashboard-layout.sidebar-open .hamburger-bar:nth-child(1) {
-    transform: translateY(7px) rotate(45deg);
+  transform: translateY(7px) rotate(45deg);
 }
 .dashboard-layout.sidebar-open .hamburger-bar:nth-child(2) {
-    opacity: 0;
+  opacity: 0;
 }
 .dashboard-layout.sidebar-open .hamburger-bar:nth-child(3) {
-    transform: translateY(-7px) rotate(-45deg);
+  transform: translateY(-7px) rotate(-45deg);
 }
 
 

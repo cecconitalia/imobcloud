@@ -1,67 +1,68 @@
 // frontend/src/router/index.ts
 
 import { createRouter, createWebHistory } from 'vue-router'
+// CORREÇÃO: Adicionando a extensão .ts para resolver o import do Vite/TypeScript
+import { useAuthStore } from '@/stores/auth.ts' 
 
 // Importações dos layouts
 import DashboardLayout from '@/layouts/DashboardLayout.vue'
 import PublicLayout from '@/layouts/PublicLayout.vue'
 
-// Importações das views do Painel
-import LoginView from '@/views/LoginView.vue'
+// ==========================================================
+// ===== IMPORTAÇÕES DAS VIEWS (ALFABÉTICO) =================
+// ==========================================================
+import AlugueisDashboardView from '@/views/AlugueisDashboardView.vue'
+import AutorizacoesReportView from '@/views/AutorizacoesReportView.vue'
+import AutorizacoesView from '@/views/AutorizacoesView.vue'
+import CalendarioPublicacoesView from '@/views/CalendarioPublicacoesView.vue'
+import CalendarioTarefas from '@/views/CalendarioTarefas.vue'
+import CategoriaFormView from '@/views/CategoriaFormView.vue'
+import ClienteFormView from '@/views/ClienteFormView.vue'
+import ClientesView from '@/views/ClientesView.vue'
+import ConfiguracaoBancoView from '@/views/ConfiguracaoBancoView.vue'
+import ConfiguracaoIAView from '@/views/ConfiguracaoIA.vue'
+import ContaFormView from '@/views/ContaFormView.vue'
+import ContratoEditorView from '@/views/ContratoEditorView.vue'
+import ContratoFormView from '@/views/ContratoFormView.vue'
+import ContratoReadView from '@/views/ContratoReadView.vue' 
+import ContratosView from '@/views/ContratosView.vue'
+import ContatosView from '@/views/ContatosView.vue'
+import CorretoresView from '@/views/CorretoresView.vue'
+import CorretorRegistrationView from '@/views/CorretorRegistrationView.vue'
 import DashboardView from '@/views/DashboardView.vue'
+import DREView from '@/views/DREView.vue'
+import FinanceiroDashboardView from '@/views/FinanceiroDashboard.vue'
+import FormaPagamentoFormView from '@/views/FormaPagamentoFormView.vue'
+import FunilVendasView from '@/views/FunilVendasView.vue'
 import ImoveisView from '@/views/ImoveisView.vue'
 import ImovelFormView from '@/views/ImovelFormView.vue'
 import ImovelImagensView from '@/views/ImovelImagensView.vue'
-import ClientesView from '@/views/ClientesView.vue'
-import ClienteFormView from '@/views/ClienteFormView.vue'
-import ContratosView from '@/views/ContratosView.vue'
-import ContratoFormView from '@/views/ContratoFormView.vue'
-// ==========================================================
-// ===== NOVA IMPORTAÇÃO DO EDITOR DE CONTRATO ========
-// ==========================================================
-import ContratoEditorView from '@/views/ContratoEditorView.vue'
-// ==========================================================
-import VisitasView from '@/views/VisitasView.vue'
-import VisitaFormView from '@/views/VisitaFormView.vue'
-import ContatosView from '@/views/ContatosView.vue'
-import CorretorRegistrationView from '@/views/CorretorRegistrationView.vue'
-import FunilVendasView from '@/views/FunilVendasView.vue'
-import OportunidadeFormView from '@/views/OportunidadeFormView.vue'
-import CorretoresView from '@/views/CorretoresView.vue'
-import CalendarioTarefas from '@/views/CalendarioTarefas.vue'
-import RelatoriosView from '@/views/RelatoriosView.vue'
-import AutorizacoesView from '@/views/AutorizacoesView.vue'
-import AlugueisDashboardView from '@/views/AlugueisDashboardView.vue'
-
-// --- NOVA IMPORTAÇÃO DO RELATÓRIO ---
-import AutorizacoesReportView from '@/views/AutorizacoesReportView.vue';
-// --- FIM DA IMPORTAÇÃO ---
-
-// Importações das views do módulo financeiro
-import FinanceiroDashboardView from '@/views/FinanceiroDashboard.vue'
-import ListaTransacoesView from '@/views/ListaTransacoes.vue'
-import TransacaoFormView from '@/views/TransacaoForm.vue'
-import DREView from '@/views/DREView.vue'
-import ListaContasView from '@/views/ListaContasView.vue'
-import ContaFormView from '@/views/ContaFormView.vue'
-import ListaCategoriasView from '@/views/ListaCategoriasView.vue'
-import CategoriaFormView from '@/views/CategoriaFormView.vue'
-import ContasPagarView from '@/views/financeiro/ContasPagarView.vue';
-import ContasReceberView from '@/views/financeiro/ContasReceberView.vue';
-import ListaFormasPagamentoView from '@/views/ListaFormasPagamentoView.vue'
-import FormaPagamentoFormView from '@/views/FormaPagamentoFormView.vue'
-import RemessaRetornoView from '@/views/financeiro/RemessaRetornoView.vue'; // <-- ADICIONADO AQUI
-
-// Importações das novas views de publicações e integrações
-import ConfiguracaoIAView from '@/views/ConfiguracaoIA.vue'
 import IntegracoesView from '@/views/IntegracoesView.vue'
+import ListaCategoriasView from '@/views/ListaCategoriasView.vue'
+import ListaContasView from '@/views/ListaContasView.vue'
+import ListaFormasPagamentoView from '@/views/ListaFormasPagamentoView.vue'
+import ListaTransacoesView from '@/views/ListaTransacoes.vue'
+import LoginView from '@/views/LoginView.vue'
+import OportunidadeFormView from '@/views/OportunidadeFormView.vue'
 import PublicacoesView from '@/views/PublicacoesView.vue'
-import CalendarioPublicacoesView from '@/views/CalendarioPublicacoesView.vue'
-import ConfiguracaoBancoView from '@/views/ConfiguracaoBancoView.vue' // NOVO: Importação da nova view
+import RelatoriosView from '@/views/RelatoriosView.vue'
+import TransacaoFormView from '@/views/TransacaoForm.vue'
+import VisitaFormView from '@/views/VisitaFormView.vue'
+import VisitasView from '@/views/VisitasView.vue'
+// === IMPORTAÇÕES DE VISTORIA ===
+import VistoriasView from '@/views/VistoriasView.vue';
+import VistoriaFormView from '@/views/VistoriaFormView.vue';
+import VistoriaAmbientesView from '@/views/VistoriaAmbientesView.vue';
 
-// Importações das views do Site Público
+// Views Financeiras (Sub-pastas)
+import ContasPagarView from '@/views/financeiro/ContasPagarView.vue'
+import ContasReceberView from '@/views/financeiro/ContasReceberView.vue'
+import RemessaRetornoView from '@/views/financeiro/RemessaRetornoView.vue'
+
+// Views Públicas
 import PublicHomeView from '@/views/PublicHomeView.vue'
 import PublicImovelDetailView from '@/views/PublicImovelDetailView.vue'
+// ==========================================================
 
 // Adicionar um tipo para a meta das rotas
 declare module 'vue-router' {
@@ -243,9 +244,12 @@ const router = createRouter({
                         requiresAuth: true
                     }
                 },
-                // ==========================================================
-                // ===== NOVA ROTA PARA O EDITOR DE DOCUMENTO =======
-                // ==========================================================
+                {
+                    path: 'contratos/:id/detalhes', 
+                    name: 'ContratoRead', 
+                    component: ContratoReadView,
+                    meta: { title: 'Detalhes do Contrato', requiresAuth: true }
+                },
                 {
                     path: 'contratos/editar-documento/:id', // Edição do DOCUMENTO HTML
                     name: 'contrato-editar-documento',
@@ -255,7 +259,45 @@ const router = createRouter({
                         requiresAuth: true
                     }
                 },
-                // ==========================================================
+                
+                // ===========================================
+                // === ROTAS DE VISTORIA (ATUALIZADAS)     ===
+                // ===========================================
+                { 
+                    path: 'vistorias', 
+                    name: 'vistorias', 
+                    component: VistoriasView, 
+                    meta: { 
+                        title: 'Gerenciar Vistorias', 
+                        requiresAuth: true 
+                    } 
+                },
+                {
+                    path: 'vistorias/nova',
+                    name: 'vistoria-nova',
+                    component: VistoriaFormView,
+                    meta: { 
+                        title: 'Nova Vistoria', 
+                        requiresAuth: true 
+                    }
+                },
+                {
+                    path: 'vistorias/editar/:id',
+                    name: 'vistoria-editar',
+                    component: VistoriaFormView,
+                    meta: { 
+                        title: 'Editar Vistoria', 
+                        requiresAuth: true 
+                    }
+                },
+                {
+                    path: 'vistorias/checklist/:id', // URL com ID da vistoria
+                    name: 'vistoria-checklist',
+                    component: VistoriaAmbientesView,
+                    meta: { title: 'Executar Vistoria', requiresAuth: true }
+                },
+                // ===========================================
+
                 {
                     path: 'visitas',
                     name: 'visitas',
@@ -359,7 +401,6 @@ const router = createRouter({
                         isAdmin: true
                     }
                 },
-                // --- NOVA ROTA DE RELATÓRIO DE AUTORIZAÇÕES ---
                 {
                     path: 'relatorios/autorizacoes',
                     name: 'relatorio-autorizacoes',
@@ -370,9 +411,8 @@ const router = createRouter({
                         isAdmin: true 
                     }
                 },
-                // --- FIM DA NOVA ROTA ---
                 {
-                    path: 'autorizacoes', // Rota antiga (se existir)
+                    path: 'autorizacoes',
                     name: 'autorizacoes',
                     component: AutorizacoesView,
                     meta: {
@@ -401,7 +441,6 @@ const router = createRouter({
                         isAdmin: true
                     }
                 },
-                // NOVAS ROTAS ADICIONADAS AQUI PARA CONFIGURAÇÃO DE BANCO
                 {
                     path: 'integracoes/bancos/nova',
                     name: 'configuracao-banco-nova',
@@ -587,7 +626,6 @@ const router = createRouter({
                         isAdmin: true
                     }
                 },
-                // ROTA NOVA PARA REMESSA E RETORNO
                 {
                     path: 'financeiro/remessa-retorno',
                     name: 'remessa-retorno',
@@ -610,18 +648,42 @@ const router = createRouter({
 })
 
 router.beforeEach((to, from, next) => {
+    // Tenta usar o store de autenticação, se existir
+    let authStore: any;
+    try {
+      authStore = useAuthStore();
+    } catch (e) {
+      console.warn("Pinia/Vuex store não carregado.");
+    }
+    
+
     document.title = `${to.meta.title || 'ImobCloud'}`
 
     const requiresAuth = to.matched.some(record => record.meta.requiresAuth)
-    const isAuthenticated = !!localStorage.getItem('authToken')
-    const userCargo = localStorage.getItem('userCargo')
+    
+    // Usa o store ou localStorage como fallback
+    let isAuthenticated = authStore ? authStore.isAuthenticated : !!localStorage.getItem('authToken');
+    let currentCargo = authStore ? authStore.userCargo : localStorage.getItem('userCargo');
+
+    // Tenta revalidar se autenticado, mas store não tem info (caso de refresh)
+    if (!isAuthenticated && localStorage.getItem('authToken')) {
+         isAuthenticated = true;
+         // Se o token existe, talvez o store precise ser re-hidratado.
+    }
+    
+    // Define o cargo de volta se o store não o pegou na inicialização
+    if (!currentCargo) {
+        currentCargo = localStorage.getItem('userCargo');
+    }
+
 
     if (requiresAuth && !isAuthenticated) {
         next({ name: 'login' })
     } else if (to.name === 'login' && isAuthenticated) {
         next({ name: 'dashboard' })
     } else if (isAuthenticated) {
-        if (to.meta.isAdmin && userCargo !== 'ADMIN') {
+        // Verificação de permissão de administrador
+        if (to.meta.isAdmin && currentCargo !== 'ADMIN' && currentCargo !== 'SUPERADMIN') {
             alert("Você não tem permissão para aceder a esta página.")
             next({ name: 'dashboard' })
         } else {

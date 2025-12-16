@@ -26,7 +26,7 @@ from django.utils.dateparse import parse_date
 from django.db import transaction
 from django.db.models import Exists, OuterRef, Q, Count, Sum
 from app_financeiro.models import Transacao 
-from app_financeiro.serializers import TransacaoListSerializer # CORREÇÃO: Importação necessária
+from app_financeiro.serializers import TransacaoListSerializer 
 from rest_framework.views import APIView 
 from django.utils import timezone
 from datetime import timedelta
@@ -36,12 +36,11 @@ from reportlab.lib.pagesizes import letter
 
 import re 
 
-# === SEGURANÇA: Importação do Bleach (Requer pip install bleach) ===
+# === SEGURANÇA: Importação do Bleach ===
 try:
     import bleach
 except ImportError:
-    bleach = None # Fallback para evitar crash se não instalado, mas inseguro
-# ===================================================================
+    bleach = None 
 
 from ImobCloud.utils.formatacao_util import valor_por_extenso
 
@@ -128,19 +127,31 @@ def get_contrato_context(contrato):
 class ModeloContratoViewSet(viewsets.ModelViewSet):
     serializer_class = ModeloContratoSerializer
     permission_classes = [IsAuthenticated]
+    
     def get_queryset(self):
-        if hasattr(self.request.user, 'perfil') and self.request.user.perfil.imobiliaria:
+        user = self.request.user
+        imobiliaria = getattr(user, 'imobiliaria', None)
+        if hasattr(user, 'perfil') and user.perfil:
+            imobiliaria = user.perfil.imobiliaria
+            
+        if imobiliaria:
             queryset = ModeloContrato.objects.filter(
-                imobiliaria=self.request.user.perfil.imobiliaria
+                imobiliaria=imobiliaria
             )
             tipo_contrato = self.request.query_params.get('tipo_contrato', None)
             if tipo_contrato:
                 queryset = queryset.filter(tipo_contrato=tipo_contrato)
             return queryset.order_by('-padrao', 'nome')
         return ModeloContrato.objects.none()
+
     def perform_create(self, serializer):
-        if hasattr(self.request.user, 'perfil') and self.request.user.perfil.imobiliaria:
-            serializer.save(imobiliaria=self.request.user.perfil.imobiliaria)
+        user = self.request.user
+        imobiliaria = getattr(user, 'imobiliaria', None)
+        if hasattr(user, 'perfil') and user.perfil:
+            imobiliaria = user.perfil.imobiliaria
+
+        if imobiliaria:
+            serializer.save(imobiliaria=imobiliaria)
         else:
             raise ValidationError("Usuário não tem imobiliária associada.")
 
@@ -149,8 +160,12 @@ class ContratoViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
-        if hasattr(self.request.user, 'perfil') and self.request.user.perfil.imobiliaria:
+        user = self.request.user
+        imobiliaria = getattr(user, 'imobiliaria', None)
+        if hasattr(user, 'perfil') and user.perfil:
+            imobiliaria = user.perfil.imobiliaria
             
+        if imobiliaria:
             pagamento_exists_subquery = Pagamento.objects.filter(
                 contrato=OuterRef('pk'),
                 status='PAGO'
@@ -165,7 +180,7 @@ class ContratoViewSet(viewsets.ModelViewSet):
             ).values('pk')
 
             return Contrato.objects.filter(
-                imobiliaria=self.request.user.perfil.imobiliaria,
+                imobiliaria=imobiliaria,
                 excluido=False 
             ).annotate(
                 possui_pagamento_pago=Exists(pagamento_exists_subquery),
@@ -185,8 +200,13 @@ class ContratoViewSet(viewsets.ModelViewSet):
         return ContratoSerializer
 
     def perform_create(self, serializer):
-        if hasattr(self.request.user, 'perfil') and self.request.user.perfil.imobiliaria:
-            serializer.save(imobiliaria=self.request.user.perfil.imobiliaria)
+        user = self.request.user
+        imobiliaria = getattr(user, 'imobiliaria', None)
+        if hasattr(user, 'perfil') and user.perfil:
+            imobiliaria = user.perfil.imobiliaria
+
+        if imobiliaria:
+            serializer.save(imobiliaria=imobiliaria)
         else:
             raise ValidationError("Usuário não tem imobiliária associada.")
             
@@ -265,35 +285,27 @@ class ContratoViewSet(viewsets.ModelViewSet):
                 return Response(e.detail, status=status.HTTP_400_BAD_REQUEST)
             return Response({"error": f"Erro interno: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-    # ==========================================================
-    # === CORREÇÃO: Função Pagamentos (Prioriza Transações)  ===
-    # ==========================================================
     @action(detail=True, methods=['get'])
     def pagamentos(self, request, pk=None):
         contrato = self.get_object()
         
-        # 1. Busca as Transações reais (O "Contas a Receber" verdadeiro)
-        # Isso garante que se você alterou valor, data ou baixou no financeiro, apareça aqui.
+        # 1. Busca as Transações reais
         transacoes = Transacao.objects.filter(
             contrato=contrato, 
             tipo='RECEITA'
         ).order_by('data_vencimento')
         
         if transacoes.exists():
-            # Retorna os dados reais do financeiro
             serializer = TransacaoListSerializer(transacoes, many=True)
             return Response(serializer.data)
         
-        # 2. Fallback: Se não houver transações (ex: contrato rascunho ou erro),
-        # tenta mostrar o cronograma de Pagamentos original se for Aluguel.
+        # 2. Fallback
         if contrato.tipo_contrato == Contrato.TipoContrato.ALUGUEL:
              pagamentos = Pagamento.objects.filter(contrato=contrato).order_by('data_vencimento')
              serializer = PagamentoSerializer(pagamentos, many=True)
              return Response(serializer.data)
         
-        # Se for Venda sem transações geradas, retorna lista vazia
         return Response([]) 
-    # ==========================================================
         
     @action(detail=True, methods=['get'])
     def transacoes(self, request, pk=None):
@@ -344,9 +356,6 @@ class ContratoViewSet(viewsets.ModelViewSet):
         
         return Response(html_string)
 
-    # ==========================================================
-    # === CORREÇÃO: Sanitização de HTML (Segurança XSS)      ===
-    # ==========================================================
     @action(detail=True, methods=['post'], url_path='salvar-html-editado')
     def salvar_html_editado(self, request, pk=None):
         contrato = get_object_or_404(Contrato, pk=pk)
@@ -355,9 +364,7 @@ class ContratoViewSet(viewsets.ModelViewSet):
         if not html_content:
             return Response({"error": "Nenhum conteúdo HTML fornecido."}, status=status.HTTP_400_BAD_REQUEST)
             
-        # Lógica de Sanitização com Bleach
         if bleach:
-            # === CORREÇÃO AQUI: Convertendo para list() antes de somar ===
             allowed_tags = list(bleach.sanitizer.ALLOWED_TAGS) + [
                 'p', 'br', 'strong', 'b', 'i', 'em', 'u', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6',
                 'ul', 'ol', 'li', 'span', 'div', 'table', 'thead', 'tbody', 'tr', 'th', 'td',
@@ -379,17 +386,15 @@ class ContratoViewSet(viewsets.ModelViewSet):
                     tags=allowed_tags,
                     attributes=allowed_attributes,
                     styles=allowed_styles,
-                    strip=True # Remove tags perigosas (script, iframe)
+                    strip=True 
                 )
             except Exception as e:
                 print(f"Erro ao sanitizar HTML: {e}")
-                # Em caso de erro, mantém o original mas loga o problema
         
         contrato.conteudo_personalizado = html_content
         contrato.save()
         
         return Response({"success": "Documento atualizado com sucesso."})
-    # ==========================================================
 
     @action(detail=True, methods=['get'], permission_classes=[permissions.AllowAny], url_path='visualizar-pdf')
     def generate_pdf_contrato(self, request, pk=None):
@@ -450,18 +455,30 @@ class PagamentoViewSet(viewsets.ModelViewSet):
     serializer_class = PagamentoSerializer
     permission_classes = [IsAuthenticated]
     def get_queryset(self):
-        if hasattr(self.request.user, 'perfil') and self.request.user.perfil.imobiliaria:
+        user = self.request.user
+        imobiliaria = getattr(user, 'imobiliaria', None)
+        if hasattr(user, 'perfil') and user.perfil:
+            imobiliaria = user.perfil.imobiliaria
+
+        if imobiliaria:
             return Pagamento.objects.filter(
-                contrato__imobiliaria=self.request.user.perfil.imobiliaria
+                contrato__imobiliaria=imobiliaria
             ).order_by('-data_vencimento')
         return Pagamento.objects.none()
+    
     def perform_create(self, serializer):
         serializer.save()
 
 class GerarReciboView(APIView):
     permission_classes = [IsAuthenticated]
     def get(self, request, pagamento_id):
-        pagamento = get_object_or_404(Pagamento, pk=pagamento_id, contrato__imobiliaria=request.user.perfil.imobiliaria)
+        user = request.user
+        imobiliaria = getattr(user, 'imobiliaria', None)
+        if hasattr(user, 'perfil') and user.perfil:
+            imobiliaria = user.perfil.imobiliaria
+            
+        pagamento = get_object_or_404(Pagamento, pk=pagamento_id, contrato__imobiliaria=imobiliaria)
+        
         if pagamento.status != 'PAGO':
             return HttpResponse("Este pagamento ainda não foi baixado.", status=400)
         context = {
@@ -506,7 +523,13 @@ def gerar_contrato_pdf_editado(request, pk=None):
 @permission_classes([IsAuthenticated])
 def limpar_estilos_view(request, pk):
     try:
-        contrato = get_object_or_404(Contrato, pk=pk, imobiliaria=request.user.perfil.imobiliaria)
+        user = request.user
+        imobiliaria = getattr(user, 'imobiliaria', None)
+        if hasattr(user, 'perfil') and user.perfil:
+            imobiliaria = user.perfil.imobiliaria
+            
+        contrato = get_object_or_404(Contrato, pk=pk, imobiliaria=imobiliaria)
+        
         if not contrato.conteudo_personalizado:
             return Response({"message": "Contrato não possui conteúdo personalizado."}, status=status.HTTP_400_BAD_REQUEST)
         html_content = contrato.conteudo_personalizado

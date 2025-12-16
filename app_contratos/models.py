@@ -1,5 +1,6 @@
 # Em app_contratos/models.py
 
+import logging # <--- NOVO
 from django.db import models
 from core.models import Imobiliaria
 from app_imoveis.models import Imovel
@@ -8,10 +9,14 @@ from django.utils import timezone
 from app_financeiro.models import FormaPagamento
 from decimal import Decimal 
 from django.core.validators import MinValueValidator, MaxValueValidator
-from app_financeiro.models import Transacao, Categoria, Conta
+# CORREÇÃO DE IMPORTS: Usa Categoria e Conta como no original
+from app_financeiro.models import Transacao, Categoria, Conta 
 from dateutil.relativedelta import relativedelta
-# Importação da nova lógica de restrição
 from django.db.models import Q, UniqueConstraint
+from django.db import transaction # <--- Adicionado para consistência
+
+# Inicializa o logger para este módulo
+logger = logging.getLogger(__name__) # Nome do logger: 'app_contratos.models'
 
 
 # ==========================================================
@@ -218,14 +223,16 @@ class Contrato(models.Model):
 
     # --- MÉTODOS FINANCEIROS ---
     
+    @transaction.atomic
     def gerar_financeiro_aluguel(self):
         imobiliaria = self.imobiliaria
         if not self.aluguel or not self.duracao_meses or not self.data_primeiro_vencimento:
-             print(f"ERRO ALUGUEL: Contrato {self.id} sem Valor/Duração/Data do 1º Vencimento. Geração ignorada.")
+             logger.error(f"ERRO ALUGUEL: Contrato {self.id} sem Valor/Duração/Data do 1º Vencimento. Geração ignorada.")
              return False
+             
         transacoes_existentes = Transacao.objects.filter(contrato=self, tipo='RECEITA').exists()
         if transacoes_existentes:
-            print(f"AVISO ALUGUEL: Transações para Contrato {self.id} já existem. Geração ignorada.")
+            logger.warning(f"AVISO ALUGUEL: Transações para Contrato {self.id} já existem. Geração ignorada.")
             return False
         
         data_base_vencimento = self.data_primeiro_vencimento
@@ -234,27 +241,37 @@ class Contrato(models.Model):
         try:
              categoria_aluguel = Categoria.objects.get(imobiliaria=imobiliaria, nome='Receita de Aluguel')
         except Categoria.DoesNotExist:
+             logger.warning(f"AVISO ALUGUEL: Categoria 'Receita de Aluguel' não encontrada. Criando...")
              categoria_aluguel = Categoria.objects.create(imobiliaria=imobiliaria, nome='Receita de Aluguel', tipo='RECEITA')
-        
+        except Exception as e:
+             logger.error(f"ERRO CRÍTICO ALUGUEL: Falha ao obter/criar Categoria de Aluguel. Erro: {e}")
+             return False
+
+        # Verifica e obtém a conta padrão
         conta_padrao = Conta.objects.filter(imobiliaria=imobiliaria).first()
+        if not conta_padrao:
+             logger.error(f"ERRO ALUGUEL: Nenhuma Conta Financeira padrão encontrada para a Imobiliária {imobiliaria.nome}. Geração abortada.")
+             return False
         
         for i in range(duracao):
              data_parcela = data_base_vencimento + relativedelta(months=i)
              
-             # CORREÇÃO: Cálculo do Mês de Referência
-             # Assume-se "Mês Vencido": Se vence em 05/02, a referência é Janeiro.
+             # CORREÇÃO: Cálculo do Mês de Referência (mantido)
              data_referencia = data_parcela - relativedelta(months=1)
              ref_str = data_referencia.strftime('%m/%Y')
              venc_str = data_parcela.strftime('%d/%m/%Y')
              
              descricao = f"Aluguel {i+1}/{duracao} - Ref: {ref_str} (Venc: {venc_str})"
              
+             # Cria Pagamento (Modelo Antigo?)
              Pagamento.objects.create(
                  contrato=self,
                  data_vencimento=data_parcela,
                  valor=self.aluguel, 
                  status='PENDENTE'
              )
+             
+             # Cria Transacao (Modelo Novo/Principal)
              Transacao.objects.create(
                  imobiliaria=imobiliaria,
                  descricao=descricao,
@@ -269,18 +286,21 @@ class Contrato(models.Model):
                  imovel=self.imovel,
                  contrato=self
              )
-        print(f"SUCESSO ALUGUEL: {duracao} parcelas geradas para Contrato {self.id}.")
+             
+        logger.info(f"SUCESSO ALUGUEL: {duracao} parcelas geradas para Contrato {self.id}.")
         return True
 
     def criar_transacao_comissao(self):
         descricao_base = f"Comissão Venda #{self.id}: {self.imovel.logradouro}"
         if Transacao.objects.filter(contrato=self, tipo='RECEITA', descricao__startswith=f"Comissão Venda #{self.id}").exists():
-            print(f"AVISO VENDA: Lançamento de comissão para Contrato {self.id} já existe. Ignorando.")
+            logger.warning(f"AVISO VENDA: Lançamento de comissão para Contrato {self.id} já existe. Ignorando.")
             return False
+        
         valor_comissao = self.valor_comissao_acordado 
         if not valor_comissao or valor_comissao <= 0:
-            print(f"AVISO VENDA: Contrato {self.id} sem Valor de Comissão Acordado (R$ {valor_comissao}). Lançamento ignorado.")
+            logger.warning(f"AVISO VENDA: Contrato {self.id} sem Valor de Comissão Acordado (R$ {valor_comissao}). Lançamento ignorado.")
             return False
+        
         try:
             categoria_comissao, created = Categoria.objects.get_or_create(
                 imobiliaria=self.imobiliaria,
@@ -288,13 +308,19 @@ class Contrato(models.Model):
                 tipo='RECEITA'
             )
             if created:
-                print(f"AVISO VENDA: Categoria 'Comissão de Venda' (RECEITA) criada automaticamente.")
+                logger.info(f"AVISO VENDA: Categoria 'Comissão de Venda' (RECEITA) criada automaticamente.")
         except Exception as e:
-            print(f"ERRO CRÍTICO VENDA: Falha ao obter/criar Categoria de Comissão. Erro: {e}.")
+            logger.error(f"ERRO CRÍTICO VENDA: Falha ao obter/criar Categoria de Comissão. Erro: {e}.")
             return False
+            
         data_base = timezone.now().date()
         data_vencimento = self.data_vencimento_venda 
         conta_padrao = Conta.objects.filter(imobiliaria=self.imobiliaria).first()
+        
+        if not conta_padrao:
+             logger.error(f"ERRO VENDA: Nenhuma Conta Financeira padrão encontrada para a Imobiliária {self.imobiliaria.nome}. Geração abortada.")
+             return False
+
         Transacao.objects.create(
             imobiliaria=self.imobiliaria,
             descricao=descricao_base,
@@ -310,7 +336,7 @@ class Contrato(models.Model):
             contrato=self,
             observacoes=f"Comissão de Venda gerada automaticamente. Valor de venda: R$ {self.valor_total}. Comissão baseada no valor acordado: R$ {valor_comissao.quantize(Decimal('0.01'))}."
         )
-        print(f"SUCESSO VENDA: Criada Receita de Comissão R$ {valor_comissao} para o contrato {self.id}.")
+        logger.info(f"SUCESSO VENDA: Criada Receita de Comissão R$ {valor_comissao} para o contrato {self.id}.")
         return True
 
 

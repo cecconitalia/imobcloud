@@ -2,7 +2,10 @@
 
 from django.db import models
 from django.conf import settings
+# Importação necessária para criar um modelo de usuário customizado
+from django.contrib.auth.models import AbstractUser # <-- CORRIGIDO
 from app_config_ia.models import OpcaoVozDaMarca
+from django.utils import timezone # Para data_cadastro de Imobiliaria
 
 class Imobiliaria(models.Model):
     nome = models.CharField(max_length=255, unique=True)
@@ -12,6 +15,10 @@ class Imobiliaria(models.Model):
     cnpj = models.CharField(max_length=18, blank=True, null=True, verbose_name="CNPJ")
     creci = models.CharField(max_length=20, blank=True, null=True, verbose_name="CRECI")
 
+    # CAMPOS FALTANTES ADICIONADOS:
+    telefone = models.CharField(max_length=20, blank=True, null=True, verbose_name="Telefone de Contato") # <--- ADICIONADO
+    facebook_user_access_token = models.CharField(max_length=512, blank=True, null=True, verbose_name="Token de Acesso do Usuário FB") # <--- ADICIONADO
+    
     facebook_page_id = models.CharField(max_length=255, blank=True, null=True, verbose_name="ID da Página do Facebook")
     facebook_page_access_token = models.CharField(max_length=512, blank=True, null=True, verbose_name="Token de Acesso da Página do Facebook")
     instagram_business_account_id = models.CharField(max_length=255, blank=True, null=True, verbose_name="ID da Conta Business do Instagram")
@@ -39,18 +46,21 @@ class Imobiliaria(models.Model):
         help_text="Cor principal para o site público (código hexadecimal).",
         verbose_name="Cor Principal do Site"
     )
-
+    
+    data_cadastro = models.DateTimeField(auto_now_add=True, verbose_name="Data de Cadastro") # Campo adicionado na migração 0017
+    
     class Meta:
         verbose_name_plural = "Imobiliárias"
 
     def __str__(self):
         return self.nome
 
-class PerfilUsuario(models.Model):
-    user = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='perfil')
+# PERFILUSUARIO: MANTIDO COMO ABSTRACTUSER PARA CONSISTÊNCIA APÓS A MIGRAÇÃO 0017
+class PerfilUsuario(AbstractUser): 
+    # Os campos de autenticação (username, password, email, etc.) são herdados de AbstractUser
     
     imobiliaria = models.ForeignKey(
-        Imobiliaria,
+        'Imobiliaria', # Referência de string para evitar dependência circular
         on_delete=models.SET_NULL,
         null=True,
         blank=True,
@@ -82,7 +92,7 @@ class PerfilUsuario(models.Model):
         help_text="Imagem da assinatura para uso automático em documentos."
     )
 
-    class Meta:
+    class Meta(AbstractUser.Meta): 
         verbose_name = "Perfil de Usuário"
         verbose_name_plural = "Perfis de Usuários"
 
@@ -96,7 +106,7 @@ class PerfilUsuario(models.Model):
         return " / ".join(cargos) if cargos else "Utilizador"
 
     def __str__(self):
-        return f"Perfil de {self.user.username} ({self.cargo_display})"
+        return f"Perfil de {self.username} ({self.cargo_display})"
 
 class Notificacao(models.Model):
     destinatario = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='notificacoes')

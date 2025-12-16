@@ -24,7 +24,7 @@
 
 <script setup lang="ts">
 import { ref } from 'vue';
-import { useRouter } from 'vue-router';
+import { useRouter, useRoute } from 'vue-router'; // Adicionado useRoute
 import apiClient from '@/services/api';
 
 const username = ref('');
@@ -32,6 +32,7 @@ const password = ref('');
 const errorMessage = ref<string | null>(null);
 const isLoading = ref(false);
 const router = useRouter();
+const route = useRoute(); // Inicializa a rota atual para ler parâmetros
 
 async function handleLogin() {
   isLoading.value = true;
@@ -53,7 +54,17 @@ async function handleLogin() {
     localStorage.setItem('imobiliariaName', imobiliariaName);
     localStorage.setItem('userName', userName);
     
-    router.push({ name: 'dashboard' });
+    // --- LÓGICA DE RETORNO INTELIGENTE ---
+    // Verifica se existe um parâmetro 'next' na URL (ex: /login?next=/vistorias/5)
+    const nextUrl = route.query.next;
+
+    if (nextUrl && typeof nextUrl === 'string') {
+      // Se existe, manda o usuário de volta para lá
+      router.push(nextUrl);
+    } else {
+      // Se não, comportamento padrão (Dashboard)
+      router.push({ name: 'dashboard' });
+    }
 
   } catch (error) {
     console.error("Erro no login:", error);

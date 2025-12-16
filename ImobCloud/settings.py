@@ -44,7 +44,8 @@ INSTALLED_APPS = [
     'corsheaders',    # CORS Headers for cross-origin requests
     'rest_framework_simplejwt', # Adicione esta linha para JWT
     'django_celery_beat', # Adicionado para agendamento de tarefas
-
+    
+    # Apps Locais
     'core', # Nosso app que conterá o modelo Imobiliaria
     'app_imoveis.apps.AppImoveisConfig',
     'app_clientes.apps.AppClientesConfig',
@@ -54,7 +55,11 @@ INSTALLED_APPS = [
     'app_config_ia',
     'app_alugueis',
     'app_boletos',
+    'app_vistorias', # Mantendo o app de vistorias após a migração
 ]
+
+# Usuário customizado (Mantido após a correção da migração)
+AUTH_USER_MODEL = 'core.PerfilUsuario' 
 
 
 MIDDLEWARE = [
@@ -318,6 +323,66 @@ CELERY_BEAT_SCHEDULE = {
         'schedule': 60.0,  # Executar a cada 60 segundos
     },
 }
+# ===================================================================
+
+
+# ===================================================================
+# CONFIGURAÇÃO DE LOGGING
+# Adicionado para rastrear eventos e erros em produção
+# ===================================================================
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'formatters': {
+        'verbose': {
+            'format': '{levelname} {asctime} {module} {process:d} {thread:d} {message}',
+            'style': '{',
+        },
+        'simple': {
+            'format': '{levelname} {message}',
+            'style': '{',
+        },
+    },
+    'handlers': {
+        # 1. Handler para o console (mostra tudo de INFO para cima)
+        'console': {
+            'level': 'INFO',
+            'class': 'logging.StreamHandler',
+            'formatter': 'simple',
+        },
+        # 2. Handler para arquivo de log (mostra WARNING para cima)
+        'file': {
+            'level': 'WARNING',
+            'class': 'logging.handlers.RotatingFileHandler',
+            'filename': os.path.join(BASE_DIR, 'logs', 'imobcloud.log'), # Garanta que a pasta 'logs' exista!
+            'maxBytes': 1024 * 1024 * 5,  # 5 MB
+            'backupCount': 5,
+            'formatter': 'verbose',
+        },
+    },
+    'loggers': {
+        # Logger raiz (captura logs de todos os apps)
+        '': {
+            'handlers': ['console', 'file'],
+            'level': 'INFO',
+            'propagate': True,
+        },
+        # Logger específico para o app de Contratos (onde a lógica financeira está)
+        'app_contratos': {
+            'handlers': ['console', 'file'],
+            'level': 'INFO',
+            'propagate': False, # Não propaga para o logger raiz, apenas usa seus handlers
+        },
+        # Logger de segurança do Django
+        'django.security': {
+            'handlers': ['console', 'file'],
+            'level': 'WARNING',
+            'propagate': False,
+        },
+    },
+}
+# ===================================================================
+
 
 # ===================================================================
 # URL BASE DO SITE (Importante para Instagram/Facebook API)

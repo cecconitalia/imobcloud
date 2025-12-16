@@ -55,7 +55,14 @@ export const setupInterceptors = (router: Router) => {
                 
                 // 2. Redirecionar para a tela de login se não estiver já nela
                 if (router.currentRoute.value.name !== 'login') {
-                    router.replace({ name: 'login' });
+                    // Captura a rota completa (path + query params) onde o usuário estava
+                    const returnUrl = router.currentRoute.value.fullPath;
+                    
+                    // Redireciona passando a URL atual no parâmetro 'next'
+                    router.replace({ 
+                        name: 'login', 
+                        query: { next: returnUrl } 
+                    });
                 }
 
                 // Rejeita a promessa com uma mensagem mais clara para o console

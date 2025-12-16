@@ -1,8 +1,7 @@
-# Em ImobCloud/urls.py
+# C:\wamp64\www\ImobCloud\ImobCloud\urls.py
 
 from django.contrib import admin
 from django.urls import path, include
-# ADIÇÃO DAS DUAS IMPORTAÇÕES NECESSÁRIAS
 from django.conf import settings
 from django.conf.urls.static import static
 from rest_framework_simplejwt.views import TokenRefreshView
@@ -10,10 +9,8 @@ from rest_framework_simplejwt.views import TokenRefreshView
 # Importações principais do seu app 'core'
 from core.views import MyTokenObtainPairView, LogoutView
 
-# Views públicas (IMÓVEIS, DETALHE DE IMÓVEL, DETALHE DE IMOBILIÁRIA, BUSCA IA)
-from app_imoveis.views import ImovelPublicListView, ImovelPublicDetailView, ImobiliariaPublicDetailView, ImovelIAView 
-# NOVO: Importar ContatoImovelViewSet
-from app_imoveis.views import ContatoImovelViewSet 
+# Views públicas
+from app_imoveis.views import ImovelPublicListView, ImovelPublicDetailView, ImobiliariaPublicDetailView, ImovelIAView, ContatoImovelViewSet
 
 urlpatterns = [
     # Rota de administração do Django
@@ -22,15 +19,8 @@ urlpatterns = [
     # --- ROTAS PÚBLICAS (Sem Prefixos API) ---
     path('public/imoveis/', ImovelPublicListView.as_view(), name='imovel-public-list'),
     path('public/imoveis/<int:pk>/', ImovelPublicDetailView.as_view(), name='imovel-public-detail'),
-    
-    # CORREÇÃO: Usa 'pk' no path para sincronizar com lookup_url_kwarg='pk' na view
     path('public/imobiliaria/<str:pk>/', ImobiliariaPublicDetailView.as_view(), name='imobiliaria-public-detail'),
-    
-    # Rota de busca por IA (também é pública)
     path('public/imoveis/busca-ia/', ImovelIAView.as_view(), name='imovel-busca-ia'),
-    
-    # NOVO: Rota Pública para Criação de Contato (POST)
-    # A ação 'create' do ViewSet permite acesso irrestrito (permissions.AllowAny)
     path('public/contatos/', ContatoImovelViewSet.as_view({'post': 'create'}), name='contato-public-create'),
 
     # --- ROTAS DA API (Para o painel de gestão) ---
@@ -38,26 +28,26 @@ urlpatterns = [
     path('api/v1/token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
     path('api/v1/logout/', LogoutView.as_view(), name='auth_logout'),
     
-    # --- Inclusão das rotas de cada app da API (MÉTODO CORRIGIDO) ---
+    # --- Inclusão das rotas de cada app da API ---
     path('api/v1/', include('core.urls')),
-    path('api/v1/', include('app_imoveis.urls')), # Esta inclusão agora só tem rotas internas
+    
+    # Prefixos corrigidos para casar com o Frontend
+    path('api/v1/', include('app_imoveis.urls')), 
     path('api/v1/', include('app_clientes.urls')),
+    
+    # --- CORREÇÃO AQUI: Adicionado 'contratos/' para formar /api/v1/contratos/contratos/ ---
     path('api/v1/', include('app_contratos.urls')),
+
+    
     path('api/v1/financeiro/', include('app_financeiro.urls')),
     path('api/v1/alugueis/', include('app_alugueis.urls')),
     path('api/v1/boletos/', include('app_boletos.urls')),
-    
-    # Rota corrigida para a app de publicações
+    path('api/v1/vistorias/', include('app_vistorias.urls')),
     path('api/v1/publicacoes/', include('app_publicacoes.urls')),
-    
-    # Rota para a app de configuração da IA
     path('api/v1/configuracao-ia/', include('app_config_ia.urls')),
     
-    # Rota para autenticação de sessão da DRF (útil para o browsable API)
     path('api-auth/', include('rest_framework.urls')),
 ]
 
-# ADICIONE ESTE BLOCO DE CÓDIGO NO FINAL DO ARQUIVO
-# Ele serve os arquivos de mídia (uploads) apenas em modo de desenvolvimento
 if settings.DEBUG:
     urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

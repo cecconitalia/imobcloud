@@ -1,33 +1,48 @@
-// Em frontend/src/utils/formatters.ts
+// C:\wamp64\www\ImobCloud\frontend\src\utils\formatters.ts
+
+import { format } from 'date-fns';
 
 /**
- * Formata um número ou string para uma moeda em BRL (Real Brasileiro).
+ * Formata uma string de data para o formato brasileiro DD/MM/YYYY.
+ * @param dateString - Data a ser formatada (string ou Date).
+ * @returns String formatada ou 'N/A'
  */
-export function formatCurrency(value: number | string | null | undefined): string {
-  if (value === null || value === undefined) {
-    return 'N/A';
-  }
-  const numberValue = typeof value === 'string' ? parseFloat(value) : value;
-  if (isNaN(numberValue)) {
-    return 'Valor inválido';
-  }
-  return new Intl.NumberFormat('pt-BR', {
-    style: 'currency',
-    currency: 'BRL',
-  }).format(numberValue);
+export const formatDate = (dateString: string | Date | null | undefined): string => {
+    if (!dateString) {
+        return 'N/A';
+    }
+    try {
+        // Tenta criar um objeto Date. Se for inválido, cai no catch.
+        const dateObj = typeof dateString === 'string' ? new Date(dateString) : dateString;
+        
+        // Verifica se a data é válida
+        if (isNaN(dateObj.getTime())) {
+             return 'Data Inválida';
+        }
+        
+        // Retorna a data formatada
+        return format(dateObj, 'dd/MM/yyyy');
+    } catch (e) {
+        return 'Erro de Formatação';
+    }
 }
 
 /**
- * Converte o status do imóvel de uma chave para um texto legível.
+ * Adicione aqui outras funções de formatação que você precise (ex: formatCurrency)
  */
-export function formatStatus(status: string | null | undefined): string {
-  const statusMap: { [key: string]: string } = {
-    A_VENDA: 'À Venda',
-    PARA_ALUGAR: 'Para Alugar',
-    VENDIDO: 'Vendido',
-    ALUGADO: 'Alugado',
-    EM_CONSTRUCAO: 'Em Construção',
-    DESATIVADO: 'Desativado',
-  };
-  return status ? statusMap[status] || status : 'Não informado';
+export const formatCurrency = (value: number | string | null | undefined): string => {
+    if (value === null || value === undefined) {
+        return 'R$ 0,00';
+    }
+    const numValue = typeof value === 'string' ? parseFloat(value) : value;
+    
+    return new Intl.NumberFormat('pt-BR', {
+        style: 'currency',
+        currency: 'BRL',
+        minimumFractionDigits: 2,
+    }).format(numValue);
 }
+
+// Se você estiver usando export default, o erro seria diferente.
+// É altamente recomendável usar ES Modules (export const) para utilitários.
+// Se você só tem a função formatDate, garanta que ela use "export".
