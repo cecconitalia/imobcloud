@@ -1,52 +1,63 @@
 <template>
   <div class="imovel-card">
-    <router-link :to="`/site/imovel/${imovel.id}`" class="image-link">
-      <div class="image-carousel-container">
-        <img :src="currentImage" alt="Imagem do imóvel" class="imovel-image" />
-        
-        <div v-if="imovel.imagens && imovel.imagens.length > 1">
-          <button class="nav-btn prev" @click.stop.prevent="prevImage">&lt;</button>
-          <button class="nav-btn next" @click.stop.prevent="nextImage">&gt;</button>
-        </div>
+    <div class="card-image-wrapper">
+      <img 
+        :src="principalImage" 
+        alt="Imagem do Imóvel" 
+        class="card-image"
+      />
+      <div class="card-badges">
+        <span class="badge-status" :class="getStatusClass(imovel.status)">
+          {{ formatStatus(imovel.status) }}
+        </span>
+        <span class="badge-id">#{{ imovel.codigo_referencia }}</span>
       </div>
-    </router-link>
-    
+    </div>
+
     <div class="card-content">
-      <div class="card-header-flex">
-        <h3 class="card-title">{{ imovel.titulo_anuncio }}</h3>
-        <p class="card-price" v-if="imovel.valor_venda || imovel.valor_aluguel">
-          {{ formatarPreco(imovel) }}
-        </p>
+      <h3 class="card-title" :title="imovel.titulo_anuncio">
+        {{ imovel.titulo_anuncio || 'Imóvel sem título' }}
+      </h3>
+      
+      <p class="card-location">
+        <i class="fas fa-map-marker-alt"></i>
+        {{ imovel.bairro }}, {{ imovel.cidade }}
+      </p>
+
+      <div class="card-specs">
+        <span v-if="imovel.quartos"><i class="fas fa-bed"></i> {{ imovel.quartos }}</span>
+        <span v-if="imovel.suites"><i class="fas fa-bath"></i> {{ imovel.suites }}</span>
+        <span v-if="imovel.vagas_garagem"><i class="fas fa-car"></i> {{ imovel.vagas_garagem }}</span>
+        <span v-if="imovel.area_util"><i class="fas fa-ruler"></i> {{ imovel.area_util }}m²</span>
       </div>
 
-      <div class="imovel-details-icons">
-        <div class="detail-item" v-if="imovel.quartos">
-          <i class="fas fa-bed"></i> {{ imovel.quartos }} Qts
-        </div>
-        <div class="detail-item" v-if="imovel.banheiros">
-          <i class="fas fa-bath"></i> {{ imovel.banheiros }} Ban
-        </div>
-        <div class="detail-item" v-if="imovel.vagas_garagem">
-          <i class="fas fa-car"></i> {{ imovel.vagas_garagem }} Vagas
-        </div>
-        <div class="detail-item" v-if="imovel.area_total">
-          <i class="fas fa-ruler-combined"></i> {{ imovel.area_total }}m²
-        </div>
+      <div class="card-price">
+        <small>{{ imovel.status === 'A_VENDA' ? 'Venda' : 'Aluguel' }}</small>
+        <strong>{{ formattedPrice }}</strong>
       </div>
+    </div>
+
+    <div class="card-actions">
+      <button 
+        @click="$emit('open-modal')" 
+        class="btn-action btn-instagram"
+      >
+        <i class="fab fa-instagram"></i> Agendar Post
+      </button>
       
-      <div class="imovel-info-group">
-        <p class="imovel-location">
-          <i class="fas fa-map-marker-alt"></i>
-          {{ imovel.bairro || 'N/A' }}, {{ imovel.cidade }}, {{ imovel.estado }}
-        </p>
-      </div>
+      <button 
+        @click="$emit('open-history-modal')" 
+        class="btn-icon"
+        title="Histórico de Publicações"
+      >
+        <i class="fas fa-history"></i>
+      </button>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, defineProps, onMounted, watch } from 'vue';
-import publicApiClient from '@/services/publicApiClient';
+import { computed } from 'vue';
 
 const props = defineProps({
   imovel: {
@@ -55,217 +66,167 @@ const props = defineProps({
   }
 });
 
-const currentImageIndex = ref(0);
-const currentImage = ref('');
+const emit = defineEmits(['open-modal', 'open-history-modal']);
 
-function formatarPreco(imovel: any) {
-  if (imovel.valor_venda) {
-    return parseFloat(imovel.valor_venda).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+const principalImage = computed(() => {
+  if (props.imovel.imagens && props.imovel.imagens.length > 0) {
+    const principal = props.imovel.imagens.find((img: any) => img.principal);
+    return principal ? principal.imagem : props.imovel.imagens[0].imagem;
   }
-  if (imovel.valor_aluguel) {
-    return `${parseFloat(imovel.valor_aluguel).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}/mês`;
-  }
-  return 'A consultar';
-}
-
-function getImageUrl(imagemPath: string) {
-  if (imagemPath.startsWith('http')) {
-    return imagemPath;
-  }
-  const baseUrl = publicApiClient.defaults.baseURL.replace('/api', '');
-  const path = imagemPath.startsWith('/') ? imagemPath : `/${imagemPath}`;
-  return `${baseUrl}${path}`;
-}
-
-function updateCurrentImage() {
-  const imagens = props.imovel.imagens;
-  if (!imagens || imagens.length === 0) {
-    currentImage.value = 'https://via.placeholder.com/400x300.png?text=Sem+imagem';
-    return;
-  }
-  const imagemPath = imagens[currentImageIndex.value].imagem;
-  currentImage.value = getImageUrl(imagemPath);
-}
-
-function nextImage() {
-  const imagens = props.imovel.imagens;
-  if (imagens.length <= 1) return;
-  currentImageIndex.value = (currentImageIndex.value + 1) % imagens.length;
-  updateCurrentImage();
-}
-
-function prevImage() {
-  const imagens = props.imovel.imagens;
-  if (imagens.length <= 1) return;
-  currentImageIndex.value = (currentImageIndex.value - 1 + imagens.length) % imagens.length;
-  updateCurrentImage();
-}
-
-onMounted(() => {
-  const imagens = props.imovel.imagens;
-  if (imagens && imagens.length > 0) {
-    const principal = imagens.find((img: any) => img.principal);
-    if (principal) {
-      currentImageIndex.value = imagens.indexOf(principal);
-    }
-  }
-  updateCurrentImage();
+  return 'https://via.placeholder.com/400x300.png?text=Sem+Foto';
 });
 
-// Watch para garantir que a imagem seja atualizada quando o prop do imóvel mudar
-watch(() => props.imovel, () => {
-    currentImageIndex.value = 0; // Reinicia o índice ao mudar de imóvel
-    updateCurrentImage();
+const formattedPrice = computed(() => {
+  const val = props.imovel.valor_venda || props.imovel.valor_aluguel;
+  if (!val) return 'R$ Sob Consulta';
+  return parseFloat(val).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 });
+
+function formatStatus(status: string) {
+  const map: Record<string, string> = {
+    'A_VENDA': 'À Venda',
+    'PARA_ALUGAR': 'Alugar',
+    'VENDIDO': 'Vendido',
+    'ALUGADO': 'Alugado'
+  };
+  return map[status] || status;
+}
+
+function getStatusClass(status: string) {
+  if (status === 'A_VENDA') return 'bg-blue';
+  if (status === 'PARA_ALUGAR') return 'bg-green';
+  return 'bg-gray';
+}
 </script>
 
 <style scoped>
-@import url('https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css');
-
 .imovel-card {
-  border-radius: 8px;
+  background: #fff;
+  border-radius: 12px;
   overflow: hidden;
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-  transition: transform 0.3s ease, box-shadow 0.3s ease;
-  background-color: #fff;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
   display: flex;
   flex-direction: column;
+  transition: transform 0.2s;
+  border: 1px solid #f1f5f9;
 }
-
 .imovel-card:hover {
-  transform: translateY(-5px);
-  box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
+  transform: translateY(-4px);
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
 }
 
-.image-link {
-  display: block;
-}
-
-.image-carousel-container {
-  width: 100%;
-  height: 180px;
-  overflow: hidden;
+.card-image-wrapper {
   position: relative;
+  height: 200px;
 }
-
-.imovel-image {
+.card-image {
   width: 100%;
   height: 100%;
   object-fit: cover;
-  display: block;
 }
-
-.nav-btn {
+.card-badges {
   position: absolute;
-  top: 50%;
-  transform: translateY(-50%);
-  background-color: rgba(0, 0, 0, 0.5);
-  color: white;
-  border: none;
-  font-size: 1.5rem;
-  cursor: pointer;
-  padding: 0.5rem 1rem;
-  height: 100%;
-  transition: background-color 0.2s;
-  opacity: 0;
+  top: 10px;
+  left: 10px;
+  display: flex;
+  gap: 8px;
 }
-
-.image-carousel-container:hover .nav-btn {
-  opacity: 1;
+.badge-status {
+  padding: 4px 8px;
+  border-radius: 6px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: #fff;
+  text-transform: uppercase;
 }
+.bg-blue { background-color: #3b82f6; }
+.bg-green { background-color: #10b981; }
+.bg-gray { background-color: #6b7280; }
 
-.nav-btn:hover {
-  background-color: rgba(0, 0, 0, 0.8);
-}
-
-.prev {
-  left: 0;
-  border-top-left-radius: 8px;
-  border-bottom-left-radius: 8px;
-}
-
-.next {
-  right: 0;
-  border-top-right-radius: 8px;
-  border-bottom-right-radius: 8px;
+.badge-id {
+  background: rgba(0,0,0,0.6);
+  color: #fff;
+  padding: 4px 8px;
+  border-radius: 6px;
+  font-size: 0.75rem;
+  backdrop-filter: blur(2px);
 }
 
 .card-content {
   padding: 1rem;
-  display: flex;
-  flex-direction: column;
-  flex-grow: 1;
-  text-align: left;
+  flex: 1;
 }
-
-.card-header-flex {
-    display: flex;
-    justify-content: space-between;
-    align-items: flex-start;
-    margin-bottom: 0.5rem;
-}
-
 .card-title {
-  font-size: 1.2rem;
-  font-weight: 600;
-  margin: 0;
-  color: #343a40;
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: #1e293b;
+  margin: 0 0 0.5rem;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  flex-grow: 1;
 }
+.card-location {
+  color: #64748b;
+  font-size: 0.9rem;
+  margin-bottom: 1rem;
+}
+.card-location i { margin-right: 4px; }
+
+.card-specs {
+  display: flex;
+  gap: 12px;
+  color: #64748b;
+  font-size: 0.85rem;
+  margin-bottom: 1rem;
+}
+.card-specs span i { color: #94a3b8; margin-right: 4px; }
 
 .card-price {
-    font-size: 1rem;
-    font-weight: bold;
-    color: #28a745;
-    margin: 0;
-    flex-shrink: 0;
-    white-space: nowrap;
-    margin-left: 1rem;
-}
-
-.imovel-details-icons {
   display: flex;
-  flex-wrap: wrap;
-  gap: 1rem;
-  margin-bottom: 0.5rem;
-  border-bottom: 1px solid #e9ecef;
-  padding-bottom: 0.5rem;
+  flex-direction: column;
 }
+.card-price small { font-size: 0.75rem; color: #94a3b8; text-transform: uppercase; }
+.card-price strong { font-size: 1.25rem; color: #0f172a; }
 
-.detail-item {
+.card-actions {
+  padding: 1rem;
+  border-top: 1px solid #f1f5f9;
   display: flex;
-  align-items: center;
-  font-size: 0.8rem;
-  color: #6c757d;
-  font-weight: 500;
+  gap: 0.5rem;
+  background: #f8fafc;
 }
 
-.detail-item i {
-  margin-right: 4px;
-  color: var(--primary-color);
-  font-size: 1em;
-}
-
-.imovel-info-group {
-  margin-top: 0.5rem;
-}
-
-.imovel-location {
-  font-size: 0.8rem;
-  color: #6c757d;
-  margin: 0;
+/* BOTÃO DE AGENDAR - O PRINCIPAL */
+.btn-action {
+  flex: 1;
+  padding: 10px;
+  border: none;
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: 0.9rem;
+  cursor: pointer;
   display: flex;
   align-items: center;
+  justify-content: center;
   gap: 8px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  transition: opacity 0.2s;
 }
+.btn-instagram {
+  background: linear-gradient(45deg, #f09433 0%, #e6683c 25%, #dc2743 50%, #cc2366 75%, #bc1888 100%);
+  color: white;
+}
+.btn-instagram:hover { opacity: 0.9; }
 
-.imovel-location i {
-  color: var(--primary-color);
+.btn-icon {
+  width: 40px;
+  border: 1px solid #cbd5e1;
+  background: white;
+  border-radius: 8px;
+  color: #64748b;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
+.btn-icon:hover { background: #f1f5f9; color: #334155; }
 </style>

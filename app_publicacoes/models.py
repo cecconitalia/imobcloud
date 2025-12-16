@@ -17,13 +17,13 @@ class PublicacaoSocial(models.Model):
         status = "Sucesso" if self.sucesso else "Falha"
         return f"Publicação em {self.plataforma} para {self.imovel.codigo_referencia} - {status}"
 
-# --- CERTIFIQUE-SE DE QUE ESTA CLASSE ESTÁ PRESENTE NO FICHEIRO ---
 class PostAgendado(models.Model):
     """
     Representa uma publicação de rede social que foi agendada para o futuro.
     """
     STATUS_CHOICES = [
         ('AGENDADO', 'Agendado'),
+        ('PROCESSANDO', 'Processando'), # Adicionado para o novo fluxo
         ('PUBLICADO', 'Publicado com Sucesso'),
         ('ERRO', 'Erro na Publicação'),
     ]
@@ -49,9 +49,14 @@ class PostAgendado(models.Model):
         default=list,
         help_text="Lista de plataformas para publicar, ex: ['facebook', 'instagram']"
     )
+    imagens_ids = models.JSONField(
+        default=list,
+        blank=True,
+        help_text="Lista de IDs das imagens (ImagemImovel) selecionadas para este post."
+    )
     data_agendamento = models.DateTimeField()
     status = models.CharField(
-        max_length=10,
+        max_length=20, # Aumentado para acomodar PROCESSANDO
         choices=STATUS_CHOICES,
         default='AGENDADO'
     )

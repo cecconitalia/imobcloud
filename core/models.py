@@ -1,4 +1,4 @@
-# C:\wamp64\www\ImobCloud\core\models.py
+# C:\wamp64\www\imobcloud\core\models.py
 
 from django.db import models
 from django.conf import settings
@@ -15,6 +15,15 @@ class Imobiliaria(models.Model):
     facebook_page_id = models.CharField(max_length=255, blank=True, null=True, verbose_name="ID da Página do Facebook")
     facebook_page_access_token = models.CharField(max_length=512, blank=True, null=True, verbose_name="Token de Acesso da Página do Facebook")
     instagram_business_account_id = models.CharField(max_length=255, blank=True, null=True, verbose_name="ID da Conta Business do Instagram")
+
+    # NOVO CAMPO: Chave API do Google Gemini para o Admin configurar
+    google_gemini_api_key = models.CharField(
+        max_length=255, 
+        blank=True, 
+        null=True, 
+        verbose_name="Chave API Google Gemini",
+        help_text="Chave de acesso para o serviço Gemini/Google AI."
+    )
 
     voz_da_marca_preferida = models.ForeignKey(
         OpcaoVozDaMarca,
@@ -38,8 +47,6 @@ class Imobiliaria(models.Model):
         return self.nome
 
 class PerfilUsuario(models.Model):
-    # Removemos a classe Cargo e o campo cargo choices
-    
     user = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='perfil')
     
     imobiliaria = models.ForeignKey(
@@ -50,10 +57,8 @@ class PerfilUsuario(models.Model):
         related_name='usuarios_imobiliaria'
     )
 
-    # --- NOVOS CAMPOS DE PAPÉIS (Permite múltiplos) ---
     is_admin = models.BooleanField(default=False, verbose_name="É Administrador")
     is_corretor = models.BooleanField(default=True, verbose_name="É Corretor")
-    # --------------------------------------------------
 
     creci = models.CharField(max_length=20, blank=True, null=True, verbose_name="CRECI")
     telefone = models.CharField(max_length=20, blank=True, null=True, verbose_name="Telefone")
@@ -69,7 +74,6 @@ class PerfilUsuario(models.Model):
     
     google_calendar_token = models.TextField(blank=True, null=True, verbose_name="Token de Acesso do Google Calendar")
 
-    # NOVO CAMPO: Assinatura Digital do Usuário (Corretor)
     assinatura = models.ImageField(
         upload_to='assinaturas_usuarios/', 
         blank=True, 
@@ -84,7 +88,6 @@ class PerfilUsuario(models.Model):
 
     @property
     def cargo_display(self):
-        """Propriedade auxiliar para exibir os cargos numa string (para compatibilidade)"""
         cargos = []
         if self.is_admin:
             cargos.append("Administrador")
@@ -97,7 +100,9 @@ class PerfilUsuario(models.Model):
 
 class Notificacao(models.Model):
     destinatario = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='notificacoes')
+    titulo = models.CharField(max_length=100, default='Notificação')
     mensagem = models.CharField(max_length=255)
+    tipo = models.CharField(max_length=50, default='INFO')
     lida = models.BooleanField(default=False)
     data_criacao = models.DateTimeField(auto_now_add=True)
     link = models.CharField(max_length=255, blank=True, null=True)
@@ -108,4 +113,4 @@ class Notificacao(models.Model):
         verbose_name_plural = "Notificações"
 
     def __str__(self):
-        return f"Notificação para {self.destinatario.username}: {self.mensagem}"
+        return f"[{self.tipo}] Notificação para {self.destinatario.username}: {self.mensagem}"

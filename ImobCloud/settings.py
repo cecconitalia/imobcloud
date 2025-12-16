@@ -22,7 +22,7 @@ SECRET_KEY = os.getenv('SECRET_KEY')
 DEBUG = True
 
 # Permitimos o acesso de localhost e qualquer subdomínio de localhost
-ALLOWED_HOSTS = ['*', 'localhost', '.localhost']
+ALLOWED_HOSTS = ['*', 'localhost', '.localhost', '.ngrok-free.app']
 
 
 # Application definition
@@ -287,6 +287,7 @@ BRADESCO_KEY_PATH = os.path.join(BASE_DIR, 'caminho', 'para', 'sua_chave_privada
 CSRF_TRUSTED_ORIGINS = [
     'http://localhost:5173',
     'http://127.0.0.1:5173',
+    'https://*.ngrok-free.app', # Permitir Ngrok para Webhooks/Callback
 ]
 
 # =============================================================
@@ -301,7 +302,7 @@ EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD')
 DEFAULT_FROM_EMAIL = os.getenv('EMAIL_HOST_USER')
 
 # ===================================================================
-# CONFIGURAÇÕES DO CELERY E REDIS (ADICIONADAS)
+# CONFIGURAÇÕES DO CELERY E REDIS
 # ===================================================================
 CELERY_BROKER_URL = 'redis://localhost:6379/0'
 CELERY_RESULT_BACKEND = 'redis://localhost:6379/0'
@@ -313,8 +314,15 @@ CELERY_TIMEZONE = 'America/Sao_Paulo' # Ajuste para o seu fuso horário
 # Configuração do Celery Beat (Agendador de Tarefas Periódicas)
 CELERY_BEAT_SCHEDULE = {
     'verificar-posts-agendados': {
-        'task': 'app_publicacoes.tasks.publicar_posts_agendados',
+        'task': 'app_publicacoes.tasks.verificar_publicacoes_agendadas', # NOME CORRIGIDO AQUI
         'schedule': 60.0,  # Executar a cada 60 segundos
     },
 }
+
 # ===================================================================
+# URL BASE DO SITE (Importante para Instagram/Facebook API)
+# ===================================================================
+# Em produção, coloque o domínio real (ex: https://imobcloud.com.br)
+# Para testes locais com Instagram, use a URL do Ngrok atual.
+# ATUALIZE ESTA LINHA SEMPRE QUE REINICIAR O NGROK
+SITE_URL = "https://6595c62c5f39.ngrok-free.app"
