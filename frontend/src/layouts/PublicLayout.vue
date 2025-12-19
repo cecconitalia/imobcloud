@@ -2,275 +2,322 @@
   <div class="public-layout">
     <header :class="['public-header', { 'scrolled': isScrolled }]">
       <div class="container header-container">
+        
         <a href="/site" class="header-brand">
-          <h1>{{ imobiliariaNome || 'Portal Imobiliário' }}</h1>
+          <i class="fas fa-home brand-icon"></i>
+          <h1 class="brand-name">{{ imobiliariaNome || 'Portal Imobiliário' }}</h1>
         </a>
-        <div class="right-section">
-          <nav class="public-nav">
-            <a href="http://localhost:5173/login" class="nav-link">Login</a>
+
+        <div class="header-actions">
+          
+          <nav class="desktop-nav">
+            <router-link to="/site" class="nav-link" active-class="active">Início</router-link>
+            <a href="#" class="nav-link">Imóveis</a>
+            <a href="#" class="nav-link">Sobre</a>
+            <a href="#" class="nav-link">Contato</a>
           </nav>
-          <div class="social-links">
+          
+          <div class="separator desktop-only"></div>
+
+          <a href="/login" class="btn-login desktop-only">
+            <i class="fas fa-user-circle"></i>
+            <span>Área do Cliente</span>
+          </a>
+
+          <div 
+            v-if="isMobileMenuOpen" 
+            class="menu-backdrop"
+            @click="closeMenu"
+          ></div>
+
+          <div 
+            class="mobile-interaction-wrapper"
+            @mouseleave="handleMouseLeave"
+          >
+            <button 
+              class="mobile-toggle" 
+              @click.stop="toggleMenu" 
+              :class="{ 'active': isMobileMenuOpen }"
+            >
+              <i :class="isMobileMenuOpen ? 'fas fa-times' : 'fas fa-bars'"></i>
+            </button>
+
+            <transition name="dropdown-slide">
+              <div v-if="isMobileMenuOpen" class="mobile-dropdown-menu" @click.stop>
+                <router-link to="/site" class="mobile-item" @click="closeMenu">
+                  Início
+                </router-link>
+                <a href="#" class="mobile-item" @click="closeMenu">Imóveis</a>
+                <a href="#" class="mobile-item" @click="closeMenu">Sobre</a>
+                <a href="#" class="mobile-item" @click="closeMenu">Contato</a>
+                
+                <div class="divider"></div>
+                
+                <a href="/login" class="mobile-item highlight" @click="closeMenu">
+                  <i class="fas fa-user-circle"></i> Área do Cliente
+                </a>
+              </div>
+            </transition>
           </div>
-        </div>
+          </div>
       </div>
     </header>
+
     <main class="main-content">
-      <router-view />
+      <router-view v-slot="{ Component }">
+        <transition name="fade" mode="out-in">
+          <component :is="Component" />
+        </transition>
+      </router-view>
     </main>
+
     <footer class="public-footer">
       <div class="container footer-container">
-        <p>&copy; {{ new Date().getFullYear() }} {{ imobiliariaNome }}. Todos os direitos reservados.</p>
-        <p>Telefone: (xx) xxxx-xxxx | Email: contato@{{ imobiliariaNome }}.com</p>
+        <div class="footer-info">
+          <h3 class="footer-brand">{{ imobiliariaNome }}</h3>
+          <p class="footer-desc">Encontre o imóvel dos seus sonhos com confiança.</p>
+        </div>
+        <div class="footer-copy">
+          <p>&copy; {{ new Date().getFullYear() }} {{ imobiliariaNome }}. Todos os direitos reservados.</p>
+        </div>
       </div>
     </footer>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue';
+import { ref, onMounted, onUnmounted, watch } from 'vue';
+import { useRoute } from 'vue-router';
 import publicApiClient from '@/services/publicApiClient';
+import '@fortawesome/fontawesome-free/css/all.css';
 
+const route = useRoute();
 const imobiliariaNome = ref('');
 const isScrolled = ref(false);
+const isMobileMenuOpen = ref(false);
 
-function handleScroll() {
-  isScrolled.value = window.scrollY > 0;
+// --- Lógica do Menu ---
+
+function toggleMenu() {
+  isMobileMenuOpen.value = !isMobileMenuOpen.value;
 }
 
-// Funções para manipular a cor (mantidas)
-function hexToRgb(hex: string) {
-  const shorthandRegex = /^#?([a-f\d])([a-f\d])([a-f\d])$/i;
-  hex = hex.replace(shorthandRegex, function(m, r, g, b) {
-    return r + r + g + g + b + b;
-  });
-  const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
-  return result ? {
-    r: parseInt(result[1], 16),
-    g: parseInt(result[2], 16),
-    b: parseInt(result[3], 16)
-  } : null;
+function closeMenu() {
+  isMobileMenuOpen.value = false;
 }
 
-function lightenColor(hex: string, percent: number) {
-  let rgb = hexToRgb(hex);
-  if (!rgb) return hex;
-  
-  let r = rgb.r + percent;
-  let g = rgb.g + percent;
-  let b = rgb.b + percent;
-  
-  r = Math.min(255, Math.max(0, r));
-  g = Math.min(255, Math.max(0, g));
-  b = Math.min(255, Math.max(0, b));
-  
-  return `#${((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1)}`;
-}
-
-function darkenColor(hex: string, amount: number) {
-  let usePound = false;
-  if (hex[0] === "#") {
-    hex = hex.slice(1);
-    usePound = true;
+// Fecha ao tirar o mouse do container (Botão + Menu)
+function handleMouseLeave() {
+  if (isMobileMenuOpen.value) {
+    closeMenu();
   }
-  let num = parseInt(hex, 16);
-  let r = (num >> 16) + amount;
-  if (r > 255) r = 255;
-  else if (r < 0) r = 0;
-  let b = ((num >> 8) & 0x00FF) + amount;
-  if (b > 255) b = 255;
-  else if (b < 0) b = 0;
-  let g = (num & 0x0000FF) + amount;
-  if (g > 255) g = 255;
-  else if (g < 0) g = 0;
-  return (usePound ? "#" : "") + (g | (b << 8) | (r << 16)).toString(16).padStart(6, '0');
 }
 
-// FUNÇÃO PARA BUSCAR O NOME E A COR DA IMOBILIÁRIA VIA API
+// Fecha automaticamente ao mudar de rota
+watch(() => route.fullPath, () => {
+  closeMenu();
+});
+
+// --- Scroll & Cores ---
+function handleScroll() {
+  isScrolled.value = window.scrollY > 10;
+}
+
 async function fetchImobiliariaData(subdomain: string) {
   try {
-    // A chamada usa o caminho que está mapeado na raiz do Django (sem prefixo /api/v1/)
     const response = await publicApiClient.get(`/public/imobiliaria/${subdomain}/`);
     imobiliariaNome.value = response.data.nome;
     const primaryColor = response.data.cor_primaria || '#007bff';
-    const footerColor = darkenColor(primaryColor, -20);
-    const bodyBgColor = lightenColor(primaryColor, 230);
     document.documentElement.style.setProperty('--primary-color', primaryColor);
-    document.documentElement.style.setProperty('--footer-color', footerColor);
-    document.documentElement.style.setProperty('--body-bg-color', bodyBgColor);
   } catch (err) {
-    console.error("Erro ao buscar dados da imobiliária:", err);
-    imobiliariaNome.value = subdomain.charAt(0).toUpperCase() + subdomain.slice(1);
-    document.documentElement.style.setProperty('--primary-color', '#007bff');
-    document.documentElement.style.setProperty('--footer-color', '#34495e');
-    document.documentElement.style.setProperty('--body-bg-color', '#f4f7f6');
+    imobiliariaNome.value = subdomain === 'localhost' ? 'Imobiliária Demo' : subdomain;
+    document.documentElement.style.setProperty('--primary-color', '#111827');
   }
 }
 
 onMounted(() => {
   const hostname = window.location.hostname;
   const parts = hostname.split('.');
-  
-  let subdomain = null;
+  let subdomain = parts.length > 1 && parts[0] !== 'www' ? parts[0] : 'estilomusical';
+  if (parts.length === 1 || parts[0] === 'localhost') subdomain = 'estilomusical';
 
-  // Lógica para extração do subdomínio
-  if (parts.length > 1 && parts[0] !== 'www') {
-    // Se o hostname for algo como 'estilo.localhost' ou 'estilo.imobcloud.com'
-    subdomain = parts[0];
-  }
-  
-  // CORREÇÃO: Fallback seguro para ambientes de desenvolvimento (resolve o 404)
-  if (subdomain === 'localhost' || !subdomain) {
-      subdomain = 'estilomusical'; // Subdomínio padrão para teste
-  }
-
-  // Se for um ambiente de desenvolvimento e o subdomínio não for um valor real,
-  // podemos forçar a busca para o subdomínio de teste.
-  if (subdomain) {
-    fetchImobiliariaData(subdomain);
-  } else {
-    // Configurações padrão se não houver subdomínio válido
-    document.documentElement.style.setProperty('--primary-color', '#007bff');
-    document.documentElement.style.setProperty('--footer-color', '#34495e');
-    document.documentElement.style.setProperty('--body-bg-color', '#f4f7f6');
-  }
-
+  fetchImobiliariaData(subdomain);
   window.addEventListener('scroll', handleScroll);
+});
+
+onUnmounted(() => {
+  window.removeEventListener('scroll', handleScroll);
 });
 </script>
 
 <style scoped>
-@import url('https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css');
-
+/* --- Configurações Globais --- */
 .public-layout {
+  --nav-height: 80px;
+  --text-main: #374151;
+  --bg-body: #f9fafb;
+  --footer-bg: #1f2937;
+  
   display: flex;
   flex-direction: column;
   min-height: 100vh;
-  background-color: var(--body-bg-color);
+  font-family: 'Inter', -apple-system, sans-serif;
+  background-color: var(--bg-body);
+  color: var(--text-main);
 }
 
-/* HEADER */
+.container {
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 0 1.5rem;
+}
+
+/* --- HEADER --- */
 .public-header {
-  background-color: var(--primary-color);
-  backdrop-filter: blur(10px);
-  color: #fff;
-  padding: 1rem 0;
+  height: var(--nav-height);
   position: sticky;
   top: 0;
-  z-index: 100;
+  z-index: 1000;
+  background-color: transparent;
   transition: all 0.3s ease;
 }
 
 .public-header.scrolled {
-  background-color: var(--primary-color);
-  box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+  background-color: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(8px);
+  box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);
+  height: 70px;
 }
 
 .header-container {
+  height: 100%;
   display: flex;
-  justify-content: space-between;
   align-items: center;
-  max-width: 1200px;
-  margin: 0 auto;
-  padding: 0 1rem;
+  justify-content: space-between;
 }
 
 .header-brand {
-  text-decoration: none;
-  color: #fff;
-  font-family: 'Poppins', sans-serif;
-  font-weight: 600;
-  transition: all 0.2s ease-in-out;
-}
-
-.header-brand h1 {
-  margin: 0;
-  font-size: 1.3em;
-}
-
-.right-section {
-    display: flex;
-    align-items: center;
-    gap: 2rem;
-}
-
-.public-nav {
   display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  text-decoration: none;
+  color: var(--text-main);
+}
+.brand-icon { font-size: 1.5rem; color: var(--primary-color); }
+.brand-name { font-size: 1.25rem; font-weight: 700; margin: 0; }
+
+.header-actions {
+  display: flex;
+  align-items: center;
   gap: 1.5rem;
 }
 
-.social-links {
-  display: flex;
-  gap: 1rem;
+/* --- Navegação Desktop --- */
+.desktop-nav { display: flex; gap: 2rem; }
+.nav-link {
+  text-decoration: none;
+  color: var(--text-main);
+  font-weight: 500;
+  transition: color 0.2s;
+}
+.nav-link:hover, .nav-link.active { color: var(--primary-color); }
+
+.separator { height: 24px; width: 1px; background-color: #e5e7eb; }
+
+.btn-login {
+  display: flex; align-items: center; gap: 0.5rem;
+  text-decoration: none; color: var(--primary-color);
+  font-weight: 600; padding: 0.5rem 1rem;
+  border-radius: 8px; transition: background 0.2s;
+}
+.btn-login:hover { background-color: #f3f4f6; }
+
+/* --- SISTEMA DE MENU MOBILE --- */
+
+/* 1. Wrapper que agrupa Botão e Menu (Zona segura do mouse) */
+.mobile-interaction-wrapper {
+  position: relative;
+  display: none; /* Escondido no Desktop */
 }
 
-.nav-link {
-  color: #fff;
-  text-decoration: none;
-  font-weight: 500;
-  transition: color 0.2s ease, transform 0.2s ease;
+/* 2. Botão Hambúrguer */
+.mobile-toggle {
+  background: none; border: none;
+  font-size: 1.5rem; color: var(--text-main);
+  cursor: pointer; padding: 0.5rem;
+  width: 40px; height: 40px;
+  display: flex; align-items: center; justify-content: center;
+  border-radius: 50%;
+  transition: background 0.2s;
+  z-index: 102; /* Acima do menu e backdrop */
   position: relative;
 }
+.mobile-toggle:hover, .mobile-toggle.active { background-color: #f3f4f6; }
 
-.nav-link::after {
-  content: '';
+/* 3. Backdrop Invisível (Para clicar fora) */
+.menu-backdrop {
+  position: fixed;
+  top: 0; left: 0; width: 100vw; height: 100vh;
+  z-index: 100;
+  background: transparent; /* Invisível, mas captura cliques */
+  cursor: default;
+}
+
+/* 4. Menu Dropdown */
+.mobile-dropdown-menu {
   position: absolute;
-  left: 0;
-  bottom: -5px;
-  width: 0;
-  height: 2px;
-  background-color: #fff;
-  transition: width 0.3s ease;
+  top: 100%; /* Logo abaixo do botão */
+  right: 0;
+  width: 220px;
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 10px 25px -5px rgba(0,0,0,0.1), 0 8px 10px -6px rgba(0,0,0,0.1);
+  border: 1px solid #f3f4f6;
+  padding: 0.5rem 0;
+  margin-top: 0; /* Sem margem para não quebrar o hover */
+  z-index: 101; /* Acima do backdrop */
+  display: flex;
+  flex-direction: column;
 }
 
-.nav-link:hover::after {
-  width: 100%;
+.mobile-item {
+  padding: 0.75rem 1.25rem;
+  text-decoration: none;
+  color: var(--text-main);
+  font-weight: 500;
+  transition: background 0.2s;
+  display: block;
+}
+.mobile-item:hover { background-color: #f9fafb; color: var(--primary-color); }
+
+.mobile-item.highlight {
+  color: var(--primary-color);
+  font-weight: 600;
+  background-color: #f0f9ff;
+  margin-top: 0.25rem;
+  border-radius: 0 0 12px 12px;
 }
 
-.social-icon {
-  color: #fff;
-  font-size: 1.2rem;
-  transition: color 0.2s ease, transform 0.2s ease;
+.divider { height: 1px; background: #e5e7eb; margin: 0.5rem 0; }
+
+/* Transição Suave */
+.dropdown-slide-enter-active, .dropdown-slide-leave-active {
+  transition: all 0.2s ease;
+}
+.dropdown-slide-enter-from, .dropdown-slide-leave-to {
+  opacity: 0;
+  transform: translateY(-10px);
 }
 
-.social-icon:hover {
-  color: #f0f0f0;
-  transform: scale(1.1);
-}
-
-/* MAIN CONTENT */
-.main-content {
-  flex-grow: 1;
-}
-
-/* FOOTER */
-.public-footer {
-  background-color: var(--footer-color);
-  color: #ecf0f1;
-  text-align: center;
-  padding: 1.5rem 0;
-  margin-top: 2rem;
-}
-
-.footer-container p {
-  margin: 0.25rem 0;
-  font-size: 0.9rem;
-}
-
-/* MEDIA QUERIES */
+/* --- Responsividade --- */
 @media (max-width: 768px) {
-  .header-container {
-    flex-wrap: nowrap;
-    justify-content: space-between;
-    gap: 1rem;
-  }
-  .public-nav, .social-links, .header-brand {
-    width: auto;
-    text-align: left;
-  }
-  .right-section {
-    flex-direction: row;
-    gap: 1rem;
-    width: auto;
-  }
+  .desktop-nav, .desktop-only { display: none; }
+  .mobile-interaction-wrapper { display: block; }
 }
+
+/* Conteúdo e Footer */
+.main-content { flex: 1; }
+.public-footer { background-color: var(--footer-bg); color: #f3f4f6; padding: 2rem 0; margin-top: auto; text-align: center; }
+.footer-desc { color: #9ca3af; font-size: 0.9rem; }
+.footer-copy { margin-top: 1rem; padding-top: 1rem; border-top: 1px solid rgba(255,255,255,0.1); font-size: 0.8rem; color: #6b7280; }
 </style>

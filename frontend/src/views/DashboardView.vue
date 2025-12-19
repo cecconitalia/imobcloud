@@ -2,7 +2,6 @@
   <div class="dashboard-container">
     
     <div v-if="isLoading" class="skeleton-wrapper">
-      <div class="skeleton-header"></div>
       <div class="skeleton-grid-main">
         <div class="skeleton-card" v-for="n in 4" :key="`sk-main-${n}`"></div>
       </div>
@@ -11,154 +10,192 @@
       </div>
     </div>
 
-    <div v-if="error" class="error-message">
-      <strong><i class="fas fa-exclamation-triangle"></i> Atenção</strong>
-      <p>{{ error }}</p>
+    <div v-if="error" class="error-state">
+      <div class="error-content">
+        <i class="fas fa-exclamation-triangle"></i>
+        <h3>Atenção</h3>
+        <p>{{ error }}</p>
+        <button @click="fetchData" class="btn-retry">Tentar Novamente</button>
+      </div>
     </div>
 
-    <div v-if="!isLoading" class="content-wrapper">
+    <div v-if="!isLoading && !error" class="content-wrapper fade-in">
       
-      <div class="section-header">
-        <h3><i class="fas fa-chart-pie"></i> Visão Geral</h3>
-      </div>
-
-      <div class="stats-grid">
-        <div class="stat-card card-primary">
-          <div class="icon-wrapper primary"><i class="fas fa-home"></i></div>
-          <div class="card-content">
-            <p class="stat-title">Imóveis Ativos</p>
-            <p class="stat-value">{{ geralStats?.imoveis_ativos || 0 }}</p>
+      <section class="kpi-section">
+        <div class="stat-card" @click="$router.push('/imoveis')">
+          <div class="card-header">
+            <span class="card-label">Portfólio</span>
+            <div class="icon-bubble primary">
+              <i class="fas fa-home"></i>
+            </div>
           </div>
-          <router-link to="/imoveis" class="card-link">Ver Imóveis <i class="fas fa-arrow-right"></i></router-link>
-        </div>
-
-        <div class="stat-card card-info">
-          <div class="icon-wrapper info"><i class="fas fa-users"></i></div>
-          <div class="card-content">
-            <p class="stat-title">Clientes Ativos</p>
-            <p class="stat-value">{{ geralStats?.clientes_ativos || 0 }}</p>
+          <div class="card-body">
+            <h3 class="stat-value">{{ geralStats?.imoveis_ativos || 0 }}</h3>
+            <p class="stat-desc">Imóveis Ativos</p>
           </div>
-          <router-link to="/clientes" class="card-link">Ver Clientes <i class="fas fa-arrow-right"></i></router-link>
-        </div>
-
-        <div class="stat-card card-warning">
-          <div class="icon-wrapper warning"><i class="fas fa-file-contract"></i></div>
-          <div class="card-content">
-            <p class="stat-title">Contratos Vigentes</p>
-            <p class="stat-value">{{ geralStats?.contratos_ativos || 0 }}</p>
+          <div class="card-footer">
+            <span class="link-text">Ver Imóveis <i class="fas fa-chevron-right"></i></span>
           </div>
-          <router-link to="/contratos" class="card-link">Gerir Contratos <i class="fas fa-arrow-right"></i></router-link>
         </div>
 
-        <div class="stat-card card-success">
-          <div class="icon-wrapper success"><i class="fas fa-user-plus"></i></div>
-          <div class="card-content">
-            <p class="stat-title">Novos (30 dias)</p>
-            <p class="stat-value">+{{ geralStats?.novos_clientes_30d || 0 }}</p>
+        <div class="stat-card" @click="$router.push('/clientes')">
+          <div class="card-header">
+            <span class="card-label">Relacionamento</span>
+            <div class="icon-bubble info">
+              <i class="fas fa-users"></i>
+            </div>
           </div>
-          <span class="card-subtext">Crescimento</span>
-        </div>
-      </div>
-
-      <div class="section-header mt-6">
-        <h3><i class="fas fa-wallet"></i> Resumo Financeiro</h3>
-        <router-link to="/financeiro/dashboard" class="header-link">Ver Detalhes</router-link>
-      </div>
-
-      <div class="financial-grid">
-        <div class="stat-card card-financial">
-            <div class="financial-row">
-                <div class="fin-icon income"><i class="fas fa-arrow-up"></i></div>
-                <div>
-                    <p class="stat-title">Receitas (Mês)</p>
-                    <p class="stat-value text-success">{{ formatCurrency(finStats?.a_receber?.pago_mes_atual) }}</p>
-                </div>
-            </div>
+          <div class="card-body">
+            <h3 class="stat-value">{{ geralStats?.clientes_ativos || 0 }}</h3>
+            <p class="stat-desc">Clientes na Base</p>
+          </div>
+          <div class="card-footer">
+            <span class="link-text">Ver Clientes <i class="fas fa-chevron-right"></i></span>
+          </div>
         </div>
 
-        <div class="stat-card card-financial">
-            <div class="financial-row">
-                <div class="fin-icon expense"><i class="fas fa-arrow-down"></i></div>
-                <div>
-                    <p class="stat-title">Despesas (Mês)</p>
-                    <p class="stat-value text-danger">{{ formatCurrency(finStats?.a_pagar?.pago_mes_atual) }}</p>
-                </div>
+        <div class="stat-card" @click="$router.push('/contratos')">
+          <div class="card-header">
+            <span class="card-label">Comercial</span>
+            <div class="icon-bubble warning">
+              <i class="fas fa-file-signature"></i>
             </div>
+          </div>
+          <div class="card-body">
+            <h3 class="stat-value">{{ geralStats?.contratos_ativos || 0 }}</h3>
+            <p class="stat-desc">Contratos Vigentes</p>
+          </div>
+          <div class="card-footer">
+            <span class="link-text">Gerir Contratos <i class="fas fa-chevron-right"></i></span>
+          </div>
         </div>
 
-        <div class="stat-card card-financial">
-             <div class="financial-row">
-                <div class="fin-icon balance"><i class="fas fa-scale-balanced"></i></div>
-                <div>
-                    <p class="stat-title">Saldo do Mês (R - D)</p>
-                    <p class="stat-value" :class="saldoMesAtual >= 0 ? 'text-primary' : 'text-danger'">
-                        {{ formatCurrency(saldoMesAtual) }}
-                    </p>
-                </div>
+        <div class="stat-card highlight">
+          <div class="card-header">
+            <span class="card-label">Crescimento</span>
+            <div class="icon-bubble success">
+              <i class="fas fa-chart-line"></i>
             </div>
+          </div>
+          <div class="card-body">
+            <h3 class="stat-value">+{{ geralStats?.novos_clientes_30d || 0 }}</h3>
+            <p class="stat-desc">Novos Clientes (30d)</p>
+          </div>
+          <div class="card-footer">
+            <span class="trend-positive">Performance Positiva</span>
+          </div>
         </div>
-      </div>
+      </section>
 
-      <div class="section-header mt-6">
-        <h3><i class="fas fa-key"></i> Controle de Aluguéis</h3>
-        <router-link to="/contratos" class="header-link">Todos os Contratos</router-link>
-      </div>
+      <div class="main-grid">
+        
+        <div class="grid-column">
+          <div class="section-header">
+            <h3><i class="fas fa-wallet text-muted"></i> Finanças do Mês</h3>
+            <router-link to="/financeiro/dashboard" class="action-link">Detalhes</router-link>
+          </div>
 
-      <div class="rent-grid">
-        <div class="rent-kpis">
-            <div class="alert-card">
-                <div class="alert-header">
-                    <i class="fas fa-clock text-warning"></i>
-                    <span>A Vencer (7 dias)</span>
-                </div>
-                <div class="alert-body">
-                    <p class="alert-value">{{ aluguelStats?.alugueis_a_vencer || 0 }}</p>
-                    <p class="alert-desc">Boletos</p>
-                </div>
+          <div class="finance-cards">
+            <div class="fin-card income">
+              <div class="fin-icon">
+                <i class="fas fa-arrow-up"></i>
+              </div>
+              <div class="fin-info">
+                <span class="fin-label">Receitas Recebidas</span>
+                <span class="fin-value">{{ formatCurrency(finStats?.a_receber?.pago_mes_atual) }}</span>
+              </div>
             </div>
 
-            <div class="alert-card danger-border">
-                <div class="alert-header">
-                    <i class="fas fa-exclamation-circle text-danger"></i>
-                    <span>Em Atraso</span>
-                </div>
-                <div class="alert-body">
-                    <p class="alert-value text-danger">{{ aluguelStats?.alugueis_atrasados || 0 }}</p>
-                    <p class="alert-desc">Inadimplentes</p>
-                </div>
+            <div class="fin-card expense">
+              <div class="fin-icon">
+                <i class="fas fa-arrow-down"></i>
+              </div>
+              <div class="fin-info">
+                <span class="fin-label">Despesas Pagas</span>
+                <span class="fin-value">{{ formatCurrency(finStats?.a_pagar?.pago_mes_atual) }}</span>
+              </div>
             </div>
+
+            <div class="fin-card balance" :class="{ 'negative': saldoMesAtual < 0 }">
+              <div class="fin-icon">
+                <i class="fas fa-scale-balanced"></i>
+              </div>
+              <div class="fin-info">
+                <span class="fin-label">Saldo em Caixa</span>
+                <span class="fin-value">{{ formatCurrency(saldoMesAtual) }}</span>
+              </div>
+            </div>
+          </div>
         </div>
 
-        <div class="rent-table-card">
-            <h4>Próximos Vencimentos</h4>
-            <div v-if="aluguelStats?.proximos_alugueis?.length" class="table-responsive">
-                <table class="mini-table">
-                    <thead>
-                        <tr>
-                            <th>Imóvel</th>
-                            <th>Inquilino</th>
-                            <th>Vencimento</th>
-                            <th>Valor</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr v-for="aluguel in aluguelStats.proximos_alugueis.slice(0, 5)" :key="aluguel.id">
-                            <td class="truncate-text" :title="aluguel.imovel_titulo">
-                                <i class="fas fa-building text-muted mr-1"></i> {{ aluguel.imovel_titulo }}
-                            </td>
-                            <td class="truncate-text" :title="aluguel.inquilino_nome">
-                                {{ aluguel.inquilino_nome }}
-                            </td>
-                            <td>{{ formatDate(aluguel.data_vencimento) }}</td>
-                            <td class="font-mono">{{ formatCurrency(aluguel.valor) }}</td>
-                        </tr>
-                    </tbody>
+        <div class="grid-column wide">
+          <div class="section-header">
+            <h3><i class="fas fa-key text-muted"></i> Monitoramento de Aluguéis</h3>
+            <router-link to="/contratos" class="action-link">Todos os Contratos</router-link>
+          </div>
+
+          <div class="rent-dashboard">
+            <div class="rent-alerts">
+              <div class="alert-box warning">
+                <div class="alert-icon"><i class="fas fa-clock"></i></div>
+                <div class="alert-content">
+                  <span class="alert-number">{{ aluguelStats?.alugueis_a_vencer || 0 }}</span>
+                  <span class="alert-text">A Vencer (7 dias)</span>
+                </div>
+              </div>
+
+              <div class="alert-box danger">
+                <div class="alert-icon"><i class="fas fa-exclamation-circle"></i></div>
+                <div class="alert-content">
+                  <span class="alert-number">{{ aluguelStats?.alugueis_atrasados || 0 }}</span>
+                  <span class="alert-text">Em Atraso</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="table-container">
+              <h4 class="table-title">Próximos Vencimentos</h4>
+              
+              <div v-if="aluguelStats?.proximos_alugueis?.length" class="clean-table-wrapper">
+                <table class="clean-table">
+                  <thead>
+                    <tr>
+                      <th>Imóvel</th>
+                      <th>Inquilino</th>
+                      <th>Vencimento</th>
+                      <th class="text-right">Valor</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr v-for="aluguel in aluguelStats.proximos_alugueis.slice(0, 5)" :key="aluguel.id">
+                      <td>
+                        <div class="imovel-cell">
+                          <i class="fas fa-building text-icon"></i>
+                          <span class="truncate" :title="aluguel.imovel_titulo">{{ aluguel.imovel_titulo }}</span>
+                        </div>
+                      </td>
+                      <td>
+                        <span class="truncate block max-w-[150px]" :title="aluguel.inquilino_nome">{{ aluguel.inquilino_nome }}</span>
+                      </td>
+                      <td>
+                        <span class="badge-date">{{ formatDate(aluguel.data_vencimento) }}</span>
+                      </td>
+                      <td class="text-right font-medium">
+                        {{ formatCurrency(aluguel.valor) }}
+                      </td>
+                    </tr>
+                  </tbody>
                 </table>
+              </div>
+              
+              <div v-else class="empty-state">
+                <div class="empty-icon"><i class="fas fa-check-circle"></i></div>
+                <p>Nenhum vencimento próximo.</p>
+              </div>
             </div>
-            <div v-else class="empty-msg">
-                <i class="fas fa-check-circle text-success"></i> Nenhum aluguel a vencer nos próximos dias.
-            </div>
+          </div>
         </div>
+
       </div>
 
     </div>
@@ -226,8 +263,7 @@ function formatDate(dateStr: string) {
     } catch { return dateStr; }
 }
 
-// --- Data Fetching ---
-onMounted(async () => {
+async function fetchData() {
   isLoading.value = true;
   error.value = null;
   
@@ -244,157 +280,346 @@ onMounted(async () => {
 
   } catch (err: any) {
     console.error("Erro ao carregar dashboard:", err);
-    error.value = 'Falha ao carregar dados do painel.';
+    error.value = 'Não foi possível carregar os dados. Verifique sua conexão.';
   } finally {
     isLoading.value = false;
   }
+}
+
+// --- Lifecycle ---
+onMounted(() => {
+  fetchData();
 });
 </script>
 
 <style scoped>
-/* --- Variáveis & Base --- */
+/* --- Variáveis Locais (Palette Elegante) --- */
 .dashboard-container {
-  --color-primary: #007bff;
-  --color-success: #28a745;
-  --color-warning: #ffc107;
-  --color-danger: #dc3545;
-  --color-info: #17a2b8;
-  --color-text: #343a40;
-  --color-text-muted: #6c757d;
-  --bg-card: #ffffff;
-  --radius: 8px;
-  --shadow: 0 2px 8px rgba(0,0,0,0.05);
+  --primary-color: #007bff;
+  --primary-light: #e6f2ff;
+  --success-color: #10b981;
+  --success-light: #d1fae5;
+  --warning-color: #f59e0b;
+  --warning-light: #fef3c7;
+  --danger-color: #ef4444;
+  --danger-light: #fee2e2;
+  --info-color: #3b82f6;
+  --info-light: #dbeafe;
   
-  padding: 1rem;
-  max-width: 1400px;
+  --text-main: #1f2937;
+  --text-secondary: #6b7280;
+  --text-light: #9ca3af;
+  
+  --bg-card: #ffffff;
+  --border-subtle: #f3f4f6;
+  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+  --shadow-hover: 0 10px 15px -3px rgba(0, 0, 0, 0.05), 0 4px 6px -2px rgba(0, 0, 0, 0.025);
+  --radius-lg: 16px;
+  --radius-md: 12px;
+  
+  /* Padding removido para eliminar espaços em branco superiores, 
+     pois o Layout já fornece padding */
+  padding: 0; 
+  max-width: 1600px;
   margin: 0 auto;
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  color: var(--text-main);
 }
 
-/* --- Tipografia & Headers --- */
-.section-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 1rem;
-    padding-bottom: 0.5rem;
-    border-bottom: 1px solid #e9ecef;
-}
-.section-header h3 {
-    font-size: 1.1rem; font-weight: 700; color: var(--color-text); margin: 0;
-    display: flex; align-items: center; gap: 8px;
-}
-.section-header h3 i { color: var(--color-primary); }
-.header-link { font-size: 0.85rem; color: var(--color-primary); text-decoration: none; font-weight: 600; }
-.mt-6 { margin-top: 2rem; }
-
-/* --- GRID: Visão Geral --- */
-.stats-grid {
-  display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 1rem;
+/* --- KPI Section (Cards Principais) --- */
+.kpi-section {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 1.5rem;
+  margin-bottom: 2.5rem;
 }
 
 .stat-card {
   background: var(--bg-card);
-  border-radius: var(--radius);
-  box-shadow: var(--shadow);
-  padding: 1.2rem;
-  display: flex; flex-direction: column; position: relative; overflow: hidden;
+  border-radius: var(--radius-lg);
+  padding: 1.5rem;
+  box-shadow: var(--shadow-sm);
+  border: 1px solid var(--border-subtle);
+  transition: all 0.3s ease;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  position: relative;
+  overflow: hidden;
+}
+
+.stat-card:hover {
+  transform: translateY(-4px);
+  box-shadow: var(--shadow-hover);
+  border-color: rgba(0, 123, 255, 0.2);
+}
+
+.card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 1rem;
+}
+
+.card-label {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-weight: 600;
+  color: var(--text-light);
+}
+
+.icon-bubble {
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.1rem;
+}
+.icon-bubble.primary { background: var(--primary-light); color: var(--primary-color); }
+.icon-bubble.info { background: var(--info-light); color: var(--info-color); }
+.icon-bubble.warning { background: var(--warning-light); color: var(--warning-color); }
+.icon-bubble.success { background: var(--success-light); color: var(--success-color); }
+
+.card-body {
+  margin-bottom: 1rem;
+}
+
+.stat-value {
+  font-size: 2.5rem;
+  font-weight: 300; /* Thin font for numbers */
+  margin: 0;
+  line-height: 1.1;
+  color: var(--text-main);
+}
+
+.stat-desc {
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+  margin: 0;
+}
+
+.card-footer {
+  padding-top: 1rem;
+  border-top: 1px solid var(--border-subtle);
+  margin-top: auto;
+}
+
+.link-text {
+  font-size: 0.85rem;
+  color: var(--primary-color);
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+.trend-positive {
+  font-size: 0.8rem;
+  color: var(--success-color);
+  font-weight: 600;
+  background: var(--success-light);
+  padding: 4px 8px;
+  border-radius: 6px;
+}
+
+/* --- Grids de Conteúdo --- */
+.main-grid {
+  display: grid;
+  grid-template-columns: 1fr 2fr;
+  gap: 2rem;
+}
+
+.section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+.section-header h3 {
+  font-size: 1.1rem;
+  font-weight: 500;
+  color: var(--text-main);
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+.text-muted { color: var(--text-light); }
+
+.action-link {
+  font-size: 0.85rem;
+  color: var(--primary-color);
+  font-weight: 500;
+  text-decoration: none;
+}
+.action-link:hover { text-decoration: underline; }
+
+/* --- Financeiro --- */
+.finance-cards {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.fin-card {
+  background: var(--bg-card);
+  border-radius: var(--radius-md);
+  padding: 1.25rem;
+  display: flex;
+  align-items: center;
+  gap: 1.25rem;
+  border: 1px solid var(--border-subtle);
   transition: transform 0.2s;
 }
-.stat-card:hover { transform: translateY(-2px); }
+.fin-card:hover { transform: translateX(4px); }
 
-.card-primary { border-left: 4px solid var(--color-primary); }
-.card-info { border-left: 4px solid var(--color-info); }
-.card-success { border-left: 4px solid var(--color-success); }
-.card-warning { border-left: 4px solid var(--color-warning); }
-
-.icon-wrapper {
-    width: 40px; height: 40px; border-radius: 50%;
-    display: flex; align-items: center; justify-content: center; font-size: 1.2rem; margin-bottom: 0.5rem;
+.fin-icon {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.2rem;
+  flex-shrink: 0;
 }
-.primary { background: #e6f2ff; color: var(--color-primary); }
-.info { background: #e0fcfc; color: var(--color-info); }
-.success { background: #e6ffec; color: var(--color-success); }
-.warning { background: #fff8e1; color: var(--color-warning); }
+.fin-card.income .fin-icon { background: var(--success-light); color: var(--success-color); }
+.fin-card.expense .fin-icon { background: var(--danger-light); color: var(--danger-color); }
+.fin-card.balance .fin-icon { background: var(--primary-light); color: var(--primary-color); }
 
-.stat-title { font-size: 0.85rem; color: var(--color-text-muted); margin: 0; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; }
-.stat-value { font-size: 1.8rem; font-weight: 800; color: var(--color-text); margin: 0.2rem 0; }
-.card-link { font-size: 0.8rem; color: var(--color-primary); text-decoration: none; font-weight: 600; margin-top: auto; }
-.card-subtext { font-size: 0.75rem; color: var(--color-success); font-weight: 600; margin-top: auto; }
+.fin-info { display: flex; flex-direction: column; }
+.fin-label { font-size: 0.8rem; color: var(--text-secondary); font-weight: 500; }
+.fin-value { font-size: 1.25rem; font-weight: 600; color: var(--text-main); }
+.fin-card.balance.negative .fin-value { color: var(--danger-color); }
 
-/* --- GRID: Financeiro --- */
-.financial-grid {
-    display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1rem;
+/* --- Rent Dashboard (Alerts & Table) --- */
+.rent-dashboard {
+  background: var(--bg-card);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border-subtle);
+  padding: 1.5rem;
+  height: calc(100% - 2.5rem); /* Adjust for header */
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
 }
-.card-financial { border-left: none; border-top: 4px solid #ccc; }
-.card-financial:nth-child(1) { border-top-color: var(--color-success); }
-.card-financial:nth-child(2) { border-top-color: var(--color-danger); }
-.card-financial:nth-child(3) { border-top-color: var(--color-primary); }
 
-.financial-row { display: flex; align-items: center; gap: 1rem; }
-.fin-icon { width: 45px; height: 45px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 1.4rem; }
-.income { background: #e6ffec; color: var(--color-success); }
-.expense { background: #ffe6e6; color: var(--color-danger); }
-.balance { background: #e6f2ff; color: var(--color-primary); }
-.text-success { color: var(--color-success); }
-.text-danger { color: var(--color-danger); }
-.text-primary { color: var(--color-primary); }
-
-/* --- GRID: Locação (Atualizada) --- */
-.rent-grid {
-    display: grid;
-    grid-template-columns: 1fr 3fr; /* KPI menor, Tabela maior */
-    gap: 1rem;
+.rent-alerts {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
 }
-.rent-kpis { display: flex; flex-direction: column; gap: 1rem; }
 
-.alert-card {
-    background: var(--bg-card); border-radius: var(--radius); padding: 1rem;
-    box-shadow: var(--shadow); border: 1px solid #eee;
-    display: flex; flex-direction: column; justify-content: center; text-align: center;
-    flex: 1;
+.alert-box {
+  border-radius: var(--radius-md);
+  padding: 1rem;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
 }
-.danger-border { border-color: #f8d7da; background: #fff5f5; }
+.alert-box.warning { background: var(--warning-light); border: 1px solid rgba(245, 158, 11, 0.1); }
+.alert-box.danger { background: var(--danger-light); border: 1px solid rgba(239, 68, 68, 0.1); }
 
-.alert-header { display: flex; align-items: center; justify-content: center; gap: 0.5rem; font-weight: 600; color: var(--color-text-muted); margin-bottom: 0.5rem; }
-.alert-value { font-size: 1.8rem; font-weight: 800; color: var(--color-text); margin: 0; line-height: 1; }
-.alert-desc { font-size: 0.8rem; color: var(--color-text-muted); margin: 0; }
+.alert-icon { font-size: 1.5rem; }
+.warning .alert-icon { color: var(--warning-color); }
+.danger .alert-icon { color: var(--danger-color); }
 
-.rent-table-card {
-    background: var(--bg-card); border-radius: var(--radius); box-shadow: var(--shadow);
-    padding: 1rem; overflow: hidden;
+.alert-content { display: flex; flex-direction: column; }
+.alert-number { font-size: 1.25rem; font-weight: 700; color: var(--text-main); line-height: 1; }
+.alert-text { font-size: 0.8rem; color: var(--text-secondary); }
+
+/* --- Table --- */
+.table-container { flex-grow: 1; }
+.table-title { font-size: 1rem; font-weight: 600; margin: 0 0 1rem 0; color: var(--text-main); }
+
+.clean-table-wrapper {
+  overflow-x: auto;
 }
-.rent-table-card h4 { margin: 0 0 0.8rem 0; font-size: 1rem; color: var(--color-text); font-weight: 600; }
+.clean-table { width: 100%; border-collapse: separate; border-spacing: 0; }
+.clean-table th {
+  text-align: left;
+  font-size: 0.75rem;
+  color: var(--text-light);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-weight: 600;
+  padding: 0.75rem 0.5rem;
+  border-bottom: 1px solid var(--border-subtle);
+}
+.clean-table td {
+  padding: 1rem 0.5rem;
+  border-bottom: 1px solid var(--border-subtle);
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+}
+.clean-table tr:last-child td { border-bottom: none; }
 
-.mini-table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
-.mini-table th { text-align: left; color: var(--color-text-muted); font-weight: 600; padding: 8px; border-bottom: 1px solid #eee; background-color: #f8f9fa; }
-.mini-table td { padding: 8px; border-bottom: 1px solid #f5f5f5; color: var(--color-text); vertical-align: middle; }
-.mini-table tr:last-child td { border-bottom: none; }
-.mini-table tr:hover { background-color: #f8f9fa; }
+.text-right { text-align: right; }
+.font-medium { font-weight: 500; color: var(--text-main); }
+.imovel-cell { display: flex; align-items: center; gap: 0.75rem; }
+.text-icon { color: #d1d5db; }
+.truncate {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 180px;
+  display: block;
+}
+.badge-date {
+  background: #f3f4f6;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+}
 
-.truncate-text { max-width: 180px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.mr-1 { margin-right: 0.25rem; }
-.text-muted { color: #aaa; }
-.font-mono { font-family: monospace; font-weight: 600; color: var(--color-primary); }
-.empty-msg { font-size: 0.9rem; color: #6c757d; text-align: center; margin-top: 2rem; }
+/* --- Empty States & Errors --- */
+.empty-state {
+  text-align: center;
+  padding: 2rem;
+  color: var(--text-light);
+}
+.empty-icon { font-size: 2rem; margin-bottom: 0.5rem; color: #e5e7eb; }
 
-/* --- Skeleton & Error --- */
-.skeleton-wrapper { display: flex; flex-direction: column; gap: 1rem; }
-.skeleton-header { height: 40px; width: 200px; background: #ddd; border-radius: 4px; }
-.skeleton-grid-main { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; }
-.skeleton-card { height: 120px; background: #eee; border-radius: var(--radius); animation: pulse 1.5s infinite; }
-.skeleton-grid-secondary { display: grid; grid-template-columns: repeat(2, 1fr); gap: 1rem; }
-.skeleton-card-tall { height: 150px; background: #eee; border-radius: var(--radius); animation: pulse 1.5s infinite; }
-.error-message { background: #f8d7da; color: #721c24; padding: 1rem; border-radius: var(--radius); margin-bottom: 1rem; }
-@keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.6; } 100% { opacity: 1; } }
+.error-state {
+  display: flex; justify-content: center; align-items: center;
+  min-height: 300px;
+}
+.error-content { text-align: center; color: var(--danger-color); }
+.error-content i { font-size: 3rem; margin-bottom: 1rem; }
+.btn-retry {
+  margin-top: 1rem;
+  padding: 0.5rem 1.5rem;
+  background: var(--primary-color);
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-size: 0.9rem;
+  cursor: pointer;
+}
 
+/* --- Skeleton Animation --- */
+.skeleton-wrapper { display: flex; flex-direction: column; gap: 2rem; margin-top: 1rem; }
+.skeleton-grid-main { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1.5rem; }
+.skeleton-card { height: 160px; background: #f3f4f6; border-radius: var(--radius-lg); animation: pulse 1.5s infinite; }
+.skeleton-grid-secondary { display: grid; grid-template-columns: 1fr 2fr; gap: 2rem; }
+.skeleton-card-tall { height: 300px; background: #f3f4f6; border-radius: var(--radius-lg); animation: pulse 1.5s infinite; }
+
+@keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.5; } 100% { opacity: 1; } }
+@keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+.fade-in { animation: fadeIn 0.5s ease-out; }
+
+/* --- Responsive --- */
 @media (max-width: 1024px) {
-    .rent-grid { grid-template-columns: 1fr; }
-    .rent-kpis { flex-direction: row; }
+  .main-grid { grid-template-columns: 1fr; }
+  .rent-dashboard { height: auto; }
 }
 @media (max-width: 768px) {
-    .stats-grid { grid-template-columns: 1fr 1fr; }
-    .financial-grid { grid-template-columns: 1fr; }
-    .rent-kpis { flex-direction: column; }
+  .kpi-section { grid-template-columns: 1fr; }
+  .dashboard-container { padding: 0; }
+  .skeleton-grid-main { grid-template-columns: 1fr; }
+  .skeleton-grid-secondary { grid-template-columns: 1fr; }
 }
 </style>
