@@ -1,7 +1,7 @@
 import os
 import base64
 from io import BytesIO
-from PIL import Image  # Necessário para otimização
+from PIL import Image
 
 from rest_framework import viewsets, status, parsers
 from rest_framework.decorators import action
@@ -22,32 +22,26 @@ from .serializers import (
     VistoriaFotoSerializer
 )
 
-# --- FUNÇÃO AUXILIAR DE OTIMIZAÇÃO (Trata o quadrado preto) ---
-def optimize_image_to_base64(path, max_size=(600, 600), quality=70):
+# --- FUNÇÃO AUXILIAR DE OTIMIZAÇÃO ---
+def optimize_image_to_base64(path, max_size=(1024, 1024), quality=80):
     """
-    Lê uma imagem, redimensiona, comprime e retorna em Base64 para inserir no PDF.
-    Trata a transparência (PNG) colando sobre um fundo branco antes de salvar como JPEG.
+    Lê a imagem, redimensiona mantendo a proporção e retorna em Base64.
     """
     if not path or not os.path.exists(path):
         return None
     
     try:
         with Image.open(path) as img:
-            
-            # --- CORREÇÃO DA TRANSPARÊNCIA (Resolve o Quadrado Preto) ---
+            # Tratamento de transparência
             if img.mode in ('RGBA', 'P'):
-                # Cria uma nova imagem branca (RGB) com o mesmo tamanho
                 background = Image.new('RGB', img.size, (255, 255, 255))
-                # Cola a imagem original na nova imagem, usando a máscara de transparência (Alpha)
                 background.paste(img, (0, 0), img)
                 img = background
-            # --- FIM DA CORREÇÃO ---
             
-            # Redimensiona mantendo a proporção (Thumbnail)
+            # Redimensiona mantendo a proporção (Thumbnail respeita aspect ratio)
             img.thumbnail(max_size)
             
             buffer = BytesIO()
-            # Salva como JPEG (Comprimido e otimizado para web/pdf)
             img.save(buffer, format="JPEG", quality=quality)
             
             img_str = base64.b64encode(buffer.getvalue()).decode('utf-8')
@@ -58,7 +52,6 @@ def optimize_image_to_base64(path, max_size=(600, 600), quality=70):
         return None
 
 def link_callback(uri, rel):
-    """Auxiliar para xhtml2pdf encontrar arquivos estáticos."""
     if os.path.isfile(uri): return uri
     if uri.startswith(settings.MEDIA_URL):
         path = os.path.join(settings.MEDIA_ROOT, uri.replace(settings.MEDIA_URL, ""))
@@ -118,26 +111,27 @@ class VistoriaViewSet(viewsets.ModelViewSet):
                 imovel = vistoria.contrato.imovel
                 endereco = f"{imovel.logradouro}, {imovel.numero or 'S/N'}, {imovel.bairro or ''} - {imovel.cidade or ''}/{imovel.estado or ''}"
                 
-                # NOVO: Busca e preenche dados da Imobiliária (Assumindo a estrutura do modelo)
                 if vistoria.contrato.imobiliaria:
                     imob = vistoria.contrato.imobiliaria
                     imobiliaria_data['nome'] = imob.nome or "Nome não cadastrado"
                     imobiliaria_data['cnpj'] = imob.cnpj or "-"
                     imobiliaria_data['telefone'] = imob.telefone or "-"
-                    imobiliaria_data['email'] = imob.email or "-"
+                    imobiliaria_data['email'] = imob.email_contato or "-"
             
-            # --- PREPARAÇÃO DE DADOS OTIMIZADOS ---
+            # --- DADOS OTIMIZADOS ---
             
-            # 1. Otimizar Assinaturas
             ass_locatario_b64 = None
             if vistoria.assinatura_locatario:
-                ass_locatario_b64 = optimize_image_to_base64(vistoria.assinatura_locatario.path, max_size=(250, 80), quality=70)
+                ass_locatario_b64 = optimize_image_to_base64(vistoria.assinatura_locatario.path, max_size=(250, 80))
 
             ass_responsavel_b64 = None
             if vistoria.assinatura_responsavel:
-                ass_responsavel_b64 = optimize_image_to_base64(vistoria.assinatura_responsavel.path, max_size=(250, 80), quality=70)
+                ass_responsavel_b64 = optimize_image_to_base64(vistoria.assinatura_responsavel.path, max_size=(250, 80))
 
-            # 2. Otimizar Fotos dos Ambientes
+            ass_proprietario_b64 = None
+            if vistoria.assinatura_proprietario:
+                ass_proprietario_b64 = optimize_image_to_base64(vistoria.assinatura_proprietario.path, max_size=(250, 80))
+
             ambientes_data = []
             db_ambientes = vistoria.ambientes.all().prefetch_related('itens', 'itens__fotos')
 
@@ -147,8 +141,8 @@ class VistoriaViewSet(viewsets.ModelViewSet):
                     fotos_data = []
                     for foto in item.fotos.all():
                         if foto.imagem:
-                            # Redimensiona para 400x400 (suficiente para grade no PDF) e qualidade 60
-                            b64 = optimize_image_to_base64(foto.imagem.path, max_size=(400, 400), quality=60)
+                            # 1024x1024 para qualidade alta no PDF
+                            b64 = optimize_image_to_base64(foto.imagem.path, max_size=(1024, 1024), quality=80)
                             if b64:
                                 fotos_data.append(b64)
                     
@@ -166,7 +160,7 @@ class VistoriaViewSet(viewsets.ModelViewSet):
                 })
 
             # ======================================================
-            # TEMPLATE HTML PROFISSIONAL V4 (Com Grade de Fotos Compacta)
+            # TEMPLATE HTML (Quebra de página por ambiente)
             # ======================================================
             html_template_string = """
             <!DOCTYPE html>
@@ -176,111 +170,88 @@ class VistoriaViewSet(viewsets.ModelViewSet):
                 <style>
                     @page { 
                         size: A4; 
-                        margin: 1cm; 
+                        margin: 1.5cm; 
                     }
                     body { font-family: Helvetica, sans-serif; font-size: 10pt; color: #2c3e50; line-height: 1.4; }
                     
-                    /* Título Principal */
                     .main-title { 
                         font-size: 20pt; font-weight: 700; color: #34495e; 
                         margin-bottom: 5px; border-bottom: 2px solid #34495e; 
                         padding-bottom: 5px;
                     }
 
-                    /* Tabela de Resumo (Dados Principais) */
                     .summary-table { width: 100%; margin-bottom: 15px; border-collapse: collapse; }
                     .summary-table td { padding: 5px 0; font-size: 9pt; }
-                    .summary-table tr:nth-child(even) { background-color: #f7f9fc; } /* Zebra stripes */
+                    .summary-table tr:nth-child(even) { background-color: #f7f9fc; }
                     .summary-label { font-weight: bold; width: 120px; color: #34495e; }
                     .summary-value { padding-left: 10px; }
                     
-                    /* Dados Imobiliária */
                     .imob-info { border: 1px solid #dfe6e9; padding: 10px; margin-bottom: 20px; background-color: #f8f9fa; font-size: 9pt; }
                     .imob-info-title { font-weight: 700; color: #34495e; margin-bottom: 5px; border-bottom: 1px dashed #ccc; padding-bottom: 3px; }
                     
-                    /* Observações Gerais */
                     .obs-gerais { margin-bottom: 20px; padding: 10px; border: 1px solid #dfe6e9; background-color: #f8f9fa; border-radius: 4px; }
                     .obs-gerais-title { font-weight: bold; color: #34495e; margin-bottom: 5px; font-size: 10pt; }
 
-                    /* Ambientes */
-                    .ambiente-section { page-break-after: avoid; }
+                    /* ALTERAÇÃO: Força quebra de página antes de cada ambiente */
+                    .ambiente-section { 
+                        page-break-before: always; 
+                        margin-top: 0px;
+                    }
+                    
                     .ambiente-title { 
-                        background-color: #556070; color: white; padding: 6px 10px; 
-                        font-size: 12pt; font-weight: 700; margin-top: 15px; margin-bottom: 10px;
+                        background-color: #556070; color: white; padding: 8px 12px; 
+                        font-size: 14pt; font-weight: 700; margin-bottom: 15px;
                         border-radius: 4px;
                     }
 
-                    /* Itens */
-                    .item-block { 
-                        margin-bottom: 15px; 
-                        padding: 10px; 
-                        border: 1px solid #ecf0f1; 
-                        page-break-inside: avoid; 
-                        border-radius: 4px;
+                    .item-container {
+                        margin-bottom: 20px;
+                        border-bottom: 2px solid #ecf0f1;
+                        padding-bottom: 15px;
+                        page-break-inside: avoid; /* Tenta não quebrar o item no meio */
                     }
-                    .item-name { font-weight: 600; font-size: 10pt; color: #2c3e50; display: inline-block; width: 70%; }
-                    .item-status { 
-                        float: right; font-size: 8pt; font-weight: 700; text-transform: uppercase; 
-                        padding: 2px 5px; border-radius: 3px; color: white; margin-top: -3px; 
-                    }
-                    
-                    .bg-NOVO { background-color: #27ae60; }
-                    .bg-BOM { background-color: #3498db; }
-                    .bg-REGULAR { background-color: #f1c40f; color: #333; }
-                    .bg-RUIM { background-color: #e74c3c; }
-                    .bg-INOPERANTE { background-color: #333; }
 
-                    .obs-item-text { font-style: italic; color: #555; font-size: 9pt; margin-top: 5px; }
-
-                    /* Grade de Fotos OTIMIZADA (3 fotos por linha) */
-                    .fotos-table { 
-                        width: 100%; 
-                        margin-top: 10px; 
-                        border-collapse: collapse; 
-                        table-layout: fixed; 
-                    }
-                    .foto-cell { 
-                        width: 33.33%; /* 3 por linha */
-                        padding: 3px; 
-                        text-align: center; 
-                        height: 120px; /* Altura fixa para visualização uniforme */
-                        vertical-align: top;
-                    }
-                    .foto-img { 
-                        width: 100%; /* Ocupa 100% da célula */
-                        height: 110px; /* Altura fixa menor */
-                        object-fit: cover; 
-                        border: 1px solid #ccc; 
-                        border-radius: 4px;
-                    }
-                    
-                    /* TERMOS DE CIÊNCIA */
-                    .termos-ciencia { 
-                        margin-top: 30px; 
-                        padding: 15px; 
-                        border: 1px solid #99a3ad;
+                    .item-header {
+                        font-size: 12pt;
+                        font-weight: bold;
+                        color: #2c3e50;
+                        margin-bottom: 5px;
                         background-color: #ecf0f1;
-                        page-break-before: auto; /* Tenta quebrar, mas não força sempre */
+                        padding: 5px;
                     }
-                    .termos-ciencia h3 { 
-                        font-size: 11pt; 
-                        color: #34495e; 
-                        margin: 0 0 10px 0; 
-                        text-align: center; 
-                        border-bottom: 1px solid #bdc3c7; 
-                        padding-bottom: 5px; 
-                    }
-                    .termos-ciencia p { font-size: 8.5pt; margin-bottom: 10px; }
-
-                    /* ASSINATURAS */
-                    .assinaturas-wrapper { margin-top: 40px; page-break-inside: avoid; }
-                    .table-assinaturas { width: 100%; border-collapse: collapse; }
-                    .td-assinatura { width: 50%; text-align: center; vertical-align: top; padding: 0 40px; }
-                    .ass-img { height: 45px; width: auto; margin-bottom: 5px; } 
-                    .ass-line { border-top: 1px solid #000; padding-top: 5px; font-weight: bold; font-size: 9pt; color: #333; }
-                    .ass-placeholder { height: 45px; color: #ccc; font-size: 8pt; display: block; padding-top: 15px; }
                     
-                    /* Rodapé da Página */
+                    .item-status { 
+                        font-size: 9pt; font-weight: bold; text-transform: uppercase; 
+                        float: right; color: #555;
+                    }
+
+                    .item-desc {
+                        font-size: 10pt; color: #555; margin-bottom: 10px; padding: 0 5px;
+                        font-style: italic;
+                    }
+
+                    /* Fotos Grandes e sem distorção */
+                    .photo-block {
+                        text-align: center;
+                        margin-bottom: 15px;
+                    }
+                    
+                    .photo-img {
+                        width: auto;
+                        max-width: 100%;
+                        max-height: 400px; /* ~ Metade da página A4 */
+                        border: 1px solid #ccc;
+                        border-radius: 4px;
+                    }
+
+                    /* Assinaturas */
+                    .assinaturas-wrapper { margin-top: 40px; page-break-inside: avoid; page-break-before: always; }
+                    .table-assinaturas { width: 100%; border-collapse: collapse; }
+                    .td-assinatura { text-align: center; vertical-align: top; padding: 0 10px; width: 33%; }
+                    .ass-img { height: 45px; width: auto; margin-bottom: 5px; } 
+                    .ass-line { border-top: 1px solid #000; padding-top: 5px; font-weight: bold; font-size: 8pt; color: #333; }
+                    .ass-placeholder { height: 45px; color: #ccc; font-size: 7pt; display: block; padding-top: 15px; }
+                    
                     .page-footer { 
                         position: fixed; bottom: 0; left: 0; right: 0;
                         text-align: center; font-size: 7pt; color: #aaa;
@@ -305,95 +276,93 @@ class VistoriaViewSet(viewsets.ModelViewSet):
                         <td class="summary-value">{{ imovel_endereco }}</td>
                     </tr>
                     <tr>
-                        <td class="summary-label">Tipo de Vistoria:</td>
-                        <td class="summary-value">{{ vistoria.get_tipo_display }} (Contrato #{{ vistoria.contrato.id }})</td>
+                        <td class="summary-label">Tipo:</td>
+                        <td class="summary-value">{{ vistoria.get_tipo_display }}</td>
                     </tr>
                     <tr>
-                        <td class="summary-label">Data da Vistoria:</td>
+                        <td class="summary-label">Data:</td>
                         <td class="summary-value">{{ vistoria.data_vistoria|date:"d/m/Y" }}</td>
-                    </tr>
-                    <tr>
-                        <td class="summary-label">Vistoriador:</td>
-                        <td class="summary-value">{{ vistoria.realizado_por_nome|default:"Não informado" }}</td>
-                    </tr>
-                    <tr>
-                        <td class="summary-label">Data de Conclusão:</td>
-                        <td class="summary-value">{{ vistoria.data_criacao|date:"d/m/Y H:i" }}</td>
                     </tr>
                 </table>
 
                 <div class="obs-gerais">
-                    <div class="obs-gerais-title">Observações Gerais (Vistoria, Chaves e Acessos):</div>
-                    <p style="margin: 0; font-style: normal; font-size: 9pt; color: #555;">{{ vistoria.observacoes|default:"Nenhuma observação geral registrada." }}</p>
+                    <div class="obs-gerais-title">Observações Gerais:</div>
+                    <p style="margin: 0; font-style: normal; font-size: 9pt; color: #555;">{{ vistoria.observacoes|default:"Nenhuma observação geral." }}</p>
                 </div>
 
                 {% for amb in ambientes_data %}
                     <div class="ambiente-section">
                         <div class="ambiente-title">{{ amb.nome|upper }}</div>
-                        
                         {% if amb.observacoes %}
-                           <p style="margin-top: -5px; font-style: italic; color: #666; font-size: 9pt;">Obs. do Ambiente: {{ amb.observacoes }}</p>
+                           <p style="margin: 0 0 15px 5px; font-style: italic; color: #666;">Obs: {{ amb.observacoes }}</p>
                         {% endif %}
 
                         {% for item in amb.itens %}
-                            <div class="item-block">
+                            <div class="item-container">
                                 <div class="item-header">
-                                    <span class="item-name">{{ item.item }}</span>
-                                    <span class="item-status bg-{{ item.estado }}">{{ item.estado }}</span>
+                                    {{ item.item }}
+                                    <span class="item-status">ESTADO: {{ item.estado }}</span>
                                 </div>
-                                
-                                <div class="obs-item-text">
-                                    <strong>Descrição das Avarias:</strong> {% if item.descricao_avaria %}{{ item.descricao_avaria }}{% else %}Estado conforme o esperado / Sem avarias descritas.{% endif %}
+                                <div class="item-desc">
+                                    <strong>Detalhes:</strong> {{ item.descricao_avaria|default:"Sem avarias relatadas." }}
                                 </div>
 
                                 {% if item.fotos %}
-                                    <table class="fotos-table">
-                                        <tr>
-                                        {% for foto_b64 in item.fotos %}
-                                            <td class="foto-cell">
-                                                <img src="{{ foto_b64 }}" class="foto-img">
-                                            </td>
-                                            {% if forloop.counter|divisibleby:3 and not forloop.last %}</tr><tr>{% endif %}
-                                        {% endfor %}
-                                        </tr>
-                                    </table>
+                                    {% for foto_b64 in item.fotos %}
+                                        <div class="photo-block">
+                                            <img src="{{ foto_b64 }}" class="photo-img">
+                                        </div>
+                                    {% endfor %}
                                 {% endif %}
                             </div>
                         {% endfor %}
                     </div>
                 {% endfor %}
 
-                <div class="termos-ciencia">
-                    <h3>Termo de Ciência e Responsabilidade</h3>
-                    <p>1. O LOCATÁRIO e o VISTORIADOR declaram, sob as penas da lei, que o presente Laudo de Vistoria reflete fielmente o estado de conservação e uso do imóvel na data de sua realização.</p>
-                    <p>2. Quaisquer divergências relativas ao estado do imóvel no momento da entrega (Vistoria de Entrada) deverão ser formalmente comunicadas à Imobiliária em até 72 (setenta e duas) horas após a assinatura deste documento. Após este prazo, o presente Laudo será considerado aceito em sua totalidade, servindo como único documento de referência para futuras comparações.</p>
-                    <p>3. As assinaturas digitais coletadas neste documento possuem valor legal, de acordo com o Art. 10, § 2º, da Medida Provisória nº 2.200-2/2001 (ICP-Brasil), e validam a concordância de ambas as partes com o conteúdo deste Laudo.</p>
-                </div>
-
                 <div class="assinaturas-wrapper">
+                    <div class="termos-ciencia">
+                        <h3 style="border-bottom: 1px solid #ccc; padding-bottom: 5px; margin-bottom: 10px;">Termo de Ciência</h3>
+                        <p style="font-size: 8pt; text-align: justify; margin-bottom: 20px;">
+                            As partes declaram que o presente Laudo de Vistoria reflete fielmente o estado de conservação do imóvel na data indicada.
+                            As assinaturas digitais aqui coletadas possuem validade legal e comprovam a ciência e concordância com o conteúdo deste documento e suas imagens anexas.
+                        </p>
+                    </div>
+
                     <table class="table-assinaturas">
                         <tr>
                             <td class="td-assinatura">
                                 {% if ass_responsavel_b64 %}
                                     <img src="{{ ass_responsavel_b64 }}" class="ass-img">
                                 {% else %}
-                                    <div class="ass-placeholder">(Aguardando assinatura digital)</div>
+                                    <div class="ass-placeholder">(Pendente)</div>
                                 {% endif %}
-                                <div class="ass-line">Vistoriador / Imobiliária</div>
+                                <div class="ass-line">Vistoriador</div>
                             </td>
+                            
                             <td class="td-assinatura">
                                 {% if ass_locatario_b64 %}
                                     <img src="{{ ass_locatario_b64 }}" class="ass-img">
                                 {% else %}
-                                    <div class="ass-placeholder">(Aguardando assinatura digital)</div>
+                                    <div class="ass-placeholder">(Pendente)</div>
                                 {% endif %}
-                                <div class="ass-line">Locatário / Cliente</div>
+                                <div class="ass-line">Locatário</div>
                             </td>
+
+                            {% if vistoria.exige_assinatura_proprietario %}
+                            <td class="td-assinatura">
+                                {% if ass_proprietario_b64 %}
+                                    <img src="{{ ass_proprietario_b64 }}" class="ass-img">
+                                {% else %}
+                                    <div class="ass-placeholder">(Pendente)</div>
+                                {% endif %}
+                                <div class="ass-line">Proprietário</div>
+                            </td>
+                            {% endif %}
                         </tr>
                     </table>
                 </div>
                 
-                <div class="page-footer">Documento gerado por ImobCloud - Sistema de Gestão Imobiliária</div>
+                <div class="page-footer">Gerado por ImobCloud</div>
             </body>
             </html>
             """
@@ -405,6 +374,7 @@ class VistoriaViewSet(viewsets.ModelViewSet):
                 'ambientes_data': ambientes_data, 
                 'ass_locatario_b64': ass_locatario_b64,
                 'ass_responsavel_b64': ass_responsavel_b64,
+                'ass_proprietario_b64': ass_proprietario_b64,
                 'imobiliaria': imobiliaria_data
             })
             html_content = template.render(context)
@@ -424,7 +394,6 @@ class VistoriaViewSet(viewsets.ModelViewSet):
             traceback.print_exc()
             return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-# ViewSets Padrão mantidos inalterados
 class AmbienteViewSet(viewsets.ModelViewSet):
     serializer_class = AmbienteSerializer
     permission_classes = [IsAuthenticated]

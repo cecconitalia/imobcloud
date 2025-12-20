@@ -1,36 +1,33 @@
 # C:\wamp64\www\ImobCloud\ImobCloud\middleware.py
 
 from django.utils.deprecation import MiddlewareMixin
-from django.shortcuts import get_object_or_404, redirect 
-from core.models import Imobiliaria, PerfilUsuario 
-from django.http import HttpResponseNotFound, HttpResponseForbidden 
-from django.contrib.auth import get_user_model 
-from rest_framework_simplejwt.settings import api_settings 
-import jwt 
+from core.models import Imobiliaria
+from django.http import HttpResponseForbidden
+from django.contrib.auth import get_user_model
+from rest_framework_simplejwt.settings import api_settings
+import jwt
 
-User = get_user_model() 
+User = get_user_model()
 
 class TenantIdentificationMiddleware(MiddlewareMixin):
+    """
+    Middleware de Engenharia Sênior para isolamento multi-tenant.
+    Responsável pela extração de Tenant via JWT, Sessão ou Subdomínio.
+    Garante que toda requisição privada possua um request.tenant válido.
+    """
     def process_request(self, request):
         host = request.get_host().split(':')[0]
-        request.tenant = None 
+        request.tenant = None
         
-        # O Django pode não ter populado o request.user ainda no início do middleware
+        # Identificadores de estado para depuração
         user_info = f"User: {request.user.username}" if hasattr(request, 'user') and request.user.is_authenticated else "User: Anonymous"
-        auth_info = f"Auth: {hasattr(request, 'user') and request.user.is_authenticated}"
-        super_info = f"Super: {hasattr(request, 'user') and request.user.is_superuser}"
-        print(f"\nDEBUG MW Start: {user_info}, {auth_info}, {super_info}, Host: {host}, Path: {request.path}")
+        print(f"\nDEBUG MW Start: {user_info}, Host: {host}, Path: {request.path}")
 
-        identified_by_user_or_jwt = False 
-        user_identified_tenant = None 
-        is_superuser = False
-
-        # --- Bloco de Autenticação (Sessão ou JWT) ---
         user = None
+        # --- Fase 1: Autenticação JWT/Sessão ---
         if hasattr(request, 'user') and request.user.is_authenticated:
             user = request.user
-            print(f"DEBUG MW User: Usuário '{user.username}' identificado via Sessão Django.")
-        
+            print(f"DEBUG MW Auth: Sessão ativa para '{user.username}'.")
         elif 'HTTP_AUTHORIZATION' in request.META:
             auth_header = request.META.get('HTTP_AUTHORIZATION', '').split(' ')
             if len(auth_header) == 2 and auth_header[0] == 'Bearer':
@@ -40,150 +37,86 @@ class TenantIdentificationMiddleware(MiddlewareMixin):
                     user_id = decoded_token.get(api_settings.USER_ID_CLAIM)
                     if user_id:
                         user_from_token = User.objects.get(pk=user_id)
-                        # Força o cache do usuário na requisição
-                        request._cached_user = user_from_token 
-                        request.user = user_from_token 
+                        # Sincronização forçada para compatibilidade com DRF
+                        request.user = user_from_token
+                        request._cached_user = user_from_token
                         user = user_from_token
-                        print(f"DEBUG MW JWT: Usuário '{user.username}' identificado via JWT.")
-                except jwt.ExpiredSignatureError:
-                    print("AVISO: Token JWT expirado.")
-                except (jwt.DecodeError, User.DoesNotExist):
-                    print("AVISO: Token JWT inválido ou usuário não existe.")
-                except Exception as e:
-                    print(f"ERRO ao processar token JWT: {e}.")
-        
-        # --- Bloco de Definição de Tenant (APÓS autenticar) ---
+                        print(f"DEBUG MW Auth: JWT válido para '{user.username}'.")
+                except (jwt.ExpiredSignatureError, jwt.DecodeError, User.DoesNotExist):
+                    print(f"AVISO MW Auth: Falha na validação do token JWT.")
+
+        # --- Fase 2: Identificação do Tenant ---
         if user and user.is_authenticated:
-            identified_by_user_or_jwt = True
             if user.is_superuser:
-                is_superuser = True
-                print(f"DEBUG MW Tenant: Superuser identificado.")
-                tenant_id_header = request.headers.get('X-Tenant-ID') 
-                
-                if tenant_id_header:
+                print("DEBUG MW Tenant: Superuser detectado.")
+                tenant_id = request.headers.get('X-Tenant-ID')
+                if tenant_id:
                     try:
-                        tenant_personificado = Imobiliaria.objects.get(id=int(tenant_id_header))
-                        request.tenant = tenant_personificado 
-                        print(f"DEBUG MW Superuser: Personificando Tenant ID: {tenant_id_header} ({tenant_personificado.nome})")
-                    except Imobiliaria.DoesNotExist:
-                        print(f"AVISO MW Superuser: 'X-Tenant-ID' {tenant_id_header} não encontrado. Tenant remains None.")
-                    except (ValueError, TypeError):
-                        print(f"AVISO MW Superuser: 'X-Tenant-ID' ({tenant_id_header}) formato inválido. Tenant remains None.")
+                        request.tenant = Imobiliaria.objects.get(id=int(tenant_id))
+                        print(f"DEBUG MW Tenant: Personificando {request.tenant.nome}")
+                    except (Imobiliaria.DoesNotExist, ValueError):
+                        print(f"AVISO MW Tenant: Tenant ID {tenant_id} inválido.")
+            else:
+                # Regra de negócio: Usuário comum deve estar vinculado a uma imobiliária
+                if hasattr(user, 'imobiliaria') and user.imobiliaria:
+                    request.tenant = user.imobiliaria
+                    print(f"DEBUG MW Tenant: Identificado via Perfil ({request.tenant.nome})")
                 else:
-                    print(f"DEBUG MW Superuser: Nenhum header 'X-Tenant-ID' enviado. Tenant remains None.")
-            else: # Usuário Comum (PerfilUsuario)
-                try:
-                    # CORREÇÃO CRÍTICA: ACESSA O CAMPO IMOBILIARIA DIRETAMENTE DO USUÁRIO
-                    if user.imobiliaria:
-                        user_identified_tenant = user.imobiliaria
-                        request.tenant = user_identified_tenant 
-                        print(f"DEBUG MW Tenant: Usuário normal. Tenant: {user_identified_tenant.nome}")
-                    else:
-                        print(f"AVISO: Usuário '{user.username}' logado, mas sem imobiliária associada.")
-                except Exception as e:
-                    # Captura erros se o campo 'imobiliaria' não for encontrado ou se houver outro problema
-                    print(f"ERRO ao carregar imobiliária do usuário: {e}.")
+                    print(f"ERRO MW Tenant: Usuário '{user.username}' sem imobiliária associada.")
 
-
-        print(f"DEBUG MW Path: After User/JWT check. Current Tenant: {request.tenant.nome if request.tenant else 'None'}. User status: {'Authenticated' if user and user.is_authenticated else 'Anonymous'}.")
-
-        # --- LÓGICA DE SAÍDA (EARLY EXIT) ---
-
+        # --- Fase 3: Regras de Acesso e Paths Públicos ---
         public_paths = [
             '/api/v1/public/',
-            '/public/', 
+            '/public/',
             '/admin/',
-            '/media/', 
-            
-            # Rotas do Simple JWT 
-            '/api/v1/token/', 
+            '/media/',
+            '/api/v1/token/',
             '/api/v1/token/refresh/',
-            
-            # Rotas do app 'core'
-            '/api/v1/core/login/', 
+            '/api/v1/core/login/',
             '/api/v1/core/refresh/',
             '/api/v1/core/register/',
+            '/api/v1/relatorios/', # Aberto no middleware para validação de ACL na View
         ]
 
-        is_public_path = any(request.path.startswith(p) for p in public_paths)
-        if is_public_path:
-            print(f"DEBUG MW Path: Path é PÚBLICO ou MÍDIA. Exiting early from middleware.")
-            return None 
-
-        # Se NÃO for público E NÃO for autenticado, bloqueia
-        if not is_public_path and not (user and user.is_authenticated):
-            print(f"ERRO MW: Usuário anônimo tentando acessar path privado ({request.path}). Bloqueando.")
+        is_public = any(request.path.startswith(p) for p in public_paths)
+        
+        # Se o path não é público e não temos usuário autenticado, bloqueamos imediatamente
+        if not is_public and not (user and user.is_authenticated):
+            print(f"BLOQUEIO MW: Acesso anônimo negado para {request.path}")
             return HttpResponseForbidden("Autenticação necessária.")
 
-        # Se for Superuser, a view decide sobre o tenant (pode ser None)
-        if is_superuser:
-            print(f"DEBUG MW Final Check: Superuser. Deixando a view decidir sobre o tenant. Exiting early.")
-            return None 
+        # Validação de Subdomínio (Segurança Extra contra Session Hijacking)
+        if request.tenant and not user.is_superuser:
+            subdomain = self._get_subdomain(host)
+            if subdomain and subdomain not in ['www', request.tenant.subdominio]:
+                print(f"BLOQUEIO MW: Conflito de subdomínio '{subdomain}' vs '{request.tenant.subdominio}'")
+                return HttpResponseForbidden("Acesso negado: Subdomínio incorreto para esta conta.")
 
-        # Se for usuário normal, verifica consistência de subdomínio (se aplicável)
-        if user_identified_tenant: 
-            host = request.get_host().split(':')[0]
-            subdomain_from_host = None
-            if '.' in host:
-                parts = host.split('.')
-                if parts[-1] == 'localhost': 
-                    if len(parts) > 1: subdomain_from_host = parts[0]
-                elif parts[-2:] == ['imobcloud', 'com']: 
-                    if len(parts) > 2: subdomain_from_host = parts[0]
+        # Fallback de identificação por subdomínio (para acessos públicos que dependem de contexto)
+        if not request.tenant:
+            subdomain = self._get_subdomain(host)
+            if not subdomain and (host == 'localhost' or host == '127.0.0.1'):
+                subdomain = request.GET.get('subdomain')
             
-            if subdomain_from_host and subdomain_from_host != 'www' and subdomain_from_host != user_identified_tenant.subdominio:
-                print(f"ALERTA: Usuário '{request.user.username}' (tenant '{user_identified_tenant.subdominio}') tentou acessar o subdomínio '{subdomain_from_host}'. BLOQUEANDO API.")
-                if request.path.startswith('/api/'):
-                    return HttpResponseForbidden("Acesso negado. O subdomínio não corresponde à sua imobiliária logada.")
+            if subdomain and subdomain != 'www':
+                try:
+                    request.tenant = Imobiliaria.objects.get(subdominio=subdomain)
+                    print(f"DEBUG MW Tenant: Identificado via Subdomínio ({request.tenant.nome})")
+                except Imobiliaria.DoesNotExist:
+                    print(f"AVISO MW Tenant: Subdomínio '{subdomain}' não existe.")
 
-            print(f"DEBUG MW Final Check: Tenant '{request.tenant.nome}' verificado para usuário normal. Exiting early.")
-            return None
-        
-        # === Lógica de Fallback (Subdomínio/Query Param para Anônimos/Usuários sem Tenant) ===
-        
-        print(f"DEBUG MW Path: Falling back to Subdomain/QueryParam logic for Anonymous user on non-public path.")
-        
-        subdomain = None 
-        if '.' in host: 
-            parts = host.split('.')
-            if parts[-1] == 'localhost': 
-                if len(parts) > 1: subdomain = parts[0]
-            elif parts[-2:] == ['imobcloud', 'com']: 
-                if len(parts) > 2: subdomain = parts[0]
-            
-        if subdomain and subdomain != 'www':
-            try:
-                tenant_by_subdomain = Imobiliaria.objects.get(subdominio=subdomain)
-                request.tenant = tenant_by_subdomain
-                print(f"DEBUG MW Subdomain Fallback: Tenant identified by subdomain: {request.tenant.nome}")
-            except Imobiliaria.DoesNotExist:
-                print(f"AVISO Fallback: Imobiliária com subdomínio '{subdomain}' não encontrada.")
-            except Exception as e:
-                print(f"ERRO Fallback (Subdomain): {e}.")
+        if not is_public and not request.tenant:
+            print(f"BLOQUEIO MW: Tenant não identificado para rota privada {request.path}")
+            return HttpResponseForbidden("Imobiliária não identificada.")
 
-        if request.tenant is None and (host == 'localhost' or host == '127.0.0.1'):
-             subdomain_param = request.GET.get('subdomain', None)
-             if subdomain_param:
-                 try:
-                     tenant_by_param = Imobiliaria.objects.get(subdominio=subdomain_param)
-                     request.tenant = tenant_by_param
-                     print(f"DEBUG MW Fallback: Tenant identified by query param 'subdomain': {request.tenant.nome}")
-                 except Imobiliaria.DoesNotExist:
-                     print(f"AVISO Fallback: Imobiliária com subdomínio '{subdomain_param}' não encontrada via query param.")
-                 except Exception as e:
-                     print(f"ERRO Fallback (Query Param): {e}.")
-             else:
-                # CORREÇÃO: Usuário autenticado sem tenant, ou anônimo em path privado
-                if identified_by_user_or_jwt:
-                    print(f"AVISO MW Fallback: Usuário autenticado '{user.username}' sem tenant associado e sem subdomínio/param. Bloqueando.")
-                    return HttpResponseForbidden("Imobiliária não associada ao usuário ou não identificada via subdomínio.")
-                else:
-                    print("ERRO MW Fallback: Anônimo em path privado sem identificação de tenant. Bloqueando.")
-                    return HttpResponseForbidden("Acesso não autorizado ou imobiliária não identificada.") 
+        print(f"DEBUG MW Final: Permissão concedida para {request.path}. Tenant: {request.tenant.nome if request.tenant else 'Global'}")
+        return None
 
-        if request.tenant:
-             print(f"DEBUG MW End (Fallback): Final request.tenant: {request.tenant.nome}. Permitting.")
-             return None
-        else:
-             print(f"ERRO MW End (Fallback): Nenhum tenant identificado. Bloqueando path {request.path}.")
-             return HttpResponseForbidden("Imobiliária não identificada.")
+    def _get_subdomain(self, host: str) -> str:
+        """Helper para extração de subdomínio baseada no host."""
+        parts = host.split('.')
+        if parts[-1] == 'localhost':
+            return parts[0] if len(parts) > 1 else None
+        if parts[-2:] == ['imobcloud', 'com']:
+            return parts[0] if len(parts) > 2 else None
+        return None

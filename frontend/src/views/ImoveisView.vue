@@ -1,201 +1,213 @@
 <template>
-  <div class="imoveis-container">
-
-    <div v-if="sumarioImoveis" class="dashboard-grid">
-      <div class="stat-card stat-a-venda" @click="setFilter('status', 'A_VENDA')" :class="{ active: filters.status === 'A_VENDA' }">
-        <div class="stat-icon"><i class="fas fa-hand-holding-usd"></i></div>
-        <div class="stat-info">
-            <h3>À Venda</h3>
-            <p>{{ sumarioImoveis.a_venda }}</p>
-        </div>
-      </div>
-      <div class="stat-card stat-para-alugar" @click="setFilter('status', 'PARA_ALUGAR')" :class="{ active: filters.status === 'PARA_ALUGAR' }">
-        <div class="stat-icon"><i class="fas fa-home"></i></div>
-        <div class="stat-info">
-            <h3>Para Alugar</h3>
-            <p>{{ sumarioImoveis.para_alugar }}</p>
-        </div>
-      </div>
-      <div class="stat-card stat-concluidos" @click="setFilter('status', 'VENDIDO_OU_ALUGADO')" :class="{ active: filters.status === 'VENDIDO_OU_ALUGADO' }">
-        <div class="stat-icon"><i class="fas fa-check-circle"></i></div>
-        <div class="stat-info">
-            <h3>Fechados (Mês)</h3>
-            <p>{{ sumarioImoveis.vendidos_e_alugados }}</p>
-        </div>
-      </div>
-      <div class="stat-card stat-total" @click="setFilter('status', '')" :class="{ active: filters.status === '' && !searchQuery }">
-        <div class="stat-icon"><i class="fas fa-warehouse"></i></div>
-        <div class="stat-info">
-            <h3>Total na Carteira</h3>
-            <p>{{ imoveis.length }}</p>
-        </div>
-      </div>
-    </div>
-    <div class="search-and-filter-bar">
-      <input 
-        type="text" 
-        v-model="searchQuery" 
-        placeholder="Buscar por código, título, cidade..." 
-        class="search-input"
-      />
-      <div class="filter-group">
-        <label for="tipo">Tipo:</label>
-        <select id="tipo" v-model="filters.tipo">
-          <option value="">Todos</option>
-          <option value="CASA">Casa</option>
-          <option value="APARTAMENTO">Apartamento</option>
-          <option value="TERRENO">Terreno</option>
-          <option value="SALA_COMERCIAL">Sala Comercial</option>
-          <option value="GALPAO">Galpão</option>
-          <option value="RURAL">Rural</option>
-          <option value="OUTRO">Outro</option>
-        </select>
-      </div>
-      <div class="filter-group">
-        <label for="finalidade">Finalidade:</label>
-        <select id="finalidade" v-model="filters.finalidade">
-          <option value="">Todas</option>
-          <option value="RESIDENCIAL">Residencial</option>
-          <option value="COMERCIAL">Comercial</option>
-          <option value="INDUSTRIAL">Industrial</option>
-          <option value="RURAL">Rural</option>
-        </select>
-      </div>
-      <div class="filter-group">
-        <label for="status">Status:</label>
-        <select id="status" v-model="filters.status">
-          <option value="">Todos</option>
-          <option value="A_VENDA">À Venda</option>
-          <option value="PARA_ALUGAR">Para Alugar</option>
-          <option value="VENDIDO">Vendido</option>
-          <option value="ALUGADO">Alugado</option>
-          <option value="EM_CONSTRUCAO">Em Construção</option>
-          <option value="DESATIVADO">Desativado</option>
-        </select>
-      </div>
-      <button @click="goToCreateImovel" class="btn-add">
-        <i class="fas fa-plus"></i> Adicionar Imóvel
-      </button>
-      </div>
-
-    <div v-if="isLoading" class="loading-message">
-      <div class="spinner"></div>
-      A carregar imóveis...
-    </div>
-    <div v-else-if="filteredImoveis.length === 0" class="empty-message card">
-      <div class="empty-icon"><i class="fas fa-folder-open"></i></div>
-      <p>Nenhum imóvel encontrado para os filtros e pesquisa aplicados.</p>
-    </div>
+  <div class="page-container">
     
-    <div v-else class="imoveis-grid">
-      <div v-for="imovel in filteredImoveis" :key="imovel.id" class="imovel-card">
-        
-        <div class="card-top-bar" @click="editImovel(imovel.id)">
-           <div class="badges-left">
-               <span class="imovel-id">#{{ imovel.codigo_referencia }}</span>
-               <span :class="['tipo-badge', imovel.finalidade === 'VENDA' ? 'tipo-venda' : 'tipo-aluguel']">
-                  {{ imovel.finalidade }} ({{ imovel.tipo }})
-               </span>
-           </div>
-           <div class="badges-right">
-               <span :class="['status-pill', getStatusClass(imovel.status)]">
-                  <i :class="getStatusIcon(imovel.status)"></i>
-                  {{ formatStatus(imovel.status) }}
-               </span>
-           </div>
+    <header class="page-header">
+      <div class="header-content">
+        <div class="header-text">
+          <h1>Imóveis</h1>
+          <p class="subtitle">Gerencie e monitore toda a sua carteira de imóveis.</p>
         </div>
-        
-        <div class="card-body">
-          <div class="imovel-section" @click="editImovel(imovel.id)">
-             <div class="card-image-container">
-                 <img 
-                    :src="getPrincipalImage(imovel.imagens)" 
-                    alt="Imagem do Imóvel" 
-                    class="imovel-image"
-                 />
-             </div>
-             
-             <div class="imovel-info-text">
-                <h4 class="imovel-title" :title="imovel.titulo_anuncio">
-                    {{ imovel.titulo_anuncio || 'Imóvel sem título' }}
-                </h4>
-                <p class="imovel-address">
-                    <i class="fas fa-map-marker-alt text-muted"></i> 
-                    {{ imovel.bairro }}, {{ imovel.cidade }} - {{ imovel.estado }}
-                </p>
-                <p class="imovel-address">
-                    <i class="fas fa-ruler-combined text-muted"></i> 
-                    {{ imovel.area_total }} m² | 
-                    <i class="fas fa-bed text-muted ml-10"></i> {{ imovel.quartos }} Qts / {{ imovel.suites }} Suítes
-                </p>
-             </div>
-          </div>
+      </div>
+    </header>
 
-          <div class="datas-grid">
-             <div class="data-col">
-                <span class="data-label">Captação</span>
-                <div class="data-value text-muted">
-                    <i class="far fa-calendar-alt"></i> {{ formatarData(imovel.data_captacao) }}
-                </div>
-             </div>
-             <div class="data-divider"></div>
-             <div class="data-col">
-                <span class="data-label">Exclusividade</span>
-                <div class="data-value" :class="imovel.possui_exclusividade ? 'text-danger' : 'text-muted'">
-                    <i :class="imovel.possui_exclusividade ? 'fas fa-lock' : 'fas fa-unlock'"></i> 
-                    {{ imovel.possui_exclusividade ? 'SIM' : 'NÃO' }}
-                </div>
-             </div>
-          </div>
-
-          <div class="pessoas-container">
-              <div class="pessoa-row">
-                 <div class="pessoa-avatar avatar-proprietario">
-                    <i class="fas fa-user-shield"></i>
-                 </div>
-                 <div class="pessoa-info">
-                    <span class="pessoa-role role-proprietario">Proprietário</span>
-                    <span class="pessoa-name" :title="imovel.proprietario_detalhes?.nome_display">
-                        {{ imovel.proprietario_detalhes?.nome_display || '—' }}
-                    </span>
-                 </div>
-              </div>
+    <main class="main-content">
+      <div v-if="sumarioImoveis" class="dashboard-grid">
+        <div class="stat-card stat-a-venda" @click="setFilter('status', 'A_VENDA')" :class="{ active: filters.status === 'A_VENDA' }">
+          <div class="stat-icon"><i class="fas fa-hand-holding-usd"></i></div>
+          <div class="stat-info">
+              <h3>À Venda</h3>
+              <p>{{ sumarioImoveis.a_venda }}</p>
           </div>
         </div>
-        
-        <div class="valor-footer">
-           <span class="valor-label">{{ imovel.status === 'A_VENDA' ? 'Valor Venda' : 'Valor Aluguel' }}</span>
-           <span class="valor-amount">{{ imovel.valor_venda ? formatCurrency(imovel.valor_venda) : formatCurrency(imovel.valor_aluguel) }}</span>
-        </div>
-
-        <div class="card-actions">
-          <div class="actions-left">
-            <button
-                @click="editImovel(imovel.id)"
-                class="btn-pill btn-edit-detail"
-            >
-                <i class="fas fa-edit"></i> Editar Dados
-            </button>
-            <button
-                @click="router.push({ name: 'imovel-imagens', params: { id: imovel.id } })"
-                class="btn-pill btn-images"
-            >
-                <i class="fas fa-images"></i> Imagens
-            </button>
+        <div class="stat-card stat-para-alugar" @click="setFilter('status', 'PARA_ALUGAR')" :class="{ active: filters.status === 'PARA_ALUGAR' }">
+          <div class="stat-icon"><i class="fas fa-home"></i></div>
+          <div class="stat-info">
+              <h3>Para Alugar</h3>
+              <p>{{ sumarioImoveis.para_alugar }}</p>
           </div>
-
-          <div class="actions-right">
-              <button @click="handleVisualizarAutorizacao(imovel.id)" class="btn-mini btn-info" title="Autorização PDF">
-                <i class="fas fa-file-pdf"></i>
-              </button>
-              <button @click="confirmInativar(imovel.id)" class="btn-mini btn-delete-mini" title="Inativar/Excluir">
-                <i class="fas fa-trash-alt"></i>
-              </button>
+        </div>
+        <div class="stat-card stat-concluidos" @click="setFilter('status', 'VENDIDO_OU_ALUGADO')" :class="{ active: filters.status === 'VENDIDO_OU_ALUGADO' }">
+          <div class="stat-icon"><i class="fas fa-check-circle"></i></div>
+          <div class="stat-info">
+              <h3>Fechados (Mês)</h3>
+              <p>{{ sumarioImoveis.vendidos_e_alugados }}</p>
+          </div>
+        </div>
+        <div class="stat-card stat-total" @click="setFilter('status', '')" :class="{ active: filters.status === '' && !searchQuery }">
+          <div class="stat-icon"><i class="fas fa-warehouse"></i></div>
+          <div class="stat-info">
+              <h3>Total na Carteira</h3>
+              <p>{{ imoveis.length }}</p>
           </div>
         </div>
       </div>
-    </div>
-    </div>
+
+      <div class="search-and-filter-bar">
+        <input 
+          type="text" 
+          v-model="searchQuery" 
+          placeholder="Buscar por código, título, cidade..." 
+          class="search-input"
+        />
+        <div class="filter-group">
+          <label for="tipo">Tipo:</label>
+          <select id="tipo" v-model="filters.tipo">
+            <option value="">Todos</option>
+            <option value="CASA">Casa</option>
+            <option value="APARTAMENTO">Apartamento</option>
+            <option value="TERRENO">Terreno</option>
+            <option value="SALA_COMERCIAL">Sala Comercial</option>
+            <option value="GALPAO">Galpão</option>
+            <option value="RURAL">Rural</option>
+            <option value="OUTRO">Outro</option>
+          </select>
+        </div>
+        <div class="filter-group">
+          <label for="finalidade">Finalidade:</label>
+          <select id="finalidade" v-model="filters.finalidade">
+            <option value="">Todas</option>
+            <option value="RESIDENCIAL">Residencial</option>
+            <option value="COMERCIAL">Comercial</option>
+            <option value="INDUSTRIAL">Industrial</option>
+            <option value="RURAL">Rural</option>
+          </select>
+        </div>
+        <div class="filter-group">
+          <label for="status">Status:</label>
+          <select id="status" v-model="filters.status">
+            <option value="">Todos</option>
+            <option value="A_VENDA">À Venda</option>
+            <option value="PARA_ALUGAR">Para Alugar</option>
+            <option value="VENDIDO">Vendido</option>
+            <option value="ALUGADO">Alugado</option>
+            <option value="EM_CONSTRUCAO">Em Construção</option>
+            <option value="DESATIVADO">Desativado</option>
+          </select>
+        </div>
+        <button @click="goToCreateImovel" class="btn-add">
+          <i class="fas fa-plus"></i> Adicionar Imóvel
+        </button>
+      </div>
+
+      <div v-if="isLoading" class="loading-message">
+        <div class="spinner"></div>
+        A carregar imóveis...
+      </div>
+      <div v-else-if="filteredImoveis.length === 0" class="empty-message card">
+        <div class="empty-icon"><i class="fas fa-folder-open"></i></div>
+        <p>Nenhum imóvel encontrado para os filtros e pesquisa aplicados.</p>
+      </div>
+      
+      <div v-else class="imoveis-grid">
+        <div v-for="imovel in filteredImoveis" :key="imovel.id" class="imovel-card">
+          
+          <div class="card-top-bar" @click="editImovel(imovel.id)">
+             <div class="badges-left">
+                 <span class="imovel-id">#{{ imovel.codigo_referencia }}</span>
+                 <span :class="['tipo-badge', imovel.finalidade === 'VENDA' ? 'tipo-venda' : 'tipo-aluguel']">
+                    {{ imovel.finalidade }} ({{ imovel.tipo }})
+                 </span>
+             </div>
+             <div class="badges-right">
+                 <span :class="['status-pill', getStatusClass(imovel.status)]">
+                    <i :class="getStatusIcon(imovel.status)"></i>
+                    {{ formatStatus(imovel.status) }}
+                 </span>
+             </div>
+          </div>
+          
+          <div class="card-body">
+            <div class="imovel-section" @click="editImovel(imovel.id)">
+               <div class="card-image-container">
+                   <img 
+                      :src="getPrincipalImage(imovel.imagens)" 
+                      alt="Imagem do Imóvel" 
+                      class="imovel-image"
+                   />
+               </div>
+               
+               <div class="imovel-info-text">
+                  <h4 class="imovel-title" :title="imovel.titulo_anuncio">
+                      {{ imovel.titulo_anuncio || 'Imóvel sem título' }}
+                  </h4>
+                  <p class="imovel-address">
+                      <i class="fas fa-map-marker-alt text-muted"></i> 
+                      {{ imovel.bairro }}, {{ imovel.cidade }} - {{ imovel.estado }}
+                  </p>
+                  <p class="imovel-address">
+                      <i class="fas fa-ruler-combined text-muted"></i> 
+                      {{ imovel.area_total }} m² | 
+                      <i class="fas fa-bed text-muted ml-10"></i> {{ imovel.quartos }} Qts / {{ imovel.suites }} Suítes
+                  </p>
+               </div>
+            </div>
+
+            <div class="datas-grid">
+               <div class="data-col">
+                  <span class="data-label">Captação</span>
+                  <div class="data-value text-muted">
+                      <i class="far fa-calendar-alt"></i> {{ formatarData(imovel.data_captacao) }}
+                  </div>
+               </div>
+               <div class="data-divider"></div>
+               <div class="data-col">
+                  <span class="data-label">Exclusividade</span>
+                  <div class="data-value" :class="imovel.possui_exclusividade ? 'text-danger' : 'text-muted'">
+                      <i :class="imovel.possui_exclusividade ? 'fas fa-lock' : 'fas fa-unlock'"></i> 
+                      {{ imovel.possui_exclusividade ? 'SIM' : 'NÃO' }}
+                  </div>
+               </div>
+            </div>
+
+            <div class="pessoas-container">
+                <div class="pessoa-row">
+                   <div class="pessoa-avatar avatar-proprietario">
+                      <i class="fas fa-user-shield"></i>
+                   </div>
+                   <div class="pessoa-info">
+                      <span class="pessoa-role role-proprietario">Proprietário</span>
+                      <span class="pessoa-name" :title="imovel.proprietario_detalhes?.nome_display">
+                          {{ imovel.proprietario_detalhes?.nome_display || '—' }}
+                      </span>
+                   </div>
+                </div>
+            </div>
+          </div>
+          
+          <div class="valor-footer">
+             <span class="valor-label">{{ imovel.status === 'A_VENDA' ? 'Valor Venda' : 'Valor Aluguel' }}</span>
+             <span class="valor-amount">{{ imovel.valor_venda ? formatCurrency(imovel.valor_venda) : formatCurrency(imovel.valor_aluguel) }}</span>
+          </div>
+
+          <div class="card-actions">
+            <div class="actions-left">
+              <button
+                  @click="editImovel(imovel.id)"
+                  class="btn-pill btn-edit-detail"
+              >
+                  <i class="fas fa-edit"></i> Editar Dados
+              </button>
+              <button
+                  @click="router.push({ name: 'imovel-imagens', params: { id: imovel.id } })"
+                  class="btn-pill btn-images"
+              >
+                  <i class="fas fa-images"></i> Imagens
+              </button>
+            </div>
+
+            <div class="actions-right">
+                <button @click="handleVisualizarAutorizacao(imovel.id)" class="btn-mini btn-info" title="Autorização PDF">
+                  <i class="fas fa-file-pdf"></i>
+                </button>
+                <button @click="confirmInativar(imovel.id)" class="btn-mini btn-delete-mini" title="Inativar/Excluir">
+                  <i class="fas fa-trash-alt"></i>
+                </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
 </template>
 
 <script setup lang="ts">
@@ -420,12 +432,34 @@ watch([filters.value, searchQuery], () => {
 
 <style scoped>
 /* ================================================== */
-/* 1. Layout Geral */
+/* 1. Layout Geral (Padrão) */
 /* ================================================== */
-.imoveis-container {
-  padding: 0;
-  background-color: transparent;
+.page-container {
+  min-height: 100vh;
+  background-color: #f3f4f6;
+  font-family: 'Inter', 'Segoe UI', Roboto, sans-serif;
 }
+
+/* Header Padrão */
+.page-header {
+  background-color: #fff;
+  border-bottom: 1px solid #e5e7eb;
+  padding: 20px 32px;
+  margin-bottom: 24px;
+}
+.header-content {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+.header-text h1 { font-size: 24px; font-weight: 700; color: #111827; margin: 0; }
+.subtitle { color: #6b7280; font-size: 14px; margin: 4px 0 0 0; }
+
+/* Main Content Wrapper */
+.main-content {
+    padding: 0 32px 40px 32px;
+}
+
 .empty-message { text-align: center; padding: 4rem 2rem; color: #6c757d; }
 .empty-icon { font-size: 3rem; color: #dee2e6; margin-bottom: 1rem; }
 .loading-message {

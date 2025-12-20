@@ -458,3 +458,273 @@ WARNING 2025-12-19 21:02:28,440 log 64216 47844 Forbidden: /api/v1/core/usuarios
 WARNING 2025-12-19 21:02:31,622 log 64216 47844 Forbidden: /api/v1/relatorios/
 WARNING 2025-12-19 21:02:37,202 log 64216 28624 Forbidden: /api/v1/relatorios/
 WARNING 2025-12-19 21:11:09,874 log 64216 60728 Not Found: /favicon.ico
+WARNING 2025-12-20 12:16:37,990 log 27188 24780 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2025-12-20 12:16:37,994 log 27188 50980 Forbidden: /api/v1/financeiro/transacoes/stats/
+WARNING 2025-12-20 12:16:37,998 log 27188 12092 Forbidden: /api/v1/alugueis/dashboard-stats/
+WARNING 2025-12-20 12:16:38,002 log 27188 46468 Forbidden: /api/v1/stats/
+WARNING 2025-12-20 12:16:42,059 log 27188 46468 Forbidden: /api/v1/stats/
+WARNING 2025-12-20 12:16:42,063 log 27188 50980 Forbidden: /api/v1/alugueis/dashboard-stats/
+WARNING 2025-12-20 12:16:42,067 log 27188 12092 Forbidden: /api/v1/financeiro/transacoes/stats/
+WARNING 2025-12-20 12:17:37,844 log 27188 12092 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2025-12-20 12:18:37,826 log 27188 12092 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2025-12-20 12:19:37,858 log 27188 12092 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2025-12-20 12:20:37,847 log 27188 12092 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2025-12-20 12:21:37,840 log 27188 12092 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2025-12-20 12:22:37,854 log 27188 12092 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2025-12-20 12:24:06,845 log 27188 12092 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2025-12-20 12:25:06,916 log 27188 12092 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2025-12-20 12:26:06,851 log 27188 12092 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2025-12-20 12:26:37,653 log 27188 12092 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2025-12-20 12:27:25,808 log 56600 54612 Forbidden: /api/v1/financeiro/transacoes/stats/
+WARNING 2025-12-20 12:27:25,810 log 56600 49300 Forbidden: /api/v1/stats/
+WARNING 2025-12-20 12:27:25,824 log 56600 1772 Forbidden: /api/v1/alugueis/dashboard-stats/
+WARNING 2025-12-20 12:27:37,840 log 56600 1772 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2025-12-20 12:28:37,848 log 56600 1772 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2025-12-20 12:29:37,851 log 56600 1772 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2025-12-20 12:31:06,847 log 56600 1772 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2025-12-20 12:32:06,846 log 56600 1772 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2025-12-20 12:32:38,413 log 56600 1772 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2025-12-20 12:32:38,640 log 56600 1772 Forbidden: /api/core/stats/
+WARNING 2025-12-20 12:32:38,650 log 56600 1772 Forbidden: /api/financeiro/transacoes/stats/
+WARNING 2025-12-20 12:32:38,669 log 56600 1772 Forbidden: /api/alugueis/dashboard-stats/
+WARNING 2025-12-20 12:32:46,335 log 56600 34516 Not Found: /api/core/stats/
+WARNING 2025-12-20 12:32:46,352 log 56600 7364 Not Found: /api/alugueis/dashboard-stats/
+WARNING 2025-12-20 12:32:46,386 log 56600 22852 Not Found: /api/financeiro/transacoes/stats/
+WARNING 2025-12-20 12:34:09,983 log 56600 18764 Not Found: /api/v1/core/stats/
+WARNING 2025-12-20 12:34:10,584 log 56600 42652 Not Found: /api/v1/core/stats/
+WARNING 2025-12-20 12:49:00,614 log 7424 34364 Forbidden: /api/v1/relatorios/
+WARNING 2025-12-20 12:53:45,444 log 60648 32008 Forbidden: /api/v1/stats/
+WARNING 2025-12-20 12:53:45,444 log 60648 32164 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2025-12-20 12:53:45,472 log 60648 42356 Forbidden: /api/v1/financeiro/transacoes/stats/
+WARNING 2025-12-20 12:53:45,486 log 60648 11336 Forbidden: /api/v1/alugueis/dashboard-stats/
+WARNING 2025-12-20 12:53:46,818 log 60648 32008 Forbidden: /api/v1/stats/
+WARNING 2025-12-20 12:53:46,834 log 60648 32164 Forbidden: /api/v1/financeiro/transacoes/stats/
+WARNING 2025-12-20 12:53:46,841 log 60648 42356 Forbidden: /api/v1/alugueis/dashboard-stats/
+WARNING 2025-12-20 12:54:15,482 log 60648 32008 Forbidden: /api/v1/relatorios/
+WARNING 2025-12-20 12:55:03,698 log 60648 32008 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2025-12-20 12:56:03,721 log 60648 32008 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2025-12-20 12:56:57,385 log 34212 32004 Forbidden: /api/v1/relatorios/
+WARNING 2025-12-20 12:57:03,987 log 34212 32004 Forbidden: /api/v1/relatorios/
+WARNING 2025-12-20 12:57:56,845 log 34212 16452 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2025-12-20 12:58:03,186 log 34212 32004 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2025-12-20 12:58:04,218 log 34212 16452 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2025-12-20 12:58:56,839 log 34212 32004 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2025-12-20 12:59:03,178 log 34212 16452 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2025-12-20 12:59:04,215 log 34212 32004 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2025-12-20 12:59:56,844 log 34212 16452 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2025-12-20 13:00:03,180 log 34212 32004 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2025-12-20 13:00:04,211 log 34212 16452 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2025-12-20 13:00:56,855 log 34212 32004 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2025-12-20 13:01:03,190 log 34212 16452 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2025-12-20 13:01:04,222 log 34212 32004 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2025-12-20 13:01:57,079 log 34212 16452 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2025-12-20 13:02:03,195 log 34212 32004 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2025-12-20 13:02:04,234 log 34212 16452 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2025-12-20 13:33:07,224 log 9648 28900 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2025-12-20 13:34:06,844 log 9648 28900 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2025-12-20 13:35:07,002 log 9648 28900 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2025-12-20 13:36:07,095 log 9648 28900 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2025-12-20 13:37:06,890 log 9648 28900 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2025-12-20 13:38:06,856 log 9648 28900 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2025-12-20 13:39:06,850 log 9648 28900 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2025-12-20 13:40:06,838 log 9648 28900 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2025-12-20 13:41:06,838 log 9648 28900 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2025-12-20 13:41:32,640 log 9648 28900 Forbidden: /api/v1/stats/
+WARNING 2025-12-20 13:41:32,649 log 9648 28900 Forbidden: /api/v1/financeiro/transacoes/stats/
+WARNING 2025-12-20 13:41:32,681 log 9648 28900 Forbidden: /api/v1/alugueis/dashboard-stats/
+WARNING 2025-12-20 14:03:08,588 log 9648 4268 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2025-12-20 14:03:10,630 log 9648 4268 Forbidden: /api/v1/stats/
+WARNING 2025-12-20 14:03:10,640 log 9648 45492 Forbidden: /api/v1/financeiro/transacoes/stats/
+WARNING 2025-12-20 14:03:10,651 log 9648 20592 Forbidden: /api/v1/alugueis/dashboard-stats/
+WARNING 2025-12-20 14:04:08,717 log 9648 4268 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2025-12-20 14:05:08,740 log 9648 4268 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2025-12-20 14:06:09,337 log 9648 4268 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2025-12-20 14:06:26,388 log 9648 4268 Forbidden: /api/v1/stats/
+WARNING 2025-12-20 14:06:26,438 log 9648 54424 Forbidden: /api/v1/financeiro/transacoes/stats/
+WARNING 2025-12-20 14:06:26,454 log 9648 4020 Forbidden: /api/v1/alugueis/dashboard-stats/
+WARNING 2025-12-20 14:06:30,022 log 9648 4268 Forbidden: /api/v1/stats/
+WARNING 2025-12-20 14:06:30,028 log 9648 54424 Forbidden: /api/v1/financeiro/transacoes/stats/
+WARNING 2025-12-20 14:06:30,049 log 9648 4020 Forbidden: /api/v1/alugueis/dashboard-stats/
+WARNING 2025-12-20 14:06:31,132 log 9648 4268 Forbidden: /api/v1/stats/
+WARNING 2025-12-20 14:06:31,144 log 9648 54424 Forbidden: /api/v1/financeiro/transacoes/stats/
+WARNING 2025-12-20 14:06:31,152 log 9648 4020 Forbidden: /api/v1/alugueis/dashboard-stats/
+WARNING 2025-12-20 14:42:06,851 log 9648 7176 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2025-12-20 14:43:06,844 log 9648 7176 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2025-12-20 14:44:06,842 log 9648 7176 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2025-12-20 14:45:06,841 log 9648 7176 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2025-12-20 14:46:06,845 log 9648 7176 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2025-12-20 14:47:06,837 log 9648 7176 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2025-12-20 14:48:06,841 log 9648 7176 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2025-12-20 14:49:06,854 log 9648 7176 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2025-12-20 14:50:06,834 log 9648 7176 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2025-12-20 14:51:03,575 log 9648 7176 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2025-12-20 14:51:39,830 log 9648 7176 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2025-12-20 14:53:06,855 log 9648 7176 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2025-12-20 14:54:06,851 log 9648 7176 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2025-12-20 14:55:06,841 log 9648 7176 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2025-12-20 14:56:06,874 log 9648 7176 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2025-12-20 14:57:06,840 log 9648 7176 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2025-12-20 14:58:06,855 log 9648 7176 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2025-12-20 14:59:06,845 log 9648 7176 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2025-12-20 15:00:06,860 log 9648 7176 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2025-12-20 15:01:06,839 log 9648 7176 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2025-12-20 15:02:06,853 log 9648 7176 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2025-12-20 15:03:07,151 log 9648 55480 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2025-12-20 15:04:06,844 log 9648 55480 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2025-12-20 15:05:06,841 log 9648 55480 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2025-12-20 15:06:06,834 log 9648 55480 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2025-12-20 15:07:06,835 log 9648 55480 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2025-12-20 15:07:26,335 log 9648 9676 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2025-12-20 15:08:06,838 log 9648 55480 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2025-12-20 15:08:26,342 log 9648 9676 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2025-12-20 15:09:06,845 log 9648 55480 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2025-12-20 15:09:26,354 log 9648 9676 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2025-12-20 15:10:06,847 log 9648 55480 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2025-12-20 15:10:26,368 log 9648 9676 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2025-12-20 15:11:07,006 log 9648 55480 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2025-12-20 15:12:06,843 log 9648 55480 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2025-12-20 15:13:06,840 log 9648 55480 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2025-12-20 15:14:06,858 log 9648 55480 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2025-12-20 15:15:06,846 log 9648 55480 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2025-12-20 15:16:06,842 log 9648 55480 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2025-12-20 15:17:06,835 log 9648 55480 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2025-12-20 15:18:06,850 log 9648 55480 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2025-12-20 15:19:06,858 log 9648 55480 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2025-12-20 15:20:06,855 log 9648 55480 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2025-12-20 15:21:06,846 log 9648 55480 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2025-12-20 15:22:07,167 log 35260 15560 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2025-12-20 15:26:07,164 log 59732 35780 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2025-12-20 15:27:06,865 log 59732 35780 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2025-12-20 15:28:06,845 log 59732 35780 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2025-12-20 15:29:07,144 log 40180 47904 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2025-12-20 15:30:06,846 log 40180 47904 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2025-12-20 15:31:06,845 log 40180 47904 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2025-12-20 15:32:06,840 log 40180 47904 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2025-12-20 15:33:07,155 log 40180 24856 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2025-12-20 15:34:10,884 log 40180 24856 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2025-12-20 15:35:06,865 log 40180 24856 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2025-12-20 15:36:06,868 log 40180 24856 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2025-12-20 15:37:07,109 log 40180 24856 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2025-12-20 15:38:07,170 log 3032 29680 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2025-12-20 15:39:06,856 log 3032 29680 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2025-12-20 15:40:06,859 log 3032 29680 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2025-12-20 15:41:06,862 log 3032 29680 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2025-12-20 15:42:06,849 log 3032 29680 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2025-12-20 15:43:06,857 log 3032 29680 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2025-12-20 15:44:06,879 log 3032 29680 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2025-12-20 15:45:06,851 log 3032 29680 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2025-12-20 15:46:06,856 log 3032 29680 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2025-12-20 15:47:06,860 log 3032 29680 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2025-12-20 15:48:06,840 log 3032 29680 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2025-12-20 15:49:06,861 log 3032 29680 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2025-12-20 15:50:06,877 log 3032 29680 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2025-12-20 15:51:06,879 log 3032 29680 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2025-12-20 15:52:02,984 log 3032 61912 Bad Request: /api/v1/vistorias/vistorias/7/
+WARNING 2025-12-20 15:52:06,857 log 3032 29680 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2025-12-20 15:52:23,591 log 3032 61912 Bad Request: /api/v1/vistorias/vistorias/7/
+WARNING 2025-12-20 15:52:27,928 log 3032 61912 Bad Request: /api/v1/vistorias/vistorias/7/
+WARNING 2025-12-20 15:52:32,428 log 3032 61912 Bad Request: /api/v1/vistorias/vistorias/7/
+WARNING 2025-12-20 15:52:36,539 log 3032 61912 Bad Request: /api/v1/vistorias/vistorias/7/
+WARNING 2025-12-20 15:53:06,890 log 3032 29680 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2025-12-20 15:54:06,881 log 3032 29680 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2025-12-20 15:54:29,743 log 3032 61912 Bad Request: /api/v1/vistorias/vistorias/7/
+WARNING 2025-12-20 15:55:02,921 log 3032 61912 Bad Request: /api/v1/vistorias/vistorias/7/
+WARNING 2025-12-20 15:55:06,855 log 3032 29680 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2025-12-20 15:55:41,790 log 43616 21112 Bad Request: /api/v1/vistorias/vistorias/7/
+WARNING 2025-12-20 15:56:07,191 log 43616 42332 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2025-12-20 15:57:06,854 log 43616 42332 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2025-12-20 15:58:06,862 log 43616 42332 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+ERROR 2025-12-20 15:59:02,187 log 43616 53416 Internal Server Error: /api/v1/vistorias/vistorias/7/gerar-laudo/
+WARNING 2025-12-20 15:59:10,557 log 43616 42332 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2025-12-20 16:00:06,884 log 43616 42332 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2025-12-20 16:01:06,861 log 43616 42332 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+ERROR 2025-12-20 16:02:49,448 log 124 41532 Internal Server Error: /api/v1/vistorias/vistorias/7/gerar-laudo/
+WARNING 2025-12-20 16:03:07,159 log 124 51284 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2025-12-20 16:04:06,891 log 124 51284 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2025-12-20 16:05:06,891 log 124 51284 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2025-12-20 16:06:06,849 log 124 51284 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2025-12-20 16:07:06,863 log 124 51284 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2025-12-20 16:08:06,852 log 124 51284 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2025-12-20 16:09:06,835 log 124 51284 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2025-12-20 16:10:06,871 log 124 51284 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2025-12-20 16:11:06,855 log 124 51284 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2025-12-20 16:11:41,626 log 124 41532 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2025-12-20 16:11:43,683 log 124 41532 Forbidden: /api/v1/stats/
+WARNING 2025-12-20 16:11:43,688 log 124 37988 Forbidden: /api/v1/financeiro/transacoes/stats/
+WARNING 2025-12-20 16:11:43,690 log 124 23732 Forbidden: /api/v1/alugueis/dashboard-stats/
+WARNING 2025-12-20 16:12:06,860 log 124 51284 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2025-12-20 16:12:41,752 log 124 37988 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2025-12-20 16:13:06,870 log 124 51284 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2025-12-20 16:13:41,754 log 124 37988 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2025-12-20 16:14:06,841 log 124 51284 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2025-12-20 16:14:41,769 log 124 37988 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2025-12-20 16:15:06,843 log 124 51284 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2025-12-20 16:15:41,782 log 124 37988 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2025-12-20 16:16:06,875 log 124 51284 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2025-12-20 16:16:41,788 log 124 37988 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2025-12-20 16:17:06,836 log 124 51284 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2025-12-20 16:17:41,800 log 124 37988 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2025-12-20 16:18:06,838 log 124 51284 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2025-12-20 16:18:41,806 log 124 37988 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2025-12-20 16:19:06,863 log 124 51284 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2025-12-20 16:19:41,813 log 124 37988 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2025-12-20 16:20:06,850 log 124 51284 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2025-12-20 16:20:41,827 log 124 37988 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2025-12-20 16:21:06,853 log 124 51284 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2025-12-20 16:21:42,714 log 124 37988 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2025-12-20 16:22:06,885 log 124 51284 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2025-12-20 16:22:42,727 log 124 37988 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2025-12-20 16:23:06,843 log 124 51284 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2025-12-20 16:23:42,737 log 124 37988 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2025-12-20 16:24:06,864 log 124 51284 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2025-12-20 16:24:42,740 log 124 37988 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2025-12-20 16:25:06,847 log 124 51284 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2025-12-20 16:25:42,746 log 124 37988 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2025-12-20 16:26:06,857 log 124 51284 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2025-12-20 16:26:42,756 log 124 37988 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2025-12-20 16:27:06,845 log 124 51284 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2025-12-20 16:27:42,757 log 124 37988 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2025-12-20 16:28:06,865 log 124 51284 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2025-12-20 16:28:42,772 log 124 37988 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2025-12-20 16:29:06,858 log 124 51284 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2025-12-20 16:29:42,775 log 124 37988 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2025-12-20 16:29:59,218 log 124 37988 Forbidden: /api/v1/stats/
+WARNING 2025-12-20 16:29:59,405 log 124 54892 Forbidden: /api/v1/financeiro/transacoes/stats/
+WARNING 2025-12-20 16:29:59,420 log 124 9656 Forbidden: /api/v1/alugueis/dashboard-stats/
+WARNING 2025-12-20 16:30:06,847 log 124 51284 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+ERROR 2025-12-20 16:30:45,179 log 124 25796 Internal Server Error: /api/v1/vistorias/vistorias/7/gerar-laudo/
+WARNING 2025-12-20 16:31:06,884 log 124 51284 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2025-12-20 16:35:31,555 util 31492 9136 getSize: Not a float '100%'
+WARNING 2025-12-20 16:38:09,703 util 31288 56436 getSize: Not a float '100%'
+WARNING 2025-12-20 16:52:26,635 log 47448 33244 Forbidden: /favicon.ico
+WARNING 2025-12-20 17:31:14,008 log 56004 42864 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2025-12-20 17:31:15,711 log 56004 42864 Forbidden: /api/v1/stats/
+WARNING 2025-12-20 17:31:15,714 log 56004 19540 Forbidden: /api/v1/financeiro/transacoes/stats/
+WARNING 2025-12-20 17:31:15,717 log 56004 22724 Forbidden: /api/v1/alugueis/dashboard-stats/
+WARNING 2025-12-20 17:32:15,544 log 56004 42864 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2025-12-20 17:32:32,702 log 14856 21804 Forbidden: /api/v1/financeiro/transacoes/stats/
+WARNING 2025-12-20 17:32:32,709 log 14856 32084 Forbidden: /api/v1/stats/
+WARNING 2025-12-20 17:32:32,711 log 14856 36612 Forbidden: /api/v1/alugueis/dashboard-stats/
+WARNING 2025-12-20 17:33:22,719 log 14856 1576 Bad Request: /api/v1/vistorias/vistorias/8/
+WARNING 2025-12-20 17:33:29,273 log 14856 1576 Bad Request: /api/v1/vistorias/vistorias/8/
+WARNING 2025-12-20 17:35:29,425 log 17412 61384 Bad Request: /api/v1/vistorias/vistorias/8/
+WARNING 2025-12-20 17:35:36,085 log 17412 54076 Bad Request: /api/v1/vistorias/vistorias/8/
+WARNING 2025-12-20 17:35:42,166 log 17412 54076 Bad Request: /api/v1/vistorias/vistorias/8/
+WARNING 2025-12-20 17:36:52,576 log 17412 54076 Bad Request: /api/v1/vistorias/vistorias/8/
+WARNING 2025-12-20 18:56:01,166 log 1168 10124 Forbidden: /api/v1/financeiro/transacoes/stats/
+WARNING 2025-12-20 18:56:01,185 log 1168 6420 Forbidden: /api/v1/stats/
+WARNING 2025-12-20 18:56:01,190 log 1168 9476 Forbidden: /api/v1/alugueis/dashboard-stats/
+WARNING 2025-12-20 18:56:01,191 log 1168 8124 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2025-12-20 18:56:09,248 log 1168 9476 Forbidden: /api/v1/alugueis/dashboard-stats/
+WARNING 2025-12-20 18:56:09,250 log 1168 6420 Forbidden: /api/v1/financeiro/transacoes/stats/
+WARNING 2025-12-20 18:56:09,270 log 1168 10124 Forbidden: /api/v1/stats/
+WARNING 2025-12-20 18:56:11,747 log 1168 9476 Forbidden: /api/v1/clientes/
+WARNING 2025-12-20 18:56:11,837 log 1168 6420 Forbidden: /api/v1/stats/
+WARNING 2025-12-20 18:56:11,844 log 1168 8124 Forbidden: /api/v1/alugueis/dashboard-stats/
+WARNING 2025-12-20 18:56:11,851 log 1168 10124 Forbidden: /api/v1/financeiro/transacoes/stats/
+WARNING 2025-12-20 18:56:13,048 log 1168 9476 Forbidden: /api/v1/stats/
+WARNING 2025-12-20 18:56:13,059 log 1168 6420 Forbidden: /api/v1/financeiro/transacoes/stats/
+WARNING 2025-12-20 18:56:13,063 log 1168 8124 Forbidden: /api/v1/alugueis/dashboard-stats/
+WARNING 2025-12-20 19:17:47,814 log 12840 14084 Bad Request: /api/v1/vistorias/vistorias/
+WARNING 2025-12-20 19:17:51,218 log 12840 14084 Bad Request: /api/v1/vistorias/vistorias/
+WARNING 2025-12-20 19:22:54,782 log 12840 14084 Bad Request: /api/v1/vistorias/vistorias/

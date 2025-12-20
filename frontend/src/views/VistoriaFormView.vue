@@ -1,172 +1,189 @@
 <template>
-  <div class="page-container">
-    
-    <header class="page-header">
-      <div class="header-content">
-        <button class="btn-back" @click="goBack" title="Voltar para lista">
-          <i class="fas fa-arrow-left"></i>
-        </button>
-        <div class="header-text">
-          <h1>{{ isEdit ? 'Editar Vistoria' : 'Nova Vistoria' }}</h1>
-          <p class="subtitle">Preencha as informações básicas para iniciar o processo de vistoria.</p>
+  <div class="app-layout">
+    <nav class="nav-header">
+      <div class="nav-inner">
+        <div class="nav-left">
+          <button class="btn-circle-back" @click="goBack">
+            <i class="fas fa-arrow-left"></i>
+          </button>
+          <div class="nav-title-group">
+            <span class="nav-category">Vistorias</span>
+            <h1 class="nav-title">{{ isEdit ? 'Edição Técnica' : 'Nova Inspeção' }}</h1>
+          </div>
+        </div>
+        <div class="nav-right">
+          <button class="btn-cancel" @click="goBack">Cancelar</button>
+          <button class="btn-save-main" @click="saveVistoria" :disabled="saving">
+            <template v-if="saving">
+              <i class="fas fa-spinner fa-spin me-2"></i> Processando...
+            </template>
+            <template v-else>
+              {{ isEdit ? 'Atualizar Vistoria' : 'Criar e Continuar' }}
+              <i class="fas fa-chevron-right ms-2"></i>
+            </template>
+          </button>
         </div>
       </div>
-    </header>
+    </nav>
 
-    <main class="main-content">
-      <form @submit.prevent="saveVistoria" class="form-layout">
+    <main class="page-content">
+      <div class="content-grid">
         
-        <div class="form-card">
-          <div class="card-header-custom">
-            <i class="fas fa-file-contract icon-header"></i>
-            <div>
-              <h3>Vínculo Contratual</h3>
-              <p>Pesquise e selecione o contrato para esta vistoria.</p>
-            </div>
-          </div>
+        <div class="main-form-col">
           
-          <div class="card-body-custom">
-            <div class="row">
-              <div class="col-12 position-relative">
-                <label class="input-label">Contrato <span class="required">*</span></label>
-                
-                <div class="search-wrapper" v-click-outside="closeDropdown">
-                  <div class="input-group-custom">
-                    <i class="fas fa-search input-icon"></i>
-                    <input 
-                      type="text" 
-                      class="form-control custom-input with-chevron" 
-                      placeholder="Busque por endereço, ID ou nome do inquilino..."
-                      v-model="searchQuery"
-                      @focus="showDropdown = true"
-                      @input="showDropdown = true"
-                      :disabled="isEdit"
-                      :class="{ 'disabled-input': isEdit }"
-                    >
-                    <i class="fas fa-chevron-down input-chevron" :class="{ 'rotate': showDropdown }"></i>
-                  </div>
+          <div class="glass-card mb-4" :class="{ 'step-completed': form.contrato }">
+            <div class="card-header-main">
+              <div class="step-indicator">1</div>
+              <div class="header-info">
+                <h2>Vínculo do Imóvel</h2>
+                <p>Busque o contrato de aluguel para associar esta vistoria.</p>
+              </div>
+            </div>
 
-                  <div v-if="showDropdown && !isEdit" class="dropdown-list shadow-sm">
-                    <ul class="list-unstyled mb-0">
-                      <li 
+            <div class="card-body-main">
+              <div class="search-engine-wrapper" v-click-outside="closeDropdown">
+                <div v-if="form.contrato && !showDropdown" class="selected-contract-pill fade-in">
+                  <div class="pill-icon"><i class="fas fa-file-contract"></i></div>
+                  <div class="pill-text">
+                    <span class="pill-label">Contrato Selecionado</span>
+                    <span class="pill-value">{{ searchQuery }}</span>
+                  </div>
+                  <button v-if="!isEdit" class="btn-change" @click="clearSelection">Alterar</button>
+                </div>
+
+                <div v-else class="search-input-container">
+                  <i class="fas fa-search search-main-icon"></i>
+                  <input 
+                    type="text" 
+                    v-model="searchQuery" 
+                    placeholder="Digite endereço, inquilino ou número do contrato..."
+                    class="main-search-input"
+                    @focus="openDropdown"
+                    @input="handleInput"
+                    :disabled="isEdit"
+                  />
+                  <div v-if="loading" class="input-loader"></div>
+                </div>
+
+                <transition name="dropdown-anim">
+                  <div v-if="showDropdown && !isEdit" class="search-results-panel">
+                    <div v-if="filteredContratos.length > 0">
+                      <div 
                         v-for="c in filteredContratos" 
                         :key="c.id" 
+                        class="result-row"
                         @click="selectContrato(c)"
-                        class="dropdown-item-custom"
                       >
-                        <div class="d-flex justify-content-between align-items-center">
-                          <span class="fw-bold text-dark">Contrato #{{ c.id }}</span>
-                          <span class="badge bg-light text-dark border">{{ c.tipo_contrato || 'Aluguel' }}</span>
+                        <div class="result-avatar"><i class="fas fa-map-marker-alt"></i></div>
+                        <div class="result-data">
+                          <span class="result-title">{{ c.imovel_display }}</span>
+                          <span class="result-sub">Contrato #{{ c.id }} • {{ c.inquilino_nome }}</span>
                         </div>
-                        <div class="text-primary mt-1"><i class="fas fa-map-marker-alt me-1"></i> {{ c.imovel_display }}</div>
-                        <div class="text-muted small mt-1"><i class="fas fa-user me-1"></i> {{ c.inquilino_nome || 'Sem Inquilino' }}</div>
-                      </li>
-                      
-                      <li v-if="filteredContratos.length === 0" class="p-3 text-center text-muted">
-                        <i class="fas fa-search mb-2 d-block"></i>
-                        Nenhum contrato encontrado para "{{ searchQuery }}".
-                      </li>
-                    </ul>
+                        <div class="result-tag">{{ c.tipo_contrato }}</div>
+                      </div>
+                    </div>
+                    <div v-else class="no-results">
+                      <i class="fas fa-search-minus mb-2"></i>
+                      <p>Nenhum contrato de aluguel ativo encontrado.</p>
+                    </div>
+                  </div>
+                </transition>
+              </div>
+            </div>
+          </div>
+
+          <div class="glass-card mb-4">
+            <div class="card-header-main">
+              <div class="step-indicator">2</div>
+              <div class="header-info">
+                <h2>Configuração da Inspeção</h2>
+                <p>Dados de controle, data e tipo de movimentação.</p>
+              </div>
+            </div>
+
+            <div class="card-body-main">
+              <div class="row g-4">
+                <div class="col-12">
+                  <label class="form-section-label">Propósito da Vistoria</label>
+                  <div class="type-cards-group">
+                    <label class="t-card" :class="{ 'active success': form.tipo === 'ENTRADA' }">
+                      <input type="radio" v-model="form.tipo" value="ENTRADA">
+                      <i class="fas fa-key"></i>
+                      <span>Entrada</span>
+                    </label>
+                    <label class="t-card" :class="{ 'active danger': form.tipo === 'SAIDA' }">
+                      <input type="radio" v-model="form.tipo" value="SAIDA">
+                      <i class="fas fa-door-open"></i>
+                      <span>Saída</span>
+                    </label>
+                    <label class="t-card" :class="{ 'active info': form.tipo === 'PERIODICA' }">
+                      <input type="radio" v-model="form.tipo" value="PERIODICA">
+                      <i class="fas fa-history"></i>
+                      <span>Periódica</span>
+                    </label>
                   </div>
                 </div>
-                <div v-if="contratos.length === 0 && !loading" class="empty-state-warning mt-2">
-                  <i class="fas fa-exclamation-circle"></i> 
-                  Não foram encontrados contratos ativos no sistema.
+
+                <div class="col-md-6">
+                  <label class="field-label-pro">Data de Realização</label>
+                  <div class="input-pro-wrapper">
+                    <i class="far fa-calendar-check"></i>
+                    <input type="date" v-model="form.data_vistoria" class="input-pro">
+                  </div>
                 </div>
-                <small v-if="isEdit" class="helper-text">O contrato não pode ser alterado após a criação.</small>
-              </div>
-            </div>
-          </div>
-        </div>
 
-        <div class="form-card">
-          <div class="card-header-custom">
-            <i class="fas fa-clipboard-check icon-header"></i>
-            <div>
-              <h3>Detalhes da Execução</h3>
-              <p>Defina o tipo e a data de realização.</p>
-            </div>
-          </div>
-
-          <div class="card-body-custom">
-            <div class="row g-4">
-              <div class="col-md-6">
-                <label class="input-label">Tipo de Vistoria <span class="required">*</span></label>
-                <div class="select-option-grid">
-                  
-                  <label class="radio-card" :class="{ active: form.tipo === 'ENTRADA' }">
-                    <input type="radio" v-model="form.tipo" value="ENTRADA" class="d-none">
-                    <div class="radio-content">
-                      <span class="icon-box success"><i class="fas fa-sign-in-alt"></i></span>
-                      <span class="radio-title">Entrada</span>
-                    </div>
-                  </label>
-
-                  <label class="radio-card" :class="{ active: form.tipo === 'SAIDA' }">
-                    <input type="radio" v-model="form.tipo" value="SAIDA" class="d-none">
-                    <div class="radio-content">
-                      <span class="icon-box danger"><i class="fas fa-sign-out-alt"></i></span>
-                      <span class="radio-title">Saída</span>
-                    </div>
-                  </label>
-
-                  <label class="radio-card" :class="{ active: form.tipo === 'PERIODICA' }">
-                    <input type="radio" v-model="form.tipo" value="PERIODICA" class="d-none">
-                    <div class="radio-content">
-                      <span class="icon-box info"><i class="fas fa-sync-alt"></i></span>
-                      <span class="radio-title">Periódica</span>
-                    </div>
-                  </label>
-
-                </div>
-              </div>
-
-              <div class="col-md-6">
-                <label class="input-label">Data da Realização <span class="required">*</span></label>
-                <div class="input-group-custom">
-                  <i class="far fa-calendar-alt input-icon"></i>
-                  <input type="date" class="form-control custom-input" v-model="form.data_vistoria" required>
+                <div class="col-md-6">
+                  <label class="field-label-pro">Vistoriador</label>
+                  <div class="input-pro-wrapper">
+                    <i class="far fa-id-badge"></i>
+                    <input type="text" v-model="form.realizado_por_nome" class="input-pro" placeholder="Nome do perito">
+                  </div>
                 </div>
               </div>
             </div>
           </div>
         </div>
 
-        <div class="form-card">
-          <div class="card-header-custom">
-            <i class="fas fa-align-left icon-header"></i>
-            <div>
-              <h3>Observações Gerais</h3>
-              <p>Informações adicionais sobre o estado geral do imóvel.</p>
+        <aside class="side-options-col">
+          <div class="sticky-wrapper">
+            
+            <div class="glass-card side-card-padding mb-4">
+              <h3 class="side-title">Configurações de Laudo</h3>
+              
+              <div class="switch-block">
+                <div class="switch-content">
+                  <strong>Assinatura Proprietário</strong>
+                  <p>Inclui campo para o dono do imóvel.</p>
+                </div>
+                <label class="toggle-switch">
+                  <input type="checkbox" v-model="form.exige_assinatura_proprietario">
+                  <span class="toggle-slider"></span>
+                </label>
+              </div>
             </div>
-          </div>
 
-          <div class="card-body-custom">
-            <div class="col-12">
+            <div class="glass-card side-card-padding">
+              <h3 class="side-title">Observações Técnicas</h3>
               <textarea 
-                class="form-control custom-textarea" 
-                rows="5" 
                 v-model="form.observacoes" 
-                placeholder="Descreva aqui observações gerais, estado de conservação das chaves, medidores, etc..."
+                class="textarea-pro" 
+                placeholder="Ex: Entrega de 3 chaves tetra, vistoria de gás realizada..."
+                rows="6"
               ></textarea>
+              <div class="textarea-footer">
+                <i class="fas fa-info-circle me-1"></i> Estas notas aparecerão no laudo.
+              </div>
             </div>
+
+            <div class="help-box mt-4">
+               <h4>Dica de Uso</h4>
+               <p>Certifique-se de que a data informada corresponde ao dia em que você esteve fisicamente no imóvel.</p>
+            </div>
+
           </div>
-        </div>
-
-        <div class="form-actions-bar">
-          <button type="button" class="btn-cancel" @click="goBack">
-            Cancelar
-          </button>
-          <button type="submit" class="btn-save" :disabled="saving">
-            <span v-if="saving" class="spinner-border spinner-border-sm me-2"></span>
-            <i v-else class="fas fa-check me-2"></i>
-            {{ isEdit ? 'Salvar Alterações' : 'Salvar e Iniciar Checklist' }}
-          </button>
-        </div>
-
-      </form>
+        </aside>
+      </div>
     </main>
-
   </div>
 </template>
 
@@ -180,278 +197,262 @@ export default defineComponent({
   directives: {
     clickOutside: {
       mounted(el, binding) {
-        el.clickOutsideEvent = function(event: any) {
-          if (!(el === event.target || el.contains(event.target))) {
-            binding.value(event, el);
-          }
+        el.clickOutsideEvent = (event: any) => {
+          if (!(el === event.target || el.contains(event.target))) binding.value();
         };
         document.body.addEventListener('click', el.clickOutsideEvent);
       },
-      unmounted(el) {
-        document.body.removeEventListener('click', el.clickOutsideEvent);
-      },
+      unmounted(el) { document.body.removeEventListener('click', el.clickOutsideEvent); },
     },
   },
   setup() {
     const router = useRouter();
     const route = useRoute();
-    
     const saving = ref(false);
     const loading = ref(true);
     const contratos = ref<any[]>([]);
-    
-    // Controle da Pesquisa
     const searchQuery = ref('');
     const showDropdown = ref(false);
-    
     const vistoriaId = route.params.id ? Number(route.params.id) : null;
     const isEdit = computed(() => !!vistoriaId);
 
-    const today = new Date().toISOString().split('T')[0];
     const form = ref({
       contrato: null as number | null,
       tipo: 'ENTRADA',
-      data_vistoria: today,
-      observacoes: ''
+      data_vistoria: new Date().toISOString().split('T')[0],
+      observacoes: '',
+      exige_assinatura_proprietario: false,
+      realizado_por_nome: ''
     });
 
     const filteredContratos = computed(() => {
-      if (!searchQuery.value) return contratos.value.slice(0, 5);
-      
       const term = searchQuery.value.toLowerCase();
+      if(!term) return contratos.value.slice(0, 5);
       return contratos.value.filter(c => 
         c.imovel_display.toLowerCase().includes(term) ||
-        (c.inquilino_nome && c.inquilino_nome.toLowerCase().includes(term)) ||
+        c.inquilino_nome.toLowerCase().includes(term) ||
         String(c.id).includes(term)
-      ).slice(0, 10);
+      ).slice(0, 6);
     });
 
-    const selectContrato = (contrato: any) => {
-      form.value.contrato = contrato.id;
-      searchQuery.value = `Contrato #${contrato.id} - ${contrato.imovel_display}`;
-      showDropdown.value = false;
-    };
+    const openDropdown = () => { if (!isEdit.value) showDropdown.value = true; };
+    const handleInput = () => { showDropdown.value = true; if (form.value.contrato) form.value.contrato = null; };
+    const closeDropdown = () => { showDropdown.value = false; };
+    const clearSelection = () => { searchQuery.value = ''; form.value.contrato = null; showDropdown.value = true; };
 
-    const closeDropdown = () => {
+    const selectContrato = (c: any) => {
+      form.value.contrato = c.id;
+      searchQuery.value = c.imovel_display;
       showDropdown.value = false;
     };
 
     const fetchContratos = async () => {
       loading.value = true;
       try {
-        const response = await api.get('/v1/contratos/');
-        const rawData = response.data.results ? response.data.results : response.data;
-        
-        contratos.value = rawData.map((c: any) => {
-            let display = `Imóvel ID ${c.imovel}`;
-            let inquilino = c.inquilino_detalhes?.nome_display || '';
-            
-            if (c.imovel_detalhes) {
-                 if (c.imovel_detalhes.endereco_completo) display = c.imovel_detalhes.endereco_completo;
-                 else if (c.imovel_detalhes.logradouro) display = c.imovel_detalhes.logradouro;
-            }
-            
-            return { 
-                id: c.id, 
-                imovel_display: display,
-                inquilino_nome: inquilino,
-                tipo_contrato: c.tipo_contrato
-            };
-        });
-      } catch (error) { 
-        console.error('Erro contratos:', error); 
-      } finally {
-        loading.value = false;
-      }
-    };
-
-    const syncSearchText = () => {
-        if (form.value.contrato && contratos.value.length > 0) {
-            const selected = contratos.value.find(c => c.id === form.value.contrato);
-            if (selected) {
-                searchQuery.value = `Contrato #${selected.id} - ${selected.imovel_display}`;
-            }
-        }
-    };
-
-    const fetchVistoria = async () => {
-      if (!vistoriaId) return;
-      try {
-        const response = await api.get(`/v1/vistorias/vistorias/${vistoriaId}/`);
-        form.value = {
-            ...response.data,
-            data_vistoria: response.data.data_vistoria ? response.data.data_vistoria.split('T')[0] : today
-        };
-        syncSearchText();
-      } catch (error) {
-        alert("Erro ao carregar dados.");
-        router.push('/vistorias');
-      }
+        const res = await api.get('/v1/contratos/');
+        const data = res.data.results || res.data;
+        contratos.value = data.map((c: any) => ({
+            id: c.id,
+            imovel_display: c.imovel_detalhes?.endereco_completo || c.imovel_detalhes?.logradouro || `Imóvel #${c.imovel}`,
+            inquilino_nome: c.inquilino_detalhes?.nome_display || 'Inquilino não informado',
+            tipo_contrato: c.tipo_contrato
+        })).filter((c: any) => c.tipo_contrato === 'ALUGUEL');
+      } finally { loading.value = false; }
     };
 
     const saveVistoria = async () => {
-      if (!form.value.contrato) {
-        alert("Por favor, pesquise e selecione um contrato.");
-        return;
-      }
+      if (!form.value.contrato) return alert("Selecione um contrato antes de continuar.");
       saving.value = true;
       try {
-        let idParaRedirecionar = vistoriaId;
-
-        if (isEdit.value) {
-          await api.patch(`/v1/vistorias/vistorias/${vistoriaId}/`, form.value);
-        } else {
-          const response = await api.post('/v1/vistorias/vistorias/', form.value);
-          idParaRedirecionar = response.data.id;
+        let targetId = vistoriaId;
+        if (isEdit.value) await api.patch(`/v1/vistorias/vistorias/${vistoriaId}/`, form.value);
+        else {
+          const res = await api.post('/v1/vistorias/vistorias/', form.value);
+          targetId = res.data.id;
         }
-        
-        // Redireciona para a tela de Checklist/Ambientes
-        router.push({ name: 'vistoria-checklist', params: { id: idParaRedirecionar } });
-
+        router.push({ name: 'vistoria-checklist', params: { id: targetId } });
       } catch (error: any) {
-        const msg = error.response?.data?.detail || "Erro ao salvar vistoria.";
+        let msg = "Erro técnico ao salvar.";
+        if (error.response?.data) {
+           const data = error.response.data;
+           msg = data.detail || Object.values(data).flat()[0] as string;
+        }
         alert(msg);
-      } finally {
-        saving.value = false;
-      }
-    };
-
-    const goBack = () => {
-      router.push('/vistorias');
+      } finally { saving.value = false; }
     };
 
     onMounted(async () => {
       await fetchContratos();
       if (isEdit.value) {
-          await fetchVistoria();
+        try {
+          const res = await api.get(`/v1/vistorias/vistorias/${vistoriaId}/`);
+          Object.assign(form.value, res.data);
+          form.value.data_vistoria = res.data.data_vistoria.split('T')[0];
+          const c = contratos.value.find(x => x.id === form.value.contrato);
+          if (c) searchQuery.value = c.imovel_display;
+        } catch (e) { router.push('/vistorias'); }
       }
     });
 
-    watch(contratos, () => {
-        if (isEdit.value) syncSearchText();
-    });
-
-    return { 
-        form, contratos, filteredContratos, saving, isEdit, loading,
-        searchQuery, showDropdown, 
-        selectContrato, closeDropdown,
-        saveVistoria, goBack 
-    };
+    return { form, filteredContratos, saving, isEdit, loading, searchQuery, showDropdown, openDropdown, handleInput, selectContrato, clearSelection, saveVistoria, goBack: () => router.push('/vistorias'), closeDropdown };
   }
 });
 </script>
 
 <style scoped>
-/* =========================================
-   ESTILOS PRINCIPAIS
-   ========================================= */
-.page-container {
+/* APP LAYOUT */
+.app-layout {
+  background-color: #fcfdfe;
   min-height: 100vh;
-  background-color: #f3f4f6;
-  padding-bottom: 80px;
-  font-family: 'Inter', 'Segoe UI', Roboto, sans-serif;
+  color: #121417;
+  font-family: 'Inter', -apple-system, sans-serif;
+  padding-top: 80px; /* Espaço para a nav fixa */
 }
 
-/* Header */
-.page-header {
-  background-color: #fff;
-  border-bottom: 1px solid #e5e7eb;
-  padding: 20px 32px;
-  margin-bottom: 32px;
+/* NAV HEADER FIXA */
+.nav-header {
+  position: fixed; top: 0; left: 0; right: 0;
+  height: 80px; background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(10px);
+  border-bottom: 1px solid #edf2f7;
+  z-index: 1000;
 }
-.header-content {
-  max-width: 1100px;
-  margin: 0 auto;
-  display: flex;
-  align-items: center;
-  gap: 20px;
+.nav-inner {
+  max-width: 1280px; margin: 0 auto; height: 100%;
+  display: flex; align-items: center; justify-content: space-between; padding: 0 32px;
 }
-.btn-back {
-  width: 40px; height: 40px;
-  border-radius: 50%; border: 1px solid #e5e7eb; background: white; color: #6b7280;
-  display: flex; align-items: center; justify-content: center;
-  cursor: pointer; transition: all 0.2s;
+.nav-left { display: flex; align-items: center; gap: 20px; }
+.btn-circle-back {
+  width: 44px; height: 44px; border-radius: 50%; border: 1px solid #e2e8f0;
+  background: white; color: #64748b; cursor: pointer; transition: 0.2s;
 }
-.btn-back:hover { background: #f9fafb; color: #111827; border-color: #d1d5db; }
-.header-text h1 { font-size: 24px; font-weight: 700; color: #111827; margin: 0; }
-.subtitle { color: #6b7280; font-size: 14px; margin: 4px 0 0 0; }
+.btn-circle-back:hover { background: #000; color: white; border-color: #000; }
+.nav-title-group { display: flex; flex-direction: column; }
+.nav-category { font-size: 11px; font-weight: 700; color: #3b82f6; text-transform: uppercase; letter-spacing: 0.05em; }
+.nav-title { font-size: 20px; font-weight: 800; margin: 0; letter-spacing: -0.02em; }
 
-/* Main Content */
-.main-content { max-width: 1100px; margin: 0 auto; padding: 0 20px; }
-.form-layout { display: flex; flex-direction: column; gap: 24px; }
+.nav-right { display: flex; gap: 12px; }
+.btn-cancel { background: transparent; border: none; font-weight: 600; color: #64748b; padding: 12px 20px; cursor: pointer; border-radius: 8px; }
+.btn-cancel:hover { color: #1e293b; background: #f1f5f9; }
+.btn-save-main { background: #121417; color: white; border: none; padding: 12px 28px; border-radius: 8px; font-weight: 600; cursor: pointer; transition: 0.3s; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
+.btn-save-main:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(0,0,0,0.15); }
 
-/* Cards */
-.form-card {
-  background: white; border-radius: 12px; border: 1px solid #e5e7eb;
-  box-shadow: 0 1px 2px rgba(0,0,0,0.05); overflow: visible; 
+/* GRID LAYOUT */
+.page-content { max-width: 1280px; margin: 0 auto; padding: 32px; }
+.content-grid { display: grid; grid-template-columns: 1fr 400px; gap: 40px; align-items: start; }
+
+/* GLASS CARD DESIGN */
+.glass-card {
+  background: white; border: 1px solid #edf2f7; border-radius: 16px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.02); overflow: visible;
+  transition: border-color 0.3s;
 }
-.card-header-custom {
-  padding: 24px; border-bottom: 1px solid #f3f4f6; display: flex; align-items: flex-start; gap: 16px;
-  background-color: #fcfcfc; border-radius: 12px 12px 0 0;
+.glass-card.step-completed { border-color: #22c55e; }
+
+.card-header-main { padding: 32px; display: flex; gap: 20px; border-bottom: 1px solid #f8fafc; }
+.step-indicator {
+  width: 36px; height: 36px; background: #000; color: white; border-radius: 10px;
+  display: flex; align-items: center; justify-content: center; font-weight: 800;
 }
-.icon-header {
-  font-size: 20px; color: #3b82f6; background: #eff6ff; padding: 10px; border-radius: 8px;
+.header-info h2 { font-size: 18px; font-weight: 700; margin: 0; }
+.header-info p { font-size: 14px; color: #64748b; margin: 4px 0 0 0; }
+.card-body-main { padding: 32px; }
+
+/* SMART SEARCH & RESULTS */
+.search-engine-wrapper { position: relative; }
+.selected-contract-pill {
+  background: #f0fdf4; border: 1px solid #22c55e; border-radius: 12px;
+  padding: 16px; display: flex; align-items: center; gap: 16px;
 }
-.card-header-custom h3 { font-size: 16px; font-weight: 600; color: #1f2937; margin: 0 0 2px 0; }
-.card-header-custom p { font-size: 13px; color: #6b7280; margin: 0; }
-.card-body-custom { padding: 32px; }
+.pill-icon { width: 40px; height: 40px; background: white; color: #22c55e; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 1.2rem; }
+.pill-text { flex: 1; display: flex; flex-direction: column; }
+.pill-label { font-size: 11px; font-weight: 700; color: #166534; text-transform: uppercase; }
+.pill-value { font-weight: 600; font-size: 15px; color: #14532d; }
+.btn-change { background: white; border: 1px solid #22c55e; padding: 6px 14px; border-radius: 6px; font-size: 12px; font-weight: 700; color: #22c55e; cursor: pointer; }
 
-/* --- INPUTS GERAIS --- */
-.input-label { display: block; font-size: 13px; font-weight: 600; color: #374151; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.02em; }
-.required { color: #ef4444; }
-.input-group-custom { position: relative; }
-.input-icon { position: absolute; left: 14px; top: 50%; transform: translateY(-50%); color: #9ca3af; pointer-events: none; z-index: 5; }
-
-.custom-input, .custom-textarea {
-  width: 100%; padding: 12px 12px 12px 40px; border: 1px solid #d1d5db;
-  border-radius: 8px; font-size: 14px; color: #111827; transition: all 0.2s; background-color: #fff;
+.search-input-container {
+  display: flex; align-items: center; border: 2px solid #e2e8f0; border-radius: 12px;
+  padding: 0 20px; height: 60px; transition: 0.3s;
 }
-.custom-input:focus, .custom-textarea:focus { border-color: #3b82f6; outline: none; box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.1); }
-.custom-textarea { padding: 12px; resize: vertical; }
-.disabled-input { background-color: #f9fafb; cursor: not-allowed; color: #6b7280; }
+.search-input-container:focus-within { border-color: #3b82f6; box-shadow: 0 0 0 4px rgba(59,130,246,0.1); }
+.search-main-icon { color: #94a3b8; font-size: 1.2rem; margin-right: 16px; }
+.main-search-input { flex: 1; border: none; background: transparent; outline: none; font-size: 16px; font-weight: 500; }
 
-/* --- DROPDOWN PESQUISA --- */
-.search-wrapper { position: relative; }
-.with-chevron { padding-right: 40px; }
-.input-chevron { position: absolute; right: 14px; top: 50%; transform: translateY(-50%); color: #9ca3af; pointer-events: none; transition: transform 0.2s; }
-.input-chevron.rotate { transform: translateY(-50%) rotate(180deg); }
-
-.dropdown-list {
-  position: absolute; top: 100%; left: 0; width: 100%;
-  background: white; border: 1px solid #e5e7eb; border-radius: 8px;
-  margin-top: 6px; z-index: 50; max-height: 280px; overflow-y: auto;
+.search-results-panel {
+  position: absolute; top: calc(100% + 12px); left: 0; right: 0;
+  background: white; border-radius: 16px; border: 1px solid #e2e8f0;
+  z-index: 1000; box-shadow: 0 20px 40px rgba(0,0,0,0.12); overflow: hidden;
 }
-.dropdown-item-custom {
-  padding: 12px 16px; border-bottom: 1px solid #f3f4f6; cursor: pointer; transition: background 0.1s;
+.result-row {
+  display: flex; align-items: center; padding: 16px 20px; cursor: pointer; transition: 0.1s;
 }
-.dropdown-item-custom:hover { background-color: #eff6ff; }
-.dropdown-item-custom:last-child { border-bottom: none; }
+.result-row:hover { background: #f8fafc; }
+.result-avatar { width: 40px; height: 40px; background: #eff6ff; color: #3b82f6; border-radius: 8px; display: flex; align-items: center; justify-content: center; margin-right: 16px; }
+.result-data { flex: 1; display: flex; flex-direction: column; }
+.result-title { font-weight: 600; font-size: 14px; color: #1e293b; }
+.result-sub { font-size: 12px; color: #64748b; }
+.result-tag { background: #f1f5f9; font-size: 10px; font-weight: 700; padding: 4px 8px; border-radius: 4px; color: #475569; }
 
-/* --- RADIO CARDS --- */
-.select-option-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
-.radio-card { border: 1px solid #e5e7eb; border-radius: 8px; padding: 12px; cursor: pointer; transition: all 0.2s; background: white; }
-.radio-card:hover { border-color: #3b82f6; background: #eff6ff; }
-.radio-card.active { border-color: #3b82f6; background-color: #eff6ff; box-shadow: 0 0 0 2px #3b82f6; }
-.radio-content { display: flex; flex-direction: column; align-items: center; gap: 8px; text-align: center; }
-.icon-box { width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; border-radius: 6px; font-size: 14px; }
-.icon-box.success { background: #dcfce7; color: #166534; }
-.icon-box.danger { background: #fee2e2; color: #991b1b; }
-.icon-box.info { background: #e0f2fe; color: #075985; }
-.radio-title { font-size: 13px; font-weight: 600; color: #374151; }
+/* TYPE CARDS */
+.type-cards-group { display: flex; gap: 16px; margin-top: 12px; }
+.t-card {
+  flex: 1; border: 1px solid #e2e8f0; border-radius: 12px; padding: 20px;
+  display: flex; flex-direction: column; align-items: center; gap: 10px;
+  cursor: pointer; transition: 0.2s; background: #fff;
+}
+.t-card i { font-size: 1.5rem; color: #94a3b8; }
+.t-card span { font-size: 13px; font-weight: 700; color: #64748b; }
+.t-card.active { transform: scale(1.02); }
+.t-card.active.success { border-color: #22c55e; background: #f0fdf4; color: #166534; }
+.t-card.active.success i, .t-card.active.success span { color: #166534; }
+.t-card.active.danger { border-color: #ef4444; background: #fef2f2; color: #991b1b; }
+.t-card.active.danger i, .t-card.active.danger span { color: #991b1b; }
+.t-card.active.info { border-color: #3b82f6; background: #eff6ff; color: #1e40af; }
+.t-card.active.info i, .t-card.active.info span { color: #1e40af; }
+.t-card input { display: none; }
 
-/* --- FOOTER --- */
-.form-actions-bar { display: flex; justify-content: flex-end; gap: 16px; margin-top: 24px; }
-.btn-cancel { padding: 12px 24px; background: white; border: 1px solid #d1d5db; border-radius: 8px; font-weight: 600; color: #374151; cursor: pointer; transition: all 0.2s; }
-.btn-cancel:hover { background: #f9fafb; border-color: #9ca3af; }
-.btn-save { padding: 12px 32px; background: #3b82f6; border: none; border-radius: 8px; font-weight: 600; color: white; cursor: pointer; transition: all 0.2s; box-shadow: 0 2px 5px rgba(59, 130, 246, 0.3); }
-.btn-save:hover { background: #2563eb; transform: translateY(-1px); }
-.btn-save:disabled { background: #93c5fd; cursor: wait; }
+/* INPUTS PRO */
+.form-section-label { display: block; font-size: 12px; font-weight: 800; color: #1e293b; text-transform: uppercase; margin-bottom: 12px; }
+.field-label-pro { font-size: 13px; font-weight: 600; color: #475569; margin-bottom: 8px; display: block; }
+.input-pro-wrapper {
+  position: relative; display: flex; align-items: center; background: #f8fafc;
+  border: 1px solid #e2e8f0; border-radius: 10px; padding: 0 14px; height: 48px;
+}
+.input-pro-wrapper i { color: #94a3b8; margin-right: 12px; }
+.input-pro { flex: 1; border: none; background: transparent; outline: none; font-size: 14px; color: #1e293b; font-weight: 500; }
 
-/* Responsividade */
-@media (max-width: 768px) {
-  .select-option-grid { grid-template-columns: 1fr; }
-  .header-content { flex-direction: column; align-items: flex-start; }
-  .form-actions-bar { flex-direction: column-reverse; }
-  .btn-save, .btn-cancel { width: 100%; }
+/* ASIDE */
+.side-card-padding { padding: 24px; }
+.side-title { font-size: 15px; font-weight: 700; margin-bottom: 20px; }
+.switch-block { display: flex; justify-content: space-between; align-items: center; gap: 16px; }
+.switch-content strong { font-size: 13px; display: block; }
+.switch-content p { font-size: 12px; color: #64748b; margin: 2px 0 0 0; line-height: 1.4; }
+
+.toggle-switch { position: relative; width: 44px; height: 24px; flex-shrink: 0; }
+.toggle-switch input { display: none; }
+.toggle-slider { position: absolute; inset: 0; background: #e2e8f0; border-radius: 20px; cursor: pointer; transition: 0.3s; }
+.toggle-slider:before { position: absolute; content: ""; height: 18px; width: 18px; left: 3px; bottom: 3px; background: white; border-radius: 50%; transition: 0.3s; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+input:checked + .toggle-slider { background: #000; }
+input:checked + .toggle-slider:before { transform: translateX(20px); }
+
+.textarea-pro {
+  width: 100%; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px;
+  padding: 16px; font-size: 14px; outline: none; resize: none; transition: 0.3s;
+}
+.textarea-pro:focus { border-color: #3b82f6; background: white; }
+.textarea-footer { font-size: 11px; color: #94a3b8; margin-top: 8px; }
+
+.help-box { background: #fffbeb; border: 1px solid #fef3c7; border-radius: 12px; padding: 20px; }
+.help-box h4 { font-size: 13px; font-weight: 700; color: #92400e; margin-bottom: 6px; }
+.help-box p { font-size: 12px; color: #b45309; margin: 0; line-height: 1.5; }
+
+/* UTILS */
+.mb-4 { margin-bottom: 24px; }
+.fade-in { animation: fadeIn 0.4s ease-out; }
+@keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+@media (max-width: 1024px) {
+  .content-grid { grid-template-columns: 1fr; }
+  .side-options-col { order: -1; }
 }
 </style>

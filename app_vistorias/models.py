@@ -27,10 +27,16 @@ class Vistoria(models.Model):
         help_text="Nome do vistoriador responsável"
     )
     
-    # ASSINATURAS DIGITAIS (Dupla)
-    # Separei em pastas diferentes para organização
+    # CONFIGURAÇÃO DE ASSINATURAS
+    exige_assinatura_proprietario = models.BooleanField(
+        default=False, 
+        verbose_name="Exigir assinatura do proprietário"
+    )
+
+    # ASSINATURAS DIGITAIS
     assinatura_locatario = models.ImageField(upload_to='assinaturas/locatarios/%Y/%m/', blank=True, null=True)
     assinatura_responsavel = models.ImageField(upload_to='assinaturas/responsaveis/%Y/%m/', blank=True, null=True)
+    assinatura_proprietario = models.ImageField(upload_to='assinaturas/proprietarios/%Y/%m/', blank=True, null=True)
 
     # Controle de sistema
     data_criacao = models.DateTimeField(auto_now_add=True)
@@ -66,7 +72,6 @@ class ItemVistoria(models.Model):
 
 class VistoriaFoto(models.Model):
     item = models.ForeignKey(ItemVistoria, on_delete=models.CASCADE, related_name='fotos')
-    # Renomeado de 'foto' para 'imagem' para padronizar com o serializer
     imagem = models.ImageField(upload_to='vistorias/%Y/%m/')
     data_upload = models.DateTimeField(auto_now_add=True)
 

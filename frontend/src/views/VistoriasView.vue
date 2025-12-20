@@ -1,133 +1,139 @@
 <template>
-  <div class="modern-container">
+  <div class="page-container">
     
-    <header class="view-header">
+    <header class="page-header">
       <div class="header-content">
-        <h2><i class="fas fa-clipboard-check"></i> Gestão de Vistorias</h2>
-        <p>Gerencie vistorias de entrada, saída e periódicas.</p>
+        <div class="header-text">
+          <h1>Gestão de Vistorias</h1>
+          <p class="subtitle">Monitore, execute e emita laudos das vistorias de imóveis.</p>
+        </div>
       </div>
-      <button class="btn-primary-custom" @click="navigateToForm(null)">
-        <i class="fas fa-plus"></i> Nova Vistoria
-      </button>
     </header>
 
-    <div class="filter-card">
-      <div class="filter-flex">
-        
-        <div class="filter-item search-item">
-          <label>Buscar</label>
-          <div class="input-wrapper">
-            <i class="fas fa-search"></i>
-            <input 
-              type="text" 
-              placeholder="Pesquisar Imóvel, Contrato..." 
-              v-model="searchQuery"
-              @input="handleSearch"
-            >
-          </div>
+    <main class="main-content">
+      <div class="filter-bar">
+        <div class="search-group">
+          <i class="fas fa-search"></i>
+          <input 
+            type="text" 
+            placeholder="Buscar por endereço, inquilino ou ID..." 
+            v-model="searchQuery"
+            @input="handleSearch"
+          >
         </div>
 
-        <div class="filter-item select-item">
-          <label>Tipo</label>
-          <div class="select-wrapper">
-            <select v-model="filterTipo" @change="fetchVistorias">
-              <option :value="null">Todos os Tipos</option>
-              <option value="ENTRADA">📥 Entrada</option>
-              <option value="SAIDA">📤 Saída</option>
-              <option value="PERIODICA">🔄 Periódica</option>
-            </select>
-            <i class="fas fa-chevron-down select-arrow"></i>
-          </div>
-        </div>
-
-        <div class="filter-item select-item">
-          <label>Contrato</label>
-          <div class="select-wrapper">
-            <select v-model="filterContrato" @change="fetchVistorias">
-              <option :value="null">Todos os Contratos</option>
-              <option v-for="c in contratos" :key="c.id" :value="c.id">
-                #{{ c.id }} - {{ c.imovel_display }}
-              </option>
-            </select>
-            <i class="fas fa-chevron-down select-arrow"></i>
-          </div>
-        </div>
-
-        <div class="filter-item button-item">
-          <label>&nbsp;</label>
-          <button class="btn-outline" @click="clearFilters" title="Limpar filtros">
-            <i class="fas fa-eraser me-2"></i> Limpar
-          </button>
-        </div>
-
-      </div>
-    </div>
-
-    <div v-if="loading" class="state-container">
-      <div class="spinner"></div>
-      <p>Buscando dados...</p>
-    </div>
-
-    <div v-else-if="vistorias.length === 0" class="state-container empty">
-      <i class="fas fa-folder-open"></i>
-      <h3>Nenhum resultado encontrado</h3>
-      <p>Tente ajustar os filtros acima ou cadastre uma nova vistoria.</p>
-      <button class="btn-text" @click="clearFilters">Limpar busca</button>
-    </div>
-
-    <div v-else class="cards-grid">
-      <div class="vistoria-card" v-for="vistoria in vistorias" :key="vistoria.id">
-        
-        <div class="card-top">
-          <div class="badge" :class="getBadgeClass(vistoria.tipo)">
-            {{ getTipoLabel(vistoria.tipo) }}
-          </div>
-          <div class="card-id">#{{ vistoria.id }}</div>
-        </div>
-
-        <div class="card-content">
-          <h3 class="card-title" :title="'Contrato #' + vistoria.contrato">
-            <i class="fas fa-file-contract"></i> Contrato {{ vistoria.contrato }}
-          </h3>
-          <p class="card-subtitle text-truncate">
-             <i class="fas fa-map-marker-alt me-1"></i> 
-             {{ getImovelDisplay(vistoria.contrato) }}
-          </p>
-
-          <div class="card-info-row">
-            <div class="info-item">
-              <span class="label">DATA</span>
-              <span class="value">{{ formatDate(vistoria.data_vistoria) }}</span>
-            </div>
-            <div class="separator"></div>
-            <div class="info-item">
-              <span class="label">AMBIENTES</span>
-              <span class="value">{{ vistoria.ambientes ? vistoria.ambientes.length : 0 }}</span>
-            </div>
-          </div>
-
-          <div class="card-user">
-            <i class="fas fa-user-circle"></i> {{ vistoria.realizado_por_nome || 'Admin' }}
-          </div>
-        </div>
-
-        <div class="card-actions">
-          <button class="btn-primary-custom full-width" @click="openDetalhesModal(vistoria.id)">
-            Detalhes
-          </button>
+        <div class="filter-group">
+          <select v-model="filterTipo" @change="fetchVistorias">
+            <option :value="null">Todos os Tipos</option>
+            <option value="ENTRADA">Entrada</option>
+            <option value="SAIDA">Saída</option>
+            <option value="PERIODICA">Periódica</option>
+          </select>
           
-          <div class="secondary-actions">
-            <button class="btn-icon edit" @click="navigateToForm(vistoria.id)" title="Editar">
-              <i class="fas fa-edit"></i>
-            </button>
-            <button class="btn-icon delete" @click="deleteVistoria(vistoria.id)" title="Excluir">
-              <i class="fas fa-trash"></i>
-            </button>
-          </div>
+          <button class="btn-add" @click="navigateToForm(null)">
+            <i class="fas fa-plus"></i> Nova Vistoria
+          </button>
         </div>
-
       </div>
-    </div>
+
+      <div v-if="loading" class="state-container">
+        <div class="spinner"></div>
+        <p>Carregando vistorias...</p>
+      </div>
+
+      <div v-else-if="vistorias.length === 0" class="state-container empty">
+        <i class="fas fa-folder-open"></i>
+        <h3>Nenhuma vistoria encontrada</h3>
+        <p>Ajuste os filtros ou inicie uma nova vistoria.</p>
+      </div>
+
+      <div v-else class="cards-grid">
+        <div 
+            class="vistoria-card" 
+            v-for="vistoria in vistorias" 
+            :key="vistoria.id"
+            :class="getBorderClass(vistoria.tipo)"
+        >
+          
+          <div class="card-top">
+            <div class="d-flex align-items-center gap-2">
+                <span class="type-badge" :class="getBadgeClass(vistoria.tipo)">
+                    {{ getTipoLabel(vistoria.tipo) }}
+                </span>
+                <span class="id-badge">#{{ vistoria.id }}</span>
+            </div>
+            <div class="date-badge">
+                <i class="far fa-calendar-alt"></i> {{ formatDate(vistoria.data_vistoria) }}
+            </div>
+          </div>
+
+          <div class="card-body">
+            <h4 class="address-title" :title="getImovelDisplay(vistoria.contrato)">
+                {{ getImovelDisplay(vistoria.contrato) }}
+            </h4>
+            
+            <div class="info-row">
+                <i class="fas fa-file-contract"></i> 
+                <span>Contrato #{{ vistoria.contrato }}</span>
+            </div>
+            
+            <div class="info-row">
+                <i class="fas fa-user-tie"></i> 
+                <span>{{ vistoria.realizado_por_nome || 'Vistoriador não informado' }}</span>
+            </div>
+
+            <div class="divider"></div>
+
+            <div class="signatures-status">
+                <div class="sig-item" :class="{ signed: vistoria.assinatura_responsavel }" title="Vistoriador">
+                    <i class="fas fa-user-check"></i> <small>Vist.</small>
+                </div>
+                <div class="sig-item" :class="{ signed: vistoria.assinatura_locatario }" title="Locatário">
+                    <i class="fas fa-user"></i> <small>Loc.</small>
+                </div>
+                <div 
+                    v-if="vistoria.exige_assinatura_proprietario" 
+                    class="sig-item" 
+                    :class="{ signed: vistoria.assinatura_proprietario }" 
+                    title="Proprietário"
+                >
+                    <i class="fas fa-home"></i> <small>Prop.</small>
+                </div>
+            </div>
+          </div>
+
+          <div class="card-footer">
+            <div class="status-text">
+                <i v-if="vistoria.concluida" class="fas fa-check-circle text-success"></i>
+                <i v-else class="fas fa-clock text-warning"></i>
+                {{ vistoria.concluida ? 'Concluída' : 'Em Andamento' }}
+            </div>
+
+            <div class="actions">
+                <button class="btn-icon" @click="openDetalhesModal(vistoria.id)" title="Visualizar Detalhes">
+                    <i class="fas fa-eye"></i>
+                </button>
+                
+                <button 
+                    class="btn-action" 
+                    :class="vistoria.concluida ? 'btn-secondary' : 'btn-primary'"
+                    @click="handleMainAction(vistoria)"
+                    :disabled="downloadingId === vistoria.id"
+                >
+                    <span v-if="downloadingId === vistoria.id">
+                        <i class="fas fa-spinner fa-spin"></i> Gerando...
+                    </span>
+                    <span v-else>
+                        <i :class="vistoria.concluida ? 'fas fa-file-pdf' : 'fas fa-arrow-right'"></i>
+                        {{ vistoria.concluida ? ' Ver Laudo' : ' Continuar' }}
+                    </span>
+                </button>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </main>
 
     <VistoriaDetalhesModal 
       :show="showDetalhesModal" 
@@ -141,108 +147,128 @@
 
 <script lang="ts">
 import { defineComponent, ref, onMounted } from 'vue';
-import { useRouter } from 'vue-router'; // Importação essencial para redirecionamento
+import { useRouter } from 'vue-router'; 
 import api from '@/services/api'; 
 import { format } from 'date-fns';
-
 import VistoriaDetalhesModal from '@/components/Vistorias/VistoriaDetalhesModal.vue'; 
 
 export default defineComponent({
   name: 'VistoriasView',
-  components: {
-    VistoriaDetalhesModal,
-  },
+  components: { VistoriaDetalhesModal },
   setup() {
-    const router = useRouter(); // Instância do router
-    
+    const router = useRouter(); 
     const vistorias = ref<any[]>([]);
     const contratos = ref<any[]>([]);
     const loading = ref(true);
     
-    // Filtros
-    const searchQuery = ref('');
-    const filterContrato = ref<number | null>(null);
-    const filterTipo = ref<string | null>(null);
+    // Controle de download individual para o botão não travar a tela toda
+    const downloadingId = ref<number | null>(null);
     
-    // Controle Modal de Detalhes
+    const searchQuery = ref('');
+    const filterTipo = ref<string | null>(null);
     const showDetalhesModal = ref(false);
     const selectedVistoriaId = ref<number | null>(null);
 
-    // Formatação
+    // --- Helpers Visuais ---
     const formatDate = (dateString: string) => {
         if (!dateString) return '--/--';
         try { return format(new Date(dateString), 'dd/MM/yyyy'); } catch { return dateString; }
     };
 
     const getBadgeClass = (tipo: string) => {
-        switch (tipo) {
-            case 'ENTRADA': return 'badge-success';
-            case 'SAIDA': return 'badge-danger';
-            case 'PERIODICA': return 'badge-info';
-            default: return 'badge-default';
-        }
+        if(tipo === 'ENTRADA') return 'bg-success-light text-success';
+        if(tipo === 'SAIDA') return 'bg-danger-light text-danger';
+        return 'bg-info-light text-info';
+    };
+
+    const getBorderClass = (tipo: string) => {
+        if(tipo === 'ENTRADA') return 'border-left-success';
+        if(tipo === 'SAIDA') return 'border-left-danger';
+        return 'border-left-info';
     };
 
     const getTipoLabel = (tipo: string) => {
-        switch (tipo) {
-            case 'ENTRADA': return 'Entrada';
-            case 'SAIDA': return 'Saída';
-            case 'PERIODICA': return 'Periódica';
-            default: return tipo;
-        }
+        if(tipo === 'ENTRADA') return 'Entrada';
+        if(tipo === 'SAIDA') return 'Saída';
+        return 'Periódica';
     };
 
     const getImovelDisplay = (contratoId: number) => {
         const contrato = contratos.value.find(c => c.id === contratoId);
-        return contrato ? contrato.imovel_display : 'Imóvel vinculado';
+        return contrato ? contrato.imovel_display : `Contrato #${contratoId}`;
     };
 
-    // Navegação para a nova tela de formulário
+    // --- Navegação e Ações ---
     const navigateToForm = (id: number | null) => {
-        if (id) {
-            // Edição
-            router.push({ name: 'vistoria-editar', params: { id } });
+        router.push({ name: 'vistoria-nova' });
+    };
+
+    // Lógica Central do Botão Principal
+    const handleMainAction = (vistoria: any) => {
+        if (vistoria.concluida) {
+            openLaudo(vistoria.id); // Se concluída, abre o PDF
         } else {
-            // Criação
-            router.push({ name: 'vistoria-nova' });
+            goToChecklist(vistoria.id); // Se não, vai para o checklist
         }
     };
 
-    // Buscas API
+    const goToChecklist = (id: number) => {
+        router.push({ name: 'vistoria-checklist', params: { id } });
+    };
+
+    const openLaudo = async (id: number) => {
+        downloadingId.value = id; // Ativa spinner no botão específico
+        try {
+            const response = await api.get(`/v1/vistorias/vistorias/${id}/gerar-laudo/`, { 
+                responseType: 'blob' 
+            });
+            const url = window.URL.createObjectURL(new Blob([response.data]));
+            // Abre o PDF em uma nova aba
+            window.open(url, '_blank');
+            
+            // Opcional: Se quiser forçar download em vez de abrir
+            /*
+            const link = document.createElement('a');
+            link.href = url;
+            link.setAttribute('download', `Laudo_Vistoria_${id}.pdf`);
+            document.body.appendChild(link);
+            link.click();
+            link.remove();
+            */
+        } catch (error) {
+            console.error(error);
+            alert("Erro ao gerar o laudo PDF. Tente novamente.");
+        } finally {
+            downloadingId.value = null;
+        }
+    };
+
+    // --- Dados ---
     const fetchContratos = async () => {
         try {
-            // Chama a rota sem duplicar o sufixo
             const response = await api.get('/v1/contratos/');
-            const rawData = response.data.results ? response.data.results : response.data;
-            
+            const rawData = response.data.results || response.data;
             contratos.value = rawData.map((c: any) => {
                 let display = `Imóvel #${c.imovel}`;
-                if (c.imovel_detalhes && c.imovel_detalhes.endereco_completo) {
-                    display = c.imovel_detalhes.endereco_completo;
-                } else if (c.imovel_detalhes && c.imovel_detalhes.logradouro) {
-                    display = c.imovel_detalhes.logradouro;
+                if (c.imovel_detalhes) {
+                    if(c.imovel_detalhes.endereco_completo) display = c.imovel_detalhes.endereco_completo;
+                    else if(c.imovel_detalhes.logradouro) display = `${c.imovel_detalhes.logradouro}, ${c.imovel_detalhes.numero || ''}`;
                 }
                 return { id: c.id, imovel_display: display };
             });
-        } catch (error) { 
-            console.error('Erro ao carregar contratos:', error); 
-        }
+        } catch (error) { console.error(error); }
     }
 
     const fetchVistorias = async () => {
       loading.value = true;
       try {
         const params: any = {};
-        if (filterContrato.value) params.contrato = filterContrato.value;
         if (filterTipo.value) params.tipo = filterTipo.value;
-        if (searchQuery.value && searchQuery.value.trim() !== '') params.search = searchQuery.value;
+        if (searchQuery.value) params.search = searchQuery.value;
 
         const response = await api.get('/v1/vistorias/vistorias/', { params });
         vistorias.value = response.data.results || response.data;
-      } catch (error) { 
-          console.error('Erro ao buscar vistorias:', error); 
-          vistorias.value = [];
-      } 
+      } catch (error) { vistorias.value = []; } 
       finally { loading.value = false; }
     };
 
@@ -251,234 +277,136 @@ export default defineComponent({
         clearTimeout(timeout);
         timeout = setTimeout(() => fetchVistorias(), 500);
     };
-
-    const clearFilters = () => {
-        searchQuery.value = '';
-        filterContrato.value = null;
-        filterTipo.value = null;
-        fetchVistorias();
-    };
-
-    const deleteVistoria = async (id: number) => {
-      if (confirm('ATENÇÃO: Excluir esta vistoria apagará todos os ambientes e fotos. Confirmar?')) {
-        try {
-          await api.delete(`/v1/vistorias/vistorias/${id}/`);
-          vistorias.value = vistorias.value.filter(v => v.id !== id);
-        } catch (error) { alert('Erro ao excluir vistoria.'); }
-      }
-    };
     
-    // Modais (Apenas Detalhes)
     const openDetalhesModal = (id: number) => { selectedVistoriaId.value = id; showDetalhesModal.value = true; }
     const closeDetalhesModal = () => { showDetalhesModal.value = false; selectedVistoriaId.value = null; fetchVistorias(); }
 
-    onMounted(() => {
-        fetchContratos();
+    onMounted(async () => {
+        await fetchContratos();
         fetchVistorias();
     });
 
     return {
-      vistorias, contratos, loading, searchQuery, filterContrato, filterTipo,
-      showDetalhesModal, selectedVistoriaId,
-      fetchVistorias, handleSearch, clearFilters, deleteVistoria, 
+      vistorias, loading, searchQuery, filterTipo,
+      showDetalhesModal, selectedVistoriaId, downloadingId,
+      fetchVistorias, handleSearch,
       openDetalhesModal, closeDetalhesModal, 
-      navigateToForm, // Nova função retornada
-      formatDate, getBadgeClass, getTipoLabel, getImovelDisplay
+      navigateToForm, goToChecklist, handleMainAction, // Adicionado handleMainAction
+      formatDate, getBadgeClass, getBorderClass, getTipoLabel, getImovelDisplay
     };
   },
 });
 </script>
 
 <style scoped>
-/* =========================================
-   ESTILOS MODERNOS
-   ========================================= */
-
-.modern-container {
-  padding: 24px;
-  background-color: #f8f9fa;
-  min-height: 100vh;
-  font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
-  color: #333;
+/* Layout e Header Padrão */
+.page-container {
+  min-height: 100vh; background-color: #f3f4f6; font-family: 'Inter', sans-serif; padding-bottom: 60px;
 }
-
-/* --- HEADER --- */
-.view-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 24px;
-  flex-wrap: wrap;
-  gap: 16px;
+.page-header {
+  background: white; border-bottom: 1px solid #e5e7eb; padding: 20px 32px; margin-bottom: 24px;
 }
-.view-header h2 {
-  font-size: 24px;
-  font-weight: 700;
-  color: #2c3e50;
-  margin: 0 0 4px 0;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-.view-header h2 i { color: #3498db; }
-.view-header p { color: #7f8c8d; margin: 0; font-size: 14px; }
+.header-text h1 { font-size: 24px; font-weight: 700; color: #111827; margin: 0; }
+.subtitle { color: #6b7280; font-size: 14px; margin: 4px 0 0 0; }
+.main-content { padding: 0 32px; max-width: 1400px; margin: 0 auto; }
 
-/* --- FILTROS (FLEXBOX) --- */
-.filter-card {
-  background: white;
-  padding: 20px;
-  border-radius: 12px;
-  box-shadow: 0 2px 10px rgba(0,0,0,0.03);
-  margin-bottom: 24px;
+/* Filtros */
+.filter-bar {
+    display: flex; justify-content: space-between; flex-wrap: wrap; gap: 16px; margin-bottom: 24px;
 }
-
-.filter-flex {
-  display: flex;
-  flex-wrap: wrap; 
-  gap: 16px;
-  align-items: flex-end; 
+.search-group {
+    position: relative; flex: 1; min-width: 280px; max-width: 500px;
 }
-
-.search-item { flex: 2; min-width: 250px; }
-.select-item { flex: 1; min-width: 180px; }
-.button-item { flex: 0 0 auto; }
-
-.filter-item label {
-  display: block;
-  font-size: 12px;
-  font-weight: 600;
-  color: #95a5a6;
-  margin-bottom: 6px;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
+.search-group i { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: #9ca3af; }
+.search-group input {
+    width: 100%; padding: 10px 12px 10px 36px; border: 1px solid #d1d5db; border-radius: 8px; font-size: 14px;
 }
-
-/* Wrapper para Inputs com Ícones */
-.input-wrapper, .select-wrapper { position: relative; width: 100%; }
-.input-wrapper i {
-  position: absolute; left: 12px; top: 50%; transform: translateY(-50%);
-  color: #bdc3c7; pointer-events: none;
+.filter-group { display: flex; gap: 12px; align-items: center; }
+.filter-group select {
+    padding: 10px; border: 1px solid #d1d5db; border-radius: 8px; font-size: 14px; background: white;
 }
-.select-arrow {
-  position: absolute; right: 12px; top: 50%; transform: translateY(-50%);
-  color: #bdc3c7; pointer-events: none; font-size: 12px;
+.btn-add {
+    background: #2563eb; color: white; border: none; padding: 10px 20px; border-radius: 8px; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 8px; transition: background 0.2s;
 }
+.btn-add:hover { background: #1d4ed8; }
 
-/* Inputs e Selects com ALTURA FIXA */
-.input-wrapper input, select {
-  width: 100%; padding: 0 12px 0 36px; 
-  border: 1px solid #e0e0e0; border-radius: 6px;
-  font-size: 14px; color: #34495e; background-color: #fff;
-  height: 42px; line-height: 42px;
-  appearance: none; -webkit-appearance: none;
-  box-sizing: border-box;
-}
-select { padding-left: 12px; padding-right: 30px; }
-
-.input-wrapper input:focus, select:focus {
-  border-color: #3498db; outline: none;
-  box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.1);
-}
-
-/* --- BOTÕES --- */
-.btn-primary-custom {
-  background-color: #3498db; color: white; border: none; padding: 0 24px;
-  border-radius: 6px; font-weight: 600; cursor: pointer;
-  display: flex; align-items: center; justify-content: center; gap: 8px;
-  transition: background 0.2s; height: 42px;
-}
-.btn-primary-custom:hover { background-color: #2980b9; }
-
-.btn-outline {
-  background: white; border: 1px solid #bdc3c7; color: #7f8c8d;
-  padding: 0 24px; border-radius: 6px; cursor: pointer;
-  font-weight: 600; height: 42px; display: flex;
-  align-items: center; justify-content: center;
-  transition: all 0.2s; white-space: nowrap; width: 100%;
-}
-.btn-outline:hover { background: #f8f9fa; border-color: #95a5a6; color: #2c3e50; }
-
-.btn-icon {
-  width: 36px; height: 36px; border-radius: 6px; border: 1px solid #eee;
-  background: white; color: #95a5a6; cursor: pointer;
-  display: flex; align-items: center; justify-content: center;
-  transition: all 0.2s;
-}
-.btn-icon:hover { transform: translateY(-2px); box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
-.btn-icon.edit:hover { border-color: #f1c40f; color: #f39c12; }
-.btn-icon.delete:hover { border-color: #e74c3c; color: #c0392b; }
-
-.btn-text {
-    background: none; border: none; color: #3498db; 
-    text-decoration: underline; cursor: pointer; font-weight: 600;
-}
-
-/* --- GRID DE CARDS --- */
+/* Grid de Cards */
 .cards-grid {
-  display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 24px;
+    display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 20px;
 }
 
+/* Card Style */
 .vistoria-card {
-  background: white; border-radius: 12px; overflow: hidden;
-  box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05), 0 2px 4px -1px rgba(0,0,0,0.03);
-  transition: transform 0.2s, box-shadow 0.2s; display: flex; flex-direction: column;
-  border: 1px solid #f0f0f0;
+    background: white; border-radius: 12px; box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+    border: 1px solid #e5e7eb; display: flex; flex-direction: column; transition: transform 0.2s, box-shadow 0.2s;
+    overflow: hidden; position: relative;
 }
-.vistoria-card:hover {
-  transform: translateY(-4px); box-shadow: 0 10px 15px -3px rgba(0,0,0,0.08);
-}
+.vistoria-card:hover { transform: translateY(-3px); box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1); }
 
+/* Bordas Laterais por Tipo */
+.border-left-success { border-left: 5px solid #22c55e; }
+.border-left-danger { border-left: 5px solid #ef4444; }
+.border-left-info { border-left: 5px solid #3b82f6; }
+
+/* Card Top */
 .card-top {
-  padding: 16px; background: #fafafa; border-bottom: 1px solid #eee;
-  display: flex; justify-content: space-between; align-items: center;
+    padding: 16px; display: flex; justify-content: space-between; align-items: center;
+    border-bottom: 1px solid #f3f4f6;
 }
-.card-id { font-size: 12px; font-weight: 700; color: #bdc3c7; }
+.type-badge {
+    font-size: 11px; font-weight: 700; text-transform: uppercase; padding: 2px 8px; border-radius: 4px;
+}
+.bg-success-light { background: #dcfce7; color: #166534; }
+.bg-danger-light { background: #fee2e2; color: #991b1b; }
+.bg-info-light { background: #dbeafe; color: #1e40af; }
 
-/* Badges */
-.badge {
-  padding: 5px 12px; border-radius: 20px; font-size: 11px; font-weight: 700;
-  text-transform: uppercase; letter-spacing: 0.5px;
-}
-.badge-success { background: #dcfce7; color: #166534; }
-.badge-danger { background: #fee2e2; color: #991b1b; }
-.badge-info { background: #e0f2fe; color: #075985; }
-.badge-default { background: #f3f4f6; color: #4b5563; }
+.id-badge { font-size: 12px; color: #6b7280; font-weight: 600; }
+.date-badge { font-size: 12px; color: #4b5563; display: flex; align-items: center; gap: 4px; }
 
-.card-content { padding: 20px; flex-grow: 1; }
-.card-title {
-  font-size: 16px; font-weight: 700; color: #2c3e50; margin: 0 0 6px 0;
-  display: flex; align-items: center; gap: 8px;
+/* Card Body */
+.card-body { padding: 16px; flex: 1; }
+.address-title {
+    font-size: 15px; font-weight: 600; color: #1f2937; margin: 0 0 12px 0;
+    line-height: 1.4; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
 }
-.card-title i { color: #95a5a6; font-size: 14px; }
-.card-subtitle { font-size: 13px; color: #7f8c8d; margin: 0 0 20px 0; }
+.info-row { font-size: 13px; color: #6b7280; margin-bottom: 6px; display: flex; align-items: center; gap: 8px; }
+.divider { height: 1px; background: #f3f4f6; margin: 12px 0; }
 
-.card-info-row {
-  display: flex; align-items: center; background: #f8fafc; border: 1px solid #e2e8f0;
-  border-radius: 8px; padding: 12px; margin-bottom: 16px;
+/* Assinaturas */
+.signatures-status { display: flex; gap: 12px; }
+.sig-item {
+    display: flex; flex-direction: column; align-items: center; gap: 2px; color: #d1d5db;
 }
-.info-item { flex: 1; text-align: center; }
-.separator { width: 1px; height: 24px; background: #e2e8f0; margin: 0 10px; }
-.info-item .label { display: block; font-size: 10px; font-weight: 700; color: #94a3b8; }
-.info-item .value { font-size: 14px; font-weight: 600; color: #334155; }
+.sig-item i { font-size: 16px; }
+.sig-item small { font-size: 10px; font-weight: 600; }
+.sig-item.signed { color: #22c55e; } /* Verde se assinado */
 
-.card-user {
-  font-size: 13px; color: #64748b; display: flex; align-items: center;
-  gap: 6px; justify-content: flex-end; font-weight: 500;
+/* Card Footer */
+.card-footer {
+    padding: 12px 16px; background: #f9fafb; border-top: 1px solid #e5e7eb;
+    display: flex; justify-content: space-between; align-items: center;
 }
+.status-text { font-size: 12px; font-weight: 600; color: #4b5563; display: flex; align-items: center; gap: 6px; }
 
-.card-actions {
-  padding: 16px; border-top: 1px solid #f0f0f0; display: flex; gap: 12px; background: #fff;
+.actions { display: flex; gap: 8px; }
+.btn-icon {
+    width: 32px; height: 32px; border: 1px solid #d1d5db; border-radius: 6px; background: white;
+    color: #6b7280; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.2s;
 }
-.full-width { flex: 1; }
-.secondary-actions { display: flex; gap: 8px; }
+.btn-icon:hover { background: #f3f4f6; color: #1f2937; }
 
-/* --- ESTADOS --- */
-.state-container { text-align: center; padding: 80px 0; color: #94a3b8; }
-.state-container i { font-size: 48px; margin-bottom: 16px; opacity: 0.5; }
-.state-container h3 { color: #475569; font-size: 18px; margin-bottom: 8px; }
-.spinner {
-  border: 3px solid #f3f3f3; border-top: 3px solid #3498db; border-radius: 50%;
-  width: 40px; height: 40px; animation: spin 1s linear infinite; margin: 0 auto 16px auto;
+.btn-action {
+    padding: 6px 16px; border: none; border-radius: 6px; font-size: 12px; font-weight: 600;
+    cursor: pointer; transition: background 0.2s; text-decoration: none; color: white; display: flex; align-items: center; gap: 6px;
 }
-@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+.btn-primary { background: #3b82f6; }
+.btn-primary:hover { background: #2563eb; }
+.btn-secondary { background: #6b7280; }
+.btn-secondary:hover { background: #4b5563; }
+.btn-action:disabled { opacity: 0.7; cursor: not-allowed; }
+
+/* States */
+.state-container { text-align: center; padding: 40px; color: #9ca3af; }
+.spinner { width: 30px; height: 30px; border: 3px solid #e5e7eb; border-top-color: #3b82f6; border-radius: 50%; animation: spin 1s infinite linear; margin: 0 auto 10px; }
+@keyframes spin { 100% { transform: rotate(360deg); } }
 </style>

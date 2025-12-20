@@ -2,12 +2,15 @@
   <div class="modal-overlay">
     <div class="modal-content">
       <div class="modal-header">
-          <h3><i class="fas fa-file-signature"></i> Confirmar Visita</h3>
+          <h3><i class="fas fa-file-signature"></i> {{ titulo || 'Coletar Assinatura' }}</h3>
           <button class="btn-close" @click="$emit('close')"><i class="fas fa-times"></i></button>
       </div>
       
       <div class="modal-body">
-          <p class="termo-texto">
+          <p class="termo-texto" v-if="termo">
+            {{ termo }}
+          </p>
+          <p class="termo-texto" v-else>
             Declaro que visitei o imóvel situado em:
             <strong>{{ enderecoImovel || 'Endereço não disponível' }}</strong>, 
             apresentado pela imobiliária, nesta data.
@@ -42,15 +45,12 @@
 import { ref } from 'vue';
 import { VueSignaturePad } from 'vue-signature-pad';
 
+// Adicionadas props 'titulo' e 'termo'
 const props = defineProps({
-    enderecoImovel: {
-        type: String,
-        default: ''
-    },
-    isSaving: {
-        type: Boolean,
-        default: false
-    }
+    titulo: { type: String, default: '' },
+    termo: { type: String, default: '' },
+    enderecoImovel: { type: String, default: '' },
+    isSaving: { type: Boolean, default: false }
 });
 
 const emit = defineEmits(['close', 'save']);
@@ -70,7 +70,7 @@ function limpar() {
 function salvar() {
   const { isEmpty, data } = signaturePad.value.saveSignature();
   if (isEmpty) {
-    alert("Por favor, o cliente deve assinar antes de confirmar.");
+    alert("Por favor, é necessário assinar antes de confirmar.");
     return;
   }
   emit('save', data);
@@ -98,7 +98,7 @@ function salvar() {
 .btn-close { background: none; border: none; cursor: pointer; font-size: 1.2rem; color: #666; }
 
 .modal-body { padding: 1.5rem; }
-.termo-texto { font-size: 0.9rem; color: #555; margin-bottom: 1rem; line-height: 1.5; }
+.termo-texto { font-size: 0.9rem; color: #555; margin-bottom: 1rem; line-height: 1.5; text-align: justify; }
 
 .signature-wrapper { 
     border: 2px dashed #ccc; border-radius: 8px; position: relative; 

@@ -318,14 +318,27 @@ onMounted(() => {
 
 <style scoped>
 /* ================================================== */
-/* 1. Layout Geral (Sem Scroll) */
+/* 1. Layout Geral (Ajuste para Dashboard Layout) */
 /* ================================================== */
 .page-container { 
-    padding: 0; display: flex; flex-direction: column; height: 100vh; overflow: hidden; 
+    /* Padding: Top Right Bottom Left 
+       - 2rem na direita para garantir que o scroll não corte o último card.
+       - 0 na esquerda para remover o espaço em branco solicitado.
+    */
+    padding: 0 2rem 0 0; 
+    display: flex; 
+    flex-direction: column; 
+    /* Cálculo exato para ocupar a tela sem scroll duplo */
+    height: calc(100vh - 140px); 
+    width: 100%; 
+    max-width: 100%; /* Permite ocupar toda a largura */
+    margin: 0;       /* Remove a centralização (margin auto) */
+    overflow: hidden; 
+    box-sizing: border-box;
 }
 
 /* ================================================== */
-/* 2. Dashboard Stats (CORES MELHORADAS) */
+/* 2. Dashboard Stats */
 /* ================================================== */
 .dashboard-grid {
   display: grid; 
@@ -359,23 +372,18 @@ onMounted(() => {
   margin: 0; line-height: 1.2;
 }
 
-/* --- Cores Sóbrias/Minimalistas --- */
-
-/* Total Oportunidades - Azul/Cyan (Sóbrio) */
+/* --- Cores Sóbrias --- */
 .stat-total-oportunidades .stat-icon { background-color: #E0F7FA; color: #00BCD4; } 
-.stat-total-oportunidades .stat-info p { color: #00838F; } /* Dark Cyan */
+.stat-total-oportunidades .stat-info p { color: #00838F; } 
 
-/* Valor Estimado em Aberto - Âmbar/Laranja (Sóbrio) */
 .stat-valor-aberto .stat-icon { background-color: #FFF8E1; color: #FFB300; } 
-.stat-valor-aberto .stat-info p { color: #FF6F00; } /* Dark Amber */
+.stat-valor-aberto .stat-info p { color: #FF6F00; } 
 
-/* Taxa de Fechamento - Verde (Sóbrio) */
 .stat-taxa-fechamento .stat-icon { background-color: #E8F5E9; color: #4CAF50; }
-.stat-taxa-fechamento .stat-info p { color: #388E3C; } /* Dark Green */
+.stat-taxa-fechamento .stat-info p { color: #388E3C; } 
 
-/* Probabilidade Média - Roxo (Sóbrio) */
 .stat-probabilidade-media .stat-icon { background-color: #F3E5F5; color: #9C27B0; }
-.stat-probabilidade-media .stat-info p { color: #6A1B9A; } /* Dark Purple */
+.stat-probabilidade-media .stat-info p { color: #6A1B9A; } 
 
 
 @media (max-width: 1200px) {
@@ -383,10 +391,12 @@ onMounted(() => {
 }
 @media (max-width: 768px) {
   .dashboard-grid { grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); }
+  /* Remove padding lateral em telas muito pequenas para aproveitar espaço */
+  .page-container { padding: 0 1rem; }
 }
 
 /* ================================================== */
-/* 3. Filtros (PADRÃO CONTRATOS) */
+/* 3. Filtros */
 /* ================================================== */
 .search-and-filter-bar {
   display: flex; flex-wrap: wrap; gap: 1rem; margin-bottom: 1.5rem;
@@ -418,7 +428,7 @@ onMounted(() => {
 .mobile-hide { display: inline; }
 
 /* ================================================== */
-/* 4. Kanban Board */
+/* 4. Kanban Board (CORREÇÃO DE SCROLL) */
 /* ================================================== */
 .loading-message { text-align: center; padding: 2rem; color: #6c757d; font-size: 0.9rem; }
 .spinner {
@@ -430,26 +440,52 @@ onMounted(() => {
 .funil-board-container {
   display: flex; 
   gap: 0.5rem; 
+  /* Padding extra na direita para garantir espaço no final do scroll */
   padding: 0 0.5rem 0.5rem 0.5rem;
   width: 100%;
   flex-grow: 1;
-  overflow: hidden; 
-  align-items: flex-start; 
+  overflow-x: auto; 
+  overflow-y: hidden;
+  align-items: stretch; 
+}
+
+/* Espaçador no final do flex container para garantir margem direita ao rolar */
+.funil-board-container::after {
+    content: "";
+    display: block;
+    min-width: 0.5rem; /* Garante um espaço extra no fim do scroll */
+    height: 1px;
+}
+
+/* Custom Scrollbar */
+.funil-board-container::-webkit-scrollbar {
+    height: 8px;
+}
+.funil-board-container::-webkit-scrollbar-thumb {
+    background-color: #ccc;
+    border-radius: 4px;
+}
+.funil-board-container::-webkit-scrollbar-track {
+    background-color: #f1f1f1;
 }
 
 .funil-coluna {
   background-color: #e9ecef; border-radius: 6px;
-  flex: 1; 
-  min-width: 0; 
+  flex: 0 0 auto; 
+  min-width: 260px; 
+  width: 260px; 
   display: flex; flex-direction: column; 
   height: 100%;
   border: 1px solid #dee2e6;
-  transition: height 0.3s ease;
+  transition: width 0.3s ease, min-width 0.3s ease;
 }
 
 .funil-board-container.layout-resumo .funil-coluna {
     height: auto; 
     min-height: 50px;
+    min-width: 100px;
+    width: 100px;
+    flex: 1; 
 }
 
 .coluna-header {
@@ -477,10 +513,11 @@ onMounted(() => {
     padding: 0.3rem; 
     overflow-y: auto; 
     flex-grow: 1;
-    -ms-overflow-style: none;  
-    scrollbar-width: none;  
+    scrollbar-width: thin;
+    scrollbar-color: #ced4da transparent;
 }
-.coluna-body::-webkit-scrollbar { display: none; }
+.coluna-body::-webkit-scrollbar { width: 6px; }
+.coluna-body::-webkit-scrollbar-thumb { background-color: #ced4da; border-radius: 3px; }
 
 .oportunidade-list { min-height: 50px; height: 100%; }
 
@@ -526,7 +563,6 @@ onMounted(() => {
   .filter-group { flex-direction: column; align-items: stretch; }
   .btn-add { margin-left: 0; justify-content: center; }
   
-  .funil-board-container { height: calc(100vh - 400px); overflow-x: auto; }
-  .funil-coluna { min-width: 200px; flex: 0 0 200px; } 
+  .page-container { height: calc(100vh - 100px); }
 }
 </style>

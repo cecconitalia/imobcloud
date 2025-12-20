@@ -1,351 +1,309 @@
 <template>
   <div class="page-container">
     
-    <header class="premium-header">
-      <div class="header-wrapper">
-        
-        <div class="top-bar">
-          <nav aria-label="breadcrumb">
-            <ol class="breadcrumb mb-0">
-              <li class="breadcrumb-item"><span @click="goBack">Vistorias</span></li>
-              <li class="breadcrumb-item active" aria-current="page">Execução #{{ vistoria.id }}</li>
-            </ol>
-          </nav>
-        </div>
-
-        <div class="main-bar">
-          <div class="title-section">
-            <div class="d-flex align-items-center gap-3">
-              <h1 class="page-title">Checklist de Vistoria</h1>
-              <span class="status-pill" :class="getTipoClass(vistoria.tipo)">
+    <header class="page-header">
+      <div class="header-content">
+        <button class="btn-back" @click="goBack" title="Voltar">
+          <i class="fas fa-arrow-left"></i>
+        </button>
+        <div class="header-text">
+          <div class="d-flex align-items-center gap-2">
+            <h1>Checklist de Execução</h1>
+            <span class="badge-tipo" :class="getTipoClass(vistoria.tipo)">
                 {{ vistoria.tipo }}
-              </span>
-            </div>
-            
-            <div class="meta-info" v-if="vistoria.imovel_display">
-              <div class="meta-item">
-                <i class="fas fa-map-marker-alt text-primary"></i>
-                {{ vistoria.imovel_display }}
-              </div>
-              <div class="meta-separator"></div>
-              <div class="meta-item">
-                <i class="fas fa-file-contract text-muted"></i>
-                Contrato #{{ vistoria.contrato }}
-              </div>
-              <div class="meta-separator"></div>
-              <div class="meta-item">
-                <i class="far fa-calendar text-muted"></i>
-                {{ formatDate(vistoria.data_vistoria) }}
-              </div>
-            </div>
+            </span>
+            <span v-if="vistoria.concluida" class="badge-status locked">
+                <i class="fas fa-lock"></i> Concluída
+            </span>
           </div>
-
-          <div class="actions-section">
-            
-            <div class="progress-widget" v-if="totalAmbientes > 0">
-              <div class="progress-labels">
-                <span class="label">Progresso</span>
-                <span class="value">{{ totalItens }} itens</span>
-              </div>
-              <div class="progress-track">
-                <div class="progress-fill" style="width: 100%"></div> 
-              </div>
-            </div>
-
-            <button 
-                class="btn-secondary-premium me-2" 
-                @click="saveProgress" 
-                :disabled="isSavingProgress || vistoria.concluida"
-            >
-                <span v-if="isSavingProgress" class="spinner-border spinner-border-sm"></span>
-                <span v-else><i class="fas fa-save me-2"></i> Salvar Progresso</span>
-            </button>
-            <button class="btn-secondary-premium me-2" @click="downloadLaudo" :disabled="downloading">
-              <span v-if="downloading" class="spinner-border spinner-border-sm"></span>
-              <span v-else><i class="fas fa-file-pdf me-2"></i> Baixar Laudo</span>
-            </button>
-
-            <button 
-                v-if="!vistoria.concluida"
-                class="btn-finish-premium btn-concluir me-2" 
-                :disabled="isConcluindo"
-                @click="concluirVistoria"
-            >
-                <i v-if="isConcluindo" class="fas fa-spinner fa-spin me-2"></i>
-                <i v-else class="fas fa-check-circle me-2"></i>
-                {{ isConcluindo ? 'Finalizando...' : 'Concluir Vistoria' }}
-            </button>
-            
-            <button class="btn-finish-premium" @click="openSignatureModal">
-              <i class="fas fa-file-signature"></i> 
-              <span>Assinaturas</span>
-            </button>
-
-          </div>
+          <p class="subtitle">
+            <i class="far fa-calendar-alt me-1"></i> {{ formatDate(vistoria.data_vistoria) }} 
+            <span class="mx-2">•</span> 
+            <i class="fas fa-file-contract me-1"></i> Contrato #{{ vistoria.contrato }}
+          </p>
         </div>
+      </div>
+      
+      <div class="header-actions">
+         <button class="btn-action-outline" @click="downloadLaudo" :disabled="downloading" title="Baixar PDF">
+            <i v-if="downloading" class="fas fa-spinner fa-spin"></i>
+            <i v-else class="fas fa-file-pdf"></i>
+            <span class="d-none d-md-inline ms-2">Laudo</span>
+         </button>
+         
+         <button class="btn-action-primary" @click="concluirVistoria" :disabled="vistoria.concluida || isConcluindo">
+            <i v-if="isConcluindo" class="fas fa-spinner fa-spin"></i>
+            <i v-else class="fas fa-check-circle"></i>
+            <span class="d-none d-md-inline ms-2">
+                {{ vistoria.concluida ? 'Vistoria Fechada' : 'Finalizar e Sair' }}
+            </span>
+         </button>
       </div>
     </header>
 
     <main class="main-content">
       
-      <div v-if="loading" class="loading-state">
-        <div class="spinner-border text-primary" role="status"></div>
-        <p>Carregando checklist...</p>
+      <div v-if="vistoria.concluida" class="locked-alert">
+          <i class="fas fa-lock me-2"></i>
+          <strong>Vistoria Concluída:</strong> A edição de itens e ambientes está bloqueada. Apenas a coleta de assinaturas está disponível.
+      </div>
+
+      <div v-if="loading" class="loading-container">
+        <div class="spinner"></div>
+        <p>A carregar checklist...</p>
       </div>
 
       <div v-else>
         
-        <section class="vistoriador-info-card">
-            <div v-if="!isEditingVistoriador" class="info-display">
-                <i class="fas fa-user-check me-2 text-primary"></i>
-                Vistoriador Responsável: 
-                <strong>{{ vistoria.realizado_por_nome || 'NÃO DEFINIDO' }}</strong>
-                <button v-if="!vistoria.concluida" class="btn-edit-inline" @click="isEditingVistoriador = true">
-                    <i class="fas fa-pencil-alt"></i>
-                </button>
-                <span v-else class="text-success ms-3 fw-bold"><i class="fas fa-lock"></i> Vistoria Concluída</span>
+        <div class="status-dashboard">
+            <div class="status-item main-location">
+                <i class="fas fa-map-marker-alt icon"></i>
+                <div class="text">
+                    <label>Imóvel</label>
+                    <strong>{{ vistoria.imovel_display || 'Endereço não disponível' }}</strong>
+                </div>
             </div>
             
-            <div v-else class="info-edit-mode">
-                <input 
-                    type="text" 
-                    v-model="vistoriadorNome" 
-                    placeholder="Nome completo do Vistoriador Responsável"
-                >
-                <button 
-                    class="btn-save-inline" 
-                    :disabled="isSavingVistoriador"
-                    @click="saveVistoriador"
-                >
-                    <i v-if="isSavingVistoriador" class="fas fa-spinner fa-spin me-1"></i>
+            <div class="status-item progress-area">
+                <div class="d-flex justify-content-between mb-1">
+                    <label>Progresso da Vistoria</label>
+                    <span class="progress-val">{{ totalItens }} itens</span>
+                </div>
+                <div class="progress-bar-bg">
+                    <div class="progress-bar-fill" style="width: 100%"></div> 
+                </div>
+            </div>
+
+            <div class="status-actions">
+                <button v-if="!vistoria.concluida" class="btn-dashboard" @click="saveProgress" :disabled="isSavingProgress">
+                    <i :class="isSavingProgress ? 'fas fa-spinner fa-spin' : 'fas fa-save'"></i>
                     Salvar
                 </button>
-                <button class="btn-cancel-inline" @click="isEditingVistoriador = false">
-                    Cancelar
+                
+                <button class="btn-dashboard" @click="openSignatureModal">
+                    <i class="fas fa-file-signature"></i>
+                    Assinar
                 </button>
             </div>
-        </section>
-        <section class="card mb-4">
-          <div class="card-header">
-            <i class="fas fa-info-circle me-2"></i> Observações Gerais (Salvas automaticamente ao perder o foco)
-          </div>
-          <div class="card-body">
-            <textarea 
-              v-model="vistoria.observacoes" 
-              class="input-styled" 
-              rows="3" 
-              placeholder="Descreva observações gerais, chaves entregues, etc."
-              :disabled="vistoria.concluida"
-              @blur="saveGeneralObs"
-            ></textarea>
-          </div>
-        </section>
-        
-        <div v-if="ambientes.length === 0" class="empty-state-modern">
-          <div class="empty-illustration">
-            <i class="fas fa-clipboard-list"></i>
-          </div>
-          <h3>Checklist Vazio</h3>
-          <p>Esta vistoria ainda não possui ambientes. Adicione o primeiro cômodo para começar.</p>
-          <button class="btn-primary-hero" @click="openAmbienteModal">
-            <i class="fas fa-plus"></i> Adicionar Ambiente
-          </button>
         </div>
 
-        <div v-else class="checklist-wrapper">
-          
-          <div v-for="ambiente in ambientes" :key="ambiente.id" class="ambiente-card">
-            
-            <div class="ambiente-header">
-              <div class="d-flex align-items-center gap-3">
-                <div class="icon-box">
-                  <i class="fas fa-door-open"></i>
+        <div class="grid-layout mb-4">
+            <div class="info-card">
+                <div class="card-label"><i class="fas fa-user-tie"></i> Vistoriador Responsável</div>
+                <div class="mt-1">
+                    <span class="info-value">{{ vistoria.realizado_por_nome || 'Não informado' }}</span>
                 </div>
-                <div>
-                  <h3 class="ambiente-name">{{ ambiente.nome }}</h3>
-                  <span class="ambiente-meta">{{ ambiente.itens ? ambiente.itens.length : 0 }} itens avaliados</span>
-                </div>
-              </div>
-              <button class="btn-icon-subtle danger" @click="deleteAmbiente(ambiente.id)" title="Excluir Ambiente">
-                <i class="far fa-trash-alt"></i>
-              </button>
             </div>
 
-            <div class="ambiente-body">
-              
-              <div v-if="ambiente.itens && ambiente.itens.length > 0" class="items-grid">
-                <div v-for="item in ambiente.itens" :key="item.id" class="item-row">
-                  
-                  <div class="item-col-main">
-                    <div class="d-flex justify-content-between align-items-center mb-1">
-                      <span class="item-title">{{ item.item }}</span>
-                      <span class="status-badge-sm" :class="getStatusClass(item.estado)">
-                        {{ item.estado }}
-                      </span>
-                    </div>
-                    
-                    <p class="item-obs" v-if="item.descricao_avaria">
-                      {{ item.descricao_avaria }}
-                    </p>
-                    <p class="item-obs text-muted" v-else>Nenhuma observação registrada.</p>
-                    
-                    <div class="mini-gallery" v-if="item.fotos && item.fotos.length > 0">
-                      <div v-for="foto in item.fotos" :key="foto.id" class="mini-thumb" @click="viewPhoto(foto.url)">
-                        <img :src="foto.url" alt="Foto">
-                      </div>
-                    </div>
-                  </div>
-
-                  <div class="item-col-action">
-                    <button class="btn-edit-round" @click="openItemModal(ambiente.id, item)">
-                      <i class="fas fa-pencil-alt"></i>
-                    </button>
-                  </div>
-                </div>
-              </div>
-
-              <div v-else class="ambiente-empty">
-                <p>Nenhum item neste ambiente.</p>
-              </div>
-
-              <div class="ambiente-footer">
-                <button class="btn-add-item-dashed" @click="openItemModal(ambiente.id, null)">
-                  <i class="fas fa-plus"></i> Adicionar Item ao {{ ambiente.nome }}
-                </button>
-              </div>
-
+            <div class="info-card">
+                <div class="card-label"><i class="fas fa-clipboard"></i> Observações Gerais</div>
+                <textarea 
+                    v-model="vistoria.observacoes" 
+                    class="form-textarea-transparent" 
+                    rows="1" 
+                    placeholder="Adicione observações gerais aqui..."
+                    :disabled="vistoria.concluida"
+                    @blur="saveGeneralObs"
+                ></textarea>
             </div>
-          </div>
+        </div>
 
-          <div class="add-ambiente-wrapper">
-            <button class="btn-add-ambiente-lg" @click="openAmbienteModal">
-              <i class="fas fa-plus-circle fa-lg"></i>
-              <span>Adicionar Outro Ambiente</span>
+        <div v-if="ambientes.length === 0" class="empty-state">
+            <div class="empty-icon"><i class="fas fa-door-open"></i></div>
+            <h3>Nenhum ambiente adicionado</h3>
+            <p>Comece por adicionar as divisões do imóvel (Ex: Sala, Cozinha).</p>
+            <button v-if="!vistoria.concluida" class="btn-add-large" @click="openAmbienteModal">
+                <i class="fas fa-plus"></i> Criar Primeiro Ambiente
             </button>
-          </div>
-
         </div>
+
+        <div v-else class="ambientes-list">
+            <div v-for="ambiente in ambientes" :key="ambiente.id" class="ambiente-wrapper">
+                
+                <div class="ambiente-header">
+                    <div class="ambiente-title">
+                        <i class="fas fa-layer-group text-primary"></i>
+                        {{ ambiente.nome }}
+                        <span class="counter-badge">{{ ambiente.itens ? ambiente.itens.length : 0 }}</span>
+                    </div>
+                    <div class="ambiente-tools" v-if="!vistoria.concluida">
+                        <button class="btn-tool danger" @click="deleteAmbiente(ambiente.id)" title="Remover Ambiente">
+                            <i class="far fa-trash-alt"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="ambiente-content">
+                    <div v-if="ambiente.itens && ambiente.itens.length > 0" class="itens-grid">
+                        <div v-for="item in ambiente.itens" :key="item.id" class="item-card" @click="openItemModal(ambiente.id, item)">
+                            <div class="item-status-stripe" :class="getStatusClass(item.estado)"></div>
+                            <div class="item-main">
+                                <div class="item-top">
+                                    <span class="item-name">{{ item.item }}</span>
+                                    <span class="status-tag" :class="getStatusClass(item.estado)">{{ item.estado }}</span>
+                                </div>
+                                <p class="item-desc" v-if="item.descricao_avaria">{{ item.descricao_avaria }}</p>
+                                <p class="item-desc text-muted" v-else>Sem observações.</p>
+                                
+                                <div class="item-photos" v-if="item.fotos && item.fotos.length">
+                                    <i class="fas fa-camera"></i> {{ item.fotos.length }} foto(s)
+                                </div>
+                            </div>
+                            <div class="item-arrow">
+                                <i :class="vistoria.concluida ? 'fas fa-eye' : 'fas fa-chevron-right'"></i>
+                            </div>
+                        </div>
+                    </div>
+                    <div v-else class="empty-items">
+                        <p>Nenhum item avaliado.</p>
+                    </div>
+
+                    <button v-if="!vistoria.concluida" class="btn-add-item" @click="openItemModal(ambiente.id, null)">
+                        <i class="fas fa-plus-circle"></i> Adicionar Item
+                    </button>
+                </div>
+
+            </div>
+
+            <button v-if="!vistoria.concluida" class="btn-new-ambiente" @click="openAmbienteModal">
+                <i class="fas fa-plus"></i> Novo Ambiente
+            </button>
+        </div>
+
       </div>
     </main>
-    
-    <div v-if="showAmbienteModal" class="modal-overlay">
-      <div class="modal-card">
-        <div class="modal-top">
+
+    <div v-if="showAmbienteModal" class="modal-backdrop">
+      <div class="modal-window small">
+        <div class="modal-h">
           <h4>Novo Ambiente</h4>
-          <button @click="showAmbienteModal = false" class="btn-close-icon"><i class="fas fa-times"></i></button>
+          <button @click="showAmbienteModal = false" class="close-modal"><i class="fas fa-times"></i></button>
         </div>
-        <div class="modal-content-box">
-          <label class="input-label">Nome do Cômodo</label>
-          <input type="text" class="input-styled" v-model="ambienteForm.nome" placeholder="Ex: Sala de Estar, Cozinha..." autoFocus>
+        <div class="modal-b">
+          <label>Nome da Divisão</label>
+          <input type="text" class="form-input" v-model="ambienteForm.nome" placeholder="Ex: Suite Master" autoFocus>
         </div>
-        <div class="modal-actions">
-          <button class="btn-text" @click="showAmbienteModal = false">Cancelar</button>
-          <button class="btn-solid" @click="saveAmbiente">Salvar</button>
-        </div>
-      </div>
-    </div>
-
-    <div v-if="showItemModal" class="modal-overlay">
-      <div class="modal-card lg">
-        <div class="modal-top">
-          <h4>{{ editingItem ? 'Editar Item' : 'Novo Item' }}</h4>
-          <button @click="showItemModal = false" class="btn-close-icon"><i class="fas fa-times"></i></button>
-        </div>
-        
-        <div class="modal-content-box scrollable">
-          <div class="row g-3">
-            <div class="col-12">
-              <label class="input-label">Item Avaliado</label>
-              <input type="text" class="input-styled" v-model="itemForm.item" placeholder="Ex: Janela, Tomada, Rodapé...">
-            </div>
-
-            <div class="col-12">
-              <label class="input-label">Estado</label>
-              <div class="status-grid">
-                <label v-for="st in statusOptions" :key="st.val" class="status-card" :class="{ active: itemForm.estado === st.val }">
-                  <input type="radio" v-model="itemForm.estado" :value="st.val" class="d-none">
-                  <div class="status-dot" :class="st.class"></div>
-                  <span>{{ st.label }}</span>
-                </label>
-              </div>
-            </div>
-
-            <div class="col-12">
-              <label class="input-label">Observações</label>
-              <textarea class="input-styled" rows="3" v-model="itemForm.descricao_avaria" placeholder="Detalhes..."></textarea>
-            </div>
-
-            <div class="col-12">
-              <label class="input-label">Fotos</label>
-              <div class="photo-upload-area" @click="triggerFileInput">
-                <i class="fas fa-camera fa-2x"></i>
-                <span v-if="!selectedFile">Toque para adicionar foto</span>
-                <span v-else class="text-success">{{ selectedFile.name }}</span>
-                <input type="file" ref="fileInput" class="d-none" @change="handleFileUpload" accept="image/*" capture="environment">
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div class="modal-actions">
-          <button class="btn-text" @click="showItemModal = false">Cancelar</button>
-          <button class="btn-solid" @click="saveItem">
-             {{ editingItem ? 'Atualizar' : 'Adicionar' }}
-          </button>
+        <div class="modal-f">
+          <button class="btn-cancel" @click="showAmbienteModal = false">Cancelar</button>
+          <button class="btn-confirm" @click="saveAmbiente">Criar</button>
         </div>
       </div>
     </div>
 
-    <div v-if="showSignatureModal" class="modal-overlay">
-      <div class="modal-card lg">
-        <div class="modal-top">
-          <h4>Coleta de Assinaturas</h4>
-          <button @click="closeSignatureModal" class="btn-close-icon"><i class="fas fa-times"></i></button>
+    <div v-if="showItemModal" class="modal-backdrop">
+      <div class="modal-window medium">
+        <div class="modal-h">
+          <h4>{{ editingItem ? (vistoria.concluida ? 'Visualizar Item' : 'Editar Item') : 'Novo Item' }}</h4>
+          <button @click="showItemModal = false" class="close-modal"><i class="fas fa-times"></i></button>
         </div>
-        <div class="modal-content-box text-center">
-          
-          <div class="role-selector mb-3">
-            <button class="role-btn" :class="{active: signingRole === 'responsavel'}" @click="setSigningRole('responsavel')">
-              <i class="fas fa-user-tie me-2"></i> Vistoriador
-            </button>
-            <button class="role-btn" :class="{active: signingRole === 'locatario'}" @click="setSigningRole('locatario')">
-              <i class="fas fa-user me-2"></i> Locatário
-            </button>
-          </div>
-
-          <p class="text-muted mb-2 small">Assine no quadro abaixo:</p>
-          <div class="signature-wrapper">
-            <canvas 
-              ref="signatureCanvas" 
-              class="signature-pad"
-              @mousedown="startDrawing" 
-              @mousemove="draw" 
-              @mouseup="stopDrawing" 
-              @mouseleave="stopDrawing"
-              @touchstart="startDrawingTouch"
-              @touchmove="drawTouch"
-              @touchend="stopDrawing"
-            ></canvas>
-          </div>
-          <button class="btn-text text-danger mt-2" @click="clearSignature">
-            <i class="fas fa-eraser me-1"></i> Limpar Painel
-          </button>
-
-          <div class="mt-3 d-flex justify-content-center gap-4">
-            <div :class="vistoria.assinatura_responsavel ? 'text-success' : 'text-muted'">
-              <i class="fas" :class="vistoria.assinatura_responsavel ? 'fa-check-circle' : 'fa-circle'"></i> Vistoriador
+        <div class="modal-b scroll-y">
+            <div class="form-group">
+                <label>O que está a ser avaliado?</label>
+                <input 
+                    type="text" class="form-input" v-model="itemForm.item" 
+                    placeholder="Ex: Porta, Pintura, Vidros..."
+                    :disabled="vistoria.concluida"
+                >
             </div>
-            <div :class="vistoria.assinatura_locatario ? 'text-success' : 'text-muted'">
-              <i class="fas" :class="vistoria.assinatura_locatario ? 'fa-check-circle' : 'fa-circle'"></i> Locatário
+            
+            <div class="form-group">
+                <label>Estado de Conservação</label>
+                <div v-if="vistoria.concluida" class="p-2 border rounded bg-light fw-bold">
+                    {{ statusOptions.find(s => s.val === itemForm.estado)?.label || itemForm.estado }}
+                </div>
+                <div v-else class="status-selector">
+                    <div 
+                        v-for="st in statusOptions" 
+                        :key="st.val" 
+                        class="status-option" 
+                        :class="[st.class, { active: itemForm.estado === st.val }]"
+                        @click="itemForm.estado = st.val"
+                    >
+                        {{ st.label }}
+                    </div>
+                </div>
             </div>
-          </div>
 
+            <div class="form-group">
+                <label>Observações / Avarias</label>
+                <textarea 
+                    class="form-textarea" rows="3" v-model="itemForm.descricao_avaria" 
+                    placeholder="Descreva riscos, manchas ou detalhes importantes..."
+                    :disabled="vistoria.concluida"
+                ></textarea>
+            </div>
+
+            <div class="form-group">
+                <label>Fotografias</label>
+                <div v-if="!vistoria.concluida" class="photo-upload" @click="triggerFileInput">
+                    <div class="upload-content" v-if="!selectedFile">
+                        <i class="fas fa-camera"></i>
+                        <span>Tirar Foto / Carregar</span>
+                    </div>
+                    <div class="upload-content selected" v-else>
+                        <i class="fas fa-check-circle text-success"></i>
+                        <span>{{ selectedFile.name }}</span>
+                        <small>Pronto para enviar</small>
+                    </div>
+                    <input type="file" ref="fileInput" class="d-none" @change="handleFileUpload" accept="image/*" capture="environment">
+                </div>
+                
+                <div v-if="editingItem && editingItem.fotos && editingItem.fotos.length" class="existing-photos mt-3">
+                    <p class="small text-muted mb-2">Fotos Registradas:</p>
+                    <div class="photos-row">
+                        <div v-for="foto in editingItem.fotos" :key="foto.id" class="photo-thumb" @click="viewPhoto(foto.url)">
+                            <img :src="foto.url">
+                        </div>
+                    </div>
+                </div>
+            </div>
         </div>
-        <div class="modal-actions">
-          <button class="btn-text" @click="closeSignatureModal">Fechar</button>
-          <button class="btn-solid" @click="saveSignature" :disabled="isSaving">
-            <span v-if="isSaving" class="spinner-border spinner-border-sm me-2"></span>
-            Salvar Assinatura
+        <div class="modal-f">
+          <button class="btn-cancel" @click="showItemModal = false">Fechar</button>
+          <button v-if="!vistoria.concluida" class="btn-confirm" @click="saveItem">{{ editingItem ? 'Guardar' : 'Adicionar' }}</button>
+        </div>
+      </div>
+    </div>
+
+    <div v-if="showSignatureModal" class="modal-backdrop">
+      <div class="modal-window medium">
+        <div class="modal-h">
+          <h4>Assinatura Digital</h4>
+          <button @click="closeSignatureModal" class="close-modal"><i class="fas fa-times"></i></button>
+        </div>
+        <div class="modal-b">
+            <div class="role-tabs">
+                <button :class="{ active: signingRole === 'responsavel' }" @click="setSigningRole('responsavel')">Vistoriador</button>
+                <button :class="{ active: signingRole === 'locatario' }" @click="setSigningRole('locatario')">Locatário</button>
+                
+                <button 
+                    v-if="vistoria.exige_assinatura_proprietario"
+                    :class="{ active: signingRole === 'proprietario' }" 
+                    @click="setSigningRole('proprietario')"
+                >Proprietário</button>
+            </div>
+            
+            <div class="signature-box">
+                <canvas 
+                  ref="signatureCanvas" 
+                  class="signature-canvas"
+                  @mousedown="startDrawing" @mousemove="draw" @mouseup="stopDrawing" @mouseleave="stopDrawing"
+                  @touchstart="startDrawingTouch" @touchmove="drawTouch" @touchend="stopDrawing"
+                ></canvas>
+                <div class="signature-overlay" v-if="!isDrawing && !hasSignatureContent">Assine aqui</div>
+            </div>
+            <button class="btn-clear-sig" @click="clearSignature">Limpar Assinatura</button>
+
+            <div class="status-signatures mt-3">
+                <span :class="vistoria.assinatura_responsavel ? 'signed' : 'missing'"><i class="fas fa-check"></i> Vistoriador</span>
+                <span :class="vistoria.assinatura_locatario ? 'signed' : 'missing'"><i class="fas fa-check"></i> Locatário</span>
+                <span v-if="vistoria.exige_assinatura_proprietario" :class="vistoria.assinatura_proprietario ? 'signed' : 'missing'"><i class="fas fa-check"></i> Proprietário</span>
+            </div>
+        </div>
+        <div class="modal-f">
+          <button class="btn-cancel" @click="closeSignatureModal">Fechar</button>
+          <button class="btn-confirm" @click="saveSignature" :disabled="isSaving">
+             <i v-if="isSaving" class="fas fa-spinner fa-spin"></i> Salvar Assinatura
           </button>
         </div>
       </div>
@@ -373,13 +331,8 @@ export default defineComponent({
     const vistoria = ref<any>({});
     const ambientes = ref<any[]>([]);
 
-    // NOVO: Estado para Vistoriador e Conclusão
-    const isEditingVistoriador = ref(false);
-    const vistoriadorNome = ref('');
-    const isSavingVistoriador = ref(false);
     const isConcluindo = ref(false);
-    const isSavingProgress = ref(false); // Para o botão Salvar Progresso
-    // FIM NOVO
+    const isSavingProgress = ref(false);
 
     // Modais
     const showAmbienteModal = ref(false);
@@ -396,15 +349,16 @@ export default defineComponent({
     const signatureCanvas = ref<HTMLCanvasElement | null>(null);
     const ctx = ref<CanvasRenderingContext2D | null>(null);
     const isDrawing = ref(false);
+    const hasSignatureContent = ref(false); 
     const isSaving = ref(false);
-    const signingRole = ref<'responsavel' | 'locatario'>('locatario');
+    const signingRole = ref<'responsavel' | 'locatario' | 'proprietario'>('locatario');
 
     const statusOptions = [
-      { val: 'NOVO', label: 'Novo', class: 'bg-success' },
-      { val: 'BOM', label: 'Bom', class: 'bg-primary' },
-      { val: 'REGULAR', label: 'Regular', class: 'bg-warning' },
-      { val: 'RUIM', label: 'Ruim', class: 'bg-danger' },
-      { val: 'INOPERANTE', label: 'Inoperante', class: 'bg-dark' },
+      { val: 'NOVO', label: 'Novo', class: 'opt-novo' },
+      { val: 'BOM', label: 'Bom', class: 'opt-bom' },
+      { val: 'REGULAR', label: 'Regular', class: 'opt-regular' },
+      { val: 'RUIM', label: 'Ruim', class: 'opt-ruim' },
+      { val: 'INOPERANTE', label: 'Inoperante', class: 'opt-inop' },
     ];
 
     const totalAmbientes = computed(() => ambientes.value.length);
@@ -418,146 +372,76 @@ export default defineComponent({
         const response = await api.get(`/v1/vistorias/vistorias/${vistoriaId}/`);
         vistoria.value = response.data;
         ambientes.value = response.data.ambientes || [];
-        // Inicializa o campo de edição com o valor atual
-        vistoriadorNome.value = response.data.realizado_por_nome || ''; 
       } catch (error) {
-        console.error("Erro ao carregar vistoria", error);
+        console.error(error);
       } finally {
         loading.value = false;
       }
     };
 
-    // NOVO: Salva o nome do vistoriador (usado no botão editar/salvar)
-    const saveVistoriador = async () => {
-        if (!vistoriadorNome.value || vistoriadorNome.value.trim() === '') {
-            alert("O nome do vistoriador não pode ser vazio.");
-            return;
-        }
-        isSavingVistoriador.value = true;
-        try {
-            await api.patch(`/v1/vistorias/vistorias/${vistoriaId}/`, {
-                realizado_por_nome: vistoriadorNome.value
-            });
-            isEditingVistoriador.value = false;
-            await loadData();
-        } catch (error) {
-            console.error(error);
-            alert("Erro ao salvar nome do vistoriador.");
-        } finally {
-            isSavingVistoriador.value = false;
-        }
-    };
-    
-    // NOVO: Salva observações gerais (chamado no @blur do textarea)
     const saveGeneralObs = async () => {
         if (vistoria.value.concluida) return;
-
-        // O v-model já atualizou o vistoria.value.observacoes
-        try {
-             await api.patch(`/v1/vistorias/vistorias/${vistoriaId}/`, {
-                observacoes: vistoria.value.observacoes
-            });
-        } catch (error) {
-            console.error(error);
-            alert("Erro ao salvar observações gerais.");
-        }
+        try { await api.patch(`/v1/vistorias/vistorias/${vistoriaId}/`, { observacoes: vistoria.value.observacoes }); } catch (e) {}
     };
 
-    // NOVO: Salva o progresso e notifica
     const saveProgress = async () => {
         isSavingProgress.value = true;
-        try {
-             // Chama o saveGeneralObs para garantir que as últimas observações estejam salvas
-             await saveGeneralObs();
-             // Notificação simples, pois o saveGeneralObs já fez o PATCH
-             alert("Progresso salvo com sucesso!");
-        } catch (error) {
-            // Se o saveGeneralObs falhou, o erro já foi alertado lá
-        } finally {
-            isSavingProgress.value = false;
-        }
+        try { await saveGeneralObs(); alert("Progresso salvo!"); } finally { isSavingProgress.value = false; }
     };
     
-    // Conclui a vistoria
     const concluirVistoria = async () => {
-        if (!confirm("Tem certeza que deseja CONCLUIR esta vistoria? Ela será marcada como finalizada e pronta para gerar o laudo.")) {
+        if (vistoria.value.concluida) {
+            router.push('/vistorias');
             return;
         }
+        if (!confirm("Ao concluir a vistoria, não será mais possível editar os itens ou ambientes. Deseja continuar?")) return;
         
         isConcluindo.value = true;
         try {
-            // Garante que o nome do vistoriador e observações gerais estão atualizados
             await api.patch(`/v1/vistorias/vistorias/${vistoriaId}/`, {
                 concluida: true,
-                observacoes: vistoria.value.observacoes,
-                realizado_por_nome: vistoriadorNome.value
+                observacoes: vistoria.value.observacoes
             });
-            alert("Vistoria concluída e salva!");
-            goBack(); // Volta para a lista
-        } catch (error) {
-            console.error(error);
-            alert("Erro ao concluir a vistoria. Tente novamente.");
-        } finally {
-            isConcluindo.value = false;
+            alert("Vistoria finalizada com sucesso!");
+            router.push('/vistorias');
+        } catch (e) { 
+            console.error(e);
+            alert("Erro ao concluir."); 
+        } finally { 
+            isConcluindo.value = false; 
         }
     };
 
-
-    // --- Ambientes e Itens (Mantidas) ---
-    const openAmbienteModal = () => {
-      // Verifica se a vistoria está concluída para bloquear
-      if (vistoria.value.concluida) return alert("Vistoria concluída. Edição bloqueada.");
-      ambienteForm.value.nome = '';
-      showAmbienteModal.value = true;
-    };
-
+    // --- Ambientes ---
+    const openAmbienteModal = () => { if(vistoria.value.concluida) return; ambienteForm.value.nome = ''; showAmbienteModal.value = true; };
     const saveAmbiente = async () => {
-      if (!ambienteForm.value.nome) return alert("Informe o nome do ambiente");
+      if (!ambienteForm.value.nome) return;
       try {
-        await api.post('/v1/vistorias/ambientes/', {
-          vistoria: vistoriaId,
-          nome: ambienteForm.value.nome,
-        });
-        showAmbienteModal.value = false;
-        loadData();
-      } catch (error) { alert("Erro ao salvar ambiente"); }
+        await api.post('/v1/vistorias/ambientes/', { vistoria: vistoriaId, nome: ambienteForm.value.nome });
+        showAmbienteModal.value = false; loadData();
+      } catch (e) { alert("Erro ao criar ambiente"); }
     };
-
     const deleteAmbiente = async (id: number) => {
-      // Verifica se a vistoria está concluída para bloquear
-      if (vistoria.value.concluida) return alert("Vistoria concluída. Exclusão bloqueada.");
-      if (!confirm("Excluir ambiente e itens?")) return;
-      try {
-        await api.delete(`/v1/vistorias/ambientes/${id}/`);
-        loadData();
-      } catch (error) { alert("Erro ao excluir"); }
+      if(vistoria.value.concluida) return;
+      if(!confirm("Apagar este ambiente e itens?")) return;
+      try { await api.delete(`/v1/vistorias/ambientes/${id}/`); loadData(); } catch (e) { alert("Erro ao apagar"); }
     };
 
-    const openItemModal = (ambienteId: number, item: any = null) => {
-      // Verifica se a vistoria está concluída para bloquear
-      if (vistoria.value.concluida) return alert("Vistoria concluída. Edição bloqueada.");
+    // --- Itens ---
+    const openItemModal = (ambId: number, item: any) => {
+      // Se concluída e não tem item (adicionar), aborta. Se tem item, abre para visualizar.
+      if(vistoria.value.concluida && !item) return;
       
-      currentAmbienteId.value = ambienteId;
+      currentAmbienteId.value = ambId;
       editingItem.value = item;
       selectedFile.value = null;
-      if (item) {
-        itemForm.value = { item: item.item, estado: item.estado, descricao_avaria: item.descricao_avaria };
-      } else {
-        itemForm.value = { item: '', estado: 'BOM', descricao_avaria: '' };
-      }
+      if (item) itemForm.value = { item: item.item, estado: item.estado, descricao_avaria: item.descricao_avaria };
+      else itemForm.value = { item: '', estado: 'BOM', descricao_avaria: '' };
       showItemModal.value = true;
     };
 
-    const triggerFileInput = () => { 
-        if (vistoria.value.concluida) return;
-        fileInput.value?.click(); 
-    };
-    const handleFileUpload = (event: Event) => {
-      const target = event.target as HTMLInputElement;
-      if (target.files && target.files[0]) selectedFile.value = target.files[0];
-    };
-
     const saveItem = async () => {
+      if(vistoria.value.concluida) return;
       if (!itemForm.value.item) return alert("Informe o nome do item");
       try {
         let itemId;
@@ -565,603 +449,327 @@ export default defineComponent({
           itemId = editingItem.value.id;
           await api.patch(`/v1/vistorias/itens/${itemId}/`, itemForm.value);
         } else {
-          const res = await api.post('/v1/vistorias/itens/', {
-            ambiente: currentAmbienteId.value,
-            ...itemForm.value
-          });
+          const res = await api.post('/v1/vistorias/itens/', { ambiente: currentAmbienteId.value, ...itemForm.value });
           itemId = res.data.id;
         }
-
         if (selectedFile.value && itemId) {
           const formData = new FormData();
           formData.append('item', itemId);
           formData.append('foto', selectedFile.value);
-          await api.post('/v1/vistorias/fotos/upload-lote/', formData, {
-             headers: { 'Content-Type': null } 
-          });
+          await api.post('/v1/vistorias/fotos/upload-lote/', formData, { headers: { 'Content-Type': null } });
         }
-        showItemModal.value = false;
-        loadData();
-      } catch (error) { console.error(error); alert("Erro ao salvar item."); }
+        showItemModal.value = false; loadData();
+      } catch (e) { alert("Erro ao salvar item"); }
     };
 
-    // --- Lógica de Assinatura (Mantida) ---
+    const triggerFileInput = () => fileInput.value?.click();
+    const handleFileUpload = (e: Event) => { const t = e.target as HTMLInputElement; if (t.files) selectedFile.value = t.files[0]; };
+
+    // --- Assinatura ---
     const openSignatureModal = async () => {
         showSignatureModal.value = true;
         await nextTick();
         if (signatureCanvas.value) {
-            const parent = signatureCanvas.value.parentElement;
-            if (parent) {
-                signatureCanvas.value.width = parent.clientWidth;
-                signatureCanvas.value.height = 200; // Altura fixa
-            }
+            signatureCanvas.value.width = signatureCanvas.value.offsetWidth;
+            signatureCanvas.value.height = 250;
             ctx.value = signatureCanvas.value.getContext('2d');
-            if (ctx.value) {
-                ctx.value.strokeStyle = "#000000";
-                ctx.value.lineWidth = 2;
-                ctx.value.lineCap = "round";
-            }
+            if (ctx.value) { ctx.value.lineWidth = 2; ctx.value.lineCap = "round"; }
         }
     };
-
-    const closeSignatureModal = () => { showSignatureModal.value = false; };
-
-    const setSigningRole = (role: 'responsavel' | 'locatario') => {
-        signingRole.value = role;
-        clearSignature(); 
-    };
-
+    const closeSignatureModal = () => showSignatureModal.value = false;
+    const setSigningRole = (r: any) => { signingRole.value = r; clearSignature(); };
     const clearSignature = () => {
-        if (ctx.value && signatureCanvas.value) {
-            ctx.value.clearRect(0, 0, signatureCanvas.value.width, signatureCanvas.value.height);
-        }
+        if(ctx.value && signatureCanvas.value) ctx.value.clearRect(0,0,signatureCanvas.value.width, signatureCanvas.value.height);
+        hasSignatureContent.value = false;
     };
-
+    
     const getPos = (e: any) => {
         const rect = signatureCanvas.value?.getBoundingClientRect();
-        if (!rect) return { x: 0, y: 0 };
-        const clientX = e.touches ? e.touches[0].clientX : e.clientX;
-        const clientY = e.touches ? e.touches[0].clientY : e.clientY;
-        return {
-            x: clientX - rect.left,
-            y: clientY - rect.top
-        };
+        return { x: (e.touches ? e.touches[0].clientX : e.clientX) - (rect?.left||0), y: (e.touches ? e.touches[0].clientY : e.clientY) - (rect?.top||0) };
     };
-
-    const startDrawing = (e: MouseEvent) => { isDrawing.value = true; const pos = getPos(e); ctx.value?.beginPath(); ctx.value?.moveTo(pos.x, pos.y); };
-    const draw = (e: MouseEvent) => { if (!isDrawing.value) return; const pos = getPos(e); ctx.value?.lineTo(pos.x, pos.y); ctx.value?.stroke(); };
-    const stopDrawing = () => { isDrawing.value = false; };
-
-    const startDrawingTouch = (e: TouchEvent) => { e.preventDefault(); isDrawing.value = true; const pos = getPos(e); ctx.value?.beginPath(); ctx.value?.moveTo(pos.x, pos.y); };
-    const drawTouch = (e: TouchEvent) => { e.preventDefault(); if (!isDrawing.value) return; const pos = getPos(e); ctx.value?.lineTo(pos.x, pos.y); ctx.value?.stroke(); };
+    const startDrawing = (e: any) => { isDrawing.value=true; hasSignatureContent.value=true; const p=getPos(e); ctx.value?.beginPath(); ctx.value?.moveTo(p.x, p.y); };
+    const draw = (e: any) => { if(!isDrawing.value) return; const p=getPos(e); ctx.value?.lineTo(p.x, p.y); ctx.value?.stroke(); };
+    const stopDrawing = () => isDrawing.value=false;
+    const startDrawingTouch = (e: TouchEvent) => { e.preventDefault(); startDrawing(e); };
+    const drawTouch = (e: TouchEvent) => { e.preventDefault(); draw(e); };
 
     const saveSignature = () => {
-        if (!signatureCanvas.value) return;
+        if(!hasSignatureContent.value) return alert("Por favor, assine antes de salvar.");
         isSaving.value = true;
-        
-        signatureCanvas.value.toBlob(async (blob) => {
-            if (blob) {
-                const formData = new FormData();
-                const fieldName = signingRole.value === 'responsavel' ? 'assinatura_responsavel' : 'assinatura_locatario';
-                formData.append(fieldName, blob, 'assinatura.png');
-                
+        signatureCanvas.value?.toBlob(async (blob) => {
+            if(blob) {
+                const fd = new FormData();
+                const field = signingRole.value === 'responsavel' ? 'assinatura_responsavel' : (signingRole.value === 'proprietario' ? 'assinatura_proprietario' : 'assinatura_locatario');
+                fd.append(field, blob, 'sig.png');
                 try {
-                    await api.patch(`/v1/vistorias/vistorias/${vistoriaId}/`, formData, {
-                        headers: { 'Content-Type': null }
+                    await api.patch(`/v1/vistorias/vistorias/${vistoriaId}/`, fd, {
+                        headers: { 'Content-Type': undefined }
                     });
-                    
-                    alert(`Assinatura de ${signingRole.value === 'responsavel' ? 'Vistoriador' : 'Locatário'} salva com sucesso!`);
-                    clearSignature();
-                    loadData();
-                } catch (error) {
-                    console.error("Erro ao salvar assinatura", error);
-                    alert("Erro ao salvar assinatura.");
-                } finally {
-                    isSaving.value = false;
-                }
+                    alert("Assinatura guardada!");
+                    clearSignature(); loadData();
+                } catch(e) { alert("Erro ao salvar assinatura."); } 
+                finally { isSaving.value = false; }
             }
         });
     };
 
-    // --- Outros ---
     const downloadLaudo = async () => {
         downloading.value = true;
         try {
-            const response = await api.get(`/v1/vistorias/vistorias/${vistoriaId}/gerar-laudo/`, {
-                responseType: 'blob'
-            });
-            const url = window.URL.createObjectURL(new Blob([response.data]));
-            const link = document.createElement('a');
-            link.href = url;
-            link.setAttribute('download', `Laudo_Vistoria_${vistoriaId}.pdf`);
-            document.body.appendChild(link);
-            link.click();
-            link.remove();
-        } catch (error) {
-            console.error("Erro ao baixar PDF", error);
-            alert("Não foi possível gerar o PDF. Tente novamente.");
-        } finally {
-            downloading.value = false;
-        }
+            const res = await api.get(`/v1/vistorias/vistorias/${vistoriaId}/gerar-laudo/`, { responseType: 'blob' });
+            const url = window.URL.createObjectURL(new Blob([res.data]));
+            const link = document.createElement('a'); link.href = url; link.download = `Laudo_${vistoriaId}.pdf`;
+            document.body.appendChild(link); link.click(); link.remove();
+        } catch (e) { alert("Erro no download."); } finally { downloading.value = false; }
     };
 
     const goBack = () => router.push('/vistorias');
     const formatDate = (d: string) => d ? format(new Date(d), 'dd/MM/yyyy') : '--';
     const viewPhoto = (url: string) => window.open(url, '_blank');
-
-    const getStatusClass = (status: string) => {
-        const map: any = { 'NOVO': 's-novo', 'BOM': 's-bom', 'REGULAR': 's-regular', 'RUIM': 's-ruim', 'INOPERANTE': 's-inop' };
-        return map[status];
-    };
-
-    const getTipoClass = (tipo: string) => {
-        if(tipo === 'ENTRADA') return 'type-entrada';
-        if(tipo === 'SAIDA') return 'type-saida';
-        return 'type-periodica';
-    };
+    const getStatusClass = (s: string) => { const m:any = {'NOVO':'text-success','BOM':'text-primary','REGULAR':'text-warning','RUIM':'text-danger','INOPERANTE':'text-dark'}; return m[s]; };
+    const getTipoClass = (t: string) => t==='ENTRADA'?'badge-entrada':(t==='SAIDA'?'badge-saida':'badge-periodica');
 
     onMounted(loadData);
 
     return {
-      vistoria, ambientes, loading, downloading, totalAmbientes, totalItens,
-      isEditingVistoriador, vistoriadorNome, saveVistoriador, isSavingVistoriador, isConcluindo, concluirVistoria, saveGeneralObs, saveProgress, isSavingProgress,
-      showAmbienteModal, ambienteForm, openAmbienteModal, saveAmbiente, deleteAmbiente,
-      showItemModal, itemForm, editingItem, openItemModal, saveItem, 
-      selectedFile, fileInput, triggerFileInput, handleFileUpload,
-      // Assinatura
-      showSignatureModal, openSignatureModal, closeSignatureModal,
-      signatureCanvas, startDrawing, draw, stopDrawing, startDrawingTouch, drawTouch,
-      clearSignature, saveSignature, isSaving, 
-      signingRole, setSigningRole,
-      
-      goBack, downloadLaudo,
-      getStatusClass, getTipoClass, statusOptions, viewPhoto, formatDate
+        vistoria, ambientes, loading, downloading, totalItens, isConcluindo, isSavingProgress,
+        saveGeneralObs, saveProgress, concluirVistoria,
+        showAmbienteModal, showItemModal, showSignatureModal, ambienteForm, itemForm, editingItem, selectedFile,
+        openAmbienteModal, saveAmbiente, deleteAmbiente, openItemModal, saveItem, triggerFileInput, handleFileUpload,
+        signatureCanvas, startDrawing, draw, stopDrawing, startDrawingTouch, drawTouch, clearSignature, saveSignature, isSaving, signingRole, setSigningRole, hasSignatureContent, openSignatureModal, closeSignatureModal,
+        goBack, downloadLaudo, formatDate, viewPhoto, getStatusClass, getTipoClass, statusOptions
     };
   }
 });
 </script>
 
 <style scoped>
-/* =========================================
-   ESTILOS GERAIS E RESPONSIVIDADE
-   ========================================= */
-
+/* ===================================
+   LAYOUT & HEADER
+   =================================== */
 .page-container {
   min-height: 100vh;
-  background-color: #f3f4f6;
-  font-family: 'Inter', sans-serif;
-  /* Espaço para o cabeçalho fixo */
-  padding-top: 100px; 
+  background-color: #f8fafc;
+  font-family: 'Segoe UI', Roboto, sans-serif;
+  padding-bottom: 60px;
 }
 
-/* --- PREMIUM HEADER --- */
-.premium-header {
-  position: fixed; top: 0; left: 64px; right: 0; /* Assume sidebar desktop */
-  background: white; z-index: 100;
-  box-shadow: 0 4px 20px rgba(0,0,0,0.03);
-  border-bottom: 1px solid #e5e7eb;
-}
-
-.header-wrapper {
-  max-width: 1200px; 
-  margin: 0 auto; 
-  padding: 16px 32px;
-}
-
-/* Main Bar (Desktop: Flex horizontal) */
-.main-bar { 
-    display: flex; 
-    justify-content: space-between; 
-    align-items: flex-end; 
-    flex-wrap: wrap; /* Permite quebrar em telas médias */
-}
-
-/* Actions & Progress (Desktop: Horizontal) */
-.actions-section { 
-    display: flex; 
-    align-items: center; 
-    gap: 12px; /* Reduzido para telas menores */
-    margin-top: 10px; /* Espaço para quando o título é longo */
-}
-
-
-/* --- CONTEÚDO PRINCIPAL --- */
-.main-content { 
-    max-width: 900px; 
-    margin: 0 auto; 
-    padding: 0 20px 40px 20px; 
-}
-
-
-/* --- MEDIA QUERY: TABLET E MOBILE (Telas <= 768px) --- */
-@media (max-width: 768px) {
-    .page-container {
-        padding-top: 160px; /* Aumenta o espaço para o cabeçalho empilhado */
-    }
-
-    .premium-header {
-        left: 0; /* Ocupa a largura total na horizontal */
-    }
-
-    .header-wrapper {
-        padding: 10px 15px;
-    }
-    
-    .main-bar {
-        flex-direction: column; /* Empilha o título e as ações */
-        align-items: flex-start;
-    }
-
-    .title-section {
-        width: 100%;
-        margin-bottom: 15px;
-    }
-    
-    .actions-section {
-        width: 100%;
-        flex-direction: column; /* Empilha os botões */
-        align-items: stretch;
-        gap: 8px; /* Reduz o espaçamento entre botões */
-    }
-
-    /* Força os botões a ocuparem 100% da largura */
-    .btn-secondary-premium,
-    .btn-finish-premium {
-        width: 100%;
-        text-align: center;
-        justify-content: center;
-        margin: 0 !important; 
-    }
-    
-    /* Vistoriador Card */
-    .vistoriador-info-card {
-        padding: 0 15px;
-    }
-    .info-edit-mode {
-        flex-direction: column;
-        align-items: stretch;
-    }
-    .info-edit-mode input,
-    .info-edit-mode button {
-        width: 100%;
-    }
-
-    /* Metainfo fica em coluna ou ajusta */
-    .meta-info {
-        flex-direction: column;
-        align-items: flex-start;
-        gap: 5px;
-    }
-    .meta-separator {
-        display: none;
-    }
-}
-
-
-/* =========================================
-   Estilos do Novo Bloco Vistoriador
-   ========================================= */
-.vistoriador-info-card {
-    max-width: 900px;
-    margin: 10px auto 20px auto;
-    padding: 0 20px;
-}
-.info-display {
-    padding: 10px;
-    background: #eef;
-    border-radius: 6px;
-    font-size: 14px;
-    display: flex;
-    align-items: center;
-    gap: 5px;
-    font-weight: 500;
-}
-.btn-edit-inline {
-    background: none;
-    border: none;
-    color: #3b82f6;
-    margin-left: 10px;
-    cursor: pointer;
-    font-size: 12px;
-}
-.info-edit-mode {
-    display: flex;
-    gap: 10px;
-    align-items: center;
-    padding: 10px;
-    background: #fff;
-    border: 1px solid #ccc;
-    border-radius: 6px;
-}
-.info-edit-mode input {
-    flex-grow: 1;
-    padding: 8px;
-    border: 1px solid #ccc;
-    border-radius: 4px;
-    font-size: 14px;
-}
-.btn-save-inline {
-    background: #10b981;
-    color: white;
-    border: none;
-    padding: 8px 15px;
-    border-radius: 4px;
-    cursor: pointer;
-}
-.btn-cancel-inline {
-    background: #ccc;
-    border: none;
-    padding: 8px 15px;
-    border-radius: 4px;
-    cursor: pointer;
-}
-
-/* =========================================
-   Estilos de Componentes (Fixos)
-   ========================================= */
-
-/* --- PREMIUM HEADER --- */
-.top-bar { margin-bottom: 8px; }
-.breadcrumb-item { font-size: 12px; color: #6b7280; }
-.breadcrumb-item span { cursor: pointer; transition: color 0.2s; }
-.breadcrumb-item span:hover { color: #3b82f6; text-decoration: underline; }
-.breadcrumb-item.active { color: #111827; font-weight: 500; }
-
-.title-section h1 {
-  font-size: 24px; font-weight: 700; color: #111827; margin: 0; letter-spacing: -0.5px;
-}
-
-.status-pill {
-  font-size: 11px; font-weight: 700; text-transform: uppercase; padding: 4px 10px;
-  border-radius: 20px; letter-spacing: 0.5px;
-}
-.type-entrada { background: #dcfce7; color: #15803d; }
-.type-saida { background: #fee2e2; color: #b91c1c; }
-.type-periodica { background: #e0f2fe; color: #0369a1; }
-
-.meta-info {
-  display: flex; align-items: center; gap: 12px; margin-top: 8px; flex-wrap: wrap;
-}
-.meta-item { font-size: 13px; color: #4b5563; display: flex; align-items: center; gap: 6px; }
-
-
-/* Actions & Progress */
-.progress-widget { min-width: 140px; }
-.progress-labels { display: flex; justify-content: space-between; font-size: 11px; margin-bottom: 4px; }
-.progress-labels .label { color: #9ca3af; font-weight: 600; text-transform: uppercase; }
-.progress-labels .value { color: #111827; font-weight: 700; }
-.progress-track { width: 100%; height: 6px; background: #f3f4f6; border-radius: 3px; overflow: hidden; }
-.progress-fill { height: 100%; background: #3b82f6; border-radius: 3px; }
-
-/* Botões */
-.btn-finish-premium {
-  background: #111827; color: white; border: none; padding: 12px 24px;
-  border-radius: 8px; font-weight: 600; display: flex; align-items: center; gap: 8px;
-  transition: all 0.2s; box-shadow: 0 4px 12px rgba(0,0,0,0.1); cursor: pointer;
-}
-.btn-finish-premium:hover { background: #000; transform: translateY(-1px); }
-.btn-concluir {
-    background-color: #10b981 !important; /* Verde Concluir */
-    border: 1px solid #10b981 !important;
-}
-.btn-concluir:hover { background-color: #0d9475 !important; }
-
-
-.btn-secondary-premium {
-  background: white; border: 1px solid #d1d5db; color: #374151; padding: 12px 20px;
-  border-radius: 8px; font-weight: 600; display: flex; align-items: center; gap: 8px;
-  transition: all 0.2s; cursor: pointer;
-}
-.btn-secondary-premium:hover { background: #f9fafb; border-color: #9ca3af; }
-
-/* --- CONTENT --- */
-/* Empty State */
-.empty-state-modern {
-  text-align: center; padding: 80px 20px;
-  background: white; border-radius: 16px; border: 2px dashed #e5e7eb;
-}
-.empty-illustration {
-  font-size: 48px; color: #d1d5db; margin-bottom: 16px;
-  background: #f9fafb; width: 100px; height: 100px; line-height: 100px;
-  border-radius: 50%; margin: 0 auto 24px auto;
-}
-.empty-state-modern h3 { font-size: 18px; font-weight: 600; color: #111827; }
-.btn-primary-hero {
-  background: #3b82f6; color: white; border: none; padding: 12px 28px;
-  border-radius: 8px; font-weight: 600; margin-top: 24px; cursor: pointer;
-  transition: background 0.2s;
-}
-.btn-primary-hero:hover { background: #2563eb; }
-
-/* Cards Ambiente */
-.ambiente-card {
-  background: white; border-radius: 12px; border: 1px solid #e5e7eb;
-  margin-bottom: 24px; box-shadow: 0 2px 4px rgba(0,0,0,0.02); overflow: hidden;
-}
-.ambiente-header {
-  padding: 16px 24px; border-bottom: 1px solid #f3f4f6; background: #ffffff;
-  display: flex; justify-content: space-between; align-items: center;
-}
-.icon-box {
-  width: 40px; height: 40px; background: #f0f9ff; color: #0284c7;
-  border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 18px;
-}
-.ambiente-name { margin: 0; font-size: 16px; font-weight: 700; color: #1e293b; }
-.ambiente-meta { font-size: 12px; color: #64748b; }
-
-.btn-icon-subtle {
-  width: 32px; height: 32px; border-radius: 6px; border: none; background: transparent;
-  color: #94a3b8; cursor: pointer; transition: all 0.2s;
-}
-.btn-icon-subtle:hover { background: #f1f5f9; color: #475569; }
-.btn-icon-subtle.danger:hover { background: #fee2e2; color: #ef4444; }
-
-/* Item Row */
-.item-row {
-  display: flex; padding: 16px 24px; border-bottom: 1px solid #f1f5f9;
-  transition: background 0.1s;
-}
-.item-row:hover { background: #fcfcfc; }
-.item-row:last-child { border-bottom: none; }
-
-.item-col-main { flex: 1; padding-right: 16px; }
-.item-title { font-weight: 600; font-size: 14px; color: #334155; }
-
-.status-badge-sm {
-  font-size: 10px; font-weight: 700; text-transform: uppercase; padding: 2px 8px;
-  border-radius: 4px; letter-spacing: 0.5px;
-}
-.s-novo { background: #dcfce7; color: #166534; }
-.s-bom { background: #dbeafe; color: #1e40af; }
-.s-regular { background: #fef9c3; color: #854d0e; }
-.s-ruim { background: #fee2e2; color: #991b1b; }
-.s-inop { background: #1e293b; color: #fff; }
-
-.item-obs { font-size: 13px; color: #64748b; margin: 4px 0; line-height: 1.5; }
-
-/* Mini Gallery */
-.mini-gallery { display: flex; gap: 8px; margin-top: 10px; }
-.mini-thumb {
-  width: 40px; height: 40px; border-radius: 6px; overflow: hidden;
-  border: 1px solid #e2e8f0; cursor: pointer; transition: transform 0.2s;
-}
-.mini-thumb:hover { transform: scale(1.1); border-color: #3b82f6; }
-.mini-thumb img { width: 100%; height: 100%; object-fit: cover; }
-
-.btn-edit-round {
-  width: 36px; height: 36px; border-radius: 50%; border: 1px solid #e2e8f0;
-  background: white; color: #64748b; display: flex; align-items: center; justify-content: center;
-  cursor: pointer; transition: all 0.2s;
-}
-.btn-edit-round:hover { border-color: #3b82f6; color: #3b82f6; }
-
-/* Add Item Footer */
-.ambiente-footer { padding: 12px 24px; background: #f8fafc; border-top: 1px solid #f1f5f9; }
-.btn-add-item-dashed {
-  width: 100%; padding: 12px; border: 1px dashed #cbd5e1; background: transparent;
-  border-radius: 8px; font-size: 13px; font-weight: 600; color: #64748b;
-  cursor: pointer; transition: all 0.2s;
-}
-.btn-add-item-dashed:hover { background: #eff6ff; border-color: #93c5fd; color: #2563eb; }
-
-/* Global Add Button */
-.add-ambiente-wrapper { text-align: center; margin-top: 32px; padding-bottom: 40px; }
-.btn-add-ambiente-lg {
-  background: transparent; border: 2px dashed #cbd5e1; color: #64748b;
-  padding: 16px 40px; border-radius: 12px; font-weight: 600; font-size: 15px;
-  cursor: pointer; transition: all 0.2s; display: inline-flex; align-items: center; gap: 10px;
-}
-.btn-add-ambiente-lg:hover { border-color: #64748b; color: #1e293b; background: #f1f5f9; }
-
-/* Card Styling */
-.card { border: 1px solid #e2e8f0; border-radius: 8px; background: #fff; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05); }
-.card-header { 
-    background: #f8fafc; border-bottom: 1px solid #e2e8f0; padding: 12px 16px; 
-    font-size: 16px; font-weight: 600; color: #111827; border-top-left-radius: 8px; border-top-right-radius: 8px;
-}
-.card-body { padding: 16px; }
-
-/* ================= MODAIS ================= */
-.modal-overlay {
-  position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
-  background: rgba(0,0,0,0.5); backdrop-filter: blur(4px); z-index: 1050;
-  display: flex; justify-content: center; align-items: center;
-}
-
-.modal-card {
-  background: white; width: 90%; max-width: 420px; border-radius: 16px;
-  box-shadow: 0 25px 50px -12px rgba(0,0,0,0.25); overflow: hidden;
-  animation: modalPop 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-}
-.modal-card.lg { max-width: 600px; }
-
-@keyframes modalPop { from { transform: scale(0.95); opacity: 0; } to { transform: scale(1); opacity: 1; } }
-
-.modal-top {
-  padding: 20px 24px; border-bottom: 1px solid #f1f5f9; display: flex; justify-content: space-between; align-items: center;
-  background: #ffffff;
-}
-.modal-top h4 { margin: 0; font-size: 18px; font-weight: 700; color: #1e293b; }
-.btn-close-icon { background: none; border: none; font-size: 18px; color: #94a3b8; cursor: pointer; }
-
-.modal-content-box { padding: 24px; max-height: 70vh; overflow-y: auto; }
-.modal-content-box.scrollable { padding-right: 18px; }
-
-.input-label { font-size: 13px; font-weight: 600; color: #334155; margin-bottom: 8px; display: block; }
-.input-styled {
-  width: 100%; padding: 12px; border: 1px solid #cbd5e1; border-radius: 8px;
-  font-size: 14px; color: #1e293b; transition: all 0.2s;
-}
-.input-styled:focus { border-color: #3b82f6; outline: none; box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1); }
-
-/* Status Grid */
-.status-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
-.status-card {
-  border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px; cursor: pointer;
-  display: flex; flex-direction: column; align-items: center; gap: 8px; transition: all 0.2s;
-}
-.status-card:hover { background: #f8fafc; border-color: #cbd5e1; }
-.status-card.active { border-color: #3b82f6; background: #eff6ff; box-shadow: 0 0 0 1px #3b82f6; }
-.status-card span { font-size: 12px; font-weight: 600; color: #475569; }
-.status-dot { width: 12px; height: 12px; border-radius: 50%; }
-
-/* Photo Upload */
-.photo-upload-area {
-  border: 2px dashed #cbd5e1; border-radius: 12px; padding: 32px;
-  text-align: center; cursor: pointer; background: #f8fafc; transition: all 0.2s;
-  display: flex; flex-direction: column; align-items: center; gap: 12px;
-}
-.photo-upload-area:hover { border-color: #3b82f6; background: #eff6ff; }
-.photo-upload-area i { color: #94a3b8; }
-.photo-upload-area span { font-size: 14px; color: #64748b; font-weight: 500; }
-
-.modal-actions {
-  padding: 20px 24px; border-top: 1px solid #f1f5f9; background: #f8fafc;
-  display: flex; justify-content: flex-end; gap: 12px;
-}
-.btn-text { background: none; border: none; font-weight: 600; color: #64748b; cursor: pointer; padding: 10px 20px; }
-.btn-solid { background: #111827; color: white; border: none; padding: 10px 24px; border-radius: 8px; font-weight: 600; cursor: pointer; }
-.btn-solid:hover { background: #000; }
-
-/* CANVAS DE ASSINATURA */
-.signature-wrapper {
-  border: 2px dashed #cbd5e1;
-  border-radius: 8px;
-  background: #fff;
-  cursor: crosshair;
-  overflow: hidden;
-  margin-bottom: 10px;
-}
-.signature-pad {
-  width: 100%;
-  display: block;
-  touch-action: none; /* Importante para não rolar a tela no celular */
-}
-
-/* SELETOR DE ROLE (QUEM ASSINA) */
-.role-selector {
-  display: flex;
-  justify-content: center;
-  gap: 12px;
-}
-.role-btn {
-  border: 1px solid #e5e7eb;
+.page-header {
   background: white;
-  padding: 8px 16px;
-  border-radius: 20px;
-  font-size: 13px;
-  font-weight: 600;
-  color: #6b7280;
-  cursor: pointer;
-  transition: all 0.2s;
+  border-bottom: 1px solid #e2e8f0;
+  padding: 1rem 2rem;
   display: flex;
+  justify-content: space-between;
   align-items: center;
+  flex-wrap: wrap;
+  gap: 1rem;
 }
-.role-btn:hover { background: #f9fafb; }
-.role-btn.active {
-  background: #eff6ff;
-  border-color: #3b82f6;
-  color: #2563eb;
-  box-shadow: 0 0 0 1px #3b82f6;
+
+.header-content { display: flex; align-items: center; gap: 1rem; }
+.btn-back {
+  width: 40px; height: 40px; border-radius: 50%; border: 1px solid #e2e8f0;
+  background: white; color: #64748b; cursor: pointer; display: flex; align-items: center; justify-content: center;
+  transition: all 0.2s;
+}
+.btn-back:hover { background: #f1f5f9; color: #0f172a; }
+
+.header-text h1 { font-size: 1.25rem; font-weight: 700; color: #0f172a; margin: 0; }
+.header-text .subtitle { font-size: 0.85rem; color: #64748b; margin: 2px 0 0 0; }
+
+.badge-tipo { font-size: 0.7rem; padding: 2px 8px; border-radius: 4px; font-weight: 700; text-transform: uppercase; }
+.badge-entrada { background: #dcfce7; color: #166534; }
+.badge-saida { background: #fee2e2; color: #991b1b; }
+.badge-periodica { background: #e0f2fe; color: #075985; }
+
+.badge-status.locked { 
+    background: #e2e8f0; color: #475569; font-size: 0.7rem; padding: 2px 8px; border-radius: 4px; font-weight: 700; text-transform: uppercase; margin-left: 8px;
+}
+
+.header-actions { display: flex; gap: 0.75rem; }
+.btn-action-outline, .btn-action-primary {
+    padding: 0.5rem 1rem; border-radius: 6px; font-weight: 600; font-size: 0.9rem; cursor: pointer;
+    display: flex; align-items: center; justify-content: center; transition: all 0.2s;
+}
+.btn-action-outline { border: 1px solid #cbd5e1; background: white; color: #475569; }
+.btn-action-outline:hover { background: #f8fafc; border-color: #94a3b8; }
+.btn-action-primary { border: none; background: #0f172a; color: white; }
+.btn-action-primary:hover { background: #334155; }
+.btn-action-primary:disabled { opacity: 0.7; cursor: not-allowed; }
+
+/* Locked Alert */
+.locked-alert {
+    background: #fffbeb; border: 1px solid #fcd34d; color: #92400e;
+    padding: 1rem; margin: 1rem 1.5rem; border-radius: 8px; font-size: 0.9rem;
+    display: flex; align-items: center; max-width: 1000px; margin: 1rem auto;
+}
+
+/* ===================================
+   MAIN CONTENT
+   =================================== */
+.main-content {
+    max-width: 1000px; margin: 1rem auto; padding: 0 1.5rem;
+}
+
+/* Status Dashboard */
+.status-dashboard {
+    background: white; border-radius: 12px; padding: 1.5rem; border: 1px solid #e2e8f0;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.05); margin-bottom: 2rem;
+    display: flex; flex-wrap: wrap; gap: 1.5rem; align-items: center;
+}
+.status-item { flex: 1; min-width: 200px; display: flex; gap: 1rem; align-items: center; }
+.main-location .icon { font-size: 1.5rem; color: #3b82f6; background: #eff6ff; width: 48px; height: 48px; display: flex; align-items: center; justify-content: center; border-radius: 10px; }
+.status-item .text label { display: block; font-size: 0.75rem; color: #64748b; text-transform: uppercase; font-weight: 600; }
+.status-item .text strong { display: block; font-size: 0.95rem; color: #0f172a; }
+
+.progress-area { flex: 1.5; display: block; }
+.progress-area label { font-size: 0.8rem; font-weight: 600; color: #475569; }
+.progress-val { float: right; font-size: 0.8rem; font-weight: 700; color: #3b82f6; }
+.progress-bar-bg { width: 100%; height: 8px; background: #f1f5f9; border-radius: 4px; overflow: hidden; margin-top: 5px; }
+.progress-bar-fill { height: 100%; background: #3b82f6; }
+
+.status-actions { display: flex; gap: 0.5rem; }
+.btn-dashboard {
+    background: #f8fafc; border: 1px solid #e2e8f0; color: #475569; padding: 0.5rem 1rem;
+    border-radius: 6px; font-size: 0.85rem; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 0.5rem;
+}
+.btn-dashboard:hover { background: #f1f5f9; color: #0f172a; border-color: #cbd5e1; }
+
+/* Grid Layout (Info) */
+.grid-layout { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+.info-card { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 1rem; }
+.card-label { font-size: 0.75rem; font-weight: 700; color: #94a3b8; text-transform: uppercase; display: flex; align-items: center; gap: 0.5rem; }
+.info-value { font-weight: 600; color: #334155; }
+.btn-icon-small { border: none; background: none; color: #94a3b8; cursor: pointer; }
+.btn-icon-small:hover { color: #3b82f6; }
+.edit-group { display: flex; gap: 0.5rem; }
+.form-input-sm { flex: 1; padding: 4px 8px; border-radius: 4px; border: 1px solid #cbd5e1; font-size: 0.9rem; }
+.btn-save-sm { background: #10b981; color: white; border: none; border-radius: 4px; padding: 0 8px; cursor: pointer; }
+.form-textarea-transparent { width: 100%; background: transparent; border: none; resize: none; font-size: 0.9rem; color: #334155; padding: 0; outline: none; margin-top: 5px; font-weight: 500; }
+.form-textarea-transparent:focus { border-bottom: 1px dashed #cbd5e1; }
+
+/* Ambiente List */
+.ambientes-list { display: flex; flex-direction: column; gap: 1.5rem; }
+.ambiente-wrapper { background: white; border: 1px solid #e2e8f0; border-radius: 12px; box-shadow: 0 1px 2px rgba(0,0,0,0.02); overflow: hidden; }
+
+.ambiente-header {
+    background: #fcfcfc; padding: 1rem 1.5rem; border-bottom: 1px solid #f1f5f9;
+    display: flex; justify-content: space-between; align-items: center;
+}
+.ambiente-title { font-size: 1.1rem; font-weight: 700; color: #1e293b; display: flex; align-items: center; gap: 0.75rem; }
+.counter-badge { background: #e2e8f0; color: #475569; padding: 2px 8px; border-radius: 12px; font-size: 0.75rem; }
+.btn-tool { width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; border-radius: 6px; border: none; background: transparent; cursor: pointer; color: #94a3b8; transition: all 0.2s; }
+.btn-tool:hover { background: #f1f5f9; color: #475569; }
+.btn-tool.danger:hover { background: #fee2e2; color: #ef4444; }
+
+.ambiente-content { padding: 0; }
+.item-card {
+    display: flex; align-items: stretch; border-bottom: 1px solid #f1f5f9; cursor: pointer;
+    transition: background 0.1s; position: relative;
+}
+.item-card:hover { background: #f8fafc; }
+.item-status-stripe { width: 4px; }
+.item-status-stripe.text-success { background: #22c55e; }
+.item-status-stripe.text-primary { background: #3b82f6; }
+.item-status-stripe.text-warning { background: #f59e0b; }
+.item-status-stripe.text-danger { background: #ef4444; }
+.item-status-stripe.text-dark { background: #475569; }
+
+.item-main { flex: 1; padding: 1rem 1.5rem; }
+.item-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.25rem; }
+.item-name { font-weight: 600; color: #334155; font-size: 0.95rem; }
+.status-tag { font-size: 0.7rem; font-weight: 700; text-transform: uppercase; padding: 2px 6px; border-radius: 4px; background: #f1f5f9; color: #64748b; }
+.item-desc { font-size: 0.85rem; color: #64748b; margin: 0; line-height: 1.4; }
+.item-photos { font-size: 0.75rem; color: #3b82f6; margin-top: 0.5rem; font-weight: 600; }
+.item-arrow { display: flex; align-items: center; padding-right: 1.5rem; color: #cbd5e1; }
+
+.btn-add-item {
+    width: 100%; padding: 1rem; border: none; background: transparent; border-top: 1px solid #f1f5f9;
+    color: #64748b; font-weight: 600; font-size: 0.9rem; cursor: pointer; transition: all 0.2s;
+}
+.btn-add-item:hover { background: #f8fafc; color: #3b82f6; }
+
+.btn-new-ambiente {
+    width: 100%; padding: 1rem; border: 2px dashed #cbd5e1; border-radius: 12px;
+    background: transparent; color: #64748b; font-weight: 600; cursor: pointer; margin-top: 1rem; transition: all 0.2s;
+}
+.btn-new-ambiente:hover { border-color: #94a3b8; color: #475569; background: #f1f5f9; }
+
+/* Empty States */
+.empty-state { text-align: center; padding: 3rem; background: white; border-radius: 12px; border: 1px solid #e2e8f0; }
+.empty-icon { font-size: 2.5rem; color: #cbd5e1; margin-bottom: 1rem; }
+.btn-add-large { background: #0f172a; color: white; padding: 0.75rem 1.5rem; border-radius: 8px; border: none; font-weight: 600; cursor: pointer; margin-top: 1rem; }
+
+.empty-items { text-align: center; padding: 2rem; color: #94a3b8; font-size: 0.9rem; }
+
+/* ===================================
+   MODAIS
+   =================================== */
+.modal-backdrop {
+    position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5);
+    z-index: 2000; display: flex; justify-content: center; align-items: center;
+    backdrop-filter: blur(2px);
+}
+.modal-window {
+    background: white; border-radius: 16px; width: 90%; display: flex; flex-direction: column;
+    box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1); max-height: 90vh;
+}
+.modal-window.small { max-width: 400px; }
+.modal-window.medium { max-width: 600px; }
+
+.modal-h { padding: 1.25rem 1.5rem; border-bottom: 1px solid #f1f5f9; display: flex; justify-content: space-between; align-items: center; }
+.modal-h h4 { margin: 0; font-size: 1.1rem; font-weight: 700; color: #1e293b; }
+.close-modal { background: none; border: none; color: #94a3b8; cursor: pointer; font-size: 1.1rem; }
+
+.modal-b { padding: 1.5rem; overflow-y: auto; flex: 1; }
+.form-group { margin-bottom: 1.25rem; }
+.form-group label { display: block; font-size: 0.85rem; font-weight: 600; color: #475569; margin-bottom: 0.5rem; }
+.form-input, .form-textarea { width: 100%; padding: 0.75rem; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 0.95rem; }
+.form-input:focus, .form-textarea:focus { border-color: #3b82f6; outline: none; ring: 2px solid rgba(59,130,246,0.1); }
+
+.status-selector { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.5rem; }
+.status-option {
+    border: 1px solid #e2e8f0; border-radius: 6px; padding: 0.5rem; text-align: center;
+    font-size: 0.85rem; cursor: pointer; font-weight: 600; color: #64748b;
+}
+.status-option:hover { background: #f8fafc; }
+.status-option.active { border-color: transparent; color: white; }
+.opt-novo.active { background: #22c55e; }
+.opt-bom.active { background: #3b82f6; }
+.opt-regular.active { background: #f59e0b; }
+.opt-ruim.active { background: #ef4444; }
+.opt-inop.active { background: #1e293b; }
+
+.photo-upload {
+    border: 2px dashed #cbd5e1; border-radius: 8px; padding: 1.5rem; text-align: center;
+    cursor: pointer; background: #f8fafc; transition: all 0.2s;
+}
+.photo-upload:hover { border-color: #3b82f6; background: #eff6ff; }
+.upload-content { display: flex; flex-direction: column; align-items: center; gap: 0.5rem; color: #64748b; }
+.photos-row { display: flex; gap: 0.5rem; overflow-x: auto; padding-bottom: 5px; }
+.photo-thumb img { width: 60px; height: 60px; object-fit: cover; border-radius: 6px; border: 1px solid #e2e8f0; }
+
+.role-tabs { display: flex; gap: 0.5rem; margin-bottom: 1rem; background: #f1f5f9; padding: 4px; border-radius: 8px; }
+.role-tabs button { flex: 1; border: none; background: transparent; padding: 0.5rem; font-size: 0.85rem; font-weight: 600; color: #64748b; border-radius: 6px; cursor: pointer; }
+.role-tabs button.active { background: white; color: #0f172a; shadow: 0 1px 2px rgba(0,0,0,0.05); }
+
+.signature-box { border: 1px solid #cbd5e1; border-radius: 8px; height: 200px; position: relative; background: #fcfcfc; cursor: crosshair; }
+.signature-canvas { width: 100%; height: 100%; }
+.signature-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; color: #cbd5e1; font-weight: 700; font-size: 1.5rem; pointer-events: none; opacity: 0.5; }
+.btn-clear-sig { width: 100%; padding: 0.5rem; background: #fee2e2; color: #ef4444; border: none; font-weight: 600; font-size: 0.8rem; border-radius: 6px; margin-top: 0.5rem; cursor: pointer; }
+
+.status-signatures { display: flex; justify-content: space-around; font-size: 0.75rem; border-top: 1px solid #f1f5f9; padding-top: 1rem; }
+.status-signatures span.signed { color: #22c55e; font-weight: 600; }
+.status-signatures span.missing { color: #cbd5e1; }
+
+.modal-f { padding: 1.25rem 1.5rem; border-top: 1px solid #f1f5f9; display: flex; justify-content: flex-end; gap: 0.75rem; background: #fcfcfc; border-bottom-left-radius: 16px; border-bottom-right-radius: 16px; }
+.btn-cancel { background: white; border: 1px solid #cbd5e1; color: #64748b; padding: 0.6rem 1.2rem; border-radius: 6px; font-weight: 600; cursor: pointer; }
+.btn-confirm { background: #0f172a; border: none; color: white; padding: 0.6rem 1.5rem; border-radius: 6px; font-weight: 600; cursor: pointer; }
+
+@media (max-width: 768px) {
+    .page-header { flex-direction: column; align-items: flex-start; gap: 1rem; }
+    .header-actions { width: 100%; display: flex; justify-content: stretch; }
+    .header-actions button { flex: 1; }
+    .grid-layout { grid-template-columns: 1fr; }
+    .status-dashboard { flex-direction: column; align-items: stretch; }
 }
 </style>
