@@ -18,6 +18,10 @@ class Vistoria(models.Model):
     tipo = models.CharField(max_length=20, choices=TIPO_CHOICES)
     data_vistoria = models.DateField()
     observacoes = models.TextField(blank=True, null=True)
+    leitura_agua = models.CharField(max_length=100, blank=True, null=True, verbose_name="Leitura Água")
+    leitura_luz = models.CharField(max_length=100, blank=True, null=True, verbose_name="Leitura Luz")
+    leitura_gas = models.CharField(max_length=100, blank=True, null=True, verbose_name="Leitura Gás")
+    chaves_devolvidas = models.TextField(blank=True, null=True, verbose_name="Chaves Devolvidas")
     
     # Armazena o nome de quem fez (pode ser o usuário logado ou um prestador externo)
     realizado_por_nome = models.CharField(

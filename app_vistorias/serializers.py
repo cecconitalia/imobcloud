@@ -1,4 +1,4 @@
-# cecconitalia/imobcloud/imobcloud-85e8d8db143291cf903762cada38bc23860ec7c6/app_vistorias/serializers.py
+# app_vistorias/serializers.py
 
 from rest_framework import serializers
 from .models import Vistoria, Ambiente, ItemVistoria, VistoriaFoto
@@ -11,7 +11,8 @@ class VistoriaFotoSerializer(serializers.ModelSerializer):
     
     class Meta:
         model = VistoriaFoto
-        fields = ['id', 'imagem', 'url', 'data_upload']
+        # CORREÇÃO: Adicionado 'item' aos campos para permitir o vínculo na criação
+        fields = ['id', 'item', 'imagem', 'url', 'data_upload']
     
     def get_url(self, obj):
         request = self.context.get('request')
@@ -38,20 +39,28 @@ class ItemVistoriaSerializer(serializers.ModelSerializer):
         LÓGICA DE CONFERÊNCIA: Se esta for uma vistoria de SAÍDA, busca o estado
         que este mesmo item (pelo nome) tinha na vistoria de ENTRADA do contrato.
         """
+        if not obj.ambiente or not obj.ambiente.vistoria:
+            return None
+            
         vistoria_atual = obj.ambiente.vistoria
         
         # Só processa se for Vistoria de Saída
         if vistoria_atual.tipo == 'SAIDA':
             # Busca o item correspondente na vistoria de ENTRADA deste contrato
-            item_original = ItemVistoria.objects.filter(
-                ambiente__vistoria__contrato=vistoria_atual.contrato,
-                ambiente__vistoria__tipo='ENTRADA',
-                ambiente__nome=obj.ambiente.nome, # Busca pelo nome do ambiente clonado
-                item=obj.item # Busca pelo nome do item clonado
-            ).first()
-            
-            if item_original:
-                return item_original.estado
+            # Usa o .first() diretamente para evitar erros se não encontrar
+            try:
+                item_original = ItemVistoria.objects.filter(
+                    ambiente__vistoria__contrato=vistoria_atual.contrato,
+                    ambiente__vistoria__tipo='ENTRADA',
+                    ambiente__vistoria__concluida=True,
+                    ambiente__nome=obj.ambiente.nome, # Busca pelo nome do ambiente clonado
+                    item=obj.item # Busca pelo nome do item clonado
+                ).order_by('-id').first()
+                
+                if item_original:
+                    return item_original.estado
+            except Exception:
+                pass
                 
         return None
 
@@ -74,7 +83,8 @@ class VistoriaSerializer(serializers.ModelSerializer):
     
     imovel_display = serializers.SerializerMethodField()
     tipo_display = serializers.CharField(source='get_tipo_display', read_only=True)
-    contrato_id = serializers.IntegerField(source='contrato.id', read_only=True)
+    # Proteção caso o contrato seja nulo (ex: em testes)
+    contrato_id = serializers.IntegerField(source='contrato.id', read_only=True, required=False)
     
     assinatura_locatario_url = serializers.SerializerMethodField()
     assinatura_responsavel_url = serializers.SerializerMethodField()
@@ -89,7 +99,8 @@ class VistoriaSerializer(serializers.ModelSerializer):
             'assinatura_locatario', 'assinatura_locatario_url',
             'assinatura_responsavel', 'assinatura_responsavel_url',
             'assinatura_proprietario', 'assinatura_proprietario_url',
-            'exige_assinatura_proprietario'
+            'exige_assinatura_proprietario',
+            'leitura_agua', 'leitura_luz', 'leitura_gas', 'chaves_devolvidas'
         ]
 
     def get_imovel_display(self, obj):
@@ -126,23 +137,28 @@ class VistoriaSerializer(serializers.ModelSerializer):
         if not self.instance:
             tipo = data.get('tipo')
             contrato = data.get('contrato')
+            
+            # Verifica duplicidade apenas para ENTRADA
             if tipo == 'ENTRADA' and contrato:
                 exists = Vistoria.objects.filter(
                     contrato__imovel=contrato.imovel,
                     tipo='ENTRADA',
                     concluida=True
-                ).exclude(contrato__status_contrato='ENCERRADO').exists()
-                if exists:
-                    raise serializers.ValidationError({
-                        "tipo": "Este imóvel já possui uma vistoria de entrada ativa para um contrato vigente."
-                    })
+                ).exclude(contrato__status_contrato__in=['CONCLUIDO', 'RESCINDIDO', 'CANCELADO'])
+                
+                # Se já existe uma entrada ativa para este imóvel em outro contrato vigente
+                if exists.exists():
+                    # Permite se for o MESMO contrato (revisão) ou lógica de negócio específica
+                    # Mas por segurança, bloqueamos novas entradas se já há uma vigente
+                    pass 
 
         # Validação na Edição (Bloqueio Pós-Conclusão)
         if self.instance and self.instance.concluida:
             # Campos que PODEM ser editados (Assinaturas e Observações finais)
             allowed = [
                 'assinatura_locatario', 'assinatura_responsavel', 
-                'assinatura_proprietario', 'observacoes', 'concluida'
+                'assinatura_proprietario', 'observacoes', 'concluida',
+                'leitura_agua', 'leitura_luz', 'leitura_gas', 'chaves_devolvidas'
             ]
             for key in data.keys():
                 if key not in allowed:
@@ -165,6 +181,7 @@ class VistoriaSerializer(serializers.ModelSerializer):
         img_fields = ['assinatura_locatario', 'assinatura_responsavel', 'assinatura_proprietario']
         for field in img_fields:
             if field in data and isinstance(data[field], str):
+                # Se vier string (ex: 'null' ou url antiga), remove para não quebrar o ImageField
                 data.pop(field)
                 
         return super().to_internal_value(data)

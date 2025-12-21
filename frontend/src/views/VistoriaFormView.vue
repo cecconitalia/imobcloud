@@ -42,11 +42,15 @@
 
             <div class="card-body-main">
               <div class="search-engine-wrapper" v-click-outside="closeDropdown">
+                
                 <div v-if="form.contrato && !showDropdown" class="selected-contract-pill fade-in">
                   <div class="pill-icon"><i class="fas fa-file-contract"></i></div>
                   <div class="pill-text">
-                    <span class="pill-label">Contrato Selecionado</span>
-                    <span class="pill-value">{{ searchQuery }}</span>
+                    <span class="pill-label">Contrato Selecionado (#{{ form.contrato }})</span>
+                    <span class="pill-value text-truncate">{{ currentContratoDisplay.imovel }}</span>
+                    <span class="pill-sub mt-1" v-if="currentContratoDisplay.inquilino">
+                        <i class="far fa-user me-1 text-primary"></i> {{ currentContratoDisplay.inquilino }}
+                    </span>
                   </div>
                   <button v-if="!isEdit" class="btn-change" @click="clearSelection">Alterar</button>
                 </div>
@@ -56,17 +60,18 @@
                   <input 
                     type="text" 
                     v-model="searchQuery" 
-                    placeholder="Digite endereço, inquilino ou número do contrato..."
+                    placeholder="Busque por endereço, inquilino ou ID..."
                     class="main-search-input"
                     @focus="openDropdown"
                     @input="handleInput"
-                    :disabled="isEdit"
+                    :disabled="isEdit || loadingContratos"
                   />
-                  <div v-if="loading" class="input-loader"></div>
+                  <div v-if="loadingContratos" class="input-loader spinner-border spinner-border-sm text-primary"></div>
                 </div>
 
                 <transition name="dropdown-anim">
                   <div v-if="showDropdown && !isEdit" class="search-results-panel">
+                    
                     <div v-if="filteredContratos.length > 0">
                       <div 
                         v-for="c in filteredContratos" 
@@ -77,15 +82,34 @@
                         <div class="result-avatar"><i class="fas fa-map-marker-alt"></i></div>
                         <div class="result-data">
                           <span class="result-title">{{ c.imovel_display }}</span>
-                          <span class="result-sub">Contrato #{{ c.id }} • {{ c.inquilino_nome }}</span>
+                          <span class="result-sub">
+                             Contrato #{{ c.id }} 
+                             <span v-if="c.inquilino_nome"> • <i class="far fa-user mx-1"></i> {{ c.inquilino_nome }}</span>
+                          </span>
                         </div>
-                        <div class="result-tag">{{ c.tipo_contrato }}</div>
+                        <div class="result-tags">
+                            <span class="badge-status">{{ c.status }}</span>
+                        </div>
                       </div>
                     </div>
-                    <div v-else class="no-results">
-                      <i class="fas fa-search-minus mb-2"></i>
-                      <p>Nenhum contrato de aluguel ativo encontrado.</p>
+
+                    <div v-else class="no-results p-4 text-center">
+                      <div v-if="loadingContratos" class="text-muted">
+                          <i class="fas fa-circle-notch fa-spin mb-2"></i>
+                          <p class="small mb-0">Carregando lista de contratos...</p>
+                      </div>
+                      <div v-else>
+                          <i class="fas fa-folder-open mb-3 fs-4 text-muted opacity-50"></i>
+                          <p class="fw-bold text-dark mb-1">Nenhum contrato encontrado.</p>
+                          <p class="small text-muted mb-0" v-if="form.tipo === 'ENTRADA'">
+                              Listando apenas contratos <b>ATIVOS</b> sem vistoria de entrada.
+                          </p>
+                          <p class="small text-muted mb-0" v-else-if="form.tipo === 'SAIDA'">
+                              Listando apenas contratos <b>ATIVOS</b> sem vistoria de saída.
+                          </p>
+                      </div>
                     </div>
+
                   </div>
                 </transition>
               </div>
@@ -107,17 +131,17 @@
                   <label class="form-section-label">Propósito da Vistoria</label>
                   <div class="type-cards-group">
                     <label class="t-card" :class="{ 'active success': form.tipo === 'ENTRADA' }">
-                      <input type="radio" v-model="form.tipo" value="ENTRADA">
+                      <input type="radio" v-model="form.tipo" value="ENTRADA" :disabled="isEdit" @change="fetchContratosAptos">
                       <i class="fas fa-key"></i>
                       <span>Entrada</span>
                     </label>
                     <label class="t-card" :class="{ 'active danger': form.tipo === 'SAIDA' }">
-                      <input type="radio" v-model="form.tipo" value="SAIDA">
+                      <input type="radio" v-model="form.tipo" value="SAIDA" :disabled="isEdit" @change="fetchContratosAptos">
                       <i class="fas fa-door-open"></i>
                       <span>Saída</span>
                     </label>
                     <label class="t-card" :class="{ 'active info': form.tipo === 'PERIODICA' }">
-                      <input type="radio" v-model="form.tipo" value="PERIODICA">
+                      <input type="radio" v-model="form.tipo" value="PERIODICA" :disabled="isEdit" @change="fetchContratosAptos">
                       <i class="fas fa-history"></i>
                       <span>Periódica</span>
                     </label>
@@ -188,7 +212,7 @@
 </template>
 
 <script lang="ts">
-import { defineComponent, ref, onMounted, computed, watch } from 'vue';
+import { defineComponent, ref, onMounted, computed } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
 import api from '@/services/api';
 
@@ -208,11 +232,13 @@ export default defineComponent({
   setup() {
     const router = useRouter();
     const route = useRoute();
+    
     const saving = ref(false);
-    const loading = ref(true);
-    const contratos = ref<any[]>([]);
+    const loadingContratos = ref(false);
+    const contratos = ref<any[]>([]); // Lista que vem da API
     const searchQuery = ref('');
     const showDropdown = ref(false);
+    
     const vistoriaId = route.params.id ? Number(route.params.id) : null;
     const isEdit = computed(() => !!vistoriaId);
 
@@ -225,20 +251,49 @@ export default defineComponent({
       realizado_por_nome: ''
     });
 
+    // Display do contrato selecionado
+    const currentContratoDisplay = computed(() => {
+        const selected = contratos.value.find(c => c.id === form.value.contrato);
+        if (selected) {
+            return {
+                imovel: selected.imovel_display,
+                inquilino: selected.inquilino_nome
+            };
+        }
+        return {
+            imovel: searchQuery.value || 'Contrato Selecionado',
+            inquilino: '' 
+        };
+    });
+
+    // Filtro local da pesquisa
     const filteredContratos = computed(() => {
       const term = searchQuery.value.toLowerCase();
-      if(!term) return contratos.value.slice(0, 5);
+      // Mostra até 10 resultados para facilitar
+      if(!term) return contratos.value.slice(0, 10);
+      
       return contratos.value.filter(c => 
-        c.imovel_display.toLowerCase().includes(term) ||
-        c.inquilino_nome.toLowerCase().includes(term) ||
+        (c.imovel_display || '').toLowerCase().includes(term) ||
+        (c.inquilino_nome || '').toLowerCase().includes(term) ||
         String(c.id).includes(term)
-      ).slice(0, 6);
+      ).slice(0, 10);
     });
 
     const openDropdown = () => { if (!isEdit.value) showDropdown.value = true; };
-    const handleInput = () => { showDropdown.value = true; if (form.value.contrato) form.value.contrato = null; };
+    
+    const handleInput = () => { 
+        showDropdown.value = true; 
+        if (form.value.contrato) form.value.contrato = null; 
+    };
+    
     const closeDropdown = () => { showDropdown.value = false; };
-    const clearSelection = () => { searchQuery.value = ''; form.value.contrato = null; showDropdown.value = true; };
+    
+    const clearSelection = () => { 
+        searchQuery.value = ''; 
+        form.value.contrato = null; 
+        showDropdown.value = true; 
+        fetchContratosAptos(); // Recarrega para mostrar a lista completa
+    };
 
     const selectContrato = (c: any) => {
       form.value.contrato = c.id;
@@ -246,18 +301,54 @@ export default defineComponent({
       showDropdown.value = false;
     };
 
-    const fetchContratos = async () => {
-      loading.value = true;
+    // --- BUSCA DINÂMICA (Back-end Filter) ---
+    const fetchContratosAptos = async () => {
+      if (isEdit.value) return;
+
+      loadingContratos.value = true;
+      contratos.value = [];
+      form.value.contrato = null;
+      searchQuery.value = '';
+
       try {
-        const res = await api.get('/v1/contratos/');
-        const data = res.data.results || res.data;
-        contratos.value = data.map((c: any) => ({
-            id: c.id,
-            imovel_display: c.imovel_detalhes?.endereco_completo || c.imovel_detalhes?.logradouro || `Imóvel #${c.imovel}`,
-            inquilino_nome: c.inquilino_detalhes?.nome_display || 'Inquilino não informado',
-            tipo_contrato: c.tipo_contrato
-        })).filter((c: any) => c.tipo_contrato === 'ALUGUEL');
-      } finally { loading.value = false; }
+        const tipo = form.value.tipo;
+        // Chama a rota corrigida
+        const response = await api.get('/v1/contratos/pendentes_vistoria/', { 
+            params: { tipo: tipo } 
+        });
+        
+        const data = response.data.results || response.data;
+        console.log(`API retornou ${data.length} contratos para ${tipo}`); // DEBUG
+
+        // Mapeia para o formato correto
+        contratos.value = data.map((c: any) => {
+            // Lógica para nome do inquilino (Fallback)
+            let inqNome = 'Locatário';
+            if (c.inquilino_detalhes?.nome_display) inqNome = c.inquilino_detalhes.nome_display;
+            else if (c.inquilino_detalhes?.nome) inqNome = c.inquilino_detalhes.nome;
+            else if (c.inquilino_nome) inqNome = c.inquilino_nome;
+            else if (typeof c.inquilino === 'object' && c.inquilino?.nome) inqNome = c.inquilino.nome;
+
+            // Lógica para imóvel
+            let imovDisp = `Contrato #${c.id}`;
+            if (c.imovel_display) imovDisp = c.imovel_display;
+            else if (c.imovel_detalhes?.endereco_completo) imovDisp = c.imovel_detalhes.endereco_completo;
+            else if (c.imovel_detalhes?.logradouro) imovDisp = c.imovel_detalhes.logradouro;
+
+            return {
+                id: c.id,
+                imovel_display: imovDisp,
+                inquilino_nome: inqNome,
+                tipo_contrato: c.tipo_contrato || 'ALUGUEL',
+                status: c.status_contrato || 'ATIVO'
+            };
+        });
+
+      } catch (error) {
+        console.error("Erro ao buscar contratos:", error);
+      } finally {
+        loadingContratos.value = false;
+      }
     };
 
     const saveVistoria = async () => {
@@ -265,12 +356,17 @@ export default defineComponent({
       saving.value = true;
       try {
         let targetId = vistoriaId;
-        if (isEdit.value) await api.patch(`/v1/vistorias/vistorias/${vistoriaId}/`, form.value);
-        else {
-          const res = await api.post('/v1/vistorias/vistorias/', form.value);
-          targetId = res.data.id;
+        if (isEdit.value) {
+            await api.patch(`/v1/vistorias/vistorias/${vistoriaId}/`, form.value);
+        } else {
+            const res = await api.post('/v1/vistorias/vistorias/', form.value);
+            targetId = res.data.id;
         }
+        
+        // --- CORREÇÃO DE ROTA AQUI ---
+        // Usa o NAME da rota para garantir o match correto
         router.push({ name: 'vistoria-checklist', params: { id: targetId } });
+        
       } catch (error: any) {
         let msg = "Erro técnico ao salvar.";
         if (error.response?.data) {
@@ -281,20 +377,44 @@ export default defineComponent({
       } finally { saving.value = false; }
     };
 
+    const goBack = () => router.push('/vistorias');
+
     onMounted(async () => {
-      await fetchContratos();
       if (isEdit.value) {
+        // Carrega dados da edição
         try {
           const res = await api.get(`/v1/vistorias/vistorias/${vistoriaId}/`);
           Object.assign(form.value, res.data);
-          form.value.data_vistoria = res.data.data_vistoria.split('T')[0];
-          const c = contratos.value.find(x => x.id === form.value.contrato);
-          if (c) searchQuery.value = c.imovel_display;
+          
+          if (res.data.data_vistoria) form.value.data_vistoria = res.data.data_vistoria.split('T')[0];
+          
+          // Carrega o contrato específico
+          if (form.value.contrato) {
+              const cRes = await api.get(`/v1/contratos/${form.value.contrato}/`);
+              const cData = cRes.data;
+              const display = cData.imovel_display || cData.imovel_detalhes?.logradouro || `Contrato #${cData.id}`;
+              const inq = cData.inquilino_detalhes?.nome_display || cData.inquilino_nome || 'Inquilino';
+              
+              searchQuery.value = display;
+              contratos.value = [{ 
+                  id: cData.id, 
+                  imovel_display: display, 
+                  inquilino_nome: inq,
+                  status: cData.status_contrato 
+              }];
+          }
         } catch (e) { router.push('/vistorias'); }
+      } else {
+        // Carrega lista inicial
+        await fetchContratosAptos();
       }
     });
 
-    return { form, filteredContratos, saving, isEdit, loading, searchQuery, showDropdown, openDropdown, handleInput, selectContrato, clearSelection, saveVistoria, goBack: () => router.push('/vistorias'), closeDropdown };
+    return { 
+        form, filteredContratos, saving, isEdit, loadingContratos, searchQuery, showDropdown, 
+        currentContratoDisplay, openDropdown, handleInput, selectContrato, clearSelection, 
+        saveVistoria, goBack, closeDropdown, fetchContratosAptos
+    };
   }
 });
 </script>
@@ -306,7 +426,7 @@ export default defineComponent({
   min-height: 100vh;
   color: #121417;
   font-family: 'Inter', -apple-system, sans-serif;
-  padding-top: 80px; /* Espaço para a nav fixa */
+  padding-top: 80px;
 }
 
 /* NAV HEADER FIXA */
@@ -365,9 +485,11 @@ export default defineComponent({
   padding: 16px; display: flex; align-items: center; gap: 16px;
 }
 .pill-icon { width: 40px; height: 40px; background: white; color: #22c55e; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 1.2rem; }
-.pill-text { flex: 1; display: flex; flex-direction: column; }
+.pill-text { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
 .pill-label { font-size: 11px; font-weight: 700; color: #166534; text-transform: uppercase; }
-.pill-value { font-weight: 600; font-size: 15px; color: #14532d; }
+.pill-value { font-weight: 600; font-size: 15px; color: #14532d; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pill-sub { font-size: 13px; color: #15803d; }
+
 .btn-change { background: white; border: 1px solid #22c55e; padding: 6px 14px; border-radius: 6px; font-size: 12px; font-weight: 700; color: #22c55e; cursor: pointer; }
 
 .search-input-container {
@@ -384,14 +506,15 @@ export default defineComponent({
   z-index: 1000; box-shadow: 0 20px 40px rgba(0,0,0,0.12); overflow: hidden;
 }
 .result-row {
-  display: flex; align-items: center; padding: 16px 20px; cursor: pointer; transition: 0.1s;
+  display: flex; align-items: center; padding: 16px 20px; cursor: pointer; transition: 0.1s; justify-content: space-between;
 }
 .result-row:hover { background: #f8fafc; }
-.result-avatar { width: 40px; height: 40px; background: #eff6ff; color: #3b82f6; border-radius: 8px; display: flex; align-items: center; justify-content: center; margin-right: 16px; }
-.result-data { flex: 1; display: flex; flex-direction: column; }
+.result-avatar { width: 40px; height: 40px; background: #eff6ff; color: #3b82f6; border-radius: 8px; display: flex; align-items: center; justify-content: center; margin-right: 16px; flex-shrink: 0; }
+.result-data { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
 .result-title { font-weight: 600; font-size: 14px; color: #1e293b; }
 .result-sub { font-size: 12px; color: #64748b; }
-.result-tag { background: #f1f5f9; font-size: 10px; font-weight: 700; padding: 4px 8px; border-radius: 4px; color: #475569; }
+.result-tags { display: flex; align-items: center; gap: 8px; margin-left: 12px; }
+.badge-status { font-size: 10px; font-weight: 700; background: #dcfce7; color: #15803d; padding: 4px 8px; border-radius: 6px; text-transform: uppercase; }
 
 /* TYPE CARDS */
 .type-cards-group { display: flex; gap: 16px; margin-top: 12px; }
@@ -450,6 +573,8 @@ input:checked + .toggle-slider:before { transform: translateX(20px); }
 .mb-4 { margin-bottom: 24px; }
 .fade-in { animation: fadeIn 0.4s ease-out; }
 @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+.dropdown-anim-enter-active, .dropdown-anim-leave-active { transition: all 0.3s ease; }
+.dropdown-anim-enter-from, .dropdown-anim-leave-to { opacity: 0; transform: translateY(-10px); }
 
 @media (max-width: 1024px) {
   .content-grid { grid-template-columns: 1fr; }

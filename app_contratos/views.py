@@ -27,6 +27,7 @@ from django.db import transaction
 from django.db.models import Exists, OuterRef, Q, Count, Sum
 from app_financeiro.models import Transacao 
 from app_financeiro.serializers import TransacaoListSerializer 
+from app_vistorias.models import Vistoria
 from rest_framework.views import APIView 
 from django.utils import timezone
 from datetime import timedelta
@@ -45,7 +46,6 @@ except ImportError:
 from ImobCloud.utils.formatacao_util import valor_por_extenso
 
 def get_contrato_context(contrato):
-    # (Função get_contrato_context permanece inalterada)
     valor_total_extenso = "(Valor total não definido)"
     if contrato.valor_total:
         try:
@@ -450,6 +450,80 @@ class ContratoViewSet(viewsets.ModelViewSet):
             return Response({"error": "Contrato não encontrado"}, status=status.HTTP_404_NOT_FOUND)
         except Exception as e:
             return Response({"error": f"Erro interno: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    # =========================================================================
+    # ACTION CORRIGIDA E BLINDADA: PENDENTES VISTORIA
+    # =========================================================================
+    @action(detail=False, methods=['get'])
+    def pendentes_vistoria(self, request):
+        """
+        Lista contratos aptos para vistoria.
+        Lógica:
+        - ENTRADA: Contrato ATIVO (Aluguel) que NÃO tem vistoria de entrada CONCLUÍDA.
+        - SAÍDA: Contrato ATIVO (Aluguel) que NÃO tem vistoria de saída CONCLUÍDA.
+        """
+        tipo = request.query_params.get('tipo', 'ENTRADA')
+        
+        # 1. Recuperar Imobiliária explicitamente
+        user = request.user
+        imobiliaria = getattr(user, 'imobiliaria', None)
+        if hasattr(user, 'perfil') and user.perfil:
+            imobiliaria = user.perfil.imobiliaria
+            
+        if not imobiliaria:
+            return Response([])
+
+        # 2. Queryset Base Limpo e Seguro
+        # Filtrando explicitamente: Apenas desta imobiliária, Apenas Aluguel, Apenas Ativos e Não Excluídos
+        qs = Contrato.objects.filter(
+            imobiliaria=imobiliaria,
+            status_contrato='ATIVO', 
+            tipo_contrato='ALUGUEL',
+            excluido=False
+        )
+
+        # 3. Subqueries de verificação (Vistoria CONCLUÍDA)
+        has_entrada = Vistoria.objects.filter(
+            contrato=OuterRef('pk'), 
+            tipo='ENTRADA', 
+            concluida=True
+        )
+        
+        has_saida = Vistoria.objects.filter(
+            contrato=OuterRef('pk'), 
+            tipo='SAIDA', 
+            concluida=True
+        )
+
+        if tipo == 'ENTRADA':
+            # Contrato ATIVO sem vistoria de entrada feita
+            qs = qs.annotate(ja_tem_entrada=Exists(has_entrada)).filter(ja_tem_entrada=False)
+            
+        elif tipo == 'SAIDA':
+            # Contrato ATIVO sem vistoria de saída feita (independente de ter entrada ou não)
+            qs = qs.annotate(ja_tem_saida=Exists(has_saida)).filter(ja_tem_saida=False)
+        
+        elif tipo == 'PERIODICA':
+            # Para periódica, listamos todos os ativos de aluguel
+            pass 
+            
+        else:
+            return Response(
+                {"error": "Tipo inválido. Use ENTRADA, SAIDA ou PERIODICA."}, 
+                status=400
+            )
+
+        # Ordenação por ID (mais recente por último, ou invertemos com -id)
+        qs = qs.order_by('-id')
+
+        # Serialização padrão
+        page = self.paginate_queryset(qs)
+        if page is not None:
+            serializer = self.get_serializer(page, many=True)
+            return self.get_paginated_response(serializer.data)
+
+        serializer = self.get_serializer(qs, many=True)
+        return Response(serializer.data)
 
 class PagamentoViewSet(viewsets.ModelViewSet):
     serializer_class = PagamentoSerializer
