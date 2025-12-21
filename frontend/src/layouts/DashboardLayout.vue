@@ -116,17 +116,7 @@
         </ul>
       </div>
 
-      <div class="sidebar-footer">
-        <button class="collapse-toggle" @click="toggleCollapseManual" :title="isCollapsed ? 'Fixar Menu Aberto' : 'Recolher Menu'">
-          <i class="fas" :class="isCollapsed ? 'fa-lock' : 'fa-lock-open'"></i>
-          <span class="btn-label">{{ isCollapsed ? 'Fixar Menu' : 'Recolher' }}</span>
-        </button>
-        <button class="logout-btn" @click="logout">
-          <i class="fas fa-sign-out-alt"></i>
-          <span class="btn-label">Sair</span>
-        </button>
-      </div>
-    </aside>
+      </aside>
 
     <div class="sidebar-overlay" @click="closeMobileSidebar"></div>
 
@@ -140,11 +130,39 @@
         </div>
         <div class="header-right">
           <NotificationBell />
-          <div class="user-profile">
-            <div class="avatar-circle">
-              <i class="fas fa-user"></i>
+          
+          <div class="user-dropdown-container">
+            <div class="user-profile" @click.stop="toggleUserMenu">
+              <div class="avatar-circle">
+                <i class="fas fa-user"></i>
+              </div>
+              <i class="fas fa-chevron-down profile-arrow" :class="{ 'rotated': isUserMenuOpen }"></i>
             </div>
+
+            <transition name="fade-in-up">
+              <div v-if="isUserMenuOpen" class="account-menu">
+                <div class="account-menu-header">
+                  <span class="user-name">Usuário ImobCloud</span>
+                </div>
+                <div class="account-menu-body">
+                  <button class="menu-item">
+                    <i class="fas fa-user-circle"></i>
+                    <span>Meu Perfil</span>
+                  </button>
+                  <button class="menu-item">
+                    <i class="fas fa-cog"></i>
+                    <span>Preferências</span>
+                  </button>
+                  <div class="menu-divider"></div>
+                  <button class="menu-item logout" @click="logout">
+                    <i class="fas fa-sign-out-alt"></i>
+                    <span>Sair</span>
+                  </button>
+                </div>
+              </div>
+            </transition>
           </div>
+
         </div>
       </header>
 
@@ -171,6 +189,7 @@ const route = useRoute();
 const isCollapsed = ref(false); 
 const isHovered = ref(false);   
 const isMobileOpen = ref(false); 
+const isUserMenuOpen = ref(false);
 const activeSubmenu = ref<string | null>(null);
 const userManualOverride = ref(false);
 
@@ -203,12 +222,6 @@ function handleResize() {
 }
 
 // --- Ações ---
-function toggleCollapseManual() {
-  isCollapsed.value = !isCollapsed.value;
-  userManualOverride.value = true; 
-  isHovered.value = false;
-}
-
 function openMobileSidebar() { isMobileOpen.value = true; }
 function closeMobileSidebar() { isMobileOpen.value = false; }
 
@@ -225,9 +238,21 @@ function isMenuOpen(menuName: string) {
   return activeSubmenu.value === menuName;
 }
 
+function toggleUserMenu() {
+  isUserMenuOpen.value = !isUserMenuOpen.value;
+}
+
 function logout() {
   localStorage.removeItem('authToken');
+  isUserMenuOpen.value = false;
   router.push('/login');
+}
+
+// Fecha o menu de conta ao clicar fora
+function closeMenus(e: Event) {
+  if (!(e.target as HTMLElement).closest('.user-dropdown-container')) {
+    isUserMenuOpen.value = false;
+  }
 }
 
 // --- Watchers ---
@@ -237,16 +262,19 @@ watch(() => route.fullPath, () => {
   } else {
     isHovered.value = false;
   }
+  isUserMenuOpen.value = false;
 });
 
 // --- Lifecycle ---
 onMounted(() => {
   handleResize();
   window.addEventListener('resize', handleResize);
+  window.addEventListener('click', closeMenus);
 });
 
 onUnmounted(() => {
   window.removeEventListener('resize', handleResize);
+  window.removeEventListener('click', closeMenus);
 });
 </script>
 
@@ -259,7 +287,7 @@ onUnmounted(() => {
   
   /* Cores Principais */
   --primary-color: #007bff;
-  /* NOVO: Gradiente Principal (Azul moderno para Roxo sutil) */
+  /* Gradiente Principal */
   --primary-gradient: linear-gradient(135deg, #007bff 0%, #4f46e5 100%);
   
   /* Cores de Fundo e Texto */
@@ -269,7 +297,7 @@ onUnmounted(() => {
   --text-main: #374151;
   --text-muted: #9ca3af;
 
-  /* NOVO: Gradiente Sutil para estado Ativo (quase transparente) */
+  /* Gradiente Sutil para estado Ativo */
   --active-gradient-bg: linear-gradient(90deg, rgba(0,123,255,0.08) 0%, rgba(79,70,229,0.02) 100%);
   
   --transition-speed: 0.25s;
@@ -305,22 +333,19 @@ onUnmounted(() => {
 /* ESTADO EXPANDIDO POR HOVER */
 .dashboard-layout.sidebar-collapsed .sidebar.sidebar-hover-expanded {
   width: var(--sidebar-width);
-  box-shadow: 6px 0 20px rgba(0,0,0,0.08); /* Sombra mais elegante ao flutuar */
+  box-shadow: 6px 0 20px rgba(0,0,0,0.08);
 }
 
-/* Esconder textos no modo colapsado (sem hover) */
+/* Esconder textos no modo colapsado */
 .dashboard-layout.sidebar-collapsed .sidebar:not(.sidebar-hover-expanded) .brand-text,
 .dashboard-layout.sidebar-collapsed .sidebar:not(.sidebar-hover-expanded) .nav-label,
 .dashboard-layout.sidebar-collapsed .sidebar:not(.sidebar-hover-expanded) .nav-section,
-.dashboard-layout.sidebar-collapsed .sidebar:not(.sidebar-hover-expanded) .arrow-icon,
-.dashboard-layout.sidebar-collapsed .sidebar:not(.sidebar-hover-expanded) .btn-label {
+.dashboard-layout.sidebar-collapsed .sidebar:not(.sidebar-hover-expanded) .arrow-icon {
   display: none;
 }
 
 /* Centralizar ícones no modo colapsado */
-.dashboard-layout.sidebar-collapsed .sidebar:not(.sidebar-hover-expanded) .nav-link,
-.dashboard-layout.sidebar-collapsed .sidebar:not(.sidebar-hover-expanded) .collapse-toggle,
-.dashboard-layout.sidebar-collapsed .sidebar:not(.sidebar-hover-expanded) .logout-btn {
+.dashboard-layout.sidebar-collapsed .sidebar:not(.sidebar-hover-expanded) .nav-link {
   justify-content: center;
   padding-left: 0;
   padding-right: 0;
@@ -328,10 +353,10 @@ onUnmounted(() => {
 
 .dashboard-layout.sidebar-collapsed .sidebar:not(.sidebar-hover-expanded) .nav-icon {
   margin-right: 0;
-  font-size: 1.3rem; /* Ícones ligeiramente maiores no modo mini */
+  font-size: 1.3rem;
 }
 
-/* --- HEADER DA SIDEBAR & LOGO INOVADOR --- */
+/* --- HEADER DA SIDEBAR --- */
 .sidebar-header {
   height: var(--header-height);
   display: flex;
@@ -349,17 +374,15 @@ onUnmounted(() => {
   display: flex; align-items: center; gap: 0.75rem;
 }
 
-/* ESTILO DO NOVO ÍCONE COM DEGRADÊ */
 .brand-icon.brand-gradient {
   width: 38px; height: 38px;
-  /* Aplica o gradiente definido nas variáveis */
   background: var(--primary-gradient);
-  color: white; /* Texto branco para contraste */
-  border-radius: 10px; /* Bordas ligeiramente mais arredondadas */
+  color: white;
+  border-radius: 10px;
   display: flex; align-items: center; justify-content: center;
   font-size: 1.3rem;
   flex-shrink: 0;
-  box-shadow: 0 4px 10px rgba(0, 123, 255, 0.2); /* Sombra suave colorida */
+  box-shadow: 0 4px 10px rgba(0, 123, 255, 0.2);
 }
 
 .brand-text {
@@ -367,7 +390,7 @@ onUnmounted(() => {
   letter-spacing: -0.02em;
 }
 
-/* --- CONTEÚDO --- */
+/* --- CONTEÚDO SIDEBAR --- */
 .sidebar-content {
   flex: 1;
   overflow-y: auto; overflow-x: hidden;
@@ -375,31 +398,28 @@ onUnmounted(() => {
   scrollbar-width: thin;
 }
 
-/* Navegação */
 .nav-list { list-style: none; padding: 0; margin: 0; }
-.nav-item, .nav-item-group { margin-bottom: 0.4rem; /* Mais espaçamento vertical */ }
+.nav-item, .nav-item-group { margin-bottom: 0.4rem; }
 
 .nav-link {
   display: flex; align-items: center;
   padding: 0.75rem 1rem;
   color: var(--text-main); text-decoration: none;
-  border-radius: 10px; /* Bordas mais modernas */
+  border-radius: 10px;
   transition: all 0.2s ease;
   cursor: pointer; white-space: nowrap; font-weight: 500;
   min-height: 46px;
-  position: relative; /* Necessário para a barra lateral do ativo */
+  position: relative;
 }
 
 .nav-link:hover { background-color: #f9fafb; color: #111827; }
 
-/* ESTILO DO ITEM ATIVO COM DEGRADÊ SUTIL */
 .nav-link.active {
-  background: var(--active-gradient-bg); /* Fundo gradiente sutil */
+  background: var(--active-gradient-bg);
   color: var(--primary-color);
   font-weight: 600;
 }
 
-/* Pequena barra lateral colorida no item ativo */
 .nav-link.active::before {
   content: '';
   position: absolute;
@@ -411,22 +431,20 @@ onUnmounted(() => {
   background: var(--primary-gradient);
   border-radius: 0 4px 4px 0;
 }
-/* Remove a barra no modo colapsado para não ficar estranho */
+
 .dashboard-layout.sidebar-collapsed .sidebar:not(.sidebar-hover-expanded) .nav-link.active::before {
   display: none;
 }
-
 
 .nav-icon {
   width: 24px; text-align: center; font-size: 1.1rem;
   margin-right: 0.75rem; flex-shrink: 0;
   transition: margin var(--transition-speed), color 0.2s;
-  color: var(--text-muted); /* Cor padrão mais suave */
+  color: var(--text-muted);
 }
 .nav-link:hover .nav-icon, .nav-link.active .nav-icon {
-  color: var(--primary-color); /* Cor ativa */
+  color: var(--primary-color);
 }
-
 
 .arrow-icon { font-size: 0.75rem; margin-left: auto; transition: transform 0.3s; opacity: 0.7; }
 .nav-item-group.expanded .arrow-icon { transform: rotate(180deg); }
@@ -440,7 +458,6 @@ onUnmounted(() => {
 
 .divider { height: 1px; background: var(--border-color); margin: 1rem 0.5rem; opacity: 0.6; }
 
-/* Submenus */
 .submenu-list {
   list-style: none; padding: 0; margin: 0;
   overflow: hidden; transition: max-height 0.3s ease-in-out;
@@ -451,30 +468,14 @@ onUnmounted(() => {
   transition: color 0.2s, background-color 0.2s; 
   white-space: nowrap;
   border-radius: 8px;
-  margin-left: 0.5rem; /* Pequeno recuo */
+  margin-left: 0.5rem;
 }
 .submenu-list li a:hover { color: #111827; background-color: #f9fafb; }
 .submenu-list li a.active { 
   color: var(--primary-color); 
   font-weight: 600;
-  background-color: var(--active-gradient-bg); /* Fundo sutil também no submenu */
+  background-color: var(--active-gradient-bg);
 }
-
-/* Footer */
-.sidebar-footer {
-  padding: 1rem;
-  border-top: 1px solid var(--border-color);
-  display: flex; flex-direction: column; gap: 0.5rem;
-}
-.collapse-toggle, .logout-btn {
-  width: 100%; display: flex; align-items: center; justify-content: flex-start;
-  gap: 0.75rem; padding: 0.75rem 1rem;
-  border: none; background: transparent; border-radius: 10px;
-  cursor: pointer; color: var(--text-main); font-size: 0.95rem;
-  transition: background 0.2s, color 0.2s; white-space: nowrap;
-}
-.collapse-toggle:hover, .logout-btn:hover { background-color: #f3f4f6; color: #111827; }
-.logout-btn:hover { color: #ef4444; background-color: #fef2f2; }
 
 /* --- MAIN WRAPPER --- */
 .main-wrapper {
@@ -488,26 +489,67 @@ onUnmounted(() => {
   margin-left: var(--sidebar-width-collapsed);
 }
 
-/* --- HEADER --- */
+/* --- TOP HEADER --- */
 .top-header {
   height: var(--header-height); background: #fff;
-  /* Sombra sutil em vez de borda para um look mais moderno */
   box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
-  border-bottom: none;
   display: flex; align-items: center; justify-content: space-between;
   padding: 0 2rem; position: sticky; top: 0; z-index: 40;
 }
 .header-left { display: flex; align-items: center; gap: 1rem; }
 .menu-toggle-btn { display: none; background: none; border: none; font-size: 1.25rem; cursor: pointer; }
 .page-title { font-size: 1.35rem; font-weight: 700; margin: 0; color: #111827; letter-spacing: -0.01em; }
+
 .header-right { display: flex; align-items: center; gap: 1.5rem; }
+
+/* --- USER ACCOUNT DROPDOWN --- */
+.user-dropdown-container {
+  position: relative;
+}
+
+.user-profile {
+  display: flex; align-items: center; gap: 0.5rem; cursor: pointer;
+  padding: 0.25rem; border-radius: 50px; transition: background 0.2s;
+}
+.user-profile:hover { background-color: #f3f4f6; }
+
 .avatar-circle {
   width: 40px; height: 40px; background: #f3f4f6; border-radius: 50%;
   display: flex; align-items: center; justify-content: center; color: #6b7280;
   transition: box-shadow 0.2s;
 }
-.avatar-circle:hover { box-shadow: 0 0 0 2px var(--primary-light); }
 
+.profile-arrow {
+  font-size: 0.8rem; color: var(--text-muted); transition: transform 0.2s;
+}
+.profile-arrow.rotated { transform: rotate(180deg); }
+
+.account-menu {
+  position: absolute; top: calc(100% + 10px); right: 0;
+  width: 220px; background: #fff; border-radius: 12px;
+  box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+  border: 1px solid var(--border-color);
+  overflow: hidden; z-index: 100;
+}
+
+.account-menu-header { padding: 1rem; background-color: #f9fafb; border-bottom: 1px solid var(--border-color); }
+.user-name { font-size: 0.9rem; font-weight: 600; color: #111827; }
+
+.account-menu-body { padding: 0.5rem; }
+
+.menu-item {
+  width: 100%; display: flex; align-items: center; gap: 0.75rem;
+  padding: 0.7rem 0.75rem; border: none; background: transparent;
+  border-radius: 8px; cursor: pointer; color: var(--text-main);
+  font-size: 0.9rem; transition: background 0.2s;
+}
+.menu-item:hover { background-color: #f3f4f6; }
+.menu-item.logout { color: #ef4444; }
+.menu-item.logout:hover { background-color: #fef2f2; }
+
+.menu-divider { height: 1px; background-color: var(--border-color); margin: 0.4rem 0.5rem; }
+
+/* --- PAGE CONTENT --- */
 .page-content { flex: 1; padding: 2rem; overflow-y: auto; background-color: var(--bg-body); }
 
 /* --- MOBILE --- */
@@ -516,19 +558,17 @@ onUnmounted(() => {
   position: fixed; top: 0; left: 0; width: 100%; height: 100%;
   background: rgba(0,0,0,0.4); z-index: 45;
   opacity: 0; visibility: hidden; transition: opacity 0.3s;
-  backdrop-filter: blur(3px); /* Blur no fundo mobile */
+  backdrop-filter: blur(3px);
 }
 
 @media (max-width: 1024px) {
   .sidebar { transform: translateX(-100%); width: var(--sidebar-width) !important; }
   .dashboard-layout.mobile-open .sidebar { transform: translateX(0); box-shadow: 4px 0 15px rgba(0,0,0,0.1); }
   
-  /* Desativa lógica de collapse no mobile */
   .dashboard-layout.sidebar-collapsed .sidebar { width: var(--sidebar-width); }
   
-  /* Garante visibilidade de itens no mobile */
-  .brand-text, .nav-label, .nav-section, .arrow-icon, .btn-label { display: block !important; }
-  .nav-link, .collapse-toggle, .logout-btn { justify-content: flex-start !important; padding-left: 1rem !important; }
+  .brand-text, .nav-label, .nav-section, .arrow-icon { display: block !important; }
+  .nav-link { justify-content: flex-start !important; padding-left: 1rem !important; }
   .nav-link.active::before { display: block !important; }
   
   .main-wrapper { margin-left: 0 !important; }
@@ -536,13 +576,18 @@ onUnmounted(() => {
   .menu-toggle-btn { display: block; }
   .sidebar-header { justify-content: space-between; padding: 0 1.5rem !important; }
   .mobile-close-btn { display: block; }
-  .collapse-toggle { display: none; }
   
   .dashboard-layout.mobile-open .sidebar-overlay { opacity: 1; visibility: visible; }
   .page-content { padding: 1rem; }
+  .top-header { padding: 0 1rem; }
 }
 
-@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+/* Animations */
+.fade-in-up-enter-active { transition: all 0.2s ease-out; }
+.fade-in-up-leave-active { transition: all 0.1s ease-in; }
+.fade-in-up-enter-from { opacity: 0; transform: translateY(10px); }
+.fade-in-up-leave-to { opacity: 0; transform: translateY(5px); }
+
 .fade-enter-active, .fade-leave-active { transition: opacity 0.2s ease; }
 .fade-enter-from, .fade-leave-to { opacity: 0; }
 </style>
