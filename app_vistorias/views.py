@@ -1,7 +1,9 @@
+# C:\wamp64\www\ImobCloud\app_vistorias\views.py
+
 import os
 import base64
 from io import BytesIO
-from PIL import Image
+from PIL import Image, ImageOps
 from datetime import date
 
 from rest_framework import viewsets, status, parsers
@@ -25,49 +27,80 @@ from .serializers import (
 )
 
 # --- FUNÇÃO AUXILIAR DE OTIMIZAÇÃO DE IMAGEM ---
-def optimize_image_to_base64(path, max_size=(1024, 1024), quality=80):
+def optimize_image_to_base64(path, max_size=(600, 450), quality=70):
     """
-    Lê a imagem, redimensiona mantendo a proporção e retorna em Base64.
-    Essencial para não estourar a memória ao gerar PDFs com muitas fotos.
+    Lê a imagem, corrige orientação (EXIF), redimensiona e retorna em Base64.
     """
-    if not path or not os.path.exists(path):
+    if not path:
+        return None
+        
+    # Garante que o caminho é absoluto para o Windows/Linux
+    full_path = path
+    if not os.path.isabs(path):
+        full_path = os.path.join(settings.MEDIA_ROOT, path)
+
+    if not os.path.exists(full_path):
+        print(f"AVISO: Imagem não encontrada no disco: {full_path}")
         return None
     
     try:
-        with Image.open(path) as img:
-            # Tratamento de transparência para PNG/WEBP
+        with Image.open(full_path) as img:
+            # 1. Corrige orientação baseada no EXIF (comum em fotos de celular)
+            img = ImageOps.exif_transpose(img)
+
+            # 2. Converte para RGB se necessário
             if img.mode in ('RGBA', 'P'):
                 background = Image.new('RGB', img.size, (255, 255, 255))
                 background.paste(img, (0, 0), img)
                 img = background
+            elif img.mode != 'RGB':
+                img = img.convert('RGB')
             
-            # Redimensiona mantendo a proporção (Thumbnail respeita aspect ratio)
-            img.thumbnail(max_size)
+            # 3. Compatibilidade de redimensionamento (Pillow antigo vs novo)
+            if hasattr(Image, 'Resampling'):
+                resample_method = Image.Resampling.LANCZOS
+            else:
+                # Fallback para versões antigas do Pillow
+                resample_method = Image.ANTIALIAS
+
+            # 4. Redimensiona (Thumbnail mantém a proporção)
+            img.thumbnail(max_size, resample_method)
             
+            # 5. Salva em buffer
             buffer = BytesIO()
-            img.save(buffer, format="JPEG", quality=quality)
+            img.save(buffer, format="JPEG", quality=quality, optimize=True)
             
             img_str = base64.b64encode(buffer.getvalue()).decode('utf-8')
             return f"data:image/jpeg;base64,{img_str}"
             
     except Exception as e:
-        print(f"Erro ao otimizar imagem {path}: {str(e)}")
+        print(f"ERRO ao processar imagem {full_path}: {str(e)}")
         return None
 
 def link_callback(uri, rel):
     """
     Callback para ajudar o xhtml2pdf a encontrar arquivos estáticos e de mídia.
     """
-    if os.path.isfile(uri): return uri
+    # Se já for um arquivo absoluto
+    if os.path.isfile(uri):
+        return uri
+        
+    # Resolve MEDIA_URL
     if uri.startswith(settings.MEDIA_URL):
         path = os.path.join(settings.MEDIA_ROOT, uri.replace(settings.MEDIA_URL, ""))
+    # Resolve STATIC_URL
     elif uri.startswith(settings.STATIC_URL):
         path = os.path.join(settings.STATIC_ROOT, uri.replace(settings.STATIC_URL, ""))
     else:
         path = finders.find(uri) or uri
+
+    # Verifica se o arquivo existe
     if not os.path.isfile(path):
+        # Tenta corrigir barras invertidas no Windows
         path = path.replace('/', os.sep)
-        if not os.path.isfile(path): return None
+        if not os.path.isfile(path):
+            return None
+            
     return path
 
 # --- VIEWSETS ---
@@ -80,13 +113,11 @@ class VistoriaViewSet(viewsets.ModelViewSet):
         user = self.request.user
         queryset = Vistoria.objects.all() 
         
-        # Filtro de permissão por Imobiliária (Multi-tenant)
         if hasattr(user, 'imobiliaria') and user.imobiliaria:
              queryset = queryset.filter(contrato__imobiliaria=user.imobiliaria)
         elif hasattr(user, 'perfil') and hasattr(user.perfil, 'imobiliaria') and user.perfil.imobiliaria:
              queryset = queryset.filter(contrato__imobiliaria=user.perfil.imobiliaria)
 
-        # Filtros de Query Params
         contrato_id = self.request.query_params.get('contrato')
         tipo = self.request.query_params.get('tipo')
         search = self.request.query_params.get('search')
@@ -109,10 +140,6 @@ class VistoriaViewSet(viewsets.ModelViewSet):
 
     @action(detail=True, methods=['post'], url_path='gerar-saida-da-entrada')
     def gerar_saida_da_entrada(self, request, pk=None):
-        """
-        Gera uma Vistoria de SAÍDA baseada na estrutura de uma Vistoria de ENTRADA (pk).
-        Copia Ambientes e Itens para agilizar a conferência.
-        """
         vistoria_entrada = self.get_object()
 
         if vistoria_entrada.tipo != 'ENTRADA':
@@ -121,7 +148,6 @@ class VistoriaViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_400_BAD_REQUEST
             )
 
-        # 1. Verifica se já existe uma saída em aberto para este contrato
         saida_existente = Vistoria.objects.filter(
             contrato=vistoria_entrada.contrato,
             tipo='SAIDA',
@@ -135,7 +161,6 @@ class VistoriaViewSet(viewsets.ModelViewSet):
             )
 
         try:
-            # 2. Cria a Vistoria de Saída (Cabeçalho)
             vistoria_saida = Vistoria.objects.create(
                 contrato=vistoria_entrada.contrato,
                 tipo='SAIDA',
@@ -145,28 +170,22 @@ class VistoriaViewSet(viewsets.ModelViewSet):
                 exige_assinatura_proprietario=vistoria_entrada.exige_assinatura_proprietario
             )
 
-            # 3. Clona a estrutura (Ambientes e Itens)
             ambientes_entrada = vistoria_entrada.ambientes.all()
             for amb_ent in ambientes_entrada:
-                # Cria Ambiente na Saída
                 amb_sai = Ambiente.objects.create(
                     vistoria=vistoria_saida,
                     nome=amb_ent.nome,
                     observacoes=amb_ent.observacoes
                 )
-
-                # Cria Itens no Ambiente (Mantendo estado para referência ou resetando)
-                # Aqui optamos por manter o estado da entrada como referência inicial
                 itens_entrada = amb_ent.itens.all()
                 for item_ent in itens_entrada:
                     ItemVistoria.objects.create(
                         ambiente=amb_sai,
                         item=item_ent.item,
                         estado=item_ent.estado, 
-                        descricao_avaria="" # Limpa avarias para forçar nova verificação
+                        descricao_avaria="" 
                     )
 
-            # Retorna os dados da nova vistoria
             serializer = self.get_serializer(vistoria_saida)
             return Response(serializer.data, status=status.HTTP_201_CREATED)
             
@@ -181,71 +200,111 @@ class VistoriaViewSet(viewsets.ModelViewSet):
         try:
             vistoria = self.get_object()
             
-            # --- Dados Contextuais ---
+            # --- 1. Dados Contextuais ---
             endereco = "Endereço não disponível"
+            bairro_cidade = ""
             imobiliaria_data = {
                 'nome': "Não Informada",
                 'cnpj': "-",
                 'telefone': "-",
                 'email': "-",
+                'creci': "-"
             }
             
-            if vistoria.contrato and vistoria.contrato.imovel:
-                imovel = vistoria.contrato.imovel
-                endereco = f"{imovel.logradouro}, {imovel.numero or 'S/N'}, {imovel.bairro or ''} - {imovel.cidade or ''}/{imovel.estado or ''}"
+            contrato = vistoria.contrato
+            locatario_nome = "Não informado"
+            locador_nome = "Não informado"
+
+            if contrato:
+                if contrato.inquilino:
+                    locatario_nome = contrato.inquilino.nome
                 
-                if vistoria.contrato.imobiliaria:
-                    imob = vistoria.contrato.imobiliaria
-                    imobiliaria_data['nome'] = imob.nome or "Nome não cadastrado"
-                    imobiliaria_data['cnpj'] = imob.cnpj or "-"
-                    imobiliaria_data['telefone'] = imob.telefone or "-"
-                    imobiliaria_data['email'] = imob.email_contato or "-"
+                if contrato.proprietario:
+                    locador_nome = contrato.proprietario.nome
+
+                if contrato.imovel:
+                    imovel = contrato.imovel
+                    endereco = f"{imovel.logradouro}, {imovel.numero or 'S/N'}"
+                    if imovel.complemento:
+                        endereco += f" - {imovel.complemento}"
+                    bairro_cidade = f"{imovel.bairro or ''} - {imovel.cidade or ''}/{imovel.estado or ''}"
+                
+                if contrato.imobiliaria:
+                    imob = contrato.imobiliaria
+                    imobiliaria_data['nome'] = imob.nome or "Imobiliária"
+                    imobiliaria_data['cnpj'] = imob.cnpj or ""
+                    imobiliaria_data['telefone'] = imob.telefone or ""
+                    imobiliaria_data['email'] = imob.email_contato or ""
+                    imobiliaria_data['creci'] = imob.creci or ""
             
-            # --- Otimização de Assinaturas ---
+            # --- 2. Assinaturas ---
+            # Max size menor para assinaturas (300x100)
             ass_locatario_b64 = None
             if vistoria.assinatura_locatario:
-                ass_locatario_b64 = optimize_image_to_base64(vistoria.assinatura_locatario.path, max_size=(300, 100))
+                ass_locatario_b64 = optimize_image_to_base64(vistoria.assinatura_locatario.name, max_size=(300, 100))
 
             ass_responsavel_b64 = None
             if vistoria.assinatura_responsavel:
-                ass_responsavel_b64 = optimize_image_to_base64(vistoria.assinatura_responsavel.path, max_size=(300, 100))
+                ass_responsavel_b64 = optimize_image_to_base64(vistoria.assinatura_responsavel.name, max_size=(300, 100))
 
             ass_proprietario_b64 = None
             if vistoria.assinatura_proprietario:
-                ass_proprietario_b64 = optimize_image_to_base64(vistoria.assinatura_proprietario.path, max_size=(300, 100))
+                ass_proprietario_b64 = optimize_image_to_base64(vistoria.assinatura_proprietario.name, max_size=(300, 100))
 
-            # --- Preparação dos Ambientes e Fotos ---
+            # --- 3. Processamento de Itens e Coleta de Fotos ---
             ambientes_data = []
+            todas_fotos_anexo = []
+            
             db_ambientes = vistoria.ambientes.all().prefetch_related('itens', 'itens__fotos')
 
             for amb in db_ambientes:
                 itens_data = []
                 for item in amb.itens.all():
-                    fotos_data = []
-                    for foto in item.fotos.all():
-                        if foto.imagem:
-                            # 800x800 é suficiente para PDF A4 e economiza processamento
-                            b64 = optimize_image_to_base64(foto.imagem.path, max_size=(800, 800), quality=75)
-                            if b64:
-                                fotos_data.append(b64)
+                    fotos_item = item.fotos.all()
+                    count_fotos = 0
                     
+                    for foto in fotos_item:
+                        if foto.imagem:
+                            # Passa foto.imagem.name para garantir que o optimize resolva o path
+                            # Tamanho aumentado ligeiramente para qualidade, mas mantendo compressão
+                            b64 = optimize_image_to_base64(foto.imagem.name, max_size=(640, 480), quality=75)
+                            
+                            if b64:
+                                todas_fotos_anexo.append({
+                                    'ambiente': amb.nome,
+                                    'item': item.item,
+                                    'image_data': b64,
+                                    'index': len(todas_fotos_anexo) + 1
+                                })
+                                count_fotos += 1
+                            else:
+                                print(f"Falha ao otimizar foto ID {foto.id}")
+
                     itens_data.append({
                         'item': item.item,
                         'estado': item.estado,
                         'descricao_avaria': item.descricao_avaria,
-                        'fotos': fotos_data
+                        'qtd_fotos': count_fotos
                     })
                 
-                if itens_data: # Só adiciona ambiente se tiver itens
+                if itens_data:
                     ambientes_data.append({
                         'nome': amb.nome,
                         'observacoes': amb.observacoes,
                         'itens': itens_data
                     })
 
-            # ======================================================
-            # TEMPLATE HTML (CORREÇÃO DE SINTAXE DE PÁGINA)
-            # ======================================================
+            # --- 4. Paginação das Fotos (4 por página) ---
+            fotos_paginadas = []
+            chunk_size = 4
+            for i in range(0, len(todas_fotos_anexo), chunk_size):
+                chunk = todas_fotos_anexo[i:i + chunk_size]
+                # Preenche com None se o chunk for menor que 4 (para evitar erro de índice no template)
+                while len(chunk) < 4:
+                    chunk.append(None)
+                fotos_paginadas.append(chunk)
+
+            # --- HTML TEMPLATE ---
             html_template_string = """
             <!DOCTYPE html>
             <html>
@@ -260,151 +319,271 @@ class VistoriaViewSet(viewsets.ModelViewSet):
                         @frame footer_frame {
                             -pdf-frame-content: footerContent;
                             bottom: 0cm;
-                            height: 1.5cm;
+                            height: 1.0cm;
                             margin-left: 1.5cm;
                             margin-right: 1.5cm;
                         }
                     }
-                    body { font-family: Helvetica, sans-serif; font-size: 10pt; color: #2c3e50; line-height: 1.4; }
                     
-                    .header-container { border-bottom: 2px solid #2980b9; padding-bottom: 10px; margin-bottom: 20px; }
-                    .main-title { font-size: 18pt; font-weight: 700; color: #2980b9; text-transform: uppercase; }
-                    .sub-title { font-size: 10pt; color: #7f8c8d; }
-
-                    .section-box { margin-bottom: 20px; }
+                    body { font-family: Helvetica, sans-serif; font-size: 10pt; color: #333; line-height: 1.4; }
+                    
+                    /* Cabeçalho */
+                    .header { text-align: center; border-bottom: 2px solid #444; padding-bottom: 10px; margin-bottom: 20px; }
+                    .header h1 { font-size: 16pt; text-transform: uppercase; margin: 0; color: #2c3e50; }
+                    .header p { font-size: 9pt; color: #7f8c8d; margin: 2px 0; }
+                    
+                    /* Tabelas de Dados */
+                    .data-table { width: 100%; border-collapse: collapse; margin-bottom: 15px; font-size: 9pt; }
+                    .data-table th { background-color: #f2f2f2; text-align: left; padding: 6px; border: 1px solid #ccc; font-weight: bold; width: 25%; }
+                    .data-table td { border: 1px solid #ccc; padding: 6px; }
+                    
+                    /* Títulos de Seção */
                     .section-title { 
-                        font-size: 11pt; font-weight: 700; color: #fff; 
-                        background-color: #34495e; padding: 5px 10px; 
-                        margin-bottom: 10px; border-radius: 2px;
+                        font-size: 11pt; font-weight: bold; color: #fff; 
+                        background-color: #2c3e50; padding: 5px 10px; 
+                        margin-top: 20px; margin-bottom: 10px; 
+                        text-transform: uppercase; border-radius: 3px;
                     }
 
-                    .info-table { width: 100%; border-collapse: collapse; margin-bottom: 10px; }
-                    .info-table td { padding: 4px; vertical-align: top; }
-                    .label { font-weight: bold; color: #555; width: 130px; }
-                    
-                    /* Ambiente e Itens */
-                    .ambiente-section { page-break-inside: avoid; margin-bottom: 15px; border: 1px solid #bdc3c7; border-radius: 4px; overflow: hidden; }
-                    .ambiente-header { 
-                        background-color: #ecf0f1; padding: 8px; 
-                        font-size: 12pt; font-weight: bold; color: #2c3e50;
-                        border-bottom: 1px solid #bdc3c7;
-                    }
-                    .ambiente-obs { padding: 8px; font-style: italic; font-size: 9pt; background: #fff; border-bottom: 1px solid #eee; }
-
-                    .item-row { padding: 10px; border-bottom: 1px solid #eee; background-color: #fff; }
+                    /* Ambientes */
+                    .ambiente-box { margin-bottom: 15px; border: 1px solid #ddd; page-break-inside: avoid; }
+                    .ambiente-header { background-color: #ecf0f1; padding: 6px 10px; font-weight: bold; border-bottom: 1px solid #ddd; }
+                    .item-row { padding: 5px 10px; border-bottom: 1px solid #eee; display: block; }
                     .item-row:last-child { border-bottom: none; }
+                    .estado-badge { 
+                        float: right; font-size: 8pt; padding: 2px 6px; border-radius: 3px; 
+                        font-weight: bold; text-transform: uppercase; border: 1px solid #ccc;
+                    }
+                    .estado-NOVO { background: #d4edda; color: #155724; border-color: #c3e6cb; }
+                    .estado-BOM { background: #cce5ff; color: #004085; border-color: #b8daff; }
+                    .estado-REGULAR { background: #fff3cd; color: #856404; border-color: #ffeeba; }
+                    .estado-RUIM { background: #f8d7da; color: #721c24; border-color: #f5c6cb; }
                     
-                    .item-title { font-weight: bold; font-size: 10pt; color: #333; }
-                    .item-state { float: right; font-weight: bold; font-size: 9pt; padding: 2px 6px; border-radius: 3px; background: #dfe6e9; color: #2d3436; }
-                    .item-obs { margin-top: 5px; color: #e74c3c; font-size: 9pt; }
-
-                    /* Fotos */
-                    .photos-grid { margin-top: 10px; text-align: left; }
-                    .photo-container { display: inline-block; width: 32%; margin-right: 1%; margin-bottom: 5px; vertical-align: top; }
-                    .photo-img { width: 100%; height: auto; border: 1px solid #ddd; padding: 2px; }
-
+                    /* Termos e Texto */
+                    .legal-text { font-size: 9pt; text-align: justify; margin: 10px 0; }
+                    
                     /* Assinaturas */
-                    .assinaturas-box { margin-top: 30px; page-break-inside: avoid; }
-                    .ass-table { width: 100%; margin-top: 20px; }
-                    .ass-cell { text-align: center; width: 33%; vertical-align: bottom; padding: 0 10px; }
-                    .ass-img { max-width: 100%; height: 50px; display: block; margin: 0 auto; }
-                    .ass-line { border-top: 1px solid #333; margin-top: 5px; padding-top: 5px; font-size: 8pt; font-weight: bold; }
+                    .assinaturas-wrapper { margin-top: 40px; page-break-inside: avoid; border-top: 2px solid #444; padding-top: 20px; }
+                    .assinaturas-table { width: 100%; margin-top: 20px; }
+                    .ass-cell { width: 33%; text-align: center; vertical-align: bottom; padding: 0 10px; }
+                    .ass-line { border-top: 1px solid #000; margin-top: 5px; padding-top: 2px; font-size: 8pt; font-weight: bold; }
+                    .ass-img { height: 50px; max-width: 100%; display: block; margin: 0 auto; }
+
+                    /* PÁGINA DE FOTOS (GRID 2x2) */
+                    .photo-page { page-break-before: always; }
+                    .photo-grid-table { width: 100%; border-collapse: separate; border-spacing: 10px; }
+                    .photo-cell { 
+                        width: 50%; 
+                        vertical-align: top; 
+                        padding: 5px; 
+                        border: 1px solid #ddd;
+                        background-color: #fff;
+                        height: 320px; 
+                    }
+                    .photo-wrapper {
+                        width: 100%;
+                        height: 250px; 
+                        text-align: center;
+                        overflow: hidden;
+                        display: block;
+                        margin-bottom: 5px;
+                        vertical-align: middle;
+                    }
+                    .photo-img { 
+                        max-width: 98%; 
+                        max-height: 245px;
+                        width: auto;
+                        height: auto;
+                    }
+                    .photo-caption {
+                        font-size: 8pt;
+                        color: #555;
+                        text-align: center;
+                        height: 40px;
+                        overflow: hidden;
+                        background: #f9f9f9;
+                        padding: 4px;
+                        border-top: 1px solid #eee;
+                    }
                 </style>
             </head>
             <body>
-                <div id="footerContent" style="text-align: right; color: #999; font-size: 8pt;">
-                    Página <pdf:pagenumber> de <pdf:pagecount>
+                <div id="footerContent" style="text-align: right; color: #999; font-size: 8pt; border-top: 1px solid #eee; padding-top: 5px;">
+                    Impresso em {% now "d/m/Y H:i" %} - Página <pdf:pagenumber> de <pdf:pagecount>
                 </div>
 
-                <div class="header-container">
-                    <div class="main-title">Laudo de Vistoria - {{ vistoria.get_tipo_display }}</div>
-                    <div class="sub-title">Ref: #{{ vistoria.id }} | Data: {{ vistoria.data_vistoria|date:"d/m/Y" }}</div>
-                </div>
-                
-                <div class="section-box">
-                    <div class="section-title">DADOS DO IMÓVEL E CONTRATO</div>
-                    <table class="info-table">
-                        <tr><td class="label">Imóvel:</td><td>{{ imovel_endereco }}</td></tr>
-                        <tr><td class="label">Contrato:</td><td>#{{ vistoria.contrato.id }}</td></tr>
-                        <tr><td class="label">Imobiliária:</td><td>{{ imobiliaria.nome }} ({{ imobiliaria.telefone }})</td></tr>
-                        <tr><td class="label">Vistoriador:</td><td>{{ vistoria.realizado_por_nome|default:"-" }}</td></tr>
-                    </table>
+                <div class="header">
+                    <h1>Laudo de Vistoria de Imóvel</h1>
+                    <p>{{ vistoria.get_tipo_display }} - Ref: #{{ vistoria.id }}</p>
+                    <p><strong>{{ imobiliaria.nome }}</strong> - CNPJ: {{ imobiliaria.cnpj }} - CRECI: {{ imobiliaria.creci }}</p>
                 </div>
 
-                {% if vistoria.observacoes %}
-                <div class="section-box">
-                    <div class="section-title">OBSERVAÇÕES GERAIS</div>
-                    <div style="padding: 10px; background: #f9f9f9; border: 1px solid #eee;">
-                        {{ vistoria.observacoes|linebreaksbr }}
-                    </div>
+                <div class="section-title">1. Identificação do Imóvel e Partes</div>
+                <table class="data-table">
+                    <tr>
+                        <th>Imóvel:</th>
+                        <td colspan="3">{{ endereco }}<br/>{{ bairro_cidade }}</td>
+                    </tr>
+                    <tr>
+                        <th>Locador:</th>
+                        <td>{{ locador }}</td>
+                        <th>Locatário:</th>
+                        <td>{{ locatario }}</td>
+                    </tr>
+                    <tr>
+                        <th>Data Vistoria:</th>
+                        <td>{{ vistoria.data_vistoria|date:"d/m/Y" }}</td>
+                        <th>Vistoriador:</th>
+                        <td>{{ vistoria.realizado_por_nome|default:"-" }}</td>
+                    </tr>
+                </table>
+
+                <div class="section-title">2. Leituras de Consumo e Chaves</div>
+                <table class="data-table">
+                    <tr>
+                        <th>Água (Hidrômetro)</th>
+                        <th>Energia (Medidor)</th>
+                        <th>Gás</th>
+                    </tr>
+                    <tr>
+                        <td>{{ vistoria.leitura_agua|default:"Não medido" }}</td>
+                        <td>{{ vistoria.leitura_luz|default:"Não medido" }}</td>
+                        <td>{{ vistoria.leitura_gas|default:"Não medido" }}</td>
+                    </tr>
+                </table>
+                {% if vistoria.chaves_devolvidas %}
+                <div style="background: #f9f9f9; padding: 10px; border: 1px solid #ddd; font-size: 9pt; margin-bottom: 10px;">
+                    <strong>Controle de Chaves:</strong><br/>
+                    {{ vistoria.chaves_devolvidas|linebreaksbr }}
                 </div>
                 {% endif %}
 
-                <div class="section-box">
-                    <div class="section-title">DETALHAMENTO DOS AMBIENTES</div>
-                    
-                    {% for amb in ambientes_data %}
-                        <div class="ambiente-section">
-                            <div class="ambiente-header">{{ amb.nome }}</div>
-                            {% if amb.observacoes %}
-                                <div class="ambiente-obs">Obs: {{ amb.observacoes }}</div>
-                            {% endif %}
+                {% if vistoria.observacoes %}
+                <div class="section-title">3. Observações Gerais</div>
+                <div style="border: 1px solid #ccc; padding: 10px; font-size: 9pt; text-align: justify;">
+                    {{ vistoria.observacoes|linebreaksbr }}
+                </div>
+                {% endif %}
 
-                            {% for item in amb.itens %}
-                                <div class="item-row">
-                                    <div>
-                                        <span class="item-title">{{ item.item }}</span>
-                                        <span class="item-state">{{ item.estado }}</span>
-                                    </div>
-                                    {% if item.descricao_avaria %}
-                                        <div class="item-obs">Avarias/Obs: {{ item.descricao_avaria }}</div>
-                                    {% endif %}
+                <div class="section-title">4. Detalhamento dos Ambientes</div>
+                <p style="font-size: 8pt; color: #666; margin-bottom: 10px;">
+                    Abaixo descreve-se o estado de conservação de cada item. Itens não listados consideram-se inexistentes ou não inspecionados.
+                </p>
 
-                                    {% if item.fotos %}
-                                        <div class="photos-grid">
-                                            {% for foto_b64 in item.fotos %}
-                                                <div class="photo-container">
-                                                    <img src="{{ foto_b64 }}" class="photo-img">
-                                                </div>
-                                            {% endfor %}
-                                        </div>
-                                    {% endif %}
-                                </div>
-                            {% endfor %}
-                        </div>
-                    {% empty %}
-                        <p style="text-align: center; color: #999;">Nenhum ambiente registrado nesta vistoria.</p>
-                    {% endfor %}
+                {% for amb in ambientes_data %}
+                    <div class="ambiente-box">
+                        <div class="ambiente-header">{{ amb.nome }} {% if amb.observacoes %}<span style="font-weight:normal; font-size: 8pt;">({{ amb.observacoes }})</span>{% endif %}</div>
+                        {% for item in amb.itens %}
+                            <div class="item-row">
+                                <strong>{{ item.item }}</strong>
+                                <span class="estado-badge estado-{{ item.estado }}">{{ item.estado }}</span>
+                                {% if item.descricao_avaria %}
+                                    <br/><span style="color: #c0392b; font-size: 8pt;">Obs: {{ item.descricao_avaria }}</span>
+                                {% endif %}
+                                {% if item.qtd_fotos > 0 %}
+                                    <span style="float: right; font-size: 7pt; color: #999; margin-right: 5px;">(Ver anexo)</span>
+                                {% endif %}
+                            </div>
+                        {% endfor %}
+                    </div>
+                {% empty %}
+                    <p>Nenhum ambiente cadastrado.</p>
+                {% endfor %}
+
+                <div class="section-title">5. Termo de Aceite e Responsabilidade</div>
+                <div class="legal-text">
+                    <p>
+                        As partes declaram ter vistoriado o imóvel acima descrito e concordam que o presente laudo reflete fielmente o estado de conservação do mesmo, servindo como parte integrante do Contrato de Locação.
+                    </p>
+                    <p>
+                        <strong>Prazo de Contestação:</strong> O Locatário dispõe de um prazo de <strong>05 (cinco) dias úteis</strong>, a contar do recebimento das chaves (na Entrada) ou da entrega deste laudo, para contestar por escrito qualquer item que julgue estar em desacordo com a realidade do imóvel. Decorrido este prazo sem manifestação, o laudo será considerado aceito em sua totalidade.
+                    </p>
+                    <p>
+                        Para a Vistoria de Saída, o imóvel deverá ser devolvido nas mesmas condições aqui descritas, ressalvado o desgaste natural decorrente do uso normal.
+                    </p>
                 </div>
 
-                <div class="assinaturas-box">
-                    <div class="section-title">ASSINATURAS</div>
-                    <p style="font-size: 8pt; text-align: justify; margin-bottom: 10px;">
-                        As partes declaram ter vistoriado o imóvel e concordam que o presente laudo reflete fielmente o estado de conservação do mesmo.
+                {% if fotos_paginadas %}
+                    <div class="section-title photo-page">6. Anexo Fotográfico</div>
+                    <p style="font-size: 9pt;">Registro visual das condições do imóvel.</p>
+                    
+                    {% for page in fotos_paginadas %}
+                        {% if not forloop.first %}<div class="photo-page"></div>{% endif %}
+                        
+                        <table class="photo-grid-table">
+                            <tr>
+                                <td class="photo-cell">
+                                    {% if page.0 %}
+                                    <div class="photo-wrapper"><img src="{{ page.0.image_data }}" class="photo-img"></div>
+                                    <div class="photo-caption">
+                                        <b>Foto {{ page.0.index }}</b> - {{ page.0.ambiente }}<br/>{{ page.0.item }}
+                                    </div>
+                                    {% endif %}
+                                </td>
+                                
+                                <td class="photo-cell">
+                                    {% if page.1 %}
+                                    <div class="photo-wrapper"><img src="{{ page.1.image_data }}" class="photo-img"></div>
+                                    <div class="photo-caption">
+                                        <b>Foto {{ page.1.index }}</b> - {{ page.1.ambiente }}<br/>{{ page.1.item }}
+                                    </div>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            
+                            {% if page.2 or page.3 %}
+                            <tr>
+                                <td class="photo-cell">
+                                    {% if page.2 %}
+                                    <div class="photo-wrapper"><img src="{{ page.2.image_data }}" class="photo-img"></div>
+                                    <div class="photo-caption">
+                                        <b>Foto {{ page.2.index }}</b> - {{ page.2.ambiente }}<br/>{{ page.2.item }}
+                                    </div>
+                                    {% endif %}
+                                </td>
+                                
+                                <td class="photo-cell">
+                                    {% if page.3 %}
+                                    <div class="photo-wrapper"><img src="{{ page.3.image_data }}" class="photo-img"></div>
+                                    <div class="photo-caption">
+                                        <b>Foto {{ page.3.index }}</b> - {{ page.3.ambiente }}<br/>{{ page.3.item }}
+                                    </div>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% endif %}
+                        </table>
+                        
+                        {% if not forloop.last %}<pdf:nextpage />{% endif %}
+                    {% endfor %}
+                {% endif %}
+
+                <pdf:nextpage /> <div class="assinaturas-wrapper">
+                    <div class="section-title">7. Assinaturas</div>
+                    <p style="font-size: 9pt; margin-bottom: 20px;">
+                        Ao assinar abaixo, as partes validam todo o conteúdo deste documento, incluindo o relatório fotográfico acima.
                     </p>
-                    <table class="ass-table">
+
+                    <table class="assinaturas-table">
                         <tr>
                             <td class="ass-cell">
-                                {% if ass_responsavel_b64 %}<img src="{{ ass_responsavel_b64 }}" class="ass-img">{% endif %}
-                                <div class="ass-line">Vistoriador</div>
+                                {% if ass_locatario_b64 %}<img src="{{ ass_locatario_b64 }}" class="ass-img">{% else %}<br/><br/>{% endif %}
+                                <div class="ass-line">Locatário(a)</div>
                             </td>
                             <td class="ass-cell">
-                                {% if ass_locatario_b64 %}<img src="{{ ass_locatario_b64 }}" class="ass-img">{% endif %}
-                                <div class="ass-line">Locatário</div>
+                                {% if ass_responsavel_b64 %}<img src="{{ ass_responsavel_b64 }}" class="ass-img">{% else %}<br/><br/>{% endif %}
+                                <div class="ass-line">Vistoriador Responsável</div>
                             </td>
                             {% if vistoria.exige_assinatura_proprietario %}
                             <td class="ass-cell">
-                                {% if ass_proprietario_b64 %}<img src="{{ ass_proprietario_b64 }}" class="ass-img">{% endif %}
-                                <div class="ass-line">Proprietário</div>
+                                {% if ass_proprietario_b64 %}<img src="{{ ass_proprietario_b64 }}" class="ass-img">{% else %}<br/><br/>{% endif %}
+                                <div class="ass-line">Proprietário(a)</div>
                             </td>
                             {% endif %}
                         </tr>
                     </table>
                 </div>
-                
-                <div style="text-align: center; font-size: 7pt; color: #ccc; margin-top: 30px;">
-                    Gerado digitalmente por ImobCloud em {% now "d/m/Y H:i" %}
-                </div>
+
             </body>
             </html>
             """
@@ -412,12 +591,16 @@ class VistoriaViewSet(viewsets.ModelViewSet):
             template = Template(html_template_string)
             context = Context({
                 'vistoria': vistoria,
-                'imovel_endereco': endereco,
+                'endereco': endereco,
+                'bairro_cidade': bairro_cidade,
+                'locador': locador_nome,
+                'locatario': locatario_nome,
+                'imobiliaria': imobiliaria_data,
                 'ambientes_data': ambientes_data, 
                 'ass_locatario_b64': ass_locatario_b64,
                 'ass_responsavel_b64': ass_responsavel_b64,
                 'ass_proprietario_b64': ass_proprietario_b64,
-                'imobiliaria': imobiliaria_data
+                'fotos_paginadas': fotos_paginadas
             })
             html_content = template.render(context)
             
@@ -426,7 +609,8 @@ class VistoriaViewSet(viewsets.ModelViewSet):
 
             if not pdf.err:
                 response = HttpResponse(result.getvalue(), content_type='application/pdf')
-                response['Content-Disposition'] = f'attachment; filename="Laudo_{vistoria.id}.pdf"'
+                filename = f"Laudo_{vistoria.tipo}_{vistoria.id}.pdf"
+                response['Content-Disposition'] = f'attachment; filename="{filename}"'
                 return response
             
             return Response({"error": f"Erro PDF: {pdf.err}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

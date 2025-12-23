@@ -1,14 +1,12 @@
 <script setup lang="ts">
 /**
  * IMOBCLOUD - EXECUÇÃO DE VISTORIA
- * Correção Final: Upload de Fotos e Tratamento de Erros
+ * Correção: Feedback de salvamento e tratamento de erros
  */
 
-import { ref, onMounted, computed, nextTick } from 'vue';
+import { ref, onMounted, computed } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import api from '@/services/api';
-import { format } from 'date-fns';
-import { ptBR } from 'date-fns/locale';
 
 // --- Interfaces ---
 interface Foto { id: number; url: string; }
@@ -153,22 +151,31 @@ const isEstadoPior = (item: ItemVistoria) => {
 };
 
 // --- Salvamento e Finalização ---
-const saveGeneralObs = async () => {
+
+// Função interna de salvamento (agora propaga erro)
+const performSave = async () => {
   if (vistoria.value.concluida) return;
-  try { 
-      await api.patch(`/v1/vistorias/vistorias/${vistoriaId}/`, {
-          observacoes: vistoria.value.observacoes,
-          leitura_agua: vistoria.value.leitura_agua,
-          leitura_luz: vistoria.value.leitura_luz,
-          leitura_gas: vistoria.value.leitura_gas,
-          chaves_devolvidas: vistoria.value.chaves_devolvidas
-      }); 
-  } catch (e) { console.error(e); }
+  await api.patch(`/v1/vistorias/vistorias/${vistoriaId}/`, {
+      observacoes: vistoria.value.observacoes,
+      leitura_agua: vistoria.value.leitura_agua,
+      leitura_luz: vistoria.value.leitura_luz,
+      leitura_gas: vistoria.value.leitura_gas,
+      chaves_devolvidas: vistoria.value.chaves_devolvidas
+  });
 };
 
-const saveProgress = async () => { 
+// Função pública com feedback para os botões
+const saveAndNotify = async () => { 
     isSavingProgress.value = true; 
-    try { await saveGeneralObs(); alert("Progresso salvo!"); } finally { isSavingProgress.value = false; } 
+    try { 
+        await performSave(); 
+        alert("Dados salvos com sucesso!"); 
+    } catch (e) { 
+        console.error(e);
+        alert("Erro ao salvar. Verifique sua conexão.");
+    } finally { 
+        isSavingProgress.value = false; 
+    } 
 };
 
 const concluirVistoria = async () => {
@@ -181,7 +188,7 @@ const concluirVistoria = async () => {
     
     isConcluindo.value = true;
     try {
-        await saveGeneralObs();
+        await performSave(); // Garante que o último estado está salvo
         await api.patch(`/v1/vistorias/vistorias/${vistoriaId}/`, { concluida: true });
         alert("Vistoria finalizada com sucesso!");
         router.push('/vistorias');
@@ -346,7 +353,7 @@ onMounted(loadData);
                  <p>{{ totalItens }} itens vistoriados</p>
               </div>
               <div class="summary-percent">{{ progressPercent }}%</div>
-              <button v-if="!vistoria.concluida" @click="saveProgress" class="btn-link" :disabled="isSavingProgress">
+              <button v-if="!vistoria.concluida" @click="saveAndNotify" class="btn-link" :disabled="isSavingProgress">
                   {{ isSavingProgress ? 'Salvando...' : 'Salvar Manualmente' }}
               </button>
            </div>
@@ -405,7 +412,11 @@ onMounted(loadData);
               <div class="form-group"><label>Água</label><div class="input-wrapper"><i class="fas fa-tint icon-water"></i><input v-model="vistoria.leitura_agua" type="text" :disabled="vistoria.concluida"></div></div>
               <div class="form-group"><label>Luz</label><div class="input-wrapper"><i class="fas fa-bolt icon-energy"></i><input v-model="vistoria.leitura_luz" type="text" :disabled="vistoria.concluida"></div></div>
               <div class="form-group"><label>Gás</label><div class="input-wrapper"><i class="fas fa-fire icon-gas"></i><input v-model="vistoria.leitura_gas" type="text" :disabled="vistoria.concluida"></div></div>
-              <button v-if="!vistoria.concluida" @click="saveGeneralObs" class="btn-action primary full-width">Salvar</button>
+              
+              <button v-if="!vistoria.concluida" @click="saveAndNotify" class="btn-action primary full-width" :disabled="isSavingProgress">
+                  <i v-if="isSavingProgress" class="fas fa-spinner fa-spin me-2"></i>
+                  {{ isSavingProgress ? 'Salvando...' : 'Salvar' }}
+              </button>
            </div>
         </div>
 
@@ -413,7 +424,11 @@ onMounted(loadData);
            <div class="card form-card">
               <h3>Chaves</h3>
               <textarea v-model="vistoria.chaves_devolvidas" rows="6" class="std-textarea" placeholder="Descreva as chaves..." :disabled="vistoria.concluida"></textarea>
-              <button v-if="!vistoria.concluida" @click="saveGeneralObs" class="btn-action primary full-width">Salvar</button>
+              
+              <button v-if="!vistoria.concluida" @click="saveAndNotify" class="btn-action primary full-width" :disabled="isSavingProgress">
+                  <i v-if="isSavingProgress" class="fas fa-spinner fa-spin me-2"></i>
+                  {{ isSavingProgress ? 'Salvando...' : 'Salvar' }}
+              </button>
            </div>
         </div>
       </div>

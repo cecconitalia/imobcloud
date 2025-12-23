@@ -1537,3 +1537,27 @@ WARNING 2025-12-21 22:31:51,967 log 8832 9572 Forbidden: /favicon.ico
 WARNING 2025-12-21 22:35:36,791 util 8832 2152 getSize: Not a float '100%'
 WARNING 2025-12-21 22:35:58,485 log 8832 13024 Forbidden: /favicon.ico
 WARNING 2025-12-21 22:36:00,997 log 8832 13024 Forbidden: /favicon.ico
+WARNING 2025-12-23 10:01:22,762 log 960 236 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2025-12-23 10:01:22,768 log 960 2944 Forbidden: /api/v1/financeiro/transacoes/stats/
+WARNING 2025-12-23 10:01:22,770 log 960 9344 Forbidden: /api/v1/alugueis/dashboard-stats/
+WARNING 2025-12-23 10:01:22,791 log 960 9596 Forbidden: /api/v1/stats/
+WARNING 2025-12-23 10:02:22,733 log 960 9596 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2025-12-23 10:03:22,737 log 960 9596 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2025-12-23 10:04:23,098 log 960 9596 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2025-12-23 10:05:23,100 log 960 9596 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2025-12-23 10:16:03,126 util 4620 2392 getSize: Not a float '100%'
+WARNING 2025-12-23 10:24:01,770 util 5756 14952 getSize: Not a float '100%'
+WARNING 2025-12-23 10:34:43,120 util 11640 13252 getSize: Not a float '100%'
+WARNING 2025-12-23 10:44:03,556 util 13140 5648 getSize: Not a float '33%'
+WARNING 2025-12-23 10:44:03,568 util 13140 5648 getSize: Not a float '33%'
+WARNING 2025-12-23 10:44:29,893 util 13140 5648 getSize: Not a float '33%'
+WARNING 2025-12-23 10:48:54,272 util 14768 5640 getSize: Not a float '33%'
+WARNING 2025-12-23 10:49:09,038 util 14768 5640 getSize: Not a float '33%'
+WARNING 2025-12-23 10:49:09,047 util 14768 5640 getSize: Not a float '33%'
+WARNING 2025-12-23 10:57:09,979 util 11888 3208 getSize: Not a float '33%'
+WARNING 2025-12-23 10:57:09,991 util 11888 3208 getSize: Not a float '33%'
+WARNING 2025-12-23 10:57:55,729 util 11888 80 getSize: Not a float '33%'
+WARNING 2025-12-23 11:33:54,858 log 11888 5208 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2025-12-23 11:33:54,870 log 11888 13380 Forbidden: /api/v1/stats/
+WARNING 2025-12-23 11:33:54,870 log 11888 14664 Forbidden: /api/v1/alugueis/dashboard-stats/
+WARNING 2025-12-23 11:33:54,870 log 11888 14160 Forbidden: /api/v1/financeiro/transacoes/stats/

@@ -102,7 +102,7 @@
                           <i class="fas fa-folder-open mb-3 fs-4 text-muted opacity-50"></i>
                           <p class="fw-bold text-dark mb-1">Nenhum contrato encontrado.</p>
                           <p class="small text-muted mb-0" v-if="form.tipo === 'ENTRADA'">
-                              Listando apenas contratos <b>ATIVOS</b> sem vistoria de entrada.
+                              Listando contratos <b>ATIVOS ou RASCUNHO</b> sem vistoria de entrada.
                           </p>
                           <p class="small text-muted mb-0" v-else-if="form.tipo === 'SAIDA'">
                               Listando apenas contratos <b>ATIVOS</b> sem vistoria de saída.

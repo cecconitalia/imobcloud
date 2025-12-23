@@ -452,15 +452,15 @@ class ContratoViewSet(viewsets.ModelViewSet):
             return Response({"error": f"Erro interno: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
     # =========================================================================
-    # ACTION CORRIGIDA E BLINDADA: PENDENTES VISTORIA
+    # ACTION CORRIGIDA: PENDENTES VISTORIA (Inclui RASCUNHO para ENTRADA)
     # =========================================================================
     @action(detail=False, methods=['get'])
     def pendentes_vistoria(self, request):
         """
         Lista contratos aptos para vistoria.
         Lógica:
-        - ENTRADA: Contrato ATIVO (Aluguel) que NÃO tem vistoria de entrada CONCLUÍDA.
-        - SAÍDA: Contrato ATIVO (Aluguel) que NÃO tem vistoria de saída CONCLUÍDA.
+        - ENTRADA: Contratos ATIVOS ou RASCUNHO (Aluguel) que NÃO têm vistoria de entrada CONCLUÍDA.
+        - SAÍDA: Contratos ATIVOS (Aluguel) que NÃO têm vistoria de saída CONCLUÍDA.
         """
         tipo = request.query_params.get('tipo', 'ENTRADA')
         
@@ -474,10 +474,10 @@ class ContratoViewSet(viewsets.ModelViewSet):
             return Response([])
 
         # 2. Queryset Base Limpo e Seguro
-        # Filtrando explicitamente: Apenas desta imobiliária, Apenas Aluguel, Apenas Ativos e Não Excluídos
+        # Filtrando explicitamente: Apenas desta imobiliária, Apenas Aluguel e Não Excluídos.
+        # REMOVIDO filtro status='ATIVO' daqui para aplicar logicamente abaixo.
         qs = Contrato.objects.filter(
             imobiliaria=imobiliaria,
-            status_contrato='ATIVO', 
             tipo_contrato='ALUGUEL',
             excluido=False
         )
@@ -496,16 +496,18 @@ class ContratoViewSet(viewsets.ModelViewSet):
         )
 
         if tipo == 'ENTRADA':
-            # Contrato ATIVO sem vistoria de entrada feita
+            # CORREÇÃO PRINCIPAL: Permite RASCUNHO ou ATIVO
+            qs = qs.filter(status_contrato__in=[Contrato.Status.RASCUNHO, Contrato.Status.ATIVO])
             qs = qs.annotate(ja_tem_entrada=Exists(has_entrada)).filter(ja_tem_entrada=False)
             
         elif tipo == 'SAIDA':
-            # Contrato ATIVO sem vistoria de saída feita (independente de ter entrada ou não)
+            # Para saída, geralmente o contrato já deve estar rodando (ATIVO)
+            qs = qs.filter(status_contrato=Contrato.Status.ATIVO)
             qs = qs.annotate(ja_tem_saida=Exists(has_saida)).filter(ja_tem_saida=False)
         
         elif tipo == 'PERIODICA':
             # Para periódica, listamos todos os ativos de aluguel
-            pass 
+            qs = qs.filter(status_contrato=Contrato.Status.ATIVO)
             
         else:
             return Response(
@@ -513,7 +515,7 @@ class ContratoViewSet(viewsets.ModelViewSet):
                 status=400
             )
 
-        # Ordenação por ID (mais recente por último, ou invertemos com -id)
+        # Ordenação por ID (mais recente primeiro)
         qs = qs.order_by('-id')
 
         # Serialização padrão
@@ -602,7 +604,7 @@ def limpar_estilos_view(request, pk):
         if hasattr(user, 'perfil') and user.perfil:
             imobiliaria = user.perfil.imobiliaria
             
-        contrato = get_object_or_404(Contrato, pk=pk, imobiliaria=imobiliaria)
+        contrato = get_object_or_404(Contrato, pk=pk, contrato__imobiliaria=imobiliaria)
         
         if not contrato.conteudo_personalizado:
             return Response({"message": "Contrato não possui conteúdo personalizado."}, status=status.HTTP_400_BAD_REQUEST)

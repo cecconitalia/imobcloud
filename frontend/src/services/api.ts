@@ -1,6 +1,5 @@
 // frontend/src/services/api.ts
 
-// Usamos 'type' para importar tipos, corrigindo o erro de 'AxiosInstance'
 import axios, { type AxiosInstance, type AxiosError, type AxiosResponse } from 'axios';
 import type { Router } from 'vue-router'; // Apenas para tipagem
 
@@ -12,7 +11,7 @@ const apiClient: AxiosInstance = axios.create({
   },
 });
 
-// Interceptor de Requisição (Permanece inalterado: adiciona o token)
+// Interceptor de Requisição
 apiClient.interceptors.request.use(
   (config) => {
     const token = localStorage.getItem('authToken');
@@ -28,53 +27,47 @@ apiClient.interceptors.request.use(
 
 /**
  * Função para configurar o Interceptor de Resposta de Erro.
- * É chamada em main.ts após a criação do router.
+ * Recebe o Router e a Store de Autenticação para realizar o logout completo.
  */
-export const setupInterceptors = (router: Router) => {
+export const setupInterceptors = (router: Router, authStore: any) => {
     apiClient.interceptors.response.use(
         (response: AxiosResponse) => {
-            // Se a resposta for bem-sucedida, apenas retorne
             return response;
         },
         async (error: AxiosError) => {
             
-            // ==================================================================
-            // CORREÇÃO APLICADA:
-            // Incluído o tratamento para o erro 403, que é o status retornado 
-            // pelo middleware do Django para token expirado/inválido em 
-            // endpoints protegidos (além do 401).
-            // ==================================================================
+            // Tratamento para token expirado ou inválido (401 e 403)
             if (error.response && (error.response.status === 401 || error.response.status === 403)) {
                 
-                console.log("Token expirado, inválido (401/403) ou usuário anônimo. Redirecionando para login.");
+                console.warn("Sessão expirada (401/403). Realizando logout e redirecionando...");
                 
-                // 1. Limpar tokens locais para encerrar a sessão
-                localStorage.removeItem('authToken');
-                localStorage.removeItem('refreshToken');
-                localStorage.removeItem('userCargo');
+                // CORREÇÃO PRINCIPAL:
+                // Chamamos o logout da store. Isso limpa o localStorage E o estado do Pinia.
+                // Se limparmos apenas o localStorage, o Pinia ainda achará que está logado
+                // e o router guard impedirá a ida para o /login.
+                if (authStore && typeof authStore.logout === 'function') {
+                    authStore.logout();
+                } else {
+                    // Fallback de segurança
+                    localStorage.clear();
+                }
                 
-                // 2. Redirecionar para a tela de login se não estiver já nela
+                // Redirecionar para a tela de login se não estiver já nela
                 if (router.currentRoute.value.name !== 'login') {
-                    // Captura a rota completa (path + query params) onde o usuário estava
                     const returnUrl = router.currentRoute.value.fullPath;
                     
-                    // Redireciona passando a URL atual no parâmetro 'next'
                     router.replace({ 
                         name: 'login', 
                         query: { next: returnUrl } 
                     });
                 }
 
-                // Rejeita a promessa com uma mensagem mais clara para o console
-                return Promise.reject(new Error("Sessão encerrada (401/403). Por favor, faça login novamente."));
+                return Promise.reject(new Error("Sessão encerrada. Por favor, faça login novamente."));
             }
 
-            // Para outros erros (404, 500, ou 403 de permissão genuína de negócio
-            // que deve ser tratada pelo componente), rejeita a promessa.
             return Promise.reject(error);
         }
     );
 };
 
-// Exportamos o cliente API como default
 export default apiClient;
