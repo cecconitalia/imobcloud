@@ -15,6 +15,7 @@ from django.conf import settings
 from django.http import HttpResponse
 from django.template import Context, Template
 from django.utils import timezone
+from django.core.files.base import ContentFile  # Import necessário para salvar o arquivo
 from xhtml2pdf import pisa
 from django.contrib.staticfiles import finders
 
@@ -137,6 +138,62 @@ class VistoriaViewSet(viewsets.ModelViewSet):
                 Q(contrato__imovel__logradouro__icontains=search)
             )
         return queryset.order_by('-data_vistoria', '-id')
+
+    @action(detail=True, methods=['post'], url_path='assinar')
+    def assinar(self, request, pk=None):
+        """
+        Recebe a assinatura em Base64 e salva no campo correspondente (Locatário, Responsável, Proprietário).
+        """
+        vistoria = self.get_object()
+        
+        signature_data = request.data.get('assinatura')
+        tipo_assinante = request.data.get('tipo_assinante')
+
+        if not signature_data:
+            return Response({"error": "Dados da assinatura não fornecidos."}, status=status.HTTP_400_BAD_REQUEST)
+        
+        if not tipo_assinante:
+            return Response({"error": "Tipo de assinante não informado."}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            # Decodifica Base64
+            if ";base64," in signature_data:
+                format, imgstr = signature_data.split(';base64,')
+                ext = format.split('/')[-1]
+            else:
+                imgstr = signature_data
+                ext = "png" # Default
+
+            data = base64.b64decode(imgstr)
+            file_name = f"assinatura_{tipo_assinante.lower()}_{vistoria.id}_{int(timezone.now().timestamp())}.{ext}"
+            
+            image_file = ContentFile(data, name=file_name)
+
+            # Mapeia para o campo correto do modelo
+            if tipo_assinante == 'LOCATARIO':
+                vistoria.assinatura_locatario = image_file
+            elif tipo_assinante == 'RESPONSAVEL':
+                vistoria.assinatura_responsavel = image_file
+            elif tipo_assinante == 'PROPRIETARIO':
+                vistoria.assinatura_proprietario = image_file
+            else:
+                return Response(
+                    {"error": f"Tipo de assinante '{tipo_assinante}' inválido. Use LOCATARIO, RESPONSAVEL ou PROPRIETARIO."},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+            vistoria.save()
+            
+            return Response(
+                {"status": "Assinatura salva com sucesso.", "id": vistoria.id, "tipo": tipo_assinante},
+                status=status.HTTP_200_OK
+            )
+
+        except Exception as e:
+            return Response(
+                {"error": f"Erro ao processar assinatura: {str(e)}"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
 
     @action(detail=True, methods=['post'], url_path='gerar-saida-da-entrada')
     def gerar_saida_da_entrada(self, request, pk=None):

@@ -1561,3 +1561,5 @@ WARNING 2025-12-23 11:33:54,858 log 11888 5208 Forbidden: /api/v1/core/usuarios/
 WARNING 2025-12-23 11:33:54,870 log 11888 13380 Forbidden: /api/v1/stats/
 WARNING 2025-12-23 11:33:54,870 log 11888 14664 Forbidden: /api/v1/alugueis/dashboard-stats/
 WARNING 2025-12-23 11:33:54,870 log 11888 14160 Forbidden: /api/v1/financeiro/transacoes/stats/
+WARNING 2025-12-25 12:02:22,453 log 13780 5588 Not Found: /api/v1/vistorias/vistorias/20/assinar/
+WARNING 2025-12-25 12:06:31,390 log 13780 7672 Not Found: /api/v1/vistorias/vistorias/20/assinar/
