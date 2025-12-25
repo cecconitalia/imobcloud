@@ -3,9 +3,8 @@
  * IMOBCLOUD - GESTÃO DE VISTORIAS (LAYOUT FINAL)
  * Engenharia de Software Full Stack Sênior
  * * Atualização: 
- * - Botão Nova Vistoria menor e mais elegante em desktop.
- * - Busca de backend agora inclui inquilino/proprietário.
- * - Ajuste fino de layout da toolbar.
+ * - Melhoria visual na Toolbar (Filtros e Botões).
+ * - Select customizado e alinhamento perfeito de inputs.
  */
 import { ref, onMounted, computed } from 'vue';
 import { useRouter } from 'vue-router';
@@ -296,7 +295,7 @@ onMounted(async () => {
           <i class="fas fa-search search-icon"></i>
           <input 
             type="text" 
-            placeholder="Buscar..." 
+            placeholder="Buscar por imóvel, contrato ou nome..." 
             v-model="searchQuery"
             @input="handleSearch"
             class="search-input"
@@ -304,17 +303,20 @@ onMounted(async () => {
         </div>
 
         <div class="toolbar-actions">
-          <div class="filter-group">
+          
+          <div class="custom-select-wrapper">
+            <i class="fas fa-filter filter-icon-inset"></i>
             <select v-model="filterTipo" @change="fetchVistorias" class="select-field">
-              <option :value="null">Todas</option>
+              <option :value="null">Todas as Vistorias</option>
               <option value="ENTRADA">Entrada</option>
               <option value="SAIDA">Saída</option>
               <option value="PERIODICA">Periódica</option>
             </select>
+            <i class="fas fa-chevron-down arrow-icon"></i>
           </div>
 
           <button class="btn-add active:scale-95" @click="navigateToForm">
-            <i class="fas fa-plus"></i> <span>Nova</span>
+            <i class="fas fa-plus"></i> <span>Nova Vistoria</span>
           </button>
         </div>
       </div>
@@ -531,7 +533,7 @@ onMounted(async () => {
 }
 
 .main-content {
-  padding: 0 1rem; /* Padding lateral menor em mobile */
+  padding: 0 1rem;
   max-width: 1400px;
   margin: 0 auto;
 }
@@ -540,20 +542,19 @@ onMounted(async () => {
   .main-content { padding: 0 1.5rem; }
 }
 
-/* --- TOOLBAR DE FILTROS & AÇÕES (CORRIGIDA) --- */
+/* --- TOOLBAR DE FILTROS & AÇÕES (MODERNIZADA) --- */
 .filter-toolbar {
   background: white;
   border: 1px solid #e2e8f0;
-  border-radius: 0.75rem;
-  padding: 0.75rem 1rem;
+  border-radius: 12px;
+  padding: 1rem;
   margin-bottom: 1.5rem;
-  box-shadow: 0 1px 2px rgba(0,0,0,0.05);
-  box-sizing: border-box; 
+  box-shadow: 0 2px 4px rgba(0,0,0,0.02);
   width: 100%;
   
   display: flex;
   flex-direction: column;
-  gap: 0.75rem;
+  gap: 1rem;
 }
 
 /* Container de Busca */
@@ -568,106 +569,134 @@ onMounted(async () => {
   top: 50%;
   transform: translateY(-50%);
   color: #94a3b8;
+  font-size: 0.9rem;
+  pointer-events: none;
 }
 
 .search-input {
   box-sizing: border-box; 
   width: 100%; 
-  max-width: 100%;
-  padding: 0.6rem 1rem 0.6rem 2.5rem;
-  border: 1px solid #cbd5e1;
-  border-radius: 0.5rem;
+  height: 44px; /* Altura unificada */
+  padding: 0 1rem 0 2.5rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
   background: #f8fafc;
   outline: none;
   font-size: 0.9rem;
-  transition: all 0.2s;
+  color: #334155;
+  transition: all 0.2s ease;
 }
 .search-input:focus {
   border-color: #3b82f6;
   background: white;
-  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.1);
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
 }
 
 /* Linha de Ações (Filtro + Botão) */
 .toolbar-actions {
   display: flex;
-  gap: 0.5rem;
+  flex-direction: column;
+  gap: 0.75rem;
   width: 100%;
 }
 
-.filter-group {
-  flex: 1; /* Ocupa metade do espaço em mobile */
-  min-width: 0;
+@media (min-width: 640px) {
+  .toolbar-actions {
+    flex-direction: row;
+    width: auto;
+  }
+}
+
+/* Dropdown Customizado */
+.custom-select-wrapper {
+  position: relative;
+  flex: 1;
+  min-width: 180px;
+}
+
+.filter-icon-inset {
+  position: absolute;
+  left: 1rem;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #64748b;
+  font-size: 0.85rem;
+  pointer-events: none;
+}
+
+.arrow-icon {
+  position: absolute;
+  right: 1rem;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #94a3b8;
+  font-size: 0.75rem;
+  pointer-events: none;
 }
 
 .select-field {
+  appearance: none; /* Remove seta nativa do browser */
+  -webkit-appearance: none;
+  -moz-appearance: none;
   box-sizing: border-box;
   width: 100%;
-  padding: 0.6rem 0.5rem;
-  border: 1px solid #cbd5e1;
-  border-radius: 0.5rem;
-  background: #f8fafc;
-  font-size: 0.85rem;
+  height: 44px; /* Altura unificada */
+  padding: 0 2.5rem 0 2.5rem; /* Espaço para ícones */
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  background: white;
+  font-size: 0.9rem;
+  color: #334155;
   cursor: pointer;
   outline: none;
-  white-space: nowrap; 
-  overflow: hidden; 
-  text-overflow: ellipsis;
+  transition: all 0.2s;
+  font-weight: 500;
 }
-.select-field:focus { border-color: #3b82f6; background: white; }
+.select-field:focus {
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+.select-field:hover {
+  border-color: #cbd5e1;
+}
 
+/* Botão Nova Vistoria (Melhorado) */
 .btn-add {
-  flex: 1; /* Ocupa outra metade em mobile */
-  background: #3b82f6;
+  height: 44px; /* Altura unificada */
+  background: #2563eb; /* Azul um pouco mais forte */
   color: white;
   border: none;
-  padding: 0.6rem;
-  border-radius: 0.5rem;
+  padding: 0 1.25rem;
+  border-radius: 8px;
   font-weight: 600;
-  font-size: 0.85rem;
-  display: flex; align-items: center; justify-content: center; gap: 0.25rem;
+  font-size: 0.9rem;
+  display: flex; align-items: center; justify-content: center; gap: 0.5rem;
   cursor: pointer;
-  transition: background 0.2s;
-  box-shadow: 0 2px 4px rgba(59, 130, 246, 0.3);
+  transition: all 0.2s ease;
+  box-shadow: 0 2px 4px rgba(37, 99, 235, 0.2);
   white-space: nowrap;
 }
-.btn-add:hover { background: #2563eb; }
+.btn-add:hover { 
+  background: #1d4ed8; 
+  transform: translateY(-1px);
+  box-shadow: 0 4px 6px rgba(37, 99, 235, 0.3);
+}
+.btn-add:active {
+  transform: translateY(0);
+}
 
-/* Media Query Desktop */
-@media (min-width: 768px) {
+/* Media Query Desktop para Toolbar */
+@media (min-width: 1024px) {
   .filter-toolbar {
     flex-direction: row;
     align-items: center;
     justify-content: space-between;
+    padding: 0.75rem 1.25rem;
   }
   
   .search-container {
-    flex: 1;
-    max-width: 500px; /* Aumentado para melhor uso em telas grandes */
-    min-width: 300px;
+    max-width: 400px;
   }
-  
-  .toolbar-actions {
-    width: auto;
-    gap: 1rem;
-  }
-  
-  .filter-group, .select-field {
-    width: auto;
-    min-width: 180px;
-    padding: 0.6rem 1rem; 
-    font-size: 0.9rem;
-  }
-  
-  .btn-add {
-    width: auto;
-    flex: none;
-    padding: 0.5rem 1rem; /* Diminuído para telas grandes (menos alto) */
-    font-size: 0.875rem;
-    gap: 0.5rem;
-  }
-  
-  .btn-add span { display: inline; } /* Garante texto visível */
 }
 
 /* --- Grid de Cards --- */

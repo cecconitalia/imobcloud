@@ -135,7 +135,9 @@ class VistoriaViewSet(viewsets.ModelViewSet):
                 Q(observacoes__icontains=search) |
                 Q(contrato__id__icontains=search) |
                 Q(realizado_por_nome__icontains=search) |
-                Q(contrato__imovel__logradouro__icontains=search)
+                Q(contrato__imovel__logradouro__icontains=search) |
+                Q(contrato__inquilino__nome__icontains=search) | # Busca pelo nome do Locatário
+                Q(contrato__proprietario__nome__icontains=search)  # Busca pelo nome do Locador (Proprietário)
             )
         return queryset.order_by('-data_vistoria', '-id')
 

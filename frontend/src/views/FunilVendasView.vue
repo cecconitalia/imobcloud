@@ -1,137 +1,145 @@
 <template>
-  <div class="page-container">
+  <div class="funil-view-root">
     
-    <div v-if="!isLoading" class="dashboard-grid">
-      <div class="stat-card stat-total-oportunidades">
-        <div class="stat-icon"><i class="fas fa-chart-line"></i></div>
-        <div class="stat-info">
-            <h3>Total de Oportunidades</h3>
-            <p>{{ totalOportunidades }}</p>
-        </div>
-      </div>
-      <div class="stat-card stat-valor-aberto">
-        <div class="stat-icon"><i class="fas fa-hand-holding-usd"></i></div>
-        <div class="stat-info">
-            <h3>Valor Estimado em Aberto</h3>
-            <p>{{ formatarValor(valorEstimadoAberto) }}</p>
-        </div>
-      </div>
-      <div class="stat-card stat-taxa-fechamento">
-        <div class="stat-icon"><i class="fas fa-percent"></i></div>
-        <div class="stat-info">
-            <h3>Taxa de Fechamento</h3>
-            <p>{{ taxaFechamento }}%</p>
-        </div>
-      </div>
-      <div class="stat-card stat-probabilidade-media">
-        <div class="stat-icon"><i class="fas fa-sync-alt"></i></div>
-        <div class="stat-info">
-            <h3>Probabilidade Média</h3>
-            <p>{{ probabilidadeMedia }}%</p>
-        </div>
-      </div>
-    </div>
-
-    <div class="search-and-filter-bar">
-      <input 
-        type="text" 
-        v-model="filtro.search" 
-        placeholder="Buscar por título, cliente..." 
-        class="search-input"
-        @input="debouncedFetchOportunidades" 
-      />
-      
-      <div class="filter-group">
-        <label for="responsavel-filter">Corretor:</label>
-        <select id="responsavel-filter" v-model="filtro.responsavel" @change="fetchOportunidades">
-          <option value="">Todos</option>
-          <option v-for="resp in corretores" :key="resp.id" :value="resp.id">
-            {{ resp.first_name }}
-          </option>
-        </select>
-      </div>
-
-      <button @click="limparFiltros" class="btn-mini" title="Limpar Filtros" style="margin-left: auto;">
-        <i class="fas fa-eraser"></i>
-      </button>
-
-      <button 
-        @click="toggleCardsRecolhidos" 
-        class="btn-mini" 
-        :title="cardsRecolhidos ? 'Expandir Fases' : 'Recolher Fases (Resumo)'"
-      >
-        <i :class="cardsRecolhidos ? 'fas fa-border-all' : 'fas fa-minus-square'"></i> 
-      </button>
-
-      <router-link to="/oportunidades/nova" class="btn-add">
-        <i class="fas fa-plus"></i> <span class="mobile-hide">Nova Oportunidade</span>
-      </router-link>
-    </div>
-
-    <div v-if="isLoading" class="loading-message card">
-      <div class="spinner"></div>
-      A carregar funil de vendas...
-    </div>
-
-    <div v-else class="funil-board-container" :class="{ 'layout-resumo': cardsRecolhidos }">
-      <div v-for="fase in funilFases" :key="fase.id" class="funil-coluna">
-        
-        <div class="coluna-header">
-          <div class="header-left">
-             <h3 class="coluna-titulo">{{ fase.titulo }}</h3>
-             <span v-if="cardsRecolhidos" class="fase-total-valor">
-                {{ formatarValorCompacto(somarValorFase(fase.id)) }}
-             </span>
-          </div>
-          <span class="badge" :style="{ backgroundColor: fasesDeFunilCores[fase.id] || '#6c757d' }">
-            {{ funilData[fase.id]?.length || 0 }}
-          </span>
+    <header class="view-header-section">
+      <div class="header-row">
+        <div class="title-group">
+          <h1>Funil de Vendas</h1>
+          <p class="subtitle">Gestão estratégica de oportunidades</p>
         </div>
         
-        <div v-show="!cardsRecolhidos" class="coluna-body">
-          <draggable
-            v-model="funilData[fase.id]"
-            :group="{ name: 'oportunidades' }"
-            @change="onFaseChange($event, fase.id)"
-            item-key="id"
-            class="oportunidade-list"
+        <div class="actions-group">
+          <button class="btn-secondary btn-icon" @click="fetchOportunidades" title="Atualizar Dados">
+            <i class="fas fa-sync-alt" :class="{ 'fa-spin': isLoading }"></i>
+          </button>
+          <router-link to="/oportunidades/nova" class="btn-primary">
+            <i class="fas fa-plus"></i>
+            <span class="btn-label">Nova Oportunidade</span>
+          </router-link>
+        </div>
+      </div>
+
+      <div class="kpi-grid">
+        <div class="kpi-card orange">
+          <span class="kpi-label">Qtd. Ativas</span>
+          <span class="kpi-value">{{ totalAtivas }}</span>
+        </div>
+
+        <div class="kpi-card blue">
+          <span class="kpi-label">Em Aberto (R$)</span>
+          <span class="kpi-value">{{ formatarValor(valorEstimadoAberto) }}</span>
+        </div>
+
+        <div class="kpi-card green">
+          <span class="kpi-label">Conversão</span>
+          <span class="kpi-value">{{ taxaFechamento }}%</span>
+        </div>
+
+        <div class="kpi-card purple">
+          <span class="kpi-label">Probabilidade</span>
+          <span class="kpi-value">{{ probabilidadeMedia }}%</span>
+        </div>
+      </div>
+
+      <div class="toolbar-row">
+        <div class="search-box">
+          <i class="fas fa-search"></i>
+          <input 
+            type="text" 
+            v-model="filtro.search" 
+            placeholder="Buscar oportunidade..." 
+            @input="debouncedFetchOportunidades"
           >
-            <template #item="{ element: oportunidade }">
-              <transition-group name="oportunidade-list-fade" tag="div">
-                <router-link :to="`/oportunidades/editar/${oportunidade.id}`" class="oportunidade-card-link">
-                  
-                  <div class="oportunidade-card">
-                    <h4 class="card-titulo" :title="oportunidade.titulo">{{ oportunidade.titulo }}</h4>
-                    
-                    <div class="card-details">
-                        <p class="card-text card-cliente" :title="oportunidade.cliente?.nome_completo">
-                            <i class="fas fa-user-circle"></i> {{ oportunidade.cliente?.nome_completo || '—' }}
-                        </p>
-                        <p class="card-text card-imovel" :title="oportunidade.imovel?.endereco">
-                            <i class="fas fa-map-marker-alt"></i> {{ oportunidade.imovel?.endereco || '—' }}
-                        </p>
-                    </div>
+        </div>
 
-                    <div class="card-footer">
-                      <span class="card-valor">{{ formatarValor(oportunidade.valor_estimado) }}</span>
-                      <div class="card-responsavel">
-                        <span class="responsavel-avatar" :title="oportunidade.responsavel?.first_name">
-                            {{ oportunidade.responsavel?.first_name?.charAt(0).toUpperCase() || '?' }}
-                        </span>
+        <div class="filters-box">
+          <div class="custom-select">
+            <select v-model="filtro.responsavel" @change="fetchOportunidades">
+              <option value="">Todos os Corretores</option>
+              <option v-for="resp in corretores" :key="resp.id" :value="resp.id">
+                {{ resp.first_name }}
+              </option>
+            </select>
+            <i class="fas fa-chevron-down"></i>
+          </div>
+
+          <button 
+            class="btn-toggle" 
+            @click="toggleCardsRecolhidos"
+            :title="cardsRecolhidos ? 'Modo Expandido' : 'Modo Resumido'"
+          >
+            <i :class="cardsRecolhidos ? 'fas fa-columns' : 'fas fa-list'"></i>
+            <span class="btn-label">{{ cardsRecolhidos ? 'Expandir' : 'Resumir' }}</span>
+          </button>
+        </div>
+      </div>
+    </header>
+
+    <main class="kanban-main-wrapper">
+      
+      <div v-if="isLoading" class="loading-state">
+        <div class="spinner"></div>
+        <p>Carregando funil...</p>
+      </div>
+
+      <div v-else class="kanban-scroll-viewport">
+        
+        <div class="kanban-board" :class="{ 'collapsed-mode': cardsRecolhidos }">
+          
+          <div v-for="fase in funilFases" :key="fase.id" class="kanban-column">
+            
+            <div class="column-header" :style="{ borderTopColor: fasesDeFunilCores[fase.id] }">
+              <div class="header-content">
+                <span class="column-title" :title="fase.titulo">{{ fase.titulo }}</span>
+                <span class="column-count">{{ funilData[fase.id]?.length || 0 }}</span>
+              </div>
+              <div class="column-total" v-if="cardsRecolhidos">
+                {{ formatarValorCompacto(somarValorFase(fase.id)) }}
+              </div>
+            </div>
+
+            <div class="column-body" v-show="!cardsRecolhidos">
+              <draggable
+                v-model="funilData[fase.id]"
+                :group="{ name: 'oportunidades' }"
+                @change="onFaseChange($event, fase.id)"
+                item-key="id"
+                class="draggable-area"
+                ghost-class="sortable-ghost"
+                drag-class="sortable-drag"
+              >
+                <template #item="{ element: op }">
+                  <div class="kanban-card" @click="router.push(`/oportunidades/editar/${op.id}`)">
+                    <div class="card-border" :style="{ backgroundColor: fasesDeFunilCores[fase.id] }"></div>
+                    <div class="card-content">
+                      <h4 class="card-title">{{ op.titulo }}</h4>
+                      <div class="card-meta">
+                        <div class="meta-row" v-if="op.cliente">
+                          <i class="far fa-user"></i> <span>{{ op.cliente.nome_completo.split(' ')[0] }}</span>
+                        </div>
+                        <div class="meta-row" v-if="op.imovel">
+                          <i class="far fa-building"></i> <span>Ref. {{ op.imovel.id }}</span>
+                        </div>
+                      </div>
+                      <div class="card-footer">
+                        <span class="card-price">{{ formatarValor(op.valor_estimado) }}</span>
+                        <div class="card-avatar" :title="op.responsavel?.first_name">
+                          {{ op.responsavel?.first_name?.charAt(0).toUpperCase() || '?' }}
+                        </div>
                       </div>
                     </div>
                   </div>
-                  
-                </router-link>
-              </transition-group>
-            </template>
-          </draggable>
-        </div>
-        
-        <div v-if="cardsRecolhidos" class="coluna-body-placeholder"></div>
+                </template>
+              </draggable>
+            </div>
 
+            <div class="column-placeholder" v-if="cardsRecolhidos"></div>
+
+          </div>
+
+        </div>
       </div>
-    </div>
+    </main>
 
   </div>
 </template>
@@ -146,35 +154,32 @@ import '@fortawesome/fontawesome-free/css/all.css';
 
 const router = useRouter();
 
-// --- DADOS E ESTADO ---
+// --- ESTADO ---
 const oportunidades = ref<any[]>([]);
 const funilData = ref<{ [key: string]: any[] }>({});
 const isLoading = ref(true);
-const error = ref<string | null>(null);
 const corretores = ref<any[]>([]);
 const cardsRecolhidos = ref(false);
-
 const valorEstimadoAberto = ref(0);
 
-// Definição FIXA das fases
 const funilFases = ref([
   { id: 'LEAD', titulo: 'Lead' }, 
   { id: 'CONTATO', titulo: 'Contato' },
   { id: 'VISITA', titulo: 'Visita' },
   { id: 'PROPOSTA', titulo: 'Proposta' },
-  { id: 'NEGOCIACAO', titulo: 'Negoc.' },
+  { id: 'NEGOCIACAO', titulo: 'Negociação' },
   { id: 'GANHO', titulo: 'Ganho' },
   { id: 'PERDIDO', titulo: 'Perdido' }
 ]);
 
 const fasesDeFunilCores: { [key: string]: string } = { 
-  'LEAD': '#4DA3FF',
-  'CONTATO': '#00C8A0',
-  'VISITA': '#FFD93D',
-  'PROPOSTA': '#FFB347',
-  'NEGOCIACAO': '#FF8C42',
-  'GANHO': '#4CAF50',
-  'PERDIDO': '#B0B0B0'
+  'LEAD': '#3b82f6', 
+  'CONTATO': '#06b6d4', 
+  'VISITA': '#eab308', 
+  'PROPOSTA': '#f97316', 
+  'NEGOCIACAO': '#8b5cf6', 
+  'GANHO': '#22c55e', 
+  'PERDIDO': '#64748b' 
 };
 
 const filtro = ref({
@@ -183,40 +188,35 @@ const filtro = ref({
 });
 
 // --- COMPUTADOS ---
-
-const oportunidadesFiltradas = computed(() => oportunidades.value);
-
-const totalOportunidades = computed(() => oportunidades.value.length);
+const totalAtivas = computed(() => {
+  return oportunidades.value.filter(op => op.fase !== 'GANHO' && op.fase !== 'PERDIDO').length;
+});
 
 const taxaFechamento = computed(() => {
-  const negociosGanhos = funilData.value['GANHO']?.length || 0;
-  const negociosPerdidos = funilData.value['PERDIDO']?.length || 0;
-  const totalFechados = negociosGanhos + negociosPerdidos;
-  if (totalFechados === 0) return '0.00';
-  return ((negociosGanhos / totalFechados) * 100).toFixed(2);
+  const ganhos = funilData.value['GANHO']?.length || 0;
+  const perdidos = funilData.value['PERDIDO']?.length || 0;
+  const total = ganhos + perdidos;
+  if (total === 0) return '0.0';
+  return ((ganhos / total) * 100).toFixed(1);
 });
 
 const probabilidadeMedia = computed(() => {
-  if (oportunidades.value.length === 0) return '0.00';
-  const totalProbabilidade = oportunidades.value.reduce((sum, op) => sum + (op.probabilidade || 0), 0);
-  return (totalProbabilidade / oportunidades.value.length).toFixed(2);
+  if (oportunidades.value.length === 0) return '0.0';
+  const total = oportunidades.value.reduce((sum, op) => sum + (op.probabilidade || 0), 0);
+  return (total / oportunidades.value.length).toFixed(1);
 });
 
-// --- MÉTODOS DE DADOS ---
-
+// --- ACTIONS ---
 const onFaseChange = async (event: any, novaFaseId: string) => {
     if (event.added) {
         const oportunidadeId = event.added.element.id;
         try {
             await api.patch(`/v1/clientes/oportunidades/${oportunidadeId}/`, { fase: novaFaseId }); 
-            
-            const index = oportunidades.value.findIndex(op => op.id === oportunidadeId);
-            if(index !== -1) {
-                oportunidades.value[index].fase = novaFaseId; 
-            }
-            fetchValorEstimadoAberto(); // Atualiza o valor estimado após a mudança de fase
+            const idx = oportunidades.value.findIndex(op => op.id === oportunidadeId);
+            if(idx !== -1) oportunidades.value[idx].fase = novaFaseId; 
+            fetchValorEstimadoAberto(); 
         } catch (error) {
-            console.error('Erro ao mover a oportunidade:', error);
+            console.error('Erro ao mover:', error);
             fetchOportunidades(); 
         }
     }
@@ -224,15 +224,10 @@ const onFaseChange = async (event: any, novaFaseId: string) => {
 
 async function fetchValorEstimadoAberto() {
     try {
-        const response = await api.get('/v1/relatorios/', { 
-            params: { tipo: 'valor_estimado_aberto' }
-        }); 
-        valorEstimadoAberto.value = response.data.valor_total_aberto || 0;
-    } catch (err) {
-        console.error("Erro ao buscar valor estimado aberto:", err);
-    }
+        const res = await api.get('/v1/relatorios/', { params: { tipo: 'valor_estimado_aberto' } }); 
+        valorEstimadoAberto.value = res.data.valor_total_aberto || 0;
+    } catch (err) { console.error(err); }
 }
-
 
 async function fetchOportunidades() {
   isLoading.value = true;
@@ -241,328 +236,302 @@ async function fetchOportunidades() {
         search: filtro.value.search || undefined,
         responsavel: filtro.value.responsavel || undefined,
     };
-    
     const response = await api.get('/v1/clientes/oportunidades/', { params }); 
     oportunidades.value = response.data;
 
-    const responsaveisMap = new Map();
+    const map = new Map();
     oportunidades.value.forEach(op => {
-        if (op.responsavel && !responsaveisMap.has(op.responsavel.id)) {
-            responsaveisMap.set(op.responsavel.id, op.responsavel);
-        }
+        if (op.responsavel && !map.has(op.responsavel.id)) map.set(op.responsavel.id, op.responsavel);
     });
-    corretores.value = Array.from(responsaveisMap.values());
-
+    corretores.value = Array.from(map.values());
     fetchValorEstimadoAberto();
-
-  } catch (err) {
-    console.error("Erro ao buscar oportunidades:", err);
-    error.value = "Não foi possível carregar o funil.";
-  } finally {
-    isLoading.value = false;
-  }
+  } catch (err) { console.error(err); } finally { isLoading.value = false; }
 }
 
 const debouncedFetchOportunidades = debounce(fetchOportunidades, 300);
 
-// --- MÉTODOS DE UI E FORMATAÇÃO ---
-
-function toggleCardsRecolhidos() {
-    cardsRecolhidos.value = !cardsRecolhidos.value;
-}
+function toggleCardsRecolhidos() { cardsRecolhidos.value = !cardsRecolhidos.value; }
 
 function somarValorFase(faseId: string): number {
-    const items = funilData.value[faseId] || [];
-    return items.reduce((sum, op) => sum + (parseFloat(op.valor_estimado) || 0), 0);
+    return (funilData.value[faseId] || []).reduce((sum, op) => sum + (parseFloat(op.valor_estimado) || 0), 0);
 }
 
-watch(oportunidadesFiltradas, (novaLista) => {
-  const agrupado: { [key: string]: any[] } = {};
-  
-  funilFases.value.forEach(fase => {
-    agrupado[fase.id] = []; 
+watch(oportunidades, (novaLista) => {
+  const groups: { [key: string]: any[] } = {};
+  funilFases.value.forEach(f => groups[f.id] = []);
+  novaLista.forEach(op => {
+    if (groups[op.fase]) groups[op.fase].push(op);
   });
+  funilData.value = groups;
+}, { deep: true, immediate: true });
 
-  novaLista.forEach(oportunidade => {
-    const faseId = oportunidade.fase; 
-    if (agrupado[faseId]) {
-        agrupado[faseId].push(oportunidade);
-    }
-  });
-  
-  funilData.value = agrupado;
-}, { immediate: true });
+const formatarValor = (val: any) => {
+  const num = typeof val === 'string' ? parseFloat(val) : val;
+  if (!num && num !== 0) return 'R$ 0,00';
+  return num.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 });
+};
 
-function formatarValor(valor: number | string | null | undefined): string {
-    if (valor === null || valor === undefined) return 'R$ -';
-    const num = typeof valor === 'string' ? parseFloat(valor) : valor;
-    if (isNaN(num)) return 'R$ -'; 
-    return num.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', minimumFractionDigits: 2 });
-}
+const formatarValorCompacto = (val: number) => {
+  if (!val) return 'R$ 0';
+  return val.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', notation: 'compact' });
+};
 
-function formatarValorCompacto(valor: number): string {
-    if (!valor) return '';
-    return valor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', notation: 'compact' });
-}
-
-function limparFiltros() {
-  filtro.value.search = '';
-  filtro.value.responsavel = '';
-  fetchOportunidades();
-}
-
-onMounted(() => {
-  fetchOportunidades();
-});
+onMounted(fetchOportunidades);
 </script>
 
 <style scoped>
-/* ================================================== */
-/* 1. Layout Geral (Ajuste para Dashboard Layout) */
-/* ================================================== */
-.page-container { 
-    /* Padding: Top Right Bottom Left 
-       - 2rem na direita para garantir que o scroll não corte o último card.
-       - 0 na esquerda para remover o espaço em branco solicitado.
-    */
-    padding: 0 2rem 0 0; 
-    display: flex; 
-    flex-direction: column; 
-    /* Cálculo exato para ocupar a tela sem scroll duplo */
-    height: calc(100vh - 140px); 
-    width: 100%; 
-    max-width: 100%; /* Permite ocupar toda a largura */
-    margin: 0;       /* Remove a centralização (margin auto) */
-    overflow: hidden; 
-    box-sizing: border-box;
-}
-
-/* ================================================== */
-/* 2. Dashboard Stats */
-/* ================================================== */
-.dashboard-grid {
-  display: grid; 
-  grid-template-columns: repeat(4, 1fr); 
-  gap: 1.25rem; margin-bottom: 1.5rem; padding: 0 0.5rem;
-  flex-shrink: 0; 
-}
-.stat-card {
-  background-color: #ffffff; 
-  border: none; border-radius: 12px; padding: 1.5rem;
-  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.04); display: flex; align-items: center; gap: 1rem;
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
-}
-.stat-card:hover { 
-  transform: translateY(-3px); 
-  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.08);
-}
-.stat-icon {
-    width: 50px; height: 50px; border-radius: 12px; 
-    display: flex; align-items: center; justify-content: center; font-size: 1.5rem;
-    background-color: #e0e0e0; 
-    color: #424242;
-}
-
-.stat-info h3 { 
-  font-size: 0.8rem; color: #616161; 
-  font-weight: 600; margin: 0; text-transform: uppercase; letter-spacing: 0.5px;
-}
-.stat-info p { 
-  font-size: 1.55rem; font-weight: 700; color: #212121; 
-  margin: 0; line-height: 1.2;
-}
-
-/* --- Cores Sóbrias --- */
-.stat-total-oportunidades .stat-icon { background-color: #E0F7FA; color: #00BCD4; } 
-.stat-total-oportunidades .stat-info p { color: #00838F; } 
-
-.stat-valor-aberto .stat-icon { background-color: #FFF8E1; color: #FFB300; } 
-.stat-valor-aberto .stat-info p { color: #FF6F00; } 
-
-.stat-taxa-fechamento .stat-icon { background-color: #E8F5E9; color: #4CAF50; }
-.stat-taxa-fechamento .stat-info p { color: #388E3C; } 
-
-.stat-probabilidade-media .stat-icon { background-color: #F3E5F5; color: #9C27B0; }
-.stat-probabilidade-media .stat-info p { color: #6A1B9A; } 
-
-
-@media (max-width: 1200px) {
-  .dashboard-grid { grid-template-columns: repeat(2, 1fr); }
-}
-@media (max-width: 768px) {
-  .dashboard-grid { grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); }
-  /* Remove padding lateral em telas muito pequenas para aproveitar espaço */
-  .page-container { padding: 0 1rem; }
-}
-
-/* ================================================== */
-/* 3. Filtros */
-/* ================================================== */
-.search-and-filter-bar {
-  display: flex; flex-wrap: wrap; gap: 1rem; margin-bottom: 1.5rem;
-  align-items: center; background-color: transparent; padding: 0 0.5rem; box-shadow: none;
-  flex-shrink: 0;
-}
-.search-input {
-  padding: 10px; border: 1px solid #ccc; border-radius: 5px; width: 100%; max-width: 350px; box-sizing: border-box; font-family: system-ui, sans-serif;
-}
-.filter-group { display: flex; align-items: center; gap: 0.5rem; }
-.filter-group label { font-weight: 500; color: #555; white-space: nowrap; }
-.filter-group select {
-  padding: 8px 12px; border: 1px solid #ccc; border-radius: 5px; font-size: 0.95rem;
-  background-color: #f8f9fa; min-width: 120px; font-family: system-ui, sans-serif;
-}
-.btn-add {
-  background-color: #007bff; color: white; padding: 10px 15px; border: none; border-radius: 5px;
-  cursor: pointer; font-weight: bold; transition: background-color 0.3s ease; font-size: 0.95rem;
-  display: flex; align-items: center; gap: 0.5rem; margin-left: 1rem; width: auto; text-decoration: none;
-  font-family: system-ui, sans-serif;
-}
-.btn-add:hover { background-color: #0056b3; }
-
-.btn-mini {
-    width: 32px; height: 32px; border-radius: 6px; border: 1px solid transparent; background: transparent;
-    color: #9ca3af; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: all 0.2s;
-}
-.btn-mini:hover { background-color: #f3f4f6; color: #374151; }
-.mobile-hide { display: inline; }
-
-/* ================================================== */
-/* 4. Kanban Board (CORREÇÃO DE SCROLL) */
-/* ================================================== */
-.loading-message { text-align: center; padding: 2rem; color: #6c757d; font-size: 0.9rem; }
-.spinner {
-  border: 3px solid #e9ecef; border-top: 3px solid #0d6efd; border-radius: 50%;
-  width: 30px; height: 30px; animation: spin 0.8s linear infinite; margin: 0 auto 0.5rem;
-}
-@keyframes spin { to { transform: rotate(360deg); } }
-
-.funil-board-container {
-  display: flex; 
-  gap: 0.5rem; 
-  /* Padding extra na direita para garantir espaço no final do scroll */
-  padding: 0 0.5rem 0.5rem 0.5rem;
+/* =========================================================
+   1. LAYOUT RAÍZ - ISOLAMENTO DE SCROLL (ABSOLUTE METHOD)
+   ========================================================= */
+.funil-view-root {
+  /* Altura da tela menos header/padding do layout principal */
+  height: calc(100vh - 120px); 
   width: 100%;
-  flex-grow: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden; 
+  gap: 1rem;
+}
+
+/* =========================================================
+   2. HEADER & TOOLBAR (FIXO)
+   ========================================================= */
+.view-header-section {
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.header-row { display: flex; justify-content: space-between; align-items: flex-end; }
+.title-group h1 { font-size: 1.5rem; font-weight: 700; color: #1e293b; margin: 0; }
+.subtitle { font-size: 0.875rem; color: #64748b; margin: 0.25rem 0 0 0; }
+
+.actions-group { display: flex; gap: 0.5rem; }
+.btn-primary {
+  background: #2563eb; color: white; border: none; padding: 0.6rem 1.2rem;
+  border-radius: 8px; font-weight: 600; font-size: 0.9rem; cursor: pointer;
+  display: flex; align-items: center; gap: 0.5rem; text-decoration: none;
+  transition: background 0.2s; white-space: nowrap;
+}
+.btn-primary:hover { background: #1d4ed8; }
+.btn-secondary {
+  background: white; border: 1px solid #e2e8f0; color: #64748b;
+  width: 40px; height: 40px; border-radius: 8px; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  transition: all 0.2s;
+}
+.btn-secondary:hover { background: #f8fafc; color: #2563eb; border-color: #cbd5e1; }
+
+/* KPIs Grid - 4 COLUNAS */
+.kpi-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; }
+
+.kpi-card {
+  background: white; border-radius: 10px; padding: 0.8rem 1rem;
+  border: 1px solid #e2e8f0; display: flex; flex-direction: column;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.02);
+}
+.kpi-label { font-size: 0.7rem; font-weight: 600; text-transform: uppercase; color: #64748b; margin-bottom: 2px; }
+.kpi-value { font-size: 1.25rem; font-weight: 700; color: #0f172a; letter-spacing: -0.02em; }
+
+/* Cores dos KPIs */
+.kpi-card.blue .kpi-value { color: #2563eb; }
+.kpi-card.green .kpi-value { color: #16a34a; }
+.kpi-card.purple .kpi-value { color: #9333ea; }
+.kpi-card.orange .kpi-value { color: #f97316; }
+
+/* Toolbar */
+.toolbar-row {
+  background: white; border: 1px solid #e2e8f0; border-radius: 10px;
+  padding: 0.6rem; display: flex; gap: 1rem; align-items: center;
+}
+.search-box { position: relative; flex: 1; min-width: 200px; }
+.search-box i { position: absolute; left: 1rem; top: 50%; transform: translateY(-50%); color: #94a3b8; }
+.search-box input {
+  width: 100%; padding: 0.5rem 1rem 0.5rem 2.5rem; border: 1px solid #cbd5e1;
+  border-radius: 6px; font-size: 0.9rem; outline: none; box-sizing: border-box;
+}
+.search-box input:focus { border-color: #2563eb; }
+
+.filters-box { display: flex; gap: 0.5rem; align-items: center; }
+.custom-select { position: relative; }
+.custom-select select {
+  appearance: none; background: white; border: 1px solid #cbd5e1;
+  padding: 0.5rem 2rem 0.5rem 1rem; border-radius: 6px; font-size: 0.85rem;
+  color: #334155; cursor: pointer; min-width: 160px;
+}
+.custom-select i { position: absolute; right: 10px; top: 50%; transform: translateY(-50%); color: #94a3b8; pointer-events: none; font-size: 0.8rem; }
+
+.btn-toggle {
+  display: flex; align-items: center; gap: 0.5rem; background: #f1f5f9;
+  border: 1px solid #cbd5e1; color: #475569; padding: 0.5rem 1rem;
+  border-radius: 6px; cursor: pointer; font-weight: 500; font-size: 0.85rem; white-space: nowrap;
+}
+.btn-toggle:hover { background: #e2e8f0; color: #1e293b; }
+
+/* =========================================================
+   3. KANBAN MAIN WRAPPER (CORREÇÃO DE OVERFLOW)
+   ========================================================= */
+.kanban-main-wrapper {
+  flex: 1;
+  position: relative; 
+  width: 100%;
+  min-height: 0;
+  overflow: hidden; 
+  background-color: transparent;
+}
+
+/* =========================================================
+   4. SCROLL VIEWPORT (ABSOLUTE POSITIONING)
+   ========================================================= */
+.kanban-scroll-viewport {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
   overflow-x: auto; 
-  overflow-y: hidden;
-  align-items: stretch; 
+  overflow-y: hidden; 
+  display: flex;
+  align-items: stretch;
+  padding-bottom: 8px;
+  
+  scrollbar-width: thin;
+  scrollbar-color: #cbd5e1 transparent;
 }
 
-/* Espaçador no final do flex container para garantir margem direita ao rolar */
-.funil-board-container::after {
-    content: "";
-    display: block;
-    min-width: 0.5rem; /* Garante um espaço extra no fim do scroll */
-    height: 1px;
-}
+.kanban-scroll-viewport::-webkit-scrollbar { height: 10px; background-color: #f1f5f9; }
+.kanban-scroll-viewport::-webkit-scrollbar-thumb { background-color: #cbd5e1; border-radius: 6px; border: 2px solid #f1f5f9; }
+.kanban-scroll-viewport::-webkit-scrollbar-thumb:hover { background-color: #94a3b8; }
 
-/* Custom Scrollbar */
-.funil-board-container::-webkit-scrollbar {
-    height: 8px;
-}
-.funil-board-container::-webkit-scrollbar-thumb {
-    background-color: #ccc;
-    border-radius: 4px;
-}
-.funil-board-container::-webkit-scrollbar-track {
-    background-color: #f1f1f1;
-}
-
-.funil-coluna {
-  background-color: #e9ecef; border-radius: 6px;
-  flex: 0 0 auto; 
-  min-width: 260px; 
-  width: 260px; 
-  display: flex; flex-direction: column; 
+/* =========================================================
+   5. BOARD & COLUNAS
+   ========================================================= */
+.kanban-board {
+  display: flex;
+  gap: 16px;
   height: 100%;
-  border: 1px solid #dee2e6;
-  transition: width 0.3s ease, min-width 0.3s ease;
+  width: max-content; 
+  min-width: 100%;    
+  padding-right: 16px;
 }
 
-.funil-board-container.layout-resumo .funil-coluna {
-    height: auto; 
-    min-height: 50px;
-    min-width: 100px;
-    width: 100px;
-    flex: 1; 
+.kanban-board.collapsed-mode {
+  width: 100%;
+  padding-right: 0;
 }
 
-.coluna-header {
+.kanban-column {
+  display: flex;
+  flex-direction: column;
+  background-color: #f1f5f9;
+  border-radius: 12px;
+  border: 1px solid #e2e8f0;
+  height: 100%;
+  flex-shrink: 0;
+  width: 290px;
+}
+
+.kanban-board.collapsed-mode .kanban-column {
+  flex: 1; 
+  min-width: 0;
+  width: auto;
+}
+
+/* Header */
+.column-header {
+  padding: 0.8rem;
+  background: #fff;
+  border-bottom: 1px solid #e2e8f0;
+  border-radius: 12px 12px 0 0;
+  border-top: 4px solid transparent;
   display: flex; justify-content: space-between; align-items: center;
-  padding: 0.4rem 0.5rem; border-bottom: 1px solid #ced4da;
-  background-color: #f8f9fa; border-top-left-radius: 6px; border-top-right-radius: 6px;
-  min-height: 36px;
+  flex-shrink: 0;
+  height: 54px;
+  box-sizing: border-box;
 }
-.coluna-titulo {
-  font-size: 0.8rem; font-weight: 700; color: #495057; margin: 0;
-  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+.column-title { 
+  font-weight: 700; font-size: 0.8rem; color: #334155; text-transform: uppercase; 
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; 
 }
-.fase-total-valor {
-    font-size: 0.7rem; color: #198754; font-weight: 600; margin-left: 0.5rem;
+.column-count { 
+  background: #f1f5f9; color: #64748b; font-size: 0.75rem; 
+  padding: 2px 8px; border-radius: 99px; font-weight: 600; 
 }
-.header-left {
-    display: flex; align-items: center; overflow: hidden;
+.column-total { font-size: 0.75rem; font-weight: 600; color: #059669; white-space: nowrap; }
+
+/* Body com Scroll Vertical */
+.column-body {
+  flex: 1; 
+  overflow-y: auto; 
+  overflow-x: hidden;
+  padding: 0.8rem;
+  scrollbar-width: thin;
+  scrollbar-color: #cbd5e1 transparent;
 }
-.badge {
-  color: white; border-radius: 8px; padding: 1px 6px;
-  font-size: 0.65rem; font-weight: bold; min-width: 18px; text-align: center; margin-left: 4px; flex-shrink: 0;
+.column-body::-webkit-scrollbar { width: 6px; }
+.column-body::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
+.column-body::-webkit-scrollbar-track { background: transparent; }
+
+/* Cards */
+.draggable-area { min-height: 100%; display: flex; flex-direction: column; gap: 0.8rem; }
+.sortable-ghost { opacity: 0.4; background: #e2e8f0; border: 2px dashed #94a3b8; }
+.sortable-drag { transform: rotate(2deg); cursor: grabbing; }
+
+.kanban-card {
+  background: white; border: 1px solid #e2e8f0; border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.02); cursor: grab; 
+  position: relative; overflow: hidden;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+.kanban-card:hover { transform: translateY(-2px); box-shadow: 0 8px 16px rgba(0,0,0,0.06); border-color: #cbd5e1; }
+
+.card-border { position: absolute; left: 0; top: 0; bottom: 0; width: 4px; }
+.card-content { padding: 0.8rem 0.8rem 0.8rem 1.2rem; }
+
+.card-title {
+  font-size: 0.9rem; font-weight: 600; color: #1e293b; margin: 0 0 0.5rem 0;
+  line-height: 1.4; display: -webkit-box; -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical; overflow: hidden;
 }
 
-.coluna-body { 
-    padding: 0.3rem; 
-    overflow-y: auto; 
-    flex-grow: 1;
-    scrollbar-width: thin;
-    scrollbar-color: #ced4da transparent;
-}
-.coluna-body::-webkit-scrollbar { width: 6px; }
-.coluna-body::-webkit-scrollbar-thumb { background-color: #ced4da; border-radius: 3px; }
-
-.oportunidade-list { min-height: 50px; height: 100%; }
-
-/* ================================================== */
-/* 5. Cards de Oportunidade */
-/* ================================================== */
-.oportunidade-card-link { text-decoration: none; color: inherit; display: block; margin-bottom: 0.3rem; }
-.oportunidade-card {
-  background-color: white; border-radius: 4px; padding: 0.4rem;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08); cursor: grab;
-  transition: all 0.1s ease; border-left: 3px solid transparent;
-  overflow: hidden; display: flex; flex-direction: column;
-}
-.oportunidade-card:hover {
-  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.12); transform: translateY(-1px); border-left-color: #007bff;
-}
-
-.card-titulo { 
-    font-size: 0.8rem; font-weight: 600; color: #343a40; margin: 0 0 0.2rem 0; line-height: 1.2; 
-    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-}
-.card-details { margin-bottom: 0.3rem; }
-.card-text {
-  font-size: 0.65rem; color: #6c757d; margin: 0 0 1px 0; line-height: 1.1;
-  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: flex; align-items: center; gap: 3px;
-}
-.card-text i { font-size: 0.6rem; width: 10px; text-align: center; }
+.card-meta { display: flex; flex-direction: column; gap: 0.3rem; margin-bottom: 0.8rem; }
+.meta-row { display: flex; align-items: center; gap: 0.5rem; color: #64748b; font-size: 0.75rem; }
+.meta-row i { font-size: 0.8rem; width: 14px; text-align: center; color: #94a3b8; }
+.meta-row span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
 .card-footer {
-  display: flex; justify-content: space-between; align-items: center;
-  margin-top: 0.2rem; border-top: 1px solid #f1f3f5; padding-top: 0.2rem;
+  border-top: 1px solid #f1f5f9; padding-top: 0.6rem; display: flex; justify-content: space-between; align-items: center;
 }
-.card-valor { font-size: 0.7rem; font-weight: 700; color: #198754; }
-.responsavel-avatar {
-  width: 18px; height: 18px; border-radius: 50%; background-color: #6c757d; color: white;
+.card-price { 
+  font-size: 0.8rem; font-weight: 700; color: #059669; 
+  background: #dcfce7; padding: 3px 8px; border-radius: 4px; 
+}
+.card-avatar {
+  width: 24px; height: 24px; border-radius: 50%; background: #e2e8f0;
+  color: #64748b; font-size: 0.7rem; font-weight: 700;
   display: flex; align-items: center; justify-content: center;
-  font-weight: bold; font-size: 0.55rem; text-transform: uppercase;
+  border: 1px solid white; box-shadow: 0 1px 2px rgba(0,0,0,0.1);
 }
 
-@media (max-width: 768px) {
-  .search-and-filter-bar { flex-direction: column; align-items: stretch; }
-  .search-input { max-width: 100%; }
-  .filter-group { flex-direction: column; align-items: stretch; }
-  .btn-add { margin-left: 0; justify-content: center; }
+.loading-state { height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; color: #94a3b8; }
+.spinner { width: 32px; height: 32px; border: 3px solid #e2e8f0; border-top-color: #2563eb; border-radius: 50%; animation: spin 1s linear infinite; margin-bottom: 1rem; }
+@keyframes spin { 100% { transform: rotate(360deg); } }
+
+/* Mobile Adaptations */
+@media (max-width: 1200px) {
+  .kpi-grid { grid-template-columns: repeat(2, 1fr); }
+}
+
+@media (max-width: 1024px) {
+  .header-row { flex-direction: column; align-items: flex-start; gap: 1rem; }
+  .actions-group { width: 100%; justify-content: space-between; }
+  .toolbar-row { flex-direction: column; align-items: stretch; }
+  .search-box { min-width: 100%; }
+  .kpi-grid { display: none; } /* Opcional: ocultar KPIs em telas muito pequenas para dar espaço ao funil */
   
-  .page-container { height: calc(100vh - 100px); }
+  .kanban-board.collapsed-mode { width: max-content; }
+  .kanban-board.collapsed-mode .kanban-column { width: 280px; flex: none; }
+  .btn-label { display: none; }
 }
 </style>

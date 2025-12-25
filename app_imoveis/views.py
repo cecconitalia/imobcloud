@@ -353,9 +353,6 @@ class ImovelViewSet(viewsets.ModelViewSet):
     # === CORREÇÃO PARA CONFLITO DE ROTAS SEM ALTERAR URLS.PY ===
     # ==========================================================
     # Definimos que o lookup (ID do imóvel) deve ser APENAS numérico.
-    # Isso impede que a URL 'imoveis/imagens/' seja casada com esta view
-    # (pois 'imagens' não é um número), permitindo que o Django continue
-    # procurando e encontre a rota correta definida posteriormente.
     lookup_value_regex = r'\d+' 
     # ==========================================================
 
@@ -372,8 +369,6 @@ class ImovelViewSet(viewsets.ModelViewSet):
         else:
             return Imovel.objects.none()
 
-        # CORREÇÃO: Removemos o bloqueio do 'lista_simples' para permitir os filtros.
-        
         status_param = self.request.query_params.get('status', None)
         
         if status_param:
@@ -387,7 +382,7 @@ class ImovelViewSet(viewsets.ModelViewSet):
         tipo = self.request.query_params.get('tipo', None)
         cidade = self.request.query_params.get('cidade', None)
         bairro = self.request.query_params.get('bairro', None)
-        proprietario_id = self.request.query_params.get('proprietario', None) # Agora este filtro é processado
+        proprietario_id = self.request.query_params.get('proprietario', None) 
 
         if finalidade: base_queryset = base_queryset.filter(finalidade=finalidade)
         if tipo: base_queryset = base_queryset.filter(tipo=tipo)
@@ -1026,129 +1021,133 @@ class ImobiliariaPublicDetailView(RetrieveAPIView):
 
 def _get_autorizacao_queryset(tenant, query_params): 
     """
-    Helper reutilizável para buscar e filtrar o queryset de autorizações.
-    Aplica os filtros vindos de query_params.
+    Helper para relatório completo em Paisagem.
     """
-    # Filtra pela imobiliária atual (tenant)
     queryset = Imovel.objects.filter(
         imobiliaria=tenant
-    ).select_related('proprietario')
+    ).exclude(status=Imovel.Status.DESATIVADO).select_related('proprietario')
     
     today = date.today()
+    trinta_dias = today + timedelta(days=30)
     
-    dias_timedelta = ExpressionWrapper(
-        F('data_fim_autorizacao') - today, 
-        output_field=fields.DurationField()
-    )
-
-    queryset = queryset.annotate(
-        dias_restantes=dias_timedelta
-    )
-
-    exclusividade = query_params.get('exclusividade')
-    validade_dias = query_params.get('validade_dias')
-    
-    if exclusividade in ['true', 'false']:
-        queryset = queryset.filter(possui_exclusividade=(exclusividade == 'true'))
-
-    if validade_dias and validade_dias.isdigit():
-        dias = int(validade_dias)
-        
-        if dias > 0:
-            # Filtro para datas futuras, até o limite de dias
-            queryset = queryset.filter(data_fim_autorizacao__lte=today + timedelta(days=dias), data_fim_autorizacao__gte=today)
-        elif dias == 0:
-             # Filtro para expirados (dias < 0)
-             queryset = queryset.filter(data_fim_autorizacao__lt=today)
-    
-    # Se 'validade_dias' não está presente, a queryset inicial é mantida para que o 
-    # frontend (Vue) possa aplicar seu próprio pós-filtro (ativos/expirados)
-
-    queryset = queryset.order_by('data_fim_autorizacao')
-
-    data_list = []
-    
-    # Calcula os totais (Soma dos valores de venda/aluguel) para o box de sumário
-    total_valor_venda = queryset.filter(status__in=[Imovel.Status.A_VENDA, Imovel.Status.PARA_ALUGAR]).aggregate(
-        sum_venda=Sum('valor_venda'),
-        sum_aluguel=Sum('valor_aluguel')
-    )
-    
-    # Adiciona anotação de tipo para uso na listagem
-    queryset = queryset.annotate(
-        tipo_imovel_display=Case(
-            *[When(tipo=c[0], then=Value(c[1])) for c in Imovel.TipoImovel.choices],
-            output_field=CharField()
+    # --- FILTROS (Mantidos iguais) ---
+    search = query_params.get('search')
+    if search:
+        queryset = queryset.filter(
+            Q(codigo_referencia__icontains=search) |
+            Q(titulo_anuncio__icontains=search) |
+            Q(logradouro__icontains=search) |
+            Q(bairro__icontains=search) |
+            Q(proprietario__nome__icontains=search) |
+            Q(proprietario__razao_social__icontains=search)
         )
-    )
 
-    # Inicializa contadores de status para o sumário (já calculados no frontend, mas útil aqui)
+    tipo_negocio = query_params.get('tipo_negocio')
+    if tipo_negocio:
+        queryset = queryset.filter(status=tipo_negocio)
+
+    vencimento_de = query_params.get('vencimento_de')
+    vencimento_ate = query_params.get('vencimento_ate')
+    if vencimento_de:
+        queryset = queryset.filter(data_fim_autorizacao__gte=vencimento_de)
+    if vencimento_ate:
+        queryset = queryset.filter(data_fim_autorizacao__lte=vencimento_ate)
+
+    status_vigencia = query_params.get('status_vigencia')
+    if status_vigencia:
+        if status_vigencia == 'VIGENTE':
+            queryset = queryset.filter(Q(data_fim_autorizacao__gte=today) | Q(data_fim_autorizacao__isnull=True))
+        elif status_vigencia == 'VENCIDA':
+            queryset = queryset.filter(data_fim_autorizacao__lt=today)
+        elif status_vigencia == 'A_VENCER':
+            queryset = queryset.filter(data_fim_autorizacao__gte=today, data_fim_autorizacao__lte=trinta_dias)
+
+    # Ordenação e Anotação
+    dias_timedelta = ExpressionWrapper(F('data_fim_autorizacao') - today, output_field=fields.DurationField())
+    queryset = queryset.annotate(dias_restantes=dias_timedelta).order_by('data_fim_autorizacao')
+
+    # --- PROCESSAMENTO DOS DADOS COMPLETOS ---
+    data_list = []
     total_imoveis = 0
     total_expirados = 0
-    total_valor = Decimal(0)
+    total_venda_potencial = Decimal(0)
+    total_aluguel_potencial = Decimal(0)
 
     for imovel in queryset:
-        
+        # Dias Restantes
         if imovel.data_fim_autorizacao and imovel.dias_restantes:
              dias_restantes = imovel.dias_restantes.days
         else:
-             # Se sem data de fim, ou valor indefinido, consideramos ativo/sem risco
              dias_restantes = 9999 
         
+        # Status Risco
         status_risco = 'Ativo'
-        
         if imovel.data_fim_autorizacao and dias_restantes < 0:
              status_risco = 'Expirado'
              total_expirados += 1
         elif imovel.data_fim_autorizacao and dias_restantes <= 30:
              status_risco = 'Risco (30 dias)'
-        elif imovel.data_fim_autorizacao and dias_restantes <= 90:
-             status_risco = 'Atenção (90 dias)'
         
         total_imoveis += 1
         
-        valor = imovel.valor_venda or imovel.valor_aluguel
+        # Somatórios separados
+        if imovel.valor_venda: total_venda_potencial += imovel.valor_venda
+        if imovel.valor_aluguel: total_aluguel_potencial += imovel.valor_aluguel
         
-        if valor is not None:
-             total_valor += valor
-        
-        # Lógica de formatação de moeda BRL (R$ 1.234.567,89)
-        valor_formatado = 'N/A'
-        if valor is not None:
-             try:
-                 valor_str = f"{Decimal(valor):,.2f}"
-                 # Troca separador de milhar (ponto) por vírgula e decimal (vírgula) por ponto temporariamente
-                 valor_str = valor_str.replace('.', 'TEMP').replace(',', '.').replace('TEMP', ',')
-                 valor_formatado = f"R$ {valor_str}"
-             except Exception:
-                 valor_formatado = 'N/A'
+        # Formatações de Valor
+        def fmt_money(val):
+            return f"{val:,.2f}".replace(',', 'X').replace('.', ',').replace('X', '.') if val else "-"
 
+        # Dados do Proprietário
+        nome_proprietario = 'N/A'
+        telefone_proprietario = '-'
+        email_proprietario = '-'
+        
+        if imovel.proprietario:
+            p = imovel.proprietario
+            nome_proprietario = p.razao_social if p.tipo_pessoa == 'JURIDICA' and p.razao_social else p.nome
+            telefone_proprietario = p.telefone or p.celular or '-'
+            email_proprietario = p.email or '-'
+
+        # Status Display
+        finalidade_display = "Venda" if imovel.status == Imovel.Status.A_VENDA else "Aluguel"
+        if imovel.status not in [Imovel.Status.A_VENDA, Imovel.Status.PARA_ALUGAR]:
+             finalidade_display = imovel.get_status_display()
 
         data_list.append({
-            'id': imovel.id,
-            'codigo_referencia': imovel.codigo_referencia,
-            'titulo_anuncio': imovel.titulo_anuncio,
-            'proprietario': imovel.proprietario.nome if imovel.proprietario else 'N/A',
-            'cidade': imovel.cidade, 
-            'data_captacao': imovel.data_captacao, # Campo: Data de Captação
-            'tipo_imovel': imovel.get_tipo_display(), # Campo: Tipo do Imóvel
-            'data_fim_autorizacao': imovel.data_fim_autorizacao, 
-            'dias_restantes': dias_restantes if imovel.data_fim_autorizacao else None, 
+            'codigo': imovel.codigo_referencia,
+            'titulo': imovel.titulo_anuncio,
+            'endereco_resumido': f"{imovel.logradouro or ''}, {imovel.numero or ''}",
+            'bairro_cidade': f"{imovel.bairro or ''} - {imovel.cidade or ''}",
+            
+            'proprietario_nome': nome_proprietario,
+            'proprietario_tel': telefone_proprietario,
+            'proprietario_email': email_proprietario,
+            
+            'finalidade': finalidade_display,
+            'exclusividade': "SIM" if imovel.possui_exclusividade else "NÃO",
+            'comissao': f"{imovel.comissao_percentual}%" if imovel.comissao_percentual else "-",
+            
+            'valor_venda': fmt_money(imovel.valor_venda),
+            'valor_aluguel': fmt_money(imovel.valor_aluguel),
+            
+            'data_inicio': imovel.data_captacao,
+            'data_fim': imovel.data_fim_autorizacao,
+            'dias_restantes': dias_restantes,
             'status_risco': status_risco,
-            'exclusividade': "Sim" if imovel.possui_exclusividade else "Não",
-            'comissao': imovel.comissao_percentual,
-            'valor_formatado': valor_formatado,
         })
         
-    # Adiciona dados de sumário ao final da lista para fácil acesso no template
+    def fmt_total(val):
+        return f"R$ {val:,.2f}".replace(',', 'X').replace('.', ',').replace('X', '.')
+
     sumario_data = {
         'total_imoveis': total_imoveis,
         'total_expirados': total_expirados,
-        'total_valor_geral': f"R$ {total_valor:,.2f}".replace('.', 'TEMP').replace(',', '.').replace('TEMP', ',') if total_valor else 'R$ 0,00'
+        'total_venda': fmt_total(total_venda_potencial),
+        'total_aluguel': fmt_total(total_aluguel_potencial)
     }
     
     return {'list': data_list, 'summary': sumario_data}
-
 
 class AutorizacaoReportView(APIView):
     permission_classes = [permissions.IsAuthenticated] 
@@ -1157,11 +1156,8 @@ class AutorizacaoReportView(APIView):
         tenant = request.tenant
         if not tenant and request.user.is_superuser:
             tenant = Imobiliaria.objects.first()
-            
-        if not tenant:
-             return Response({"error": "Tenant não identificado."}, status=400)
+        if not tenant: return Response({"error": "Tenant não identificado."}, status=400)
 
-        # RETORNA DADOS FILTRADOS PELOS query_params (usado pelo Vue para a tabela)
         data = _get_autorizacao_queryset(tenant, request.query_params) 
         return Response(data['list'], status=status.HTTP_200_OK) 
 
@@ -1170,61 +1166,66 @@ class AutorizacaoReportPDFView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def get(self, request, *args, **kwargs):
+        # 1. Definição do Tenant (Imobiliária)
         tenant = request.tenant
         if not tenant and request.user.is_superuser:
             tenant = Imobiliaria.objects.first()
+        
+        if not tenant:
+            return HttpResponse("Erro: Nenhuma imobiliária identificada.", status=400)
 
-        # O helper agora retorna um dict com 'list' e 'summary'
+        # 2. Busca de Dados (Usando o helper criado anteriormente)
+        # O helper processa todos os filtros: data, texto, tipo e status
         data_structure = _get_autorizacao_queryset(tenant, request.query_params) 
         data = data_structure['list']
         summary = data_structure['summary']
         
-        validade_dias_param = request.query_params.get('validade_dias')
-        exclusividade_param = request.query_params.get('exclusividade')
-        
-        # Ajusta o título com base nos filtros
+        # 3. Personalização do Título do Relatório (baseado nos filtros)
         titulo_relatorio = "Relatório de Autorizações"
-        if validade_dias_param == '0':
-            titulo_relatorio = "Relatório de Autorizações Expiradas"
-        elif validade_dias_param:
-            titulo_relatorio = f"Relatório de Autorizações Vencendo em {validade_dias_param} Dias"
-        else:
-            titulo_relatorio = "Relatório de Autorizações Ativas/Indefinidas"
+        
+        status_vigencia = request.query_params.get('status_vigencia')
+        tipo_negocio = request.query_params.get('tipo_negocio')
+        
+        # Adiciona sufixo ao título se houver filtros específicos
+        if status_vigencia == 'VIGENTE':
+            titulo_relatorio += " (Vigentes)"
+        elif status_vigencia == 'VENCIDA':
+            titulo_relatorio += " (Vencidas)"
+        elif status_vigencia == 'A_VENCER':
+            titulo_relatorio += " (A Vencer)"
             
-        if exclusividade_param == 'true':
-            titulo_relatorio += " (Apenas Exclusivos)"
-        elif exclusividade_param == 'false':
-             titulo_relatorio += " (Apenas Não Exclusivos)"
-             
-        # PÓS-FILTRO PARA ALINHAR COM A LÓGICA DO FRONTEND (principalmente o card de 31-90 dias)
-        status_filtro_frontend = request.query_params.get('statusFiltro') 
+        if tipo_negocio == 'A_VENDA':
+            titulo_relatorio += " - Venda"
+        elif tipo_negocio == 'PARA_ALUGAR':
+            titulo_relatorio += " - Aluguel"
 
-        if status_filtro_frontend == 'expirados' and validade_dias_param != '0':
-            data = [item for item in data if item['dias_restantes'] is not None and item['dias_restantes'] < 0]
-        elif status_filtro_frontend == 'ativos' and validade_dias_param is not None and validade_dias_param.isdigit() and int(validade_dias_param) > 30 and request.query_params.get('cardFilter') == 'warning90':
-            data = [item for item in data if item['dias_restantes'] is not None and item['dias_restantes'] > 30 and item['dias_restantes'] <= 90]
-        # Garante que, se o filtro principal é 'ativos', os expirados não apareçam
-        elif status_filtro_frontend == 'ativos' and not validade_dias_param:
-            data = [item for item in data if item['dias_restantes'] is None or item['dias_restantes'] >= 0]
-
-
+        # 4. Contexto para o Template
         context = {
             'data': data,
-            'summary': summary, # Passa o sumário
+            'summary': summary,
             'titulo_relatorio': titulo_relatorio,
-            'data_geracao': date.today(),
-            'imobiliaria': request.tenant, 
+            # CORREÇÃO: Usa timezone.now() para passar data E hora, permitindo formatação H:i no template
+            'data_geracao': timezone.now(), 
+            'imobiliaria': tenant,
+            'usuario_solicitante': request.user.first_name or request.user.username
         }
 
+        # 5. Renderização do HTML
+        # O Django buscará este arquivo em: app_imoveis/templates/relatorio_autorizacoes_template.html
         html_string = render_to_string('relatorio_autorizacoes_template.html', context)
+        
+        # 6. Geração do PDF (xhtml2pdf)
         result = BytesIO()
         pdf = pisa.pisaDocument(BytesIO(html_string.encode("UTF-8")), result, encoding='UTF-8')
 
+        # 7. Retorno do Arquivo
         if not pdf.err:
             response = HttpResponse(result.getvalue(), content_type='application/pdf')
-            filename = f'relatorio_autorizacoes_{date.today().isoformat()}.pdf'
+            # Usa timezone.now() também para o nome do arquivo
+            filename = f'relatorio_autorizacoes_{timezone.now().strftime("%Y-%m-%d")}.pdf'
+            
+            # 'inline' abre no navegador (nova aba) para visualização antes de imprimir
             response['Content-Disposition'] = f'inline; filename="{filename}"' 
             return response
         else:
-            print(f"Erro ao gerar PDF do relatório: {pdf.err}")
             return HttpResponse(f"Erro ao gerar o PDF: {pdf.err}", status=500)

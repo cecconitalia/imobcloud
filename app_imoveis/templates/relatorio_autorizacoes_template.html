@@ -1,264 +1,224 @@
 <!DOCTYPE html>
-<html lang="pt-BR">
+<html lang="pt-br">
 <head>
     <meta charset="UTF-8">
-    <title>{{ titulo_relatorio }}</title>
+    <title>Relatório Geral de Autorizações</title>
     <style>
-        /* ================= CONFIGURAÇÃO DE PÁGINA E FRAMES ================= */
         @page {
             size: A4 landscape;
-            margin: 1.0cm; /* Margens gerais */
-            margin-bottom: 2.5cm; /* Espaço reservado na parte inferior para não sobrepor o rodapé */
-
-            /* DEFINIÇÃO DO FRAME DE RODAPÉ (FIXO EM TODAS AS PÁGINAS) */
-            @frame footer_frame {
-                -pdf-frame-content: footer_content; /* Liga este frame à div com id="footer_content" */
-                bottom: 0.5cm;
-                left: 1.0cm;
-                right: 1.0cm;
-                height: 1.0cm;
-            }
+            margin: 1cm;
+            margin-bottom: 1.5cm;
         }
 
         body {
-            font-family: Helvetica, Arial, sans-serif;
-            font-size: 10px;
-            color: #333333;
+            font-family: Helvetica, sans-serif;
+            font-size: 8pt;
+            color: #222;
             line-height: 1.3;
         }
 
-        /* Estilo do Rodapé (Conteúdo do Frame) */
-        #footer_content {
-            text-align: right;
-            font-size: 9px;
-            color: #666666;
-            border-top: 1px solid #cccccc;
-            padding-top: 5px;
-        }
-
-        /* ================= CABEÇALHO ================= */
+        /* CABEÇALHO */
         .header-table {
             width: 100%;
-            border-bottom: 2px solid #000000;
-            padding-bottom: 10px;
-            margin-bottom: 20px;
+            border-bottom: 2px solid #000;
+            padding-bottom: 8px;
+            margin-bottom: 15px;
         }
-        
-        .company-name {
-            font-size: 14px;
-            font-weight: bold;
-            text-transform: uppercase;
-            color: #000000;
-        }
+        .company-title { font-size: 14pt; font-weight: bold; text-transform: uppercase; }
+        .report-name { font-size: 12pt; font-weight: bold; text-align: right; text-transform: uppercase; }
+        .meta-data { font-size: 8pt; text-align: right; color: #555; }
 
-        .report-title {
-            font-size: 18px;
-            font-weight: bold;
-            text-transform: uppercase;
-            color: #333333;
-            margin-top: 5px;
-        }
-
-        .report-meta {
-            font-size: 9px;
-            color: #555555;
-            text-align: right;
-            vertical-align: bottom;
-        }
-
-        /* ================= SUMÁRIO (DASHBOARD) ================= */
+        /* BOX DE RESUMO */
         .summary-box {
             width: 100%;
-            border: 1px solid #dddddd;
-            background-color: #f9f9f9;
-            margin-bottom: 20px;
+            background-color: #f4f4f4;
+            border: 1px solid #ccc;
+            padding: 8px;
+            margin-bottom: 15px;
         }
+        .summary-table { width: 100%; }
+        .sum-label { font-size: 7pt; font-weight: bold; text-transform: uppercase; color: #666; }
+        .sum-val { font-size: 10pt; font-weight: bold; color: #000; }
         
-        .summary-box td {
-            padding: 10px 15px;
-            width: 33.33%;
-            border-right: 1px solid #dddddd;
-            vertical-align: top;
-        }
-        .summary-box td:last-child {
-            border-right: none;
-        }
-
-        .sum-label {
-            font-size: 8px;
-            text-transform: uppercase;
-            color: #888888;
-            font-weight: bold;
-            display: block;
-            margin-bottom: 5px;
-        }
-
-        .sum-value {
-            font-size: 14px;
-            font-weight: bold;
-            color: #000000;
-            display: block;
-            white-space: nowrap;
-        }
-        .text-danger { color: #cc0000; }
-        .text-primary { color: #0056b3; }
-
-        /* ================= TABELA DE DADOS ================= */
+        /* TABELA */
         .data-table {
             width: 100%;
             border-collapse: collapse;
         }
-
         .data-table th {
-            background-color: #eeeeee;
-            color: #000000;
+            background-color: #333;
+            color: #fff;
             font-weight: bold;
-            font-size: 9px;
+            font-size: 7pt;
             text-transform: uppercase;
-            padding: 8px 5px;
-            border-top: 1px solid #000000;
-            border-bottom: 1px solid #000000;
             text-align: left;
+            padding: 5px;
+            border: 1px solid #333;
         }
-
         .data-table td {
-            padding: 6px 5px;
-            border-bottom: 1px solid #e0e0e0;
-            font-size: 9px;
+            border: 1px solid #ddd;
+            padding: 4px 5px;
             vertical-align: middle;
+            font-size: 7.5pt;
         }
+        .data-table tr:nth-child(even) { background-color: #fbfbfb; }
 
-        .data-table tr:nth-child(even) {
-            background-color: #fdfdfd;
-        }
-
-        /* ================= CLASSES UTILITÁRIAS ================= */
-        .text-right { text-align: right; }
+        /* UTILITÁRIOS */
         .text-center { text-align: center; }
-        .bold { font-weight: bold; }
-        
-        /* Larguras das Colunas */
-        .col-ref      { width: 6%; }
-        .col-imovel   { width: 24%; }
-        .col-tipo     { width: 8%; }
-        .col-prop     { width: 15%; }
-        .col-cidade   { width: 9%; }
-        .col-captacao { width: 7%; }
-        .col-valor    { width: 11%; }
-        .col-comissao { width: 6%; }
-        .col-exc      { width: 4%; }
-        .col-vencto   { width: 10%; }
-        
-        /* Status Colors */
-        .st-expired { color: #cc0000; font-weight: bold; }
-        .st-risk    { color: #e69500; font-weight: bold; }
-        .st-ok      { color: #000000; }
+        .text-right { text-align: right; }
+        .text-bold { font-weight: bold; }
+        .text-small { font-size: 6.5pt; color: #555; }
+        .text-danger { color: #c0392b; font-weight: bold; }
+        .text-warning { color: #d35400; font-weight: bold; }
+        .text-success { color: #27ae60; font-weight: bold; }
+        .bg-alert { background-color: #ffecec; }
 
+        /* RODAPÉ */
+        #footer_content {
+            position: fixed; bottom: -1cm; left: 0; right: 0; height: 1cm;
+            text-align: center; font-size: 7pt; color: #999;
+            border-top: 1px solid #ccc; padding-top: 5px;
+        }
+        .page-number:before { content: counter(page); }
     </style>
 </head>
 <body>
 
     <div id="footer_content">
-        Relatório Gerado por ImobCloud - {{ imobiliaria.nome|default:"Estilo Musical" }} &nbsp;|&nbsp; Pág. <pdf:pagenumber/>
+        ImobCloud - Relatório Gerencial - Impresso em {{ data_geracao|date:"d/m/Y H:i" }} por {{ usuario_solicitante|default:"Sistema" }} - Pág. <span class="page-number"></span>
     </div>
 
     <table class="header-table">
         <tr>
-            <td width="50%" valign="top">
-                {% if imobiliaria.logo %}
-                    <img src="{{ imobiliaria.logo.path }}" style="height: 45px; margin-bottom: 5px;">
-                {% endif %}
-                <div class="company-name">{{ imobiliaria.nome|default:"Estilo Musical" }}</div>
-                <div class="report-title">Relatório de Autorizações</div>
+            {% if imobiliaria.logo %}
+                <td width="15%" valign="top">
+                    <img src="{{ imobiliaria.logo.path }}" style="width: 80px; height: auto;" />
+                </td>
+                <td width="55%" valign="top">
+            {% else %}
+                <td width="70%" valign="top">
+            {% endif %}
+            
+                <div class="company-title">
+                    {{ imobiliaria.nome_fantasia|default:imobiliaria.nome|default:"IMOBILIÁRIA" }}
+                </div>
+                <div class="meta-data" style="text-align: left;">
+                    {{ imobiliaria.razao_social|default:imobiliaria.nome|default:"-" }} <br>
+                    
+                    CNPJ: {{ imobiliaria.cnpj|default:"-" }} 
+                    {% if imobiliaria.creci %} | CRECI: {{ imobiliaria.creci }} {% endif %}
+                    <br>
+                    
+                    {{ imobiliaria.logradouro|default:"" }} 
+                    {% if imobiliaria.numero %}, {{ imobiliaria.numero }}{% endif %}
+                    {% if imobiliaria.bairro %} - {{ imobiliaria.bairro }}{% endif %}
+                    <br>
+                    
+                    {{ imobiliaria.cidade|default:"" }} - {{ imobiliaria.estado|default:"" }} <br>
+                    
+                    {% if imobiliaria.telefone %} Tel: {{ imobiliaria.telefone }} {% endif %}
+                    {% if imobiliaria.email %} | Email: {{ imobiliaria.email }} {% endif %}
+                </div>
             </td>
-            <td width="50%" valign="bottom" class="report-meta">
-                <strong>Filtro:</strong> {{ titulo_relatorio|slice:"26:"|default:"Todos" }}<br>
-                <strong>Emissão:</strong> {{ data_geracao|date:"d/m/Y" }}<br>
-                <strong>Registros:</strong> {{ data|length }}
+
+            <td width="30%" valign="top" class="text-right">
+                <div class="report-name">{{ titulo_relatorio }}</div>
+                <div class="meta-data">
+                    Gestão de Vigência e Autorizações<br>
+                    Ref: {{ data_geracao|date:"F/Y" }}
+                </div>
             </td>
         </tr>
     </table>
 
-    <table class="summary-box" cellspacing="0" cellpadding="0">
-        <tr>
-            <td>
-                <span class="sum-label">Total de Imóveis</span>
-                <span class="sum-value text-primary">{{ summary.total_imoveis }}</span>
-            </td>
-            <td>
-                <span class="sum-label">Contratos em Risco/Vencidos</span>
-                <span class="sum-value text-danger">{{ summary.total_expirados }}</span>
-            </td>
-            <td>
-                <span class="sum-label">Valor Total da Carteira</span>
-                <span class="sum-value">{{ summary.total_valor_geral }}</span>
-            </td>
-        </tr>
-    </table>
+    <div class="summary-box">
+        <table class="summary-table">
+            <tr>
+                <td width="25%">
+                    <div class="sum-label">Imóveis Listados</div>
+                    <div class="sum-val">{{ summary.total_imoveis }}</div>
+                </td>
+                <td width="25%">
+                    <div class="sum-label">Venda Potencial</div>
+                    <div class="sum-val">{{ summary.total_venda }}</div>
+                </td>
+                <td width="25%">
+                    <div class="sum-label">Aluguel Potencial</div>
+                    <div class="sum-val">{{ summary.total_aluguel }}</div>
+                </td>
+                <td width="25%" style="text-align: right;">
+                    <div class="sum-label">Contratos Expirados</div>
+                    <div class="sum-val text-danger">{{ summary.total_expirados }}</div>
+                </td>
+            </tr>
+        </table>
+    </div>
 
-    {% if data %}
     <table class="data-table">
         <thead>
             <tr>
-                <th class="col-ref">Ref.</th>
-                <th class="col-imovel">Imóvel</th>
-                <th class="col-tipo">Tipo</th>
-                <th class="col-prop">Proprietário</th>
-                <th class="col-cidade">Cidade</th>
-                <th class="col-captacao">Captação</th>
-                <th class="col-valor text-right">Valor</th>
-                <th class="col-comissao text-right">Com(%)</th>
-                <th class="col-exc text-center">Exc.</th>
-                <th class="col-vencto text-center">Vencimento</th>
+                <th width="5%">Cód.</th>
+                <th width="20%">Imóvel</th>
+                <th width="12%">Localização</th>
+                <th width="15%">Proprietário / Contato</th>
+                <th width="6%" class="text-center">Tipo</th>
+                <th width="9%" class="text-right">Venda</th>
+                <th width="8%" class="text-right">Aluguel</th>
+                <th width="5%" class="text-center">Com.</th>
+                <th width="4%" class="text-center">Excl.</th>
+                <th width="9%" class="text-center">Vigência</th>
+                <th width="7%" class="text-center">Situação</th>
             </tr>
         </thead>
         <tbody>
             {% for item in data %}
-            <tr>
-                <td>{{ item.codigo_referencia }}</td>
+            <tr class="{% if item.status_risco == 'Expirado' %}bg-alert{% endif %}">
+                <td class="text-center text-bold">{{ item.codigo }}</td>
                 <td>
-                    <strong>{{ item.titulo_anuncio|truncatechars:35 }}</strong>
-                    {% if item.status_risco != 'Ativo' %}
-                        <br>
-                        <span style="font-size: 8px;" class="
-                            {% if item.status_risco == 'Expirado' %}st-expired{% endif %}
-                            {% if item.status_risco == 'Risco (30 dias)' %}st-risk{% endif %}
-                            {% if item.status_risco == 'Atenção (90 dias)' %}text-primary{% endif %}
-                        ">
-                            ALERTA: {{ item.status_risco|upper }}
-                        </span>
+                    {{ item.titulo|truncatechars:35 }}<br/>
+                    <span class="text-small">{{ item.endereco_resumido|truncatechars:40 }}</span>
+                </td>
+                <td>{{ item.bairro_cidade }}</td>
+                <td>
+                    <strong>{{ item.proprietario_nome|truncatechars:20 }}</strong><br/>
+                    <span class="text-small">
+                        {% if item.proprietario_tel != '-' %}Tel: {{ item.proprietario_tel }}{% endif %}
+                    </span>
+                </td>
+                <td class="text-center">{{ item.finalidade }}</td>
+                <td class="text-right">{{ item.valor_venda }}</td>
+                <td class="text-right">{{ item.valor_aluguel }}</td>
+                <td class="text-center">{{ item.comissao }}</td>
+                <td class="text-center">
+                    {% if item.exclusividade == 'SIM' %}
+                        <strong style="color: #d35400;">SIM</strong>
+                    {% else %}NÃO{% endif %}
+                </td>
+                <td class="text-center">
+                    {{ item.data_inicio|date:"d/m/y" }} a<br/>
+                    <strong>{{ item.data_fim|date:"d/m/y"|default:"INDET." }}</strong>
+                </td>
+                <td class="text-center">
+                    {% if item.status_risco == 'Expirado' %}
+                        <div class="text-danger">VENCIDA</div>
+                        <div class="text-small">({{ item.dias_restantes }}d)</div>
+                    {% elif item.status_risco == 'Risco (30 dias)' %}
+                        <div class="text-warning">VENCE</div>
+                        <div class="text-small">({{ item.dias_restantes }}d)</div>
+                    {% else %}
+                        <div class="text-success">VIGENTE</div>
                     {% endif %}
                 </td>
-                <td>{{ item.tipo_imovel|default:"-"|slice:":12" }}</td>
-                <td>{{ item.proprietario|truncatechars:20 }}</td>
-                <td>{{ item.cidade|default:"-" }}</td>
-                <td>{% if item.data_captacao %}{{ item.data_captacao|date:"d/m/Y" }}{% else %}-{% endif %}</td>
-                <td class="text-right bold">{{ item.valor_formatado }}</td>
-                <td class="text-right">{{ item.comissao|floatformat:1 }}%</td>
-                <td class="text-center">{{ item.exclusividade|slice:":1" }}</td>
-                <td class="text-center">
-                    {% if item.data_fim_autorizacao %}
-                        {{ item.data_fim_autorizacao|date:"d/m/Y" }}<br>
-                        <span style="font-size: 8px; color: #666;">
-                            {% if item.dias_restantes < 0 %}
-                                (Vencido)
-                            {% else %}
-                                ({{ item.dias_restantes }} dias)
-                            {% endif %}
-                        </span>
-                    {% else %}
-                        -
-                    {% endif %}
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="11" class="text-center" style="padding: 30px;">
+                    Nenhum imóvel encontrado com os filtros selecionados.
                 </td>
             </tr>
             {% endfor %}
         </tbody>
     </table>
-    {% else %}
-    <div style="text-align: center; padding: 30px; border: 1px dashed #ccc; color: #777; margin-top: 20px;">
-        Nenhum registro encontrado para os filtros selecionados.
-    </div>
-    {% endif %}
 
 </body>
 </html>

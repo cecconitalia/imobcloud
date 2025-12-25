@@ -1563,3 +1563,432 @@ WARNING 2025-12-23 11:33:54,870 log 11888 14664 Forbidden: /api/v1/alugueis/dash
 WARNING 2025-12-23 11:33:54,870 log 11888 14160 Forbidden: /api/v1/financeiro/transacoes/stats/
 WARNING 2025-12-25 12:02:22,453 log 13780 5588 Not Found: /api/v1/vistorias/vistorias/20/assinar/
 WARNING 2025-12-25 12:06:31,390 log 13780 7672 Not Found: /api/v1/vistorias/vistorias/20/assinar/
+WARNING 2025-12-25 12:44:34,272 log 6416 9604 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2025-12-25 12:44:51,028 log 6416 9604 Forbidden: /api/v1/stats/
+WARNING 2025-12-25 12:44:51,034 log 6416 15660 Forbidden: /api/v1/financeiro/transacoes/stats/
+WARNING 2025-12-25 12:44:51,115 log 6416 9604 Forbidden: /api/v1/alugueis/dashboard-stats/
+WARNING 2025-12-25 13:30:53,502 util 9420 12308 getSize: Not a float '33%'
+WARNING 2025-12-25 13:30:53,512 util 9420 12308 getSize: Not a float '33%'
+WARNING 2025-12-25 13:30:53,525 util 9420 12308 getSize: Not a float '33%'
+WARNING 2025-12-25 13:45:02,588 log 9420 13852 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2025-12-25 13:45:05,894 log 9420 13852 Forbidden: /api/v1/stats/
+WARNING 2025-12-25 13:45:05,919 log 9420 13852 Forbidden: /api/v1/financeiro/transacoes/stats/
+WARNING 2025-12-25 13:45:05,963 log 9420 13852 Forbidden: /api/v1/alugueis/dashboard-stats/
+WARNING 2025-12-25 13:45:08,831 log 9420 13852 Forbidden: /api/v1/stats/
+WARNING 2025-12-25 13:45:08,831 log 9420 11584 Forbidden: /api/v1/alugueis/dashboard-stats/
+WARNING 2025-12-25 13:45:08,831 log 9420 928 Forbidden: /api/v1/financeiro/transacoes/stats/
+WARNING 2025-12-25 14:45:58,265 log 9420 11900 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2025-12-25 14:46:41,972 log 9420 7616 Forbidden: /api/v1/financeiro/transacoes/stats/
+WARNING 2025-12-25 14:46:42,118 log 9420 11900 Forbidden: /api/v1/stats/
+WARNING 2025-12-25 14:46:42,243 log 9420 7616 Forbidden: /api/v1/alugueis/dashboard-stats/
+WARNING 2025-12-25 14:46:44,029 log 9420 7616 Forbidden: /api/v1/stats/
+WARNING 2025-12-25 14:46:44,033 log 9420 12904 Forbidden: /api/v1/alugueis/dashboard-stats/
+WARNING 2025-12-25 14:46:44,042 log 9420 11900 Forbidden: /api/v1/financeiro/transacoes/stats/
+WARNING 2025-12-25 14:46:44,649 log 9420 11900 Forbidden: /api/v1/stats/
+WARNING 2025-12-25 14:46:44,649 log 9420 12904 Forbidden: /api/v1/financeiro/transacoes/stats/
+WARNING 2025-12-25 14:46:44,663 log 9420 7616 Forbidden: /api/v1/alugueis/dashboard-stats/
+WARNING 2025-12-25 15:20:28,934 log 9420 4844 Forbidden: /api/v1/clientes/13/
+WARNING 2025-12-25 15:20:50,198 log 9420 4844 Forbidden: /api/v1/clientes/13/
+WARNING 2025-12-25 15:20:53,032 log 9420 4844 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2025-12-25 15:21:43,261 log 9420 4844 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2025-12-25 15:21:50,255 log 9420 4844 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2025-12-25 15:22:43,255 log 9420 4844 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2025-12-25 15:23:00,296 log 9420 4844 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2025-12-25 15:47:46,296 log 10084 12484 Not Found: /api/v1/imoveis/relatorio-geral-autorizacoes/
+WARNING 2025-12-25 16:23:53,183 log 16344 16084 Forbidden: /api/v1/imoveis/relatorio/autorizacoes/
+WARNING 2025-12-25 16:23:53,348 log 16344 16084 Forbidden: /api/v1/stats/
+WARNING 2025-12-25 16:23:53,370 log 16344 16084 Forbidden: /api/v1/financeiro/transacoes/stats/
+WARNING 2025-12-25 16:23:53,386 log 16344 16084 Forbidden: /api/v1/alugueis/dashboard-stats/
+WARNING 2025-12-25 16:23:54,894 log 16344 16084 Forbidden: /api/v1/stats/
+WARNING 2025-12-25 16:23:54,918 log 16344 15004 Forbidden: /api/v1/financeiro/transacoes/stats/
+WARNING 2025-12-25 16:23:54,921 log 16344 4700 Forbidden: /api/v1/alugueis/dashboard-stats/
+WARNING 2025-12-25 16:23:55,868 log 16344 4700 Forbidden: /api/v1/stats/
+WARNING 2025-12-25 16:23:55,869 log 16344 16084 Forbidden: /api/v1/alugueis/dashboard-stats/
+WARNING 2025-12-25 16:23:55,870 log 16344 15004 Forbidden: /api/v1/financeiro/transacoes/stats/
+WARNING 2025-12-25 16:23:56,046 log 16344 15004 Forbidden: /api/v1/stats/
+WARNING 2025-12-25 16:23:56,047 log 16344 16084 Forbidden: /api/v1/financeiro/transacoes/stats/
+WARNING 2025-12-25 16:23:56,048 log 16344 4700 Forbidden: /api/v1/alugueis/dashboard-stats/
+ERROR 2025-12-25 16:24:09,230 log 16344 8788 Internal Server Error: /api/v1/imoveis/relatorio-geral-autorizacoes/
+Traceback (most recent call last):
+  File "C:\wamp64\www\imobcloud\venv\Lib\site-packages\django\core\handlers\exception.py", line 55, in inner
+    response = get_response(request)
+               ^^^^^^^^^^^^^^^^^^^^^
+  File "C:\wamp64\www\imobcloud\venv\Lib\site-packages\django\core\handlers\base.py", line 197, in _get_response
+    response = wrapped_callback(request, *callback_args, **callback_kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\wamp64\www\imobcloud\venv\Lib\site-packages\django\views\decorators\csrf.py", line 65, in _view_wrapper
+    return view_func(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\wamp64\www\imobcloud\venv\Lib\site-packages\django\views\generic\base.py", line 105, in view
+    return self.dispatch(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\wamp64\www\imobcloud\venv\Lib\site-packages\rest_framework\views.py", line 509, in dispatch
+    response = self.handle_exception(exc)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\wamp64\www\imobcloud\venv\Lib\site-packages\rest_framework\views.py", line 469, in handle_exception
+    self.raise_uncaught_exception(exc)
+  File "C:\wamp64\www\imobcloud\venv\Lib\site-packages\rest_framework\views.py", line 480, in raise_uncaught_exception
+    raise exc
+  File "C:\wamp64\www\imobcloud\venv\Lib\site-packages\rest_framework\views.py", line 506, in dispatch
+    response = handler(request, *args, **kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\wamp64\www\imobcloud\app_imoveis\views.py", line 1187, in get
+    pdf = pisa.pisaDocument(BytesIO(html_string.encode("UTF-8")), result, encoding='UTF-8')
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\wamp64\www\imobcloud\venv\Lib\site-packages\xhtml2pdf\document.py", line 139, in pisaDocument
+    context = pisaStory(
+              ^^^^^^^^^^
+  File "C:\wamp64\www\imobcloud\venv\Lib\site-packages\xhtml2pdf\document.py", line 75, in pisaStory
+    pisaParser(src, context, default_css, xhtml, encoding, xml_output)
+  File "C:\wamp64\www\imobcloud\venv\Lib\site-packages\xhtml2pdf\parser.py", line 823, in pisaParser
+    context.parseCSS()
+  File "C:\wamp64\www\imobcloud\venv\Lib\site-packages\xhtml2pdf\context.py", line 690, in parseCSS
+    self.css = self.cssParser.parse(self.cssText)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\wamp64\www\imobcloud\venv\Lib\site-packages\xhtml2pdf\w3c\cssParser.py", line 458, in parse
+    src, stylesheet = self._parseStylesheet(src)
+                      ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\wamp64\www\imobcloud\venv\Lib\site-packages\xhtml2pdf\w3c\cssParser.py", line 561, in _parseStylesheet
+    src, atResults = self._parseAtKeyword(src)
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\wamp64\www\imobcloud\venv\Lib\site-packages\xhtml2pdf\w3c\cssParser.py", line 683, in _parseAtKeyword
+    src, result = self._parseAtPage(src)
+                  ^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\wamp64\www\imobcloud\venv\Lib\site-packages\xhtml2pdf\w3c\cssParser.py", line 793, in _parseAtPage
+    stylesheetElements.extend(atResults)
+TypeError: 'NotImplementedType' object is not iterable
+ERROR 2025-12-25 16:25:52,726 log 2204 1104 Internal Server Error: /api/v1/imoveis/relatorio-geral-autorizacoes/
+Traceback (most recent call last):
+  File "C:\wamp64\www\imobcloud\venv\Lib\site-packages\django\core\handlers\exception.py", line 55, in inner
+    response = get_response(request)
+               ^^^^^^^^^^^^^^^^^^^^^
+  File "C:\wamp64\www\imobcloud\venv\Lib\site-packages\django\core\handlers\base.py", line 197, in _get_response
+    response = wrapped_callback(request, *callback_args, **callback_kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\wamp64\www\imobcloud\venv\Lib\site-packages\django\views\decorators\csrf.py", line 65, in _view_wrapper
+    return view_func(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\wamp64\www\imobcloud\venv\Lib\site-packages\django\views\generic\base.py", line 105, in view
+    return self.dispatch(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\wamp64\www\imobcloud\venv\Lib\site-packages\rest_framework\views.py", line 509, in dispatch
+    response = self.handle_exception(exc)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\wamp64\www\imobcloud\venv\Lib\site-packages\rest_framework\views.py", line 469, in handle_exception
+    self.raise_uncaught_exception(exc)
+  File "C:\wamp64\www\imobcloud\venv\Lib\site-packages\rest_framework\views.py", line 480, in raise_uncaught_exception
+    raise exc
+  File "C:\wamp64\www\imobcloud\venv\Lib\site-packages\rest_framework\views.py", line 506, in dispatch
+    response = handler(request, *args, **kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\wamp64\www\imobcloud\app_imoveis\views.py", line 1213, in get
+    pdf = pisa.pisaDocument(BytesIO(html_string.encode("UTF-8")), result, encoding='UTF-8')
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\wamp64\www\imobcloud\venv\Lib\site-packages\xhtml2pdf\document.py", line 139, in pisaDocument
+    context = pisaStory(
+              ^^^^^^^^^^
+  File "C:\wamp64\www\imobcloud\venv\Lib\site-packages\xhtml2pdf\document.py", line 75, in pisaStory
+    pisaParser(src, context, default_css, xhtml, encoding, xml_output)
+  File "C:\wamp64\www\imobcloud\venv\Lib\site-packages\xhtml2pdf\parser.py", line 823, in pisaParser
+    context.parseCSS()
+  File "C:\wamp64\www\imobcloud\venv\Lib\site-packages\xhtml2pdf\context.py", line 690, in parseCSS
+    self.css = self.cssParser.parse(self.cssText)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\wamp64\www\imobcloud\venv\Lib\site-packages\xhtml2pdf\w3c\cssParser.py", line 458, in parse
+    src, stylesheet = self._parseStylesheet(src)
+                      ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\wamp64\www\imobcloud\venv\Lib\site-packages\xhtml2pdf\w3c\cssParser.py", line 561, in _parseStylesheet
+    src, atResults = self._parseAtKeyword(src)
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\wamp64\www\imobcloud\venv\Lib\site-packages\xhtml2pdf\w3c\cssParser.py", line 683, in _parseAtKeyword
+    src, result = self._parseAtPage(src)
+                  ^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\wamp64\www\imobcloud\venv\Lib\site-packages\xhtml2pdf\w3c\cssParser.py", line 793, in _parseAtPage
+    stylesheetElements.extend(atResults)
+TypeError: 'NotImplementedType' object is not iterable
+ERROR 2025-12-25 16:30:30,427 log 15372 13184 Internal Server Error: /api/v1/imoveis/relatorio-geral-autorizacoes/
+Traceback (most recent call last):
+  File "C:\wamp64\www\imobcloud\venv\Lib\site-packages\django\core\handlers\exception.py", line 55, in inner
+    response = get_response(request)
+               ^^^^^^^^^^^^^^^^^^^^^
+  File "C:\wamp64\www\imobcloud\venv\Lib\site-packages\django\core\handlers\base.py", line 197, in _get_response
+    response = wrapped_callback(request, *callback_args, **callback_kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\wamp64\www\imobcloud\venv\Lib\site-packages\django\views\decorators\csrf.py", line 65, in _view_wrapper
+    return view_func(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\wamp64\www\imobcloud\venv\Lib\site-packages\django\views\generic\base.py", line 105, in view
+    return self.dispatch(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\wamp64\www\imobcloud\venv\Lib\site-packages\rest_framework\views.py", line 509, in dispatch
+    response = self.handle_exception(exc)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\wamp64\www\imobcloud\venv\Lib\site-packages\rest_framework\views.py", line 469, in handle_exception
+    self.raise_uncaught_exception(exc)
+  File "C:\wamp64\www\imobcloud\venv\Lib\site-packages\rest_framework\views.py", line 480, in raise_uncaught_exception
+    raise exc
+  File "C:\wamp64\www\imobcloud\venv\Lib\site-packages\rest_framework\views.py", line 506, in dispatch
+    response = handler(request, *args, **kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\wamp64\www\imobcloud\app_imoveis\views.py", line 1214, in get
+    html_string = render_to_string('relatorio_autorizacoes_template.html', context)
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\wamp64\www\imobcloud\venv\Lib\site-packages\django\template\loader.py", line 62, in render_to_string
+    return template.render(context, request)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\wamp64\www\imobcloud\venv\Lib\site-packages\django\template\backends\django.py", line 107, in render
+    return self.template.render(context)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\wamp64\www\imobcloud\venv\Lib\site-packages\django\template\base.py", line 171, in render
+    return self._render(context)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "C:\wamp64\www\imobcloud\venv\Lib\site-packages\django\template\base.py", line 163, in _render
+    return self.nodelist.render(context)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\wamp64\www\imobcloud\venv\Lib\site-packages\django\template\base.py", line 1016, in render
+    return SafeString("".join([node.render_annotated(context) for node in self]))
+                               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\wamp64\www\imobcloud\venv\Lib\site-packages\django\template\base.py", line 977, in render_annotated
+    return self.render(context)
+           ^^^^^^^^^^^^^^^^^^^^
+  File "C:\wamp64\www\imobcloud\venv\Lib\site-packages\django\template\base.py", line 1075, in render
+    output = self.filter_expression.resolve(context)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\wamp64\www\imobcloud\venv\Lib\site-packages\django\template\base.py", line 749, in resolve
+    new_obj = func(obj, *arg_vals)
+              ^^^^^^^^^^^^^^^^^^^^
+  File "C:\wamp64\www\imobcloud\venv\Lib\site-packages\django\template\defaultfilters.py", line 784, in date
+    return formats.date_format(value, arg)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\wamp64\www\imobcloud\venv\Lib\site-packages\django\utils\formats.py", line 155, in date_format
+    return dateformat.format(
+           ^^^^^^^^^^^^^^^^^^
+  File "C:\wamp64\www\imobcloud\venv\Lib\site-packages\django\utils\dateformat.py", line 325, in format
+    return df.format(format_string)
+           ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\wamp64\www\imobcloud\venv\Lib\site-packages\django\utils\dateformat.py", line 45, in format
+    raise TypeError(
+TypeError: The format for date objects may not contain time-related format specifiers (found 'H').
+ERROR 2025-12-25 16:30:39,074 log 15372 8008 Internal Server Error: /api/v1/imoveis/relatorio-geral-autorizacoes/
+Traceback (most recent call last):
+  File "C:\wamp64\www\imobcloud\venv\Lib\site-packages\django\core\handlers\exception.py", line 55, in inner
+    response = get_response(request)
+               ^^^^^^^^^^^^^^^^^^^^^
+  File "C:\wamp64\www\imobcloud\venv\Lib\site-packages\django\core\handlers\base.py", line 197, in _get_response
+    response = wrapped_callback(request, *callback_args, **callback_kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\wamp64\www\imobcloud\venv\Lib\site-packages\django\views\decorators\csrf.py", line 65, in _view_wrapper
+    return view_func(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\wamp64\www\imobcloud\venv\Lib\site-packages\django\views\generic\base.py", line 105, in view
+    return self.dispatch(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\wamp64\www\imobcloud\venv\Lib\site-packages\rest_framework\views.py", line 509, in dispatch
+    response = self.handle_exception(exc)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\wamp64\www\imobcloud\venv\Lib\site-packages\rest_framework\views.py", line 469, in handle_exception
+    self.raise_uncaught_exception(exc)
+  File "C:\wamp64\www\imobcloud\venv\Lib\site-packages\rest_framework\views.py", line 480, in raise_uncaught_exception
+    raise exc
+  File "C:\wamp64\www\imobcloud\venv\Lib\site-packages\rest_framework\views.py", line 506, in dispatch
+    response = handler(request, *args, **kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\wamp64\www\imobcloud\app_imoveis\views.py", line 1214, in get
+    html_string = render_to_string('relatorio_autorizacoes_template.html', context)
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\wamp64\www\imobcloud\venv\Lib\site-packages\django\template\loader.py", line 62, in render_to_string
+    return template.render(context, request)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\wamp64\www\imobcloud\venv\Lib\site-packages\django\template\backends\django.py", line 107, in render
+    return self.template.render(context)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\wamp64\www\imobcloud\venv\Lib\site-packages\django\template\base.py", line 171, in render
+    return self._render(context)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "C:\wamp64\www\imobcloud\venv\Lib\site-packages\django\template\base.py", line 163, in _render
+    return self.nodelist.render(context)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\wamp64\www\imobcloud\venv\Lib\site-packages\django\template\base.py", line 1016, in render
+    return SafeString("".join([node.render_annotated(context) for node in self]))
+                               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\wamp64\www\imobcloud\venv\Lib\site-packages\django\template\base.py", line 977, in render_annotated
+    return self.render(context)
+           ^^^^^^^^^^^^^^^^^^^^
+  File "C:\wamp64\www\imobcloud\venv\Lib\site-packages\django\template\base.py", line 1075, in render
+    output = self.filter_expression.resolve(context)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\wamp64\www\imobcloud\venv\Lib\site-packages\django\template\base.py", line 749, in resolve
+    new_obj = func(obj, *arg_vals)
+              ^^^^^^^^^^^^^^^^^^^^
+  File "C:\wamp64\www\imobcloud\venv\Lib\site-packages\django\template\defaultfilters.py", line 784, in date
+    return formats.date_format(value, arg)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\wamp64\www\imobcloud\venv\Lib\site-packages\django\utils\formats.py", line 155, in date_format
+    return dateformat.format(
+           ^^^^^^^^^^^^^^^^^^
+  File "C:\wamp64\www\imobcloud\venv\Lib\site-packages\django\utils\dateformat.py", line 325, in format
+    return df.format(format_string)
+           ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\wamp64\www\imobcloud\venv\Lib\site-packages\django\utils\dateformat.py", line 45, in format
+    raise TypeError(
+TypeError: The format for date objects may not contain time-related format specifiers (found 'H').
+ERROR 2025-12-25 16:36:32,776 log 2108 14448 Internal Server Error: /api/v1/imoveis/relatorio-geral-autorizacoes/
+Traceback (most recent call last):
+  File "C:\wamp64\www\imobcloud\venv\Lib\site-packages\django\template\base.py", line 890, in _resolve_lookup
+    raise TypeError
+TypeError
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "C:\wamp64\www\imobcloud\venv\Lib\site-packages\django\template\base.py", line 901, in _resolve_lookup
+    current = getattr(current, bit)
+              ^^^^^^^^^^^^^^^^^^^^^
+AttributeError: 'Imobiliaria' object has no attribute 'razao_social'
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "C:\wamp64\www\imobcloud\venv\Lib\site-packages\django\template\base.py", line 907, in _resolve_lookup
+    current = current[int(bit)]
+                      ^^^^^^^^
+ValueError: invalid literal for int() with base 10: 'razao_social'
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "C:\wamp64\www\imobcloud\venv\Lib\site-packages\django\core\handlers\exception.py", line 55, in inner
+    response = get_response(request)
+               ^^^^^^^^^^^^^^^^^^^^^
+  File "C:\wamp64\www\imobcloud\venv\Lib\site-packages\django\core\handlers\base.py", line 197, in _get_response
+    response = wrapped_callback(request, *callback_args, **callback_kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\wamp64\www\imobcloud\venv\Lib\site-packages\django\views\decorators\csrf.py", line 65, in _view_wrapper
+    return view_func(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\wamp64\www\imobcloud\venv\Lib\site-packages\django\views\generic\base.py", line 105, in view
+    return self.dispatch(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\wamp64\www\imobcloud\venv\Lib\site-packages\rest_framework\views.py", line 509, in dispatch
+    response = self.handle_exception(exc)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\wamp64\www\imobcloud\venv\Lib\site-packages\rest_framework\views.py", line 469, in handle_exception
+    self.raise_uncaught_exception(exc)
+  File "C:\wamp64\www\imobcloud\venv\Lib\site-packages\rest_framework\views.py", line 480, in raise_uncaught_exception
+    raise exc
+  File "C:\wamp64\www\imobcloud\venv\Lib\site-packages\rest_framework\views.py", line 506, in dispatch
+    response = handler(request, *args, **kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\wamp64\www\imobcloud\app_imoveis\views.py", line 1215, in get
+    html_string = render_to_string('relatorio_autorizacoes_template.html', context)
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\wamp64\www\imobcloud\venv\Lib\site-packages\django\template\loader.py", line 62, in render_to_string
+    return template.render(context, request)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\wamp64\www\imobcloud\venv\Lib\site-packages\django\template\backends\django.py", line 107, in render
+    return self.template.render(context)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\wamp64\www\imobcloud\venv\Lib\site-packages\django\template\base.py", line 171, in render
+    return self._render(context)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "C:\wamp64\www\imobcloud\venv\Lib\site-packages\django\template\base.py", line 163, in _render
+    return self.nodelist.render(context)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\wamp64\www\imobcloud\venv\Lib\site-packages\django\template\base.py", line 1016, in render
+    return SafeString("".join([node.render_annotated(context) for node in self]))
+                               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\wamp64\www\imobcloud\venv\Lib\site-packages\django\template\base.py", line 977, in render_annotated
+    return self.render(context)
+           ^^^^^^^^^^^^^^^^^^^^
+  File "C:\wamp64\www\imobcloud\venv\Lib\site-packages\django\template\base.py", line 1075, in render
+    output = self.filter_expression.resolve(context)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\wamp64\www\imobcloud\venv\Lib\site-packages\django\template\base.py", line 743, in resolve
+    arg_vals.append(arg.resolve(context))
+                    ^^^^^^^^^^^^^^^^^^^^
+  File "C:\wamp64\www\imobcloud\venv\Lib\site-packages\django\template\base.py", line 854, in resolve
+    value = self._resolve_lookup(context)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\wamp64\www\imobcloud\venv\Lib\site-packages\django\template\base.py", line 914, in _resolve_lookup
+    raise VariableDoesNotExist(
+django.template.base.VariableDoesNotExist: Failed lookup for key [razao_social] in <Imobiliaria: Estilo Musical>
+ERROR 2025-12-25 16:36:37,002 log 2108 14448 Internal Server Error: /api/v1/imoveis/relatorio-geral-autorizacoes/
+Traceback (most recent call last):
+  File "C:\wamp64\www\imobcloud\venv\Lib\site-packages\django\template\base.py", line 890, in _resolve_lookup
+    raise TypeError
+TypeError
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "C:\wamp64\www\imobcloud\venv\Lib\site-packages\django\template\base.py", line 901, in _resolve_lookup
+    current = getattr(current, bit)
+              ^^^^^^^^^^^^^^^^^^^^^
+AttributeError: 'Imobiliaria' object has no attribute 'razao_social'
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "C:\wamp64\www\imobcloud\venv\Lib\site-packages\django\template\base.py", line 907, in _resolve_lookup
+    current = current[int(bit)]
+                      ^^^^^^^^
+ValueError: invalid literal for int() with base 10: 'razao_social'
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "C:\wamp64\www\imobcloud\venv\Lib\site-packages\django\core\handlers\exception.py", line 55, in inner
+    response = get_response(request)
+               ^^^^^^^^^^^^^^^^^^^^^
+  File "C:\wamp64\www\imobcloud\venv\Lib\site-packages\django\core\handlers\base.py", line 197, in _get_response
+    response = wrapped_callback(request, *callback_args, **callback_kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\wamp64\www\imobcloud\venv\Lib\site-packages\django\views\decorators\csrf.py", line 65, in _view_wrapper
+    return view_func(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\wamp64\www\imobcloud\venv\Lib\site-packages\django\views\generic\base.py", line 105, in view
+    return self.dispatch(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\wamp64\www\imobcloud\venv\Lib\site-packages\rest_framework\views.py", line 509, in dispatch
+    response = self.handle_exception(exc)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\wamp64\www\imobcloud\venv\Lib\site-packages\rest_framework\views.py", line 469, in handle_exception
+    self.raise_uncaught_exception(exc)
+  File "C:\wamp64\www\imobcloud\venv\Lib\site-packages\rest_framework\views.py", line 480, in raise_uncaught_exception
+    raise exc
+  File "C:\wamp64\www\imobcloud\venv\Lib\site-packages\rest_framework\views.py", line 506, in dispatch
+    response = handler(request, *args, **kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\wamp64\www\imobcloud\app_imoveis\views.py", line 1215, in get
+    html_string = render_to_string('relatorio_autorizacoes_template.html', context)
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\wamp64\www\imobcloud\venv\Lib\site-packages\django\template\loader.py", line 62, in render_to_string
+    return template.render(context, request)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\wamp64\www\imobcloud\venv\Lib\site-packages\django\template\backends\django.py", line 107, in render
+    return self.template.render(context)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\wamp64\www\imobcloud\venv\Lib\site-packages\django\template\base.py", line 171, in render
+    return self._render(context)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "C:\wamp64\www\imobcloud\venv\Lib\site-packages\django\template\base.py", line 163, in _render
+    return self.nodelist.render(context)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\wamp64\www\imobcloud\venv\Lib\site-packages\django\template\base.py", line 1016, in render
+    return SafeString("".join([node.render_annotated(context) for node in self]))
+                               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\wamp64\www\imobcloud\venv\Lib\site-packages\django\template\base.py", line 977, in render_annotated
+    return self.render(context)
+           ^^^^^^^^^^^^^^^^^^^^
+  File "C:\wamp64\www\imobcloud\venv\Lib\site-packages\django\template\base.py", line 1075, in render
+    output = self.filter_expression.resolve(context)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\wamp64\www\imobcloud\venv\Lib\site-packages\django\template\base.py", line 743, in resolve
+    arg_vals.append(arg.resolve(context))
+                    ^^^^^^^^^^^^^^^^^^^^
+  File "C:\wamp64\www\imobcloud\venv\Lib\site-packages\django\template\base.py", line 854, in resolve
+    value = self._resolve_lookup(context)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\wamp64\www\imobcloud\venv\Lib\site-packages\django\template\base.py", line 914, in _resolve_lookup
+    raise VariableDoesNotExist(
+django.template.base.VariableDoesNotExist: Failed lookup for key [razao_social] in <Imobiliaria: Estilo Musical>

@@ -6,7 +6,7 @@ from .views import (
     ImovelViewSet, 
     ImagemImovelViewSet, 
     ContatoImovelViewSet, 
-    GerarAutorizacaoPDFView, # Importado para mapeamento
+    GerarAutorizacaoPDFView, 
     ImovelPublicListView,
     ImovelPublicDetailView,
     ImovelIAView,
@@ -18,37 +18,35 @@ from .views import (
 router = DefaultRouter()
 router.register(r'imoveis', ImovelViewSet)
 router.register(r'imoveis/imagens', ImagemImovelViewSet)
-
-# CORREÇÃO: Alterado de 'imoveis/contatos' para 'contatos' para bater com a chamada do frontend (/api/v1/contatos/)
 router.register(r'contatos', ContatoImovelViewSet)
 
-# Padrões de URL da API Interna (Prefixados com /api/v1/ no urls.py principal)
 urlpatterns = [
-    # 1. Rota Explícita para a Geração de PDF (Contrato individual)
+    # 1. Rota Explícita para a Geração de PDF (Contrato individual de um imóvel)
     path(
         'imoveis/<int:imovel_id>/gerar-autorizacao-pdf/', 
         GerarAutorizacaoPDFView.as_view(), 
         name='gerar-autorizacao-pdf'
     ),
     
-    # 2. Rota do Relatório de Autorizações (JSON)
+    # 2. Rota do Relatório de Autorizações (JSON - Dados para a tabela)
     path(
         'imoveis/relatorio/autorizacoes/', 
         AutorizacaoReportView.as_view(), 
         name='relatorio-autorizacoes'
     ),
     
-    # 3. Rota do Relatório de Autorizações (PDF)
+    # 3. Rota do Relatório Geral de Autorizações (PDF - Botão Imprimir)
+    # CORREÇÃO: Adicionada a rota exata que o frontend está chamando
     path(
-        'imoveis/relatorio/autorizacoes/pdf/', 
+        'imoveis/relatorio-geral-autorizacoes/', 
         AutorizacaoReportPDFView.as_view(), 
-        name='relatorio-autorizacoes-pdf'
+        name='relatorio-geral-autorizacoes-pdf'
     ),
     
-    # 4. Rotas automáticas do ViewSet (Cria, Lista, Detalhe, Update, IA Action)
+    # 4. Rotas automáticas do ViewSet (Cria, Lista, Detalhe, Update, etc.)
     path('', include(router.urls)),
     
-    # --- Rotas Públicas (Se necessário, você as mapeia separadamente) ---
+    # --- Rotas Públicas ---
     path('public/imoveis/', ImovelPublicListView.as_view(), name='imovel-public-list'),
     path('public/imoveis/<int:pk>/', ImovelPublicDetailView.as_view(), name='imovel-public-detail'),
     path('public/imoveis/busca-ia/', ImovelIAView.as_view(), name='imovel-ia-search'),

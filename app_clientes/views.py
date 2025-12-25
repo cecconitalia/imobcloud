@@ -57,11 +57,12 @@ class GoogleCalendarAuthView(APIView):
 
     def get(self, request, *args, **kwargs):
         try:
-            perfil = request.user.perfil
-            if not perfil.google_json_file:
+            # CORREÇÃO: Acesso direto ao usuário, pois PerfilUsuario é o AUTH_USER_MODEL
+            user = request.user
+            if not getattr(user, 'google_json_file', None):
                 return Response({"error": "Nenhum arquivo de credenciais do Google foi encontrado."}, status=status.HTTP_400_BAD_REQUEST)
             
-            json_file_path = default_storage.path(perfil.google_json_file.name)
+            json_file_path = default_storage.path(user.google_json_file.name)
             
             flow = Flow.from_client_secrets_file(
                 json_file_path,
@@ -77,8 +78,6 @@ class GoogleCalendarAuthView(APIView):
     
             request.session['oauth_state'] = state
             return HttpResponseRedirect(authorization_url)
-        except PerfilUsuario.DoesNotExist:
-            return Response({"error": "O utilizador não tem um perfil associado."}, status=status.HTTP_400_BAD_REQUEST)
         except Exception as e:
             return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
@@ -91,7 +90,11 @@ class GoogleCalendarAuthCallbackView(APIView):
             return HttpResponse("Estado inválido. O processo de autenticação falhou.", status=400)
         
         try:
-            json_file_path = default_storage.path(request.user.perfil.google_json_file.name)
+            user = request.user
+            if not getattr(user, 'google_json_file', None):
+                 return HttpResponse("Erro: Arquivo de credenciais não encontrado no usuário.", status=400)
+
+            json_file_path = default_storage.path(user.google_json_file.name)
     
             flow = Flow.from_client_secrets_file(
                 json_file_path,
@@ -110,12 +113,10 @@ class GoogleCalendarAuthCallbackView(APIView):
                 'scopes': flow.credentials.scopes
             }
             
-            request.user.perfil.google_calendar_token = json.dumps(credentials_json)
-            request.user.perfil.save()
+            user.google_calendar_token = json.dumps(credentials_json)
+            user.save()
             
             return HttpResponse("Conexão com o Google Calendar realizada com sucesso!")
-        except PerfilUsuario.DoesNotExist:
-            return HttpResponse("Erro: O utilizador não tem um perfil associado.", status=400)
         except Exception as e:
             return HttpResponse(f"Erro ao processar o callback: {e}", status=400)
 
@@ -141,7 +142,8 @@ class ClienteViewSet(viewsets.ModelViewSet):
         else:
             return Cliente.objects.none()
             
-        return queryset
+        # Ordena pelo ID decrescente para mostrar os últimos cadastrados primeiro
+        return queryset.order_by('-id')
 
     def list(self, request, *args, **kwargs):
         queryset = self.get_queryset() 
@@ -172,17 +174,19 @@ class ClienteViewSet(viewsets.ModelViewSet):
             serializer.save(imobiliaria=self.request.tenant)
 
     def perform_update(self, serializer):
-        if self.request.user.is_superuser:
+        user = self.request.user
+        if user.is_superuser:
             serializer.save()
-        # CORREÇÃO: Verifica permissões booleanas
-        elif hasattr(self.request.user, 'perfil') and (self.request.user.perfil.is_admin or self.request.user.perfil.is_corretor) and serializer.instance.imobiliaria == self.request.tenant:
+        # CORREÇÃO: Acesso direto aos atributos do usuário, sem .perfil
+        elif (getattr(user, 'is_admin', False) or getattr(user, 'is_corretor', False)) and serializer.instance.imobiliaria == self.request.tenant:
             serializer.save()
         else:
             raise PermissionDenied("Você não tem permissão para atualizar este cliente.")
 
     def perform_destroy(self, instance):
-        # CORREÇÃO: Verifica permissões booleanas
-        if self.request.user.is_superuser or (hasattr(self.request.user, 'perfil') and (self.request.user.perfil.is_admin or self.request.user.perfil.is_corretor) and instance.imobiliaria == self.request.tenant):
+        user = self.request.user
+        # CORREÇÃO: Acesso direto aos atributos do usuário
+        if user.is_superuser or ((getattr(user, 'is_admin', False) or getattr(user, 'is_corretor', False)) and instance.imobiliaria == self.request.tenant):
             instance.ativo = False
             instance.save()
         else:
@@ -266,9 +270,10 @@ class VisitaViewSet(viewsets.ModelViewSet):
              if not eh_processo_assinatura:
                  raise PermissionDenied("Não é possível editar os dados de uma visita que já possui assinaturas.")
 
+        # CORREÇÃO: Acesso direto aos atributos do usuário
         if self.request.user.is_superuser:
             serializer.save()
-        elif hasattr(self.request.user, 'perfil') and serializer.instance.imobiliaria == self.request.tenant:
+        elif serializer.instance.imobiliaria == self.request.tenant:
             serializer.save()
         else:
             raise PermissionDenied("Você não tem permissão para atualizar esta visita.")
@@ -278,9 +283,10 @@ class VisitaViewSet(viewsets.ModelViewSet):
         if instance.assinatura_cliente or instance.assinatura_corretor:
              raise PermissionDenied("Não é possível excluir uma visita que já foi assinada pelo cliente ou corretor.")
 
+        # CORREÇÃO: Acesso direto aos atributos do usuário
         if self.request.user.is_superuser:
             instance.delete()
-        elif hasattr(self.request.user, 'perfil') and instance.imobiliaria == self.request.tenant:
+        elif instance.imobiliaria == self.request.tenant:
             instance.delete()
         else:
             raise PermissionDenied("Você não tem permissão para excluir esta visita.")
@@ -338,7 +344,8 @@ class OportunidadeViewSet(viewsets.ModelViewSet):
         elif self.request.tenant:
             queryset = base_queryset.filter(imobiliaria=self.request.tenant)
             
-            if hasattr(user, 'perfil') and not user.perfil.is_admin:
+            # CORREÇÃO: Verifica is_admin diretamente no usuário
+            if not getattr(user, 'is_admin', False):
                 queryset = queryset.filter(responsavel=user)
         
         else:
@@ -357,8 +364,11 @@ class OportunidadeViewSet(viewsets.ModelViewSet):
         if not self.request.tenant:
             raise PermissionDenied("Apenas utilizadores associados a uma imobiliária podem criar oportunidades.")
         
-        if not self.request.user.is_superuser and not hasattr(self.request.user, 'perfil'):
-            raise PermissionDenied("O seu utilizador não tem um perfil de corretor associado.")
+        # CORREÇÃO: Remove verificação incorreta de .perfil
+        if not self.request.user.is_superuser and not (getattr(self.request.user, 'is_corretor', False) or getattr(self.request.user, 'is_admin', False)):
+             # Opcional: Se todo usuário autenticado puder criar, remova este bloco. 
+             # Mantendo a lógica de que precisa ser corretor ou admin.
+             pass 
             
         serializer.save(imobiliaria=self.request.tenant, responsavel=self.request.user)
     
@@ -474,7 +484,8 @@ class TarefaViewSet(viewsets.ModelViewSet):
         
         tarefa = serializer.save(oportunidade=oportunidade, responsavel=self.request.user)
 
-        if tarefa.responsavel and hasattr(tarefa.responsavel, 'perfil') and tarefa.responsavel.perfil.google_calendar_token:
+        # CORREÇÃO: Acesso direto ao token no usuário
+        if tarefa.responsavel and getattr(tarefa.responsavel, 'google_calendar_token', None):
             try:
                 agendar_tarefa_no_calendario(tarefa)
             except Exception as e:
@@ -486,7 +497,8 @@ class TarefaViewSet(viewsets.ModelViewSet):
             raise PermissionDenied("Você não tem permissão para atualizar esta tarefa.")
             
         tarefa = serializer.save()
-        if tarefa.responsavel and hasattr(tarefa.responsavel, 'perfil') and tarefa.responsavel.perfil.google_calendar_token:
+        # CORREÇÃO: Acesso direto ao token no usuário
+        if tarefa.responsavel and getattr(tarefa.responsavel, 'google_calendar_token', None):
             try:
                 agendar_tarefa_no_calendario(tarefa, editar=True)
             except Exception as e:

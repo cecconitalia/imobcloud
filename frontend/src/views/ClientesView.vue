@@ -1,130 +1,178 @@
 <template>
   <div class="page-container">
     
-    <div v-if="sumarioClientes" class="dashboard-grid">
-      <div 
-        class="stat-card clickable-card" 
-        @click="resetFilters"
-        :class="{ 'active-card': !filters.status && !filters.tipo_pessoa }"
-        title="Ver todos os clientes"
-      >
-        <div class="stat-icon"><i class="fas fa-users"></i></div>
-        <div class="stat-info">
-            <h3>Total de Clientes</h3>
-            <p>{{ sumarioClientes.total }}</p>
+    <header class="page-header">
+      <div class="header-main">
+        <div class="title-area">
+           <nav class="breadcrumb">
+              <span>Cadastros</span> 
+              <i class="fas fa-chevron-right separator"></i> 
+              <span class="active">Clientes</span>
+           </nav>
+           
+           <h1>Gerenciar Clientes</h1>
+        </div>
+        
+        <div class="actions-area">
+            <button class="btn-icon-thin" @click="fetchClientes" title="Atualizar Lista">
+              <i class="fas fa-sync-alt" :class="{ 'fa-spin': isLoading }"></i>
+            </button>
+            
+            <button class="btn-primary-thin" @click="goToCreateCliente">
+              <i class="fas fa-plus"></i> Novo Cliente
+            </button>
         </div>
       </div>
+    </header>
 
-      <div 
-        class="stat-card stat-ativo clickable-card" 
-        @click="setFilter('status', 'ATIVO')"
-        :class="{ 'active-card': filters.status === 'ATIVO' }"
-        title="Filtrar apenas ativos"
-      >
-        <div class="stat-icon"><i class="fas fa-user-check"></i></div>
-        <div class="stat-info">
-            <h3>Ativos</h3>
-            <p>{{ sumarioClientes.ativos }}</p>
+    <div class="kpi-grid">
+      <div class="kpi-card blue" :class="{ active: filters.perfil === '' }" @click="setQuickFilter('')">
+        <div class="kpi-content">
+          <span class="kpi-value">{{ kpis.total }}</span>
+          <span class="kpi-label">Total Clientes</span>
         </div>
-      </div>
-
-      <div 
-        class="stat-card clickable-card" 
-        @click="setFilter('tipo_pessoa', 'FISICA')"
-        :class="{ 'active-card': filters.tipo_pessoa === 'FISICA' }"
-        title="Filtrar Pessoa Física"
-      >
-        <div class="stat-icon"><i class="fas fa-user"></i></div>
-        <div class="stat-info">
-            <h3>Pessoa Física</h3>
-            <p>{{ sumarioClientes.pf }}</p>
-        </div>
-      </div>
-
-      <div 
-        class="stat-card clickable-card" 
-        @click="setFilter('tipo_pessoa', 'JURIDICA')"
-        :class="{ 'active-card': filters.tipo_pessoa === 'JURIDICA' }"
-        title="Filtrar Pessoa Jurídica"
-      >
-        <div class="stat-icon"><i class="fas fa-building"></i></div>
-        <div class="stat-info">
-            <h3>Pessoa Jurídica</h3>
-            <p>{{ sumarioClientes.pj }}</p>
-        </div>
-      </div>
-    </div>
-    
-    <div class="search-and-filter-bar">
-      <input
-        type="text"
-        v-model="searchTerm"
-        placeholder="Buscar por nome, email, documento..."
-        class="search-input"
-      />
-      
-      <div class="filter-group">
-        <label for="status">Status:</label>
-        <select id="status" v-model="filters.status">
-          <option value="">Todos</option>
-          <option value="ATIVO">Ativo</option>
-          <option value="INATIVO">Inativo</option>
-        </select>
+        <div class="kpi-icon"><i class="fas fa-users"></i></div>
       </div>
       
-      <div class="filter-group">
-        <label for="tipo_pessoa">Pessoa:</label>
-        <select id="tipo_pessoa" v-model="filters.tipo_pessoa">
-          <option value="">Todas</option>
-          <option value="FISICA">Física</option>
-          <option value="JURIDICA">Jurídica</option>
-        </select>
+      <div class="kpi-card green" :class="{ active: filters.perfil === 'PROPRIETARIO' }" @click="setQuickFilter('PROPRIETARIO')">
+        <div class="kpi-content">
+          <span class="kpi-value">{{ kpis.proprietarios }}</span>
+          <span class="kpi-label">Proprietários</span>
+        </div>
+        <div class="kpi-icon"><i class="fas fa-key"></i></div>
       </div>
-
-      <router-link :to="{ name: 'cliente-novo' }" class="btn-add">
-        <i class="fas fa-plus"></i> <span class="mobile-hide">Novo Cliente</span>
-      </router-link>
+      
+      <div class="kpi-card orange" :class="{ active: filters.perfil === 'INTERESSADO' }" @click="setQuickFilter('INTERESSADO')">
+        <div class="kpi-content">
+          <span class="kpi-value">{{ kpis.interessados }}</span>
+          <span class="kpi-label">Leads / Interessados</span>
+        </div>
+        <div class="kpi-icon"><i class="fas fa-bullhorn"></i></div>
+      </div>
+      
+      <div class="kpi-card red" :class="{ active: filters.status === 'INATIVO' }" @click="setQuickFilter('INATIVO')">
+        <div class="kpi-content">
+          <span class="kpi-value">{{ kpis.inativos }}</span>
+          <span class="kpi-label">Inativos</span>
+        </div>
+        <div class="kpi-icon"><i class="fas fa-user-slash"></i></div>
+      </div>
     </div>
 
-    <div v-if="isLoading" class="loading-message card">
+    <div class="toolbar-row">
+        <div class="filter-group search-group">
+          <label>Buscar</label>
+          <div class="input-with-icon">
+            <i class="fas fa-search"></i>
+            <input 
+              type="text" 
+              v-model="filters.search" 
+              placeholder="Nome, doc, email..." 
+              class="form-control"
+              @input="filterList"
+            >
+          </div>
+        </div>
+
+        <div class="filter-group">
+          <label>Perfil</label>
+          <select v-model="filters.perfil" @change="filterList" class="form-control">
+            <option value="">Todos</option>
+            <option value="PROPRIETARIO">Proprietário</option>
+            <option value="INTERESSADO">Interessado</option>
+            <option value="LEAD">Lead</option>
+            <option value="COMPRADOR">Comprador</option>
+            <option value="INQUILINO">Inquilino</option>
+          </select>
+        </div>
+
+        <div class="filter-group">
+           <label>Status</label>
+           <select v-model="filters.status" @change="filterList" class="form-control">
+            <option value="">Todos</option>
+            <option value="ATIVO">Ativos</option>
+            <option value="INATIVO">Inativos</option>
+          </select>
+        </div>
+
+        <div class="filter-group small-btn">
+            <label>&nbsp;</label>
+            <button @click="clearFilters" class="btn-clear" title="Limpar Filtros">
+                <i class="fas fa-eraser"></i>
+            </button>
+        </div>
+    </div>
+
+    <main class="report-main-wrapper">
+      <div v-if="isLoading" class="loading-state">
         <div class="spinner"></div>
-        A carregar clientes...
-    </div>
-    <div v-else-if="error" class="error-message card">{{ error }}</div>
-
-    <div v-else-if="filteredClientes.length === 0" class="empty-state card">
-      <div class="empty-icon"><i class="fas fa-users-slash"></i></div>
-      <p>Nenhum cliente encontrado com os filtros selecionados.</p>
-    </div>
-
-    <div v-else class="clientes-grid">
-      <div
-        v-for="cliente in filteredClientes"
-        :key="cliente.id"
-        class="cliente-card"
-        @click="editCliente(cliente.id)"
-      >
-        <div class="cliente-profile-pic">
-          <img v-if="cliente.foto_perfil" :src="cliente.foto_perfil" alt="Foto de Perfil" class="profile-img"/>
-          <i v-else class="fas fa-user-circle profile-icon"></i>
-        </div>
-        <div class="cliente-info">
-          <h3 class="cliente-nome">{{ cliente.nome_exibicao || 'Nome não disponível' }}</h3>
-          <p class="cliente-contato">{{ cliente.email || 'Email não informado'}}</p>
-          <p class="cliente-contato">{{ cliente.telefone || 'Telefone não informado' }}</p>
-          <p class="cliente-contato tipo-pessoa">
-             <i :class="cliente.tipo_pessoa === 'FISICA' ? 'fas fa-user' : 'fas fa-building'"></i>
-             {{ cliente.tipo_pessoa === 'FISICA' ? 'Pessoa Física' : 'Pessoa Jurídica' }}
-          </p>
-        </div>
-        <div class="cliente-tags">
-          <span v-if="cliente.tipo === 'PROPRIETARIO'" class="tag proprietario">Proprietário</span>
-          <span v-if="cliente.tipo === 'INTERESSADO'" class="tag interessado">Interessado</span>
-          <span v-if="cliente.tipo === 'AMBOS'" class="tag ambos">Ambos</span>
-          <span v-if="!cliente.ativo" class="tag inativo">Inativo</span>
-        </div>
+        <p>Atualizando base de dados...</p>
       </div>
-    </div>
+
+      <div v-else-if="filteredList.length === 0" class="empty-state">
+        <i class="fas fa-filter"></i>
+        <p>Nenhum registro encontrado.</p>
+      </div>
+
+      <div v-else class="report-scroll-viewport">
+        <table class="report-table">
+          <thead>
+            <tr>
+              <th width="35%">Cliente</th>
+              <th width="25%">Contatos</th>
+              <th width="20%">Classificação</th>
+              <th width="10%">Cadastro</th>
+              <th width="10%" class="text-right">Ações</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="cliente in filteredList" :key="cliente.id">
+              <td>
+                <div class="cell-imovel">
+                  <span class="cliente-name">{{ cliente.nome }}</span>
+                  <span class="cliente-doc" v-if="cliente.documento">
+                    <i class="far fa-id-card"></i> {{ cliente.documento }}
+                  </span>
+                </div>
+              </td>
+              <td>
+                <div class="contact-info">
+                    <div v-if="cliente.email" class="contact-row">
+                        <i class="far fa-envelope"></i> {{ cliente.email }}
+                    </div>
+                    <div v-if="cliente.telefone" class="contact-row">
+                        <i class="fab fa-whatsapp"></i> {{ cliente.telefone }}
+                    </div>
+                </div>
+              </td>
+              <td>
+                <div class="badges-container">
+                    <span v-for="(badge, index) in getUniqueBadges(cliente.perfil_cliente)" 
+                          :key="index" 
+                          class="badge-type" 
+                          :class="badge.class">
+                        {{ badge.label }}
+                    </span>
+                </div>
+              </td>
+              <td class="text-muted">
+                  {{ formatDate(cliente.data_criacao) }}
+              </td>
+              <td class="text-right">
+                <div class="actions-flex">
+                    <button class="btn-action edit" @click="editCliente(cliente.id)" title="Editar Dados">
+                        <i class="fas fa-pen"></i>
+                    </button>
+                    <button class="btn-action delete" @click="confirmDelete(cliente)" title="Inativar">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </div>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </main>
 
   </div>
 </template>
@@ -132,286 +180,311 @@
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue';
 import { useRouter } from 'vue-router';
-import apiClient from '@/services/api';
+import api from '@/services/api';
+import { format, parseISO } from 'date-fns';
+import { ptBR } from 'date-fns/locale';
+
+const router = useRouter();
 
 interface Cliente {
   id: number;
-  nome_exibicao: string;
-  nome?: string;
-  razao_social?: string;
-  tipo_pessoa: 'FISICA' | 'JURIDICA';
-  email?: string;
-  telefone?: string;
-  documento?: string;
-  foto_perfil?: string;
-  tipo: 'PROPRIETARIO' | 'INTERESSADO' | 'AMBOS';
+  nome: string;
+  documento: string;
+  email: string;
+  telefone: string;
+  perfil_cliente: string[]; 
   ativo: boolean;
+  data_criacao: string;
 }
 
-const clientes = ref<Cliente[]>([]);
+const rawList = ref<Cliente[]>([]);
+const filteredList = ref<Cliente[]>([]);
 const isLoading = ref(true);
-const error = ref<string | null>(null);
-const searchTerm = ref('');
-const router = useRouter();
 
-const sumarioClientes = ref<any>(null);
+const filters = ref({ search: '', perfil: '', status: '' });
 
-const filters = ref({
-    status: 'ATIVO',
-    tipo_pessoa: '',
+const kpis = computed(() => {
+  const total = rawList.value.length;
+  let proprietarios = 0;
+  let interessados = 0; 
+  let inativos = 0;
+
+  rawList.value.forEach(c => {
+    if (!c.ativo) inativos++;
+    if (c.perfil_cliente) {
+        const perfis = c.perfil_cliente.join(' ').toUpperCase();
+        if (perfis.includes('PROPRIETARIO')) proprietarios++;
+        if (perfis.includes('INTERESSADO') || perfis.includes('LEAD')) interessados++;
+    }
+  });
+  return { total, proprietarios, interessados, inativos };
 });
 
-async function fetchClientes() {
+const fetchClientes = async () => {
   isLoading.value = true;
-  error.value = null;
   try {
-    const response = await apiClient.get<Cliente[]>('/v1/clientes/');
-    clientes.value = response.data;
-    calculateSummary(clientes.value);
-  } catch (err: any) {
-    console.error("Erro ao buscar clientes:", err);
-    error.value = err.response?.data?.detail || 'Não foi possível carregar os clientes.';
+    const response = await api.get('/v1/clientes/'); 
+    const dataApi = Array.isArray(response.data) ? response.data : (response.data.results || []);
+    
+    rawList.value = dataApi.map((item: any) => ({
+        id: item.id,
+        nome: item.nome,
+        documento: item.documento || item.cpf_cnpj || '',
+        email: item.email,
+        telefone: item.telefone || item.celular || '',
+        perfil_cliente: item.perfil_cliente || [],
+        ativo: item.ativo,
+        data_criacao: item.data_criacao || item.created_at || item.date_joined || item.criado_em || null
+    }));
+    filterList();
+  } catch (error) {
+    console.error("Erro ao buscar clientes:", error);
   } finally {
     isLoading.value = false;
   }
-}
+};
 
-function calculateSummary(list: Cliente[]) {
-    const ativos = list.filter(c => c.ativo).length;
-    const proprietarios = list.filter(c => c.tipo === 'PROPRIETARIO' || c.tipo === 'AMBOS').length;
-    const interessados = list.filter(c => c.tipo === 'INTERESSADO' || c.tipo === 'AMBOS').length;
-    
-    const pj = list.filter(c => c.tipo_pessoa === 'JURIDICA').length;
-    const pf = list.filter(c => c.tipo_pessoa === 'FISICA').length; 
+const goToCreateCliente = () => { router.push({ name: 'cliente-novo' }); };
+const editCliente = (id: number) => { router.push({ name: 'cliente-editar', params: { id } }); };
 
-    sumarioClientes.value = {
-        ativos,
-        proprietarios,
-        interessados,
-        pj,
-        pf, 
-        total: list.length
-    };
-}
-
-function setFilter(key: 'status' | 'tipo_pessoa', value: string) {
-    if (key === 'status') {
-        // Toggle
-        if (filters.value.status === value) {
-             filters.value.status = '';
-        } else {
-             filters.value.status = value;
-        }
-        filters.value.tipo_pessoa = ''; // Reseta o outro filtro
-    } else if (key === 'tipo_pessoa') {
-         if (filters.value.tipo_pessoa === value) {
-             filters.value.tipo_pessoa = '';
-        } else {
-             filters.value.tipo_pessoa = value;
-        }
-        filters.value.status = ''; // Reseta o status para ver todos desse tipo
+const confirmDelete = async (cliente: Cliente) => {
+    if(confirm(`Deseja inativar ${cliente.nome}?`)) {
+        try {
+            await api.delete(`/v1/clientes/${cliente.id}/`);
+            fetchClientes();
+        } catch { alert('Erro ao inativar.'); }
     }
 }
 
-function resetFilters() {
-    filters.value.status = '';
-    filters.value.tipo_pessoa = '';
-    searchTerm.value = '';
-}
+const getUniqueBadges = (perfis: string[]) => {
+    if (!perfis || perfis.length === 0) return [];
+    const map = new Map<string, { label: string, class: string }>();
 
-const filteredClientes = computed(() => {
-  let list = clientes.value;
-  const lowerSearch = searchTerm.value.toLowerCase();
-  
-  // 1. Filtrar por termo de busca
-  if (lowerSearch) {
-      list = list.filter(cliente =>
-        (cliente.nome_exibicao?.toLowerCase().includes(lowerSearch)) ||
-        (cliente.nome?.toLowerCase().includes(lowerSearch)) ||
-        (cliente.razao_social?.toLowerCase().includes(lowerSearch)) ||
-        (cliente.email?.toLowerCase().includes(lowerSearch)) ||
-        (cliente.telefone?.includes(searchTerm.value)) ||
-        (cliente.documento?.includes(searchTerm.value)) 
-      );
-  }
+    perfis.forEach(raw => {
+        const p = raw.toUpperCase();
+        let label = '', cssClass = 'bg-gray';
 
-  // 2. Filtrar por Status
-  if (filters.value.status === 'ATIVO') {
-      list = list.filter(c => c.ativo === true);
-  } else if (filters.value.status === 'INATIVO') {
-      list = list.filter(c => c.ativo === false);
-  }
-  
-  // 3. Filtrar por Tipo de Pessoa
-  if (filters.value.tipo_pessoa === 'JURIDICA') {
-      list = list.filter(c => c.tipo_pessoa === 'JURIDICA');
-  } else if (filters.value.tipo_pessoa === 'FISICA') {
-      list = list.filter(c => c.tipo_pessoa === 'FISICA');
-  }
-  
-  return list;
-});
+        if (p.includes('PROPRIETARIO')) { label = 'Proprietário'; cssClass = 'bg-purple'; } 
+        else if (p.includes('INTERESSADO')) { label = 'Interessado'; cssClass = 'bg-orange'; } 
+        else if (p.includes('LEAD')) { label = 'Lead'; cssClass = 'bg-yellow'; } 
+        else if (p.includes('COMPRADOR')) { label = 'Comprador'; cssClass = 'bg-blue'; } 
+        else if (p.includes('INQUILINO')) { label = 'Inquilino'; cssClass = 'bg-teal'; } 
+        else { label = raw.charAt(0).toUpperCase() + raw.slice(1).toLowerCase(); }
 
-function editCliente(id: number) {
-  router.push({ name: 'cliente-editar', params: { id } });
-}
+        if (!map.has(label)) map.set(label, { label, class: cssClass });
+    });
+    return Array.from(map.values());
+};
+
+const setQuickFilter = (tipo: string) => {
+    if (tipo === 'INATIVO') {
+        filters.value.status = filters.value.status === 'INATIVO' ? '' : 'INATIVO';
+        filters.value.perfil = '';
+    } else {
+        filters.value.perfil = filters.value.perfil === tipo ? '' : tipo;
+        filters.value.status = '';
+    }
+    filterList();
+};
+
+const clearFilters = () => { filters.value = { search: '', perfil: '', status: '' }; filterList(); };
+
+const filterList = () => {
+  let temp = rawList.value;
+  const searchLower = filters.value.search.toLowerCase();
+
+  if (filters.value.search) {
+    temp = temp.filter(c => 
+      (c.nome && c.nome.toLowerCase().includes(searchLower)) ||
+      (c.email && c.email.toLowerCase().includes(searchLower)) ||
+      (c.documento && c.documento.includes(searchLower))
+    );
+  }
+  if (filters.value.perfil) {
+    temp = temp.filter(c => c.perfil_cliente.some(p => p.toUpperCase().includes(filters.value.perfil)));
+  }
+  if (filters.value.status) {
+      if (filters.value.status === 'ATIVO') temp = temp.filter(c => c.ativo);
+      if (filters.value.status === 'INATIVO') temp = temp.filter(c => !c.ativo);
+  }
+  filteredList.value = temp;
+};
+
+const formatDate = (dateString: string | null) => {
+  if (!dateString) return '-';
+  try { return format(parseISO(dateString), 'dd/MM/yy', { locale: ptBR }); } catch { return '-'; }
+};
 
 onMounted(fetchClientes);
 </script>
 
 <style scoped>
+/* CONFIGURAÇÃO GERAL */
 .page-container {
-  padding: 0;
+  min-height: 100vh;
+  background-color: #fcfcfc;
+  font-family: 'Inter', 'Segoe UI', Roboto, sans-serif;
+  padding: 1.5rem 2.5rem;
 }
 
-/* ================================================== */
-/* 1. Dashboard Grid (Estilo Padronizado) */
-/* ================================================== */
-.dashboard-grid {
-  display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-  gap: 1.25rem; margin-bottom: 2rem;
-}
-.stat-card {
-  background-color: #fff; border: 1px solid transparent; border-radius: 12px; padding: 1.5rem;
-  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.04); display: flex; align-items: center; gap: 1rem;
-  transition: transform 0.2s ease, border-color 0.2s;
-}
-.clickable-card { cursor: pointer; }
-.clickable-card:hover { transform: translateY(-3px); }
-
-/* Feedback visual de filtro ativo */
-.active-card {
-    border-color: #007bff;
-    background-color: #f8fbff;
-    box-shadow: 0 6px 12px rgba(0, 123, 255, 0.15);
+/* HEADER DA PÁGINA (Breadcrumb e Título) */
+.page-header {
+  margin-bottom: 2rem;
 }
 
-.stat-icon {
-    width: 50px; height: 50px; border-radius: 12px; background-color: #e7f1ff; color: #0d6efd;
-    display: flex; align-items: center; justify-content: center; font-size: 1.5rem;
-}
-.stat-ativo .stat-icon { background-color: #d1e7dd; color: #198754; }
-.stat-info h3 { font-size: 0.8rem; color: #6c757d; font-weight: 600; margin: 0; text-transform: uppercase; }
-.stat-info p { font-size: 1.5rem; font-weight: 700; color: #212529; margin: 0; }
-.stat-ativo p { color: #198754; }
-
-
-/* ================================================== */
-/* 2. Barra de Filtros (Padronizada) */
-/* ================================================== */
-.search-and-filter-bar {
-  display: flex; flex-wrap: wrap; gap: 1rem; margin-bottom: 1.5rem;
-  align-items: center; background-color: transparent; padding: 0; box-shadow: none;
-}
-.search-input {
-  padding: 10px; border: 1px solid #ccc; border-radius: 5px; width: 100%; max-width: 350px; 
-  box-sizing: border-box; font-family: system-ui, sans-serif; font-size: 0.95rem;
-}
-.filter-group { display: flex; align-items: center; gap: 0.5rem; }
-.filter-group label { font-weight: 500; color: #555; white-space: nowrap; }
-.filter-group select {
-  padding: 8px 12px; border: 1px solid #ccc; border-radius: 5px; font-size: 0.95rem;
-  background-color: #f8f9fa; min-width: 120px; font-family: system-ui, sans-serif;
-}
-.btn-add {
-  background-color: #007bff; color: white; padding: 10px 15px; border: none; border-radius: 5px;
-  cursor: pointer; font-weight: bold; transition: background-color 0.3s ease; font-size: 0.95rem;
-  display: flex; align-items: center; gap: 0.5rem; margin-left: auto; width: auto; text-decoration: none;
-  font-family: system-ui, sans-serif;
-}
-.btn-add:hover { background-color: #0056b3; }
-.mobile-hide { display: inline; }
-@media (max-width: 768px) {
-  .search-and-filter-bar { flex-direction: column; align-items: stretch; }
-  .search-input { max-width: 100%; }
-  .filter-group { flex-direction: column; align-items: stretch; }
-  .btn-add { margin-left: 0; justify-content: center; }
+.title-area { display: flex; flex-direction: column; gap: 6px; }
+.title-area h1 {
+  font-size: 1.5rem; font-weight: 300; color: #1f2937; margin: 0; letter-spacing: -0.02em;
 }
 
-
-/* ================================================== */
-/* 3. Grid de Clientes & Componentes de Estado */
-/* ================================================== */
-.loading-message, .error-message, .empty-state {
-  text-align: center; padding: 4rem 2rem; color: #6c757d;
-  background-color: #fff; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.03);
+.breadcrumb {
+  display: flex; align-items: center; gap: 6px;
+  font-size: 0.7rem; color: #94a3b8; font-weight: 500; text-transform: uppercase; letter-spacing: 0.05em;
 }
-.empty-icon { font-size: 3rem; color: #dee2e6; margin-bottom: 1rem; }
-.error-message { color: #dc3545; background-color: #f8d7da; border: 1px solid #f5c6cb; }
-.spinner {
-  border: 3px solid #e9ecef; border-top: 3px solid #0d6efd; border-radius: 50%;
-  width: 40px; height: 40px; animation: spin 0.8s linear infinite; margin: 0 auto 1rem;
-}
-@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+.breadcrumb .separator { font-size: 0.5rem; color: #cbd5e1; }
+.breadcrumb .active { color: #2563eb; font-weight: 700; }
 
-
-.clientes-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
-  gap: 1.5rem; padding-bottom: 2rem;
+.header-main {
+  display: flex; justify-content: space-between; align-items: flex-end;
 }
 
-.cliente-card {
+.actions-area { display: flex; gap: 0.75rem; }
+
+/* Botões Estilo Fino */
+.btn-primary-thin {
+  background: #2563eb; color: white; border: none; padding: 0.5rem 1.2rem;
+  border-radius: 6px; font-weight: 400; font-size: 0.85rem; cursor: pointer;
+  display: flex; align-items: center; gap: 0.5rem; transition: all 0.2s;
+  box-shadow: 0 1px 2px rgba(37, 99, 235, 0.15);
+}
+.btn-primary-thin:hover { background: #1d4ed8; transform: translateY(-1px); }
+
+.btn-icon-thin {
+  background: white; border: 1px solid #e2e8f0; color: #64748b; width: 34px; height: 34px;
+  border-radius: 6px; cursor: pointer; display: flex; align-items: center; justify-content: center;
+  transition: all 0.2s; font-size: 0.8rem;
+}
+.btn-icon-thin:hover { border-color: #cbd5e1; color: #2563eb; background: #f8fafc; }
+
+/* KPIS */
+.kpi-grid { 
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); 
+    gap: 1.25rem; margin-bottom: 2rem; 
+}
+
+.kpi-card {
+  background: white; border-radius: 8px; padding: 1.25rem 1.5rem; border: 1px solid #f0f0f0;
+  display: flex; justify-content: space-between; align-items: center;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.02); cursor: pointer; transition: all 0.2s;
+  position: relative; overflow: hidden;
+}
+.kpi-card:hover { transform: translateY(-2px); box-shadow: 0 6px 12px rgba(0,0,0,0.04); }
+.kpi-card.active { border: 1px solid; }
+
+.kpi-content { display: flex; flex-direction: column; }
+.kpi-value { font-size: 1.6rem; font-weight: 300; line-height: 1.1; color: #111; }
+.kpi-label { font-size: 0.7rem; font-weight: 600; text-transform: uppercase; color: #9ca3af; margin-top: 4px; letter-spacing: 0.05em; }
+.kpi-icon { 
+    font-size: 1.8rem; opacity: 0.1; position: absolute; right: 1.5rem; bottom: 1rem; 
+}
+
+.kpi-card.blue.active { background-color: #f8fbff; border-color: #3b82f6; }
+.kpi-card.blue .kpi-value { color: #2563eb; }
+.kpi-card.green.active { background-color: #f3fdf8; border-color: #10b981; }
+.kpi-card.green .kpi-value { color: #059669; }
+.kpi-card.orange.active { background-color: #fffdf5; border-color: #f59e0b; }
+.kpi-card.orange .kpi-value { color: #d97706; }
+.kpi-card.red.active { background-color: #fff5f5; border-color: #ef4444; }
+.kpi-card.red .kpi-value { color: #dc2626; }
+
+/* TOOLBAR */
+.toolbar-row {
   background-color: #ffffff;
-  border-radius: 12px;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.04);
-  border: 1px solid rgba(0,0,0,0.05);
-  padding: 1.5rem;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  text-align: center;
-  transition: transform 0.3s ease, box-shadow 0.3s ease;
-  cursor: pointer;
-  position: relative;
+  border-radius: 8px;
+  border: 1px solid #e5e7eb;
+  padding: 1rem;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.02);
+  display: flex; flex-wrap: wrap; gap: 1rem; align-items: flex-end;
+  margin-bottom: 1.5rem;
 }
 
-.cliente-card:hover {
-  transform: translateY(-5px);
-  box-shadow: 0 12px 24px rgba(0,0,0,0.1);
-  border-color: rgba(0,123,255, 0.2);
+.filter-group { flex: 1; display: flex; flex-direction: column; gap: 0.3rem; min-width: 160px; }
+.search-group { flex: 2; min-width: 260px; }
+.small-btn { flex: 0 0 auto; min-width: auto; }
+
+.filter-group label { font-size: 0.65rem; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 0.04em; }
+
+.input-with-icon { position: relative; width: 100%; }
+.input-with-icon i { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: #94a3b8; font-size: 0.9rem; }
+
+.form-control {
+  width: 100%; padding: 0.5rem 0.8rem; font-size: 0.85rem;
+  border: 1px solid #cbd5e1; border-radius: 6px; background-color: #fff; color: #334155;
+  outline: none; height: 38px; box-sizing: border-box; transition: all 0.2s;
 }
+.input-with-icon .form-control { padding-left: 2.2rem; }
+.form-control:focus { border-color: #3b82f6; box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.1); }
 
-.cliente-profile-pic {
-  width: 80px; height: 80px; border-radius: 50%; overflow: hidden;
-  margin-bottom: 1rem; background-color: #e9ecef;
-  display: flex; justify-content: center; align-items: center;
-  border: 3px solid #fff;
-  box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+.btn-clear {
+    width: 38px; height: 38px; border: 1px solid #cbd5e1; background: #f8fafc;
+    border-radius: 6px; color: #64748b; cursor: pointer;
+    display: flex; align-items: center; justify-content: center; transition: all 0.2s;
 }
+.btn-clear:hover { background: #fee2e2; color: #ef4444; border-color: #fca5a5; }
 
-.profile-img { width: 100%; height: 100%; object-fit: cover; }
-.profile-icon { font-size: 40px; color: #adb5bd; }
-
-.cliente-info { margin-bottom: 1rem; width: 100%; }
-
-.cliente-nome {
-  font-size: 1.1rem; font-weight: 700; margin: 0 0 0.5rem 0; color: #343a40;
-  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+/* TABELA */
+.report-main-wrapper {
+  background: white; border-radius: 8px; border: 1px solid #e5e7eb;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.02);
+  display: flex; flex-direction: column; overflow: hidden;
 }
+.report-scroll-viewport { width: 100%; overflow-x: auto; }
 
-.cliente-contato {
-  margin: 0.25rem 0; color: #6c757d; font-size: 0.9rem;
-  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+.report-table { width: 100%; border-collapse: collapse; min-width: 900px; }
+.report-table th {
+  background: #f8fafc; padding: 0.8rem 1.2rem; text-align: left;
+  font-size: 0.65rem; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 0.06em;
+  border-bottom: 1px solid #e2e8f0;
 }
-.cliente-contato.tipo-pessoa {
-    font-size: 0.8rem; margin-top: 0.5rem; color: #007bff; font-weight: 500;
-    background-color: #e7f1ff; display: inline-block; padding: 2px 8px; border-radius: 10px;
+.report-table td {
+  padding: 0.8rem 1.2rem; border-bottom: 1px solid #f1f5f9;
+  font-size: 0.85rem; color: #334155; vertical-align: middle;
 }
-.cliente-contato.tipo-pessoa i { margin-right: 4px; }
+.report-table tr:hover { background-color: #fcfcfc; }
 
-.cliente-tags {
-  display: flex; flex-wrap: wrap; justify-content: center; gap: 0.5rem;
-  margin-top: auto; width: 100%;
-}
+.cliente-name { font-weight: 600; color: #1e293b; font-size: 0.9rem; display: block; }
+.cliente-doc { font-size: 0.75rem; color: #64748b; margin-top: 2px; display: inline-flex; align-items: center; gap: 5px; }
 
-.tag {
-  padding: 4px 10px; border-radius: 6px; font-size: 0.7rem; font-weight: 700;
-  color: #fff; text-transform: uppercase;
-}
-.tag.proprietario { background-color: #198754; }
-.tag.interessado { background-color: #0d6efd; }
-.tag.ambos { background-color: #6f42c1; }
-.tag.inativo { background-color: #6c757d; }
+.contact-info { display: flex; flex-direction: column; gap: 4px; font-size: 0.8rem; }
+.contact-row { display: flex; align-items: center; gap: 8px; color: #475569; }
+.contact-row i { color: #94a3b8; width: 14px; text-align: center; }
 
+.badges-container { display: flex; gap: 4px; flex-wrap: wrap; }
+.badge-type {
+  font-size: 0.65rem; font-weight: 600; padding: 3px 8px; border-radius: 4px; text-transform: uppercase; letter-spacing: 0.02em;
+}
+.bg-purple { background: #f3e8ff; color: #7e22ce; }
+.bg-orange { background: #ffedd5; color: #c2410c; }
+.bg-yellow { background: #fef9c3; color: #854d0e; }
+.bg-blue { background: #e0f2fe; color: #0369a1; }
+.bg-teal { background: #ccfbf1; color: #0f766e; }
+.bg-gray { background: #f3f4f6; color: #475569; }
+
+.actions-flex { display: flex; gap: 0.5rem; justify-content: flex-end; }
+.btn-action {
+  width: 32px; height: 32px; border: none; border-radius: 6px; cursor: pointer;
+  display: flex; align-items: center; justify-content: center; transition: all 0.2s;
+}
+.btn-action.edit { background-color: #eff6ff; color: #2563eb; }
+.btn-action.edit:hover { background-color: #2563eb; color: #fff; }
+.btn-action.delete { background-color: #fff1f2; color: #e11d48; }
+.btn-action.delete:hover { background-color: #e11d48; color: #fff; }
+
+@media (max-width: 1024px) {
+  .page-container { padding: 1rem; }
+  .header-main { flex-direction: column; align-items: flex-start; gap: 1rem; }
+  .actions-area { width: 100%; justify-content: flex-start; }
+  .toolbar-row { flex-direction: column; align-items: stretch; }
+  .filter-group, .search-group { width: 100%; }
+}
 </style>
