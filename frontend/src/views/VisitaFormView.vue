@@ -1,7 +1,23 @@
 <template>
   <div class="page-container">
     
-    <div v-if="isLoadingData" class="loading-state card">
+    <header class="page-header">
+      <div class="header-main">
+        <div class="title-area">
+           <nav class="breadcrumb">
+              <router-link to="/">Início</router-link>
+              <i class="fas fa-chevron-right separator"></i> 
+              <router-link to="/visitas">Visitas</router-link>
+              <i class="fas fa-chevron-right separator"></i>
+              <span class="active">{{ isEditing ? 'Editar' : 'Agendar' }}</span>
+           </nav>
+           
+           <h1>{{ isEditing ? 'Editar Visita' : 'Agendar Nova Visita' }}</h1>
+        </div>
+      </div>
+    </header>
+
+    <div v-if="isLoadingData" class="loading-state">
          <div class="spinner"></div>
          <p>A carregar dados...</p>
     </div>
@@ -119,7 +135,7 @@
                 <button type="submit" class="btn-primary" :disabled="isSubmitting">
                     <i v-if="isSubmitting" class="fas fa-spinner fa-spin"></i>
                     <span v-else>
-                        {{ isEditing ? 'Atualizar Agendamento' : 'Confirmar Agendamento Único' }}
+                        {{ isEditing ? 'Salvar Alterações' : 'Confirmar Agendamento' }}
                     </span>
                 </button>
             </div>
@@ -131,7 +147,7 @@
             
             <div class="card info-card" :class="{ 'empty': visita.imoveis.length === 0 }">
                  <div class="widget-header">
-                     <h3 class="widget-title"><i class="fas fa-home"></i> Imóveis no Roteiro ({{ visita.imoveis.length }})</h3>
+                     <h3 class="widget-title"><i class="fas fa-home"></i> Roteiro ({{ visita.imoveis.length }})</h3>
                  </div>
                  
                  <div v-if="visita.imoveis.length > 0" class="info-content-list">
@@ -147,7 +163,7 @@
                      </div>
                  </div>
                  <div v-else class="empty-state-widget">
-                    <p>Selecione um ou mais imóveis para criar o roteiro.</p>
+                    <p>Selecione um ou mais imóveis para visualizar o roteiro.</p>
                  </div>
             </div>
 
@@ -170,7 +186,7 @@
                      </div>
                  </div>
                  <div v-else class="empty-state-widget">
-                    <p>Selecione um cliente para ver os detalhes.</p>
+                    <p>Selecione um cliente para ver os detalhes de contato.</p>
                  </div>
             </div>
 
@@ -207,7 +223,7 @@ const isSubmitting = ref(false);
 
 // Estado do Form
 const visita = ref<{
-    imoveis: SelectObject[], // Agora é lista
+    imoveis: SelectObject[], 
     cliente: SelectObject | null,
     data: string,
     hora: string,
@@ -310,7 +326,6 @@ async function loadInitialData() {
             visita.value.hora = format(dataHora, 'HH:mm');
             visita.value.observacoes = data.observacoes;
 
-            // CARREGA LISTA DE IMÓVEIS DA VISITA (Agora é lista)
             if (data.imoveis_obj && Array.isArray(data.imoveis_obj)) {
                 visita.value.imoveis = data.imoveis_obj.map((i: any) => {
                     const opt = { 
@@ -366,13 +381,11 @@ async function handleSubmit() {
 
     isSubmitting.value = true;
     
-    // Extrai lista de IDs dos imóveis
     const imoveisIds = visita.value.imoveis.map(i => getId(i)).filter(id => id !== null);
     const dataHoraCombinada = `${visita.value.data}T${visita.value.hora}:00`;
 
-    // Payload único com lista de imóveis
     const payload = {
-        imoveis: imoveisIds, // Enviando LISTA para o backend ManyToMany
+        imoveis: imoveisIds, 
         cliente: clienteId,
         data_visita: dataHoraCombinada,
         observacoes: visita.value.observacoes
@@ -403,54 +416,144 @@ onMounted(loadInitialData);
 </script>
 
 <style scoped>
-/* (Mesmo estilo dos arquivos anteriores) */
-.page-container { padding: 0.5rem; background-color: #f4f7f6; min-height: 100vh; }
-.main-content-grid { display: grid; grid-template-columns: 1fr 320px; gap: 1rem; align-items: start; margin-top: 0; }
-@media (max-width: 992px) { .main-content-grid { grid-template-columns: 1fr; } }
-.card { background-color: #fff; border-radius: 10px; box-shadow: 0 4px 12px rgba(0,0,0,0.04); padding: 1.5rem; border: 1px solid #eaedf0; }
+/* =========================================================
+   1. GERAL & HEADER (PADRÃO LISTAS)
+   ========================================================= */
+.page-container {
+  min-height: 100vh;
+  background-color: #fcfcfc; /* Fundo cinza claro padrão */
+  font-family: 'Inter', 'Segoe UI', Roboto, sans-serif;
+  padding: 1.5rem 2.5rem;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Header & Breadcrumb */
+.page-header { margin-bottom: 2rem; }
+
+.title-area { display: flex; flex-direction: column; gap: 6px; }
+.title-area h1 {
+  font-size: 1.5rem; font-weight: 300; color: #1f2937; margin: 0; letter-spacing: -0.02em;
+}
+
+.breadcrumb {
+  display: flex; align-items: center; gap: 6px;
+  font-size: 0.7rem; color: #94a3b8; font-weight: 500; text-transform: uppercase; letter-spacing: 0.05em;
+}
+.breadcrumb a { color: #94a3b8; text-decoration: none; transition: color 0.2s; }
+.breadcrumb a:hover { color: #2563eb; }
+.breadcrumb .separator { font-size: 0.5rem; color: #cbd5e1; }
+.breadcrumb .active { color: #2563eb; font-weight: 700; }
+
+.header-main { display: flex; justify-content: space-between; align-items: flex-end; }
+
+/* =========================================================
+   2. GRID LAYOUT
+   ========================================================= */
+.main-content-grid { 
+    display: grid; 
+    grid-template-columns: 1fr 320px; 
+    gap: 1.5rem; 
+    align-items: start; 
+}
+@media (max-width: 1100px) { .main-content-grid { grid-template-columns: 1fr; } }
+
+/* =========================================================
+   3. CARDS & FORMS
+   ========================================================= */
+.card {
+  background-color: #fff; 
+  border-radius: 8px; /* Borda mais sutil */
+  box-shadow: 0 1px 2px rgba(0,0,0,0.03); /* Sombra mais leve */
+  padding: 1.5rem; 
+  border: 1px solid #e5e7eb; /* Borda mais clara */
+}
 .form-card { min-height: 400px; }
+
+.form-section { margin-bottom: 1.5rem; }
+.section-title {
+    font-size: 1rem; color: #1f2937; margin-bottom: 1.2rem; padding-bottom: 0.5rem;
+    border-bottom: 1px solid #f1f5f9; font-weight: 600; display: flex; align-items: center; gap: 0.6rem;
+}
 .compact-section { margin-bottom: 0; }
-.section-title { font-size: 1.1rem; color: #2c3e50; margin-bottom: 1rem; padding-bottom: 0.5rem; border-bottom: 2px solid #f0f2f5; font-weight: 700; display: flex; align-items: center; gap: 0.6rem; }
+
 .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
-.form-group { display: flex; flex-direction: column; gap: 0.3rem; }
+.form-group { display: flex; flex-direction: column; gap: 0.4rem; }
 .full-width { grid-column: 1 / -1; }
-label { font-weight: 600; font-size: 0.8rem; color: #495057; }
-.required { color: #e74c3c; }
-.helper-text { font-size: 0.75rem; color: #6c757d; margin-top: 2px; }
+
+label { font-weight: 500; font-size: 0.85rem; color: #4b5563; }
+.required { color: #ef4444; }
+.helper-text { font-size: 0.75rem; color: #9ca3af; margin-top: 2px; }
+
+/* Inputs */
 .input-wrapper { position: relative; }
-.input-icon { position: absolute; left: 10px; top: 50%; transform: translateY(-50%); color: #adb5bd; font-size: 0.9rem; pointer-events: none; }
-.form-input, .form-textarea { width: 100%; padding: 0.55rem 0.75rem; border: 1px solid #ced4da; border-radius: 6px; font-size: 0.9rem; transition: border-color 0.2s; background-color: #fff; box-sizing: border-box; font-family: inherit; }
+.input-icon {
+    position: absolute; left: 10px; top: 50%; transform: translateY(-50%); color: #9ca3af; font-size: 0.85rem; pointer-events: none;
+}
+.form-input, .form-textarea {
+    width: 100%; padding: 0.6rem 0.75rem; border: 1px solid #d1d5db; border-radius: 6px;
+    font-size: 0.9rem; transition: all 0.2s; background-color: #fff; box-sizing: border-box; color: #1f2937; font-family: inherit;
+}
 .form-input.has-icon { padding-left: 2.2rem; }
-.form-input:focus, .form-textarea:focus { border-color: #3498db; outline: none; box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.1); }
+.form-input:focus, .form-textarea:focus { 
+    border-color: #3b82f6; outline: none; box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.1);
+}
 .form-textarea { resize: vertical; min-height: 80px; }
-.style-chooser :deep(.vs__dropdown-toggle) { border: 1px solid #ced4da; border-radius: 6px; padding: 4px 0 5px 0; }
-.style-chooser :deep(.vs__search) { margin-top: 0; font-size: 0.9rem; }
-.form-actions-footer { display: flex; justify-content: flex-end; gap: 1rem; margin-top: 1.5rem; padding-top: 1rem; border-top: 1px solid #f0f2f5; }
-.btn-primary, .btn-secondary { padding: 0.6rem 1.5rem; border-radius: 6px; border: none; font-weight: 600; cursor: pointer; font-size: 0.9rem; display: flex; align-items: center; gap: 0.5rem; }
-.btn-primary { background-color: #007bff; color: white; }
-.btn-primary:hover { background-color: #0056b3; transform: translateY(-1px); }
-.btn-secondary { background-color: #6c757d; color: white; }
-.btn-secondary:hover { background-color: #5a6268; }
-.info-card { padding: 1.2rem; margin-bottom: 1rem; border-left: 4px solid #007bff; }
-.info-card.empty { border-left-color: #e9ecef; }
-.widget-header { margin-bottom: 0.8rem; padding-bottom: 0.5rem; border-bottom: 1px solid #f0f2f5; }
-.widget-title { font-size: 0.95rem; font-weight: 700; margin: 0; color: #495057; }
+
+/* V-Select Styles */
+.style-chooser :deep(.vs__dropdown-toggle) {
+    border: 1px solid #d1d5db; border-radius: 6px; padding: 4px 0 5px 0;
+}
+.style-chooser :deep(.vs__search) { margin-top: 0; font-size: 0.9rem; color: #1f2937; }
+
+/* Footer Actions */
+.form-actions-footer {
+    display: flex; justify-content: flex-end; gap: 0.75rem; margin-top: 2rem; padding-top: 1rem; border-top: 1px solid #f1f5f9;
+}
+.btn-primary, .btn-secondary {
+    padding: 0.5rem 1.2rem; border-radius: 6px; border: none; font-weight: 500; cursor: pointer; font-size: 0.85rem; display: flex; align-items: center; gap: 0.5rem; transition: all 0.2s;
+}
+.btn-primary { background-color: #2563eb; color: white; box-shadow: 0 1px 2px rgba(37, 99, 235, 0.1); }
+.btn-primary:hover { background-color: #1d4ed8; transform: translateY(-1px); }
+.btn-secondary { background-color: #f8fafc; color: #64748b; border: 1px solid #e2e8f0; }
+.btn-secondary:hover { background-color: #f1f5f9; border-color: #cbd5e1; color: #334155; }
+
+/* =========================================================
+   4. INFO CARDS (COLUNA DIREITA)
+   ========================================================= */
+.info-card { padding: 1.2rem; margin-bottom: 1rem; border-left: 3px solid #2563eb; }
+.info-card.empty { border-left-color: #e5e7eb; }
+
+.widget-header { margin-bottom: 0.8rem; padding-bottom: 0.5rem; border-bottom: 1px solid #f1f5f9; }
+.widget-title { font-size: 0.9rem; font-weight: 600; margin: 0; color: #374151; }
+
 .info-content-list { display: flex; flex-direction: column; gap: 0.8rem; max-height: 300px; overflow-y: auto; }
-.imovel-mini-item { padding-bottom: 0.8rem; border-bottom: 1px solid #f0f2f5; }
+.imovel-mini-item { padding-bottom: 0.8rem; border-bottom: 1px solid #f3f4f6; }
 .imovel-mini-item:last-child { border-bottom: none; padding-bottom: 0; }
+
 .info-content { display: flex; flex-direction: column; gap: 0.5rem; }
-.info-title { font-size: 0.95rem; font-weight: 700; color: #2c3e50; margin: 0; line-height: 1.3; }
-.info-code { background-color: #e9ecef; color: #495057; font-size: 0.7rem; padding: 2px 6px; border-radius: 4px; font-weight: 700; display: inline-block; margin-top: 4px; }
-.info-address { font-size: 0.85rem; color: #6c757d; line-height: 1.4; margin: 0; }
+.info-title { font-size: 0.9rem; font-weight: 600; color: #1f2937; margin: 0; line-height: 1.3; }
+.info-code { background-color: #f3f4f6; color: #4b5563; font-size: 0.7rem; padding: 2px 6px; border-radius: 4px; font-weight: 600; display: inline-block; margin-top: 4px; border: 1px solid #e5e7eb; }
+.info-address { font-size: 0.8rem; color: #6b7280; line-height: 1.4; margin: 0; }
+
 .contact-list { margin-top: 0.5rem; }
-.contact-item { font-size: 0.85rem; color: #343a40; margin: 4px 0; display: flex; align-items: center; gap: 8px; }
-.contact-item i { color: #adb5bd; width: 16px; text-align: center; }
-.empty-state-widget { text-align: center; color: #adb5bd; font-size: 0.85rem; padding: 1rem 0; font-style: italic; }
-.loading-state { text-align: center; padding: 4rem; color: #6c757d; }
-.spinner { border: 3px solid #e9ecef; border-top: 3px solid #007bff; border-radius: 50%; width: 40px; height: 40px; animation: spin 0.8s linear infinite; margin: 0 auto 1rem; }
+.contact-item { font-size: 0.8rem; color: #4b5563; margin: 4px 0; display: flex; align-items: center; gap: 8px; }
+.contact-item i { color: #9ca3af; width: 16px; text-align: center; }
+
+.empty-state-widget { text-align: center; color: #9ca3af; font-size: 0.8rem; padding: 1rem 0; font-style: italic; }
+
+/* Loading */
+.loading-state { text-align: center; padding: 4rem; color: #64748b; }
+.spinner { border: 3px solid #e2e8f0; border-top: 3px solid #2563eb; border-radius: 50%; width: 32px; height: 32px; animation: spin 0.8s linear infinite; margin: 0 auto 1rem; }
 @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+
+/* Badges inside Select */
 .option-content { display: flex; flex-direction: column; }
-.option-title { font-weight: 600; font-size: 0.9rem; color: #343a40; }
-.option-subtitle { font-size: 0.75rem; color: #6c757d; display: flex; align-items: center; }
-.badge-code { background-color: #e9ecef; padding: 0 4px; border-radius: 3px; font-size: 0.7rem; font-weight: 700; margin-left: 6px; }
+.option-title { font-weight: 500; font-size: 0.9rem; color: #1f2937; }
+.option-subtitle { font-size: 0.75rem; color: #6b7280; display: flex; align-items: center; }
+.badge-code { background-color: #f3f4f6; padding: 0 4px; border-radius: 3px; font-size: 0.7rem; font-weight: 600; margin-left: 6px; border: 1px solid #e5e7eb; }
+
+@media (max-width: 1024px) {
+  .page-container { padding: 1rem; }
+}
 </style>

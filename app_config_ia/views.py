@@ -4,7 +4,7 @@ from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
 from .models import OpcaoVozDaMarca
 from .serializers import OpcaoVozDaMarcaSerializer
-from core.models import Imobiliaria # Importamos o modelo Imobiliaria
+from core.models import Imobiliaria
 
 class ListarVozesDaMarcaView(APIView):
     """
@@ -46,7 +46,8 @@ class ConfiguracaoImobiliariaView(APIView):
         
         try:
             # Se voz_id for uma string vazia ou 0, desvincula a voz
-            if not voz_id or int(voz_id) == 0:
+            # Convertendo para int de forma segura para evitar erros de ValueError
+            if not voz_id or str(voz_id).strip() == '0':
                  imobiliaria.voz_da_marca_preferida = None
             else:
                 opcao_voz = OpcaoVozDaMarca.objects.get(pk=voz_id)
@@ -61,6 +62,11 @@ class ConfiguracaoImobiliariaView(APIView):
             return Response(
                 {"error": "A opção de voz selecionada não existe."},
                 status=status.HTTP_404_NOT_FOUND
+            )
+        except ValueError:
+             return Response(
+                {"error": "O ID da voz fornecido é inválido."},
+                status=status.HTTP_400_BAD_REQUEST
             )
         except Exception as e:
             return Response(

@@ -37,14 +37,11 @@ class ModeloDePrompt(models.Model):
         verbose_name="Em uso para Busca por IA",
         help_text="Marca este prompt como o principal para as buscas no site público."
     )
-    
-    # --- NOVO CAMPO ADICIONADO ---
     em_uso_descricao = models.BooleanField(
         default=False,
         verbose_name="Em uso para Gerar Descrição de Imóvel",
         help_text="Marca este prompt como o principal para gerar descrições no painel."
     )
-    # --- FIM DA ADIÇÃO ---
     
     data_criacao = models.DateTimeField(auto_now_add=True)
     data_atualizacao = models.DateTimeField(auto_now=True)
@@ -62,9 +59,7 @@ class ModeloDePrompt(models.Model):
         if self.em_uso_busca:
             ModeloDePrompt.objects.filter(em_uso_busca=True).exclude(pk=self.pk).update(em_uso_busca=False)
         
-        # --- LÓGICA ADICIONADA ---
         if self.em_uso_descricao:
             ModeloDePrompt.objects.filter(em_uso_descricao=True).exclude(pk=self.pk).update(em_uso_descricao=False)
-        # --- FIM DA ADIÇÃO ---
 
         super(ModeloDePrompt, self).save(*args, **kwargs)

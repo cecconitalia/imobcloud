@@ -1,7 +1,23 @@
 <template>
   <div class="page-container">
     
-    <div v-if="isLoadingData" class="loading-state card">
+    <header class="page-header">
+      <div class="header-main">
+        <div class="title-area">
+           <nav class="breadcrumb">
+              <span>Vendas</span> 
+              <i class="fas fa-chevron-right separator"></i> 
+              <router-link to="/funil-vendas">Funil</router-link>
+              <i class="fas fa-chevron-right separator"></i>
+              <span class="active">{{ isEditing ? 'Editar' : 'Nova' }}</span>
+           </nav>
+           
+           <h1>{{ isEditing ? 'Editar Oportunidade' : 'Nova Oportunidade' }}</h1>
+        </div>
+      </div>
+    </header>
+
+    <div v-if="isLoadingData" class="loading-state">
          <div class="spinner"></div>
          <p>A carregar dados...</p>
     </div>
@@ -310,7 +326,7 @@ function getDataFromResponse(response: any) {
     return []; 
 }
 
-// --- Funções de Busca (Inalteradas) ---
+// --- Funções de Busca ---
 let clienteSearchTimeout: NodeJS.Timeout | null = null;
 async function onClienteSearch(search: string, loading: (l: boolean) => void) {
     if (search.length >= 2) {
@@ -355,28 +371,16 @@ async function onImovelSearch(search: string, loading: (l: boolean) => void) {
     }
 }
 
-/**
- * Verifica se o cliente existe por email/nome. Se não existir, cria um novo
- * cliente Lead e retorna o ID.
- * CORREÇÃO: Agora filtra estritamente pelo e-mail para evitar selecionar o cliente errado.
- */
 async function checkOrCreateClient(leadData: { nome: string, email: string, telefone: string }): Promise<number | null> {
     try {
-        // 1. Tenta buscar cliente pelo email
-        console.log("Tentando buscar cliente com email:", leadData.email);
         const searchResponse = await apiClient.get(`/v1/clientes/?search=${leadData.email}`);
         const foundClients = getDataFromResponse(searchResponse);
 
-        // CORREÇÃO: Filtrar pelo e-mail exato, pois a busca do backend pode ser "fuzzy" (contém)
         const exactMatch = foundClients.find((c: any) => 
             c.email && c.email.toLowerCase() === leadData.email.toLowerCase()
         );
 
         if (exactMatch) {
-            console.log("Cliente exato encontrado:", exactMatch.nome);
-            
-            // IMPORTANTE: Adicionar este cliente encontrado à lista de opções do formulário
-            // para garantir que o nome apareça corretamente no v-select
             const optionExiste = clienteOptions.value.find(o => o.value === exactMatch.id);
             if (!optionExiste) {
                 clienteOptions.value.unshift({
@@ -390,9 +394,7 @@ async function checkOrCreateClient(leadData: { nome: string, email: string, tele
             return exactMatch.id;
         }
 
-        // 2. Cliente não encontrado, cria um novo
-        console.log("Cliente exato não encontrado. Criando novo cliente Lead...");
-        const uniqueDocumento = '00000000000'; // 11 zeros
+        const uniqueDocumento = '00000000000'; 
         
         const newClientPayload = {
             nome: leadData.nome,
@@ -406,7 +408,6 @@ async function checkOrCreateClient(leadData: { nome: string, email: string, tele
         const createResponse = await apiClient.post('/v1/clientes/', newClientPayload);
         const newClientId = createResponse.data.id;
         
-        // Adiciona o novo cliente na lista de opções para pré-selecionar
         clienteOptions.value.unshift({
             label: leadData.nome,
             value: newClientId,
@@ -444,15 +445,12 @@ async function loadInitialData() {
       promises.push(apiClient.get(`/v1/tarefas/?oportunidade=${oportunidadeId.value}`));
     }
 
-    // --- VERIFICAÇÃO DE PARÂMETROS DE ORIGEM (TRIAGEM DE LEADS) ---
     const query = route.query;
     const origemImovelId = query.imovel_id ? String(query.imovel_id) : null;
     const contatoNome = query.contato_nome ? String(query.contato_nome) : null;
     const contatoEmail = query.contato_email ? String(query.contato_email) : null;
     const contatoMensagem = query.mensagem ? String(query.mensagem) : null;
     const contatoTelefone = query.contato_telefone ? String(query.contato_telefone) : null;
-    
-    // NOVA LEITURA: ID DO CLIENTE FORNECIDO PELO BACKEND (Se disponível)
     const queryClienteId = query.cliente_id ? String(query.cliente_id) : null;
     
     if (origemImovelId) {
@@ -488,7 +486,6 @@ async function loadInitialData() {
         proprietario_nome: i.proprietario_nome
     }));
 
-    // Lógica de Edição
     if (isEditing.value && results.length > 3) {
       const opData = results[3].data;
       const clienteObj = opData.cliente;
@@ -531,17 +528,13 @@ async function loadInitialData() {
           tarefas.value = getDataFromResponse(results[4]);
       }
     } 
-    // Lógica de Criação via "Gerar Lead"
     else if (!isEditing.value && origemImovelId && contatoEmail && contatoNome) {
         
         let clientID: number | null = null;
 
-        // 1. CORREÇÃO PRINCIPAL: Prioriza o ID vindo do backend se existir
         if (queryClienteId) {
             clientID = parseInt(queryClienteId);
-            console.log("Usando ID de cliente fornecido pela URL:", clientID);
             
-            // Tenta buscar dados completos deste cliente para garantir que o label no select fique correto
             try {
                  const clienteJaNaLista = clienteOptions.value.find(c => c.value === clientID);
                  if (!clienteJaNaLista) {
@@ -563,8 +556,6 @@ async function loadInitialData() {
             }
 
         } else {
-            // Fallback: Se não veio ID na URL, tenta a lógica antiga (busca por email)
-            // Mas agora checkOrCreateClient filtra por correspondência EXATA
             const leadClientData = {
                 nome: contatoNome,
                 email: contatoEmail,
@@ -573,7 +564,6 @@ async function loadInitialData() {
             clientID = await checkOrCreateClient(leadClientData);
         }
         
-        // 2. Prepara dados da Oportunidade (Imóvel)
         const imovelDetail = results[results.length - 1].data;
         
         const imovelOption = {
@@ -589,7 +579,6 @@ async function loadInitialData() {
             imovelOptions.value.unshift(imovelOption);
         }
 
-        // 3. Preenche o formulário
         oportunidade.value.imovel_interesse_id = imovelDetail.id;
         oportunidade.value.cliente_id = clientID; 
         oportunidade.value.titulo = `Lead Site - ${contatoNome} (${imovelDetail.codigo_referencia})`;
@@ -661,7 +650,6 @@ async function handleSubmit() {
 
 function handleCancel() { router.push('/funil-vendas'); }
 
-// --- Funções de Tarefa (Inalteradas) ---
 function abrirModalNovaTarefa() { tarefaParaEditarId.value = null; showTarefaModal.value = true; }
 function abrirModalEditarTarefa(tarefa: any) { tarefaParaEditarId.value = tarefa.id; showTarefaModal.value = true; }
 function fecharModalTarefa() { showTarefaModal.value = false; tarefaParaEditarId.value = null; }
@@ -700,114 +688,147 @@ onMounted(loadInitialData);
 </script>
 
 <style scoped>
-/* Layout Base */
-.page-container { 
-    padding: 0.5rem; /* Reduzido para minimizar espaço no topo */
-    background-color: #f4f7f6; 
-    min-height: 100vh;
+/* =========================================================
+   1. GERAL & HEADER (PADRÃO LISTAS)
+   ========================================================= */
+.page-container {
+  min-height: 100vh;
+  background-color: #fcfcfc; /* Fundo cinza claro padrão */
+  font-family: 'Inter', 'Segoe UI', Roboto, sans-serif;
+  padding: 1.5rem 2.5rem;
+  display: flex;
+  flex-direction: column;
 }
 
-/* Grid Layout */
+/* Header & Breadcrumb */
+.page-header { margin-bottom: 2rem; }
+
+.title-area { display: flex; flex-direction: column; gap: 6px; }
+.title-area h1 {
+  font-size: 1.5rem; font-weight: 300; color: #1f2937; margin: 0; letter-spacing: -0.02em;
+}
+
+.breadcrumb {
+  display: flex; align-items: center; gap: 6px;
+  font-size: 0.7rem; color: #94a3b8; font-weight: 500; text-transform: uppercase; letter-spacing: 0.05em;
+}
+.breadcrumb a { color: #94a3b8; text-decoration: none; transition: color 0.2s; }
+.breadcrumb a:hover { color: #2563eb; }
+.breadcrumb .separator { font-size: 0.5rem; color: #cbd5e1; }
+.breadcrumb .active { color: #2563eb; font-weight: 700; }
+
+.header-main { display: flex; justify-content: space-between; align-items: flex-end; }
+
+/* =========================================================
+   2. GRID LAYOUT
+   ========================================================= */
 .main-content-grid { 
     display: grid; 
     grid-template-columns: 1fr 360px; 
-    gap: 1rem; 
+    gap: 1.5rem; 
     align-items: start; 
-    margin-top: 0; 
 }
 @media (max-width: 1100px) { .main-content-grid { grid-template-columns: 1fr; } }
 
-/* Cards */
+/* =========================================================
+   3. CARDS & FORMS
+   ========================================================= */
 .card {
   background-color: #fff; 
-  border-radius: 10px; 
-  box-shadow: 0 4px 12px rgba(0,0,0,0.04);
+  border-radius: 8px; /* Borda um pouco mais sutil */
+  box-shadow: 0 1px 2px rgba(0,0,0,0.03); /* Sombra mais leve */
   padding: 1.5rem; 
-  border: 1px solid #eaedf0;
+  border: 1px solid #e5e7eb; /* Borda mais clara */
 }
 .tasks-card, .activities-card { padding: 1.2rem; margin-bottom: 1rem; }
 
-/* Formulário */
 .form-section { margin-bottom: 1.5rem; }
 .section-title {
-    font-size: 1.1rem; color: #2c3e50; margin-bottom: 1rem; padding-bottom: 0.5rem;
-    border-bottom: 2px solid #f0f2f5; font-weight: 700; display: flex; align-items: center; gap: 0.6rem;
+    font-size: 1rem; color: #1f2937; margin-bottom: 1.2rem; padding-bottom: 0.5rem;
+    border-bottom: 1px solid #f1f5f9; font-weight: 600; display: flex; align-items: center; gap: 0.6rem;
 }
 .compact-section { margin-bottom: 0; }
 
 .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
-.form-group { display: flex; flex-direction: column; gap: 0.3rem; }
+.form-group { display: flex; flex-direction: column; gap: 0.4rem; }
 .full-width { grid-column: 1 / -1; }
 
-label { font-weight: 600; font-size: 0.8rem; color: #495057; }
-.required { color: #e74c3c; }
+label { font-weight: 500; font-size: 0.85rem; color: #4b5563; }
+.required { color: #ef4444; }
 
-/* Inputs com Ícones */
+/* Inputs */
 .input-wrapper { position: relative; }
 .input-icon {
-    position: absolute; left: 10px; top: 50%; transform: translateY(-50%); color: #adb5bd; font-size: 0.85rem; pointer-events: none;
+    position: absolute; left: 10px; top: 50%; transform: translateY(-50%); color: #9ca3af; font-size: 0.85rem; pointer-events: none;
 }
 .form-input, .form-select, .form-textarea {
-    width: 100%; padding: 0.55rem 0.75rem; border: 1px solid #ced4da; border-radius: 6px;
-    font-size: 0.9rem; transition: border-color 0.2s; background-color: #fff; box-sizing: border-box;
+    width: 100%; padding: 0.6rem 0.75rem; border: 1px solid #d1d5db; border-radius: 6px;
+    font-size: 0.9rem; transition: all 0.2s; background-color: #fff; box-sizing: border-box; color: #1f2937;
 }
-.form-input.has-icon, .form-select.has-icon { padding-left: 2rem; }
+.form-input.has-icon, .form-select.has-icon { padding-left: 2.2rem; }
 .form-input:focus, .form-select:focus, .form-textarea:focus { 
-    border-color: #3498db; outline: none; box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.1);
+    border-color: #3b82f6; outline: none; box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.1);
 }
 .form-textarea { resize: vertical; min-height: 100px; font-family: inherit; }
 
 /* V-Select Styles */
 .style-chooser :deep(.vs__dropdown-toggle) {
-    border: 1px solid #ced4da; border-radius: 6px; padding: 4px 0 5px 0;
+    border: 1px solid #d1d5db; border-radius: 6px; padding: 4px 0 5px 0;
 }
-.style-chooser :deep(.vs__search) { margin-top: 0; }
+.style-chooser :deep(.vs__search) { margin-top: 0; color: #1f2937; }
 
 /* Footer Actions */
 .form-actions-footer {
-    display: flex; justify-content: flex-end; gap: 1rem; margin-top: 1.5rem; padding-top: 1rem; border-top: 1px solid #f0f2f5;
+    display: flex; justify-content: flex-end; gap: 0.75rem; margin-top: 2rem; padding-top: 1rem; border-top: 1px solid #f1f5f9;
 }
 .btn-primary, .btn-secondary {
-    padding: 0.6rem 1.5rem; border-radius: 6px; border: none; font-weight: 600; cursor: pointer; font-size: 0.9rem; display: flex; align-items: center; gap: 0.5rem;
+    padding: 0.5rem 1.2rem; border-radius: 6px; border: none; font-weight: 500; cursor: pointer; font-size: 0.85rem; display: flex; align-items: center; gap: 0.5rem; transition: all 0.2s;
 }
-.btn-primary { background-color: #007bff; color: white; }
-.btn-primary:hover { background-color: #0056b3; transform: translateY(-1px); }
-.btn-secondary { background-color: #6c757d; color: white; }
-.btn-secondary:hover { background-color: #5a6268; }
+.btn-primary { background-color: #2563eb; color: white; box-shadow: 0 1px 2px rgba(37, 99, 235, 0.1); }
+.btn-primary:hover { background-color: #1d4ed8; transform: translateY(-1px); }
+.btn-secondary { background-color: #f8fafc; color: #64748b; border: 1px solid #e2e8f0; }
+.btn-secondary:hover { background-color: #f1f5f9; border-color: #cbd5e1; color: #334155; }
 
-/* Widgets Coluna Direita (Tarefas) */
-.widget-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.8rem; padding-bottom: 0.5rem; border-bottom: 1px solid #f0f2f5; }
-.widget-title { font-size: 0.95rem; font-weight: 700; margin: 0; color: #495057; display: flex; align-items: center; gap: 0.5rem; }
+/* =========================================================
+   4. WIDGETS COLUNA DIREITA (TAREFAS)
+   ========================================================= */
+.widget-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; padding-bottom: 0.5rem; border-bottom: 1px solid #f1f5f9; }
+.widget-title { font-size: 0.9rem; font-weight: 600; margin: 0; color: #374151; display: flex; align-items: center; gap: 0.5rem; }
 .btn-icon-mini { 
-    width: 26px; height: 26px; border-radius: 6px; border: 1px solid #dee2e6; 
-    background: white; color: #007bff; cursor: pointer; 
-    display: flex; align-items: center; justify-content: center; transition: all 0.2s;
+    width: 28px; height: 28px; border-radius: 6px; border: 1px solid #e5e7eb; 
+    background: white; color: #2563eb; cursor: pointer; 
+    display: flex; align-items: center; justify-content: center; transition: all 0.2s; font-size: 0.75rem;
 }
-.btn-icon-mini:hover { background: #007bff; color: white; }
+.btn-icon-mini:hover { background: #eff6ff; border-color: #bfdbfe; }
 
 .tarefas-list { list-style: none; padding: 0; margin: 0; }
-.tarefa-item { display: flex; align-items: center; gap: 0.8rem; padding: 0.6rem 0; border-bottom: 1px solid #f8f9fa; }
+.tarefa-item { display: flex; align-items: center; gap: 0.8rem; padding: 0.7rem 0; border-bottom: 1px solid #f3f4f6; }
+.tarefa-item:last-child { border-bottom: none; }
 .tarefa-content { flex: 1; min-width: 0; }
-.tarefa-text { font-size: 0.85rem; font-weight: 500; color: #343a40; display: block; }
-.tarefa-item.concluida .tarefa-text { text-decoration: line-through; color: #adb5bd; }
-.tarefa-date { font-size: 0.7rem; color: #6c757d; }
-.text-danger { color: #dc3545; }
-.btn-edit-mini { background: none; border: none; color: #adb5bd; cursor: pointer; }
-.btn-edit-mini:hover { color: #007bff; }
-.empty-state-widget { text-align: center; padding: 1.5rem 1rem; color: #adb5bd; font-size: 0.85rem; }
-.empty-state-widget i { font-size: 1.4rem; margin-bottom: 0.4rem; display: block; opacity: 0.5; }
+.tarefa-text { font-size: 0.85rem; font-weight: 500; color: #1f2937; display: block; }
+.tarefa-item.concluida .tarefa-text { text-decoration: line-through; color: #9ca3af; }
+.tarefa-date { font-size: 0.7rem; color: #6b7280; display: flex; align-items: center; gap: 4px; margin-top: 2px; }
+.text-danger { color: #ef4444; }
+.btn-edit-mini { background: none; border: none; color: #9ca3af; cursor: pointer; font-size: 0.8rem; transition: color 0.2s; }
+.btn-edit-mini:hover { color: #2563eb; }
+.empty-state-widget { text-align: center; padding: 2rem 1rem; color: #9ca3af; font-size: 0.85rem; }
+.empty-state-widget i { font-size: 1.5rem; margin-bottom: 0.5rem; display: block; opacity: 0.3; }
 
 /* Loading */
-.loading-state { text-align: center; padding: 4rem; color: #6c757d; }
-.spinner { border: 3px solid #e9ecef; border-top: 3px solid #007bff; border-radius: 50%; width: 40px; height: 40px; animation: spin 0.8s linear infinite; margin: 0 auto 1rem; }
+.loading-state { text-align: center; padding: 4rem; color: #64748b; }
+.spinner { border: 3px solid #e2e8f0; border-top: 3px solid #2563eb; border-radius: 50%; width: 32px; height: 32px; animation: spin 0.8s linear infinite; margin: 0 auto 1rem; }
 @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
 
 /* Badges in Select */
 .option-content { display: flex; flex-direction: column; }
-.option-title { font-weight: 600; font-size: 0.9rem; color: #343a40; }
-.option-subtitle { font-size: 0.75rem; color: #6c757d; display: flex; align-items: center; gap: 5px; }
-.badge-code { background-color: #e9ecef; color: #495057; padding: 0 4px; border-radius: 4px; font-size: 0.7rem; font-weight: 700; }
+.option-title { font-weight: 500; font-size: 0.9rem; color: #1f2937; }
+.option-subtitle { font-size: 0.75rem; color: #6b7280; display: flex; align-items: center; gap: 5px; }
+.badge-code { background-color: #f3f4f6; color: #374151; padding: 0 4px; border-radius: 4px; font-size: 0.7rem; font-weight: 600; border: 1px solid #e5e7eb; }
 
 .helper-text { font-size: 0.75rem; margin-top: 0.3rem; }
-.text-success { color: #28a745; }
+.text-success { color: #16a34a; }
+
+@media (max-width: 1024px) {
+  .page-container { padding: 1rem; }
+}
 </style>

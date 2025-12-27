@@ -1,90 +1,145 @@
 <template>
   <div class="page-container">
-    <div class="filters-card card">
-      <div class="form-group">
-        <label for="start-date">Data de Início:</label>
-        <input type="date" id="start-date" v-model="startDate" class="filter-input">
-      </div>
-      <div class="form-group">
-        <label for="end-date">Data de Fim:</label>
-        <input type="date" id="end-date" v-model="endDate" class="filter-input">
-      </div>
-      <button @click="fetchDRE" class="btn-primary" :disabled="isLoading">
-        {{ isLoading ? 'A carregar...' : 'Gerar Relatório' }}
-      </button>
-       <button @click="imprimirDRE" class="btn-secondary" :disabled="!dreData || isLoading">
-            <i class="fas fa-print"></i> Imprimir / PDF
-        </button>
-    </div>
-
-    <div v-if="isLoading && !error" class="loading-state card">
-        A gerar relatório DRE...
-    </div>
-    <div v-if="error" class="error-message card">{{ error }}</div>
-
-    <div v-if="dreData && !isLoading && !error" class="results-container card" id="dre-print-area">
-        <div class="report-header">
-             <h2>Demonstrativo de Resultados do Exercício (DRE)</h2>
-            <p>Período: {{ formatarData(startDate) }} a {{ formatarData(endDate) }}</p>
-        </div>
-
-      <div class="summary-grid">
-        <div class="summary-card revenue">
-          <h4>(+) Total Receitas</h4>
-          <p>{{ formatarValor(dreData.total_receitas) }}</p>
-        </div>
-        <div class="summary-card expenses">
-          <h4>(-) Total Despesas</h4>
-          <p>{{ formatarValor(dreData.total_despesas) }}</p>
-        </div>
-        <div class="summary-card balance" :class="getResultadoClass(dreData.resultado_liquido)">
-          <h4>(=) Resultado Líquido</h4>
-          <p>{{ formatarValor(dreData.resultado_liquido) }}</p>
+    
+    <header class="page-header">
+      <div class="header-main">
+        <div class="title-area">
+           <nav class="breadcrumb">
+              <router-link to="/">Início</router-link>
+              <i class="fas fa-chevron-right separator"></i> 
+              <router-link to="/financeiro">Financeiro</router-link>
+              <i class="fas fa-chevron-right separator"></i>
+              <span class="active">DRE</span>
+           </nav>
+           
+           <h1>Demonstrativo de Resultados</h1>
         </div>
       </div>
+    </header>
 
-       <table class="dre-table">
-          <thead>
-              <tr>
-                  <th>Descrição</th>
-                  <th class="text-right">Valor (R$)</th>
-              </tr>
-          </thead>
-          <tbody>
-              <tr class="section-header">
-                  <td colspan="2"><strong>(+) Receitas Operacionais</strong></td>
-              </tr>
-              <tr v-for="receita in dreData.detalhes_receitas" :key="`rec-${receita.categoria_id}`">
-                  <td class="item-categoria">{{ receita.categoria_nome }}</td>
-                  <td class="text-right text-success">{{ formatarValor(receita.total) }}</td>
-              </tr>
-              <tr class="subtotal">
-                  <td><strong>Total Receitas</strong></td>
-                  <td class="text-right text-success"><strong>{{ formatarValor(dreData.total_receitas) }}</strong></td>
-              </tr>
-
-              <tr class="section-header">
-                  <td colspan="2"><strong>(-) Despesas Operacionais</strong></td>
-              </tr>
-               <tr v-for="despesa in dreData.detalhes_despesas" :key="`desp-${despesa.categoria_id}`">
-                  <td class="item-categoria">{{ despesa.categoria_nome }}</td>
-                  <td class="text-right text-danger">{{ formatarValor(despesa.total) }}</td>
-              </tr>
-              <tr class="subtotal">
-                  <td><strong>Total Despesas</strong></td>
-                  <td class="text-right text-danger"><strong>{{ formatarValor(dreData.total_despesas) }}</strong></td>
-              </tr>
-
-               <tr><td colspan="2">&nbsp;</td></tr> <tr class="resultado-final" :class="getResultadoClass(dreData.resultado_liquido)">
-                  <td><strong>(=) Resultado Líquido do Período</strong></td>
-                   <td class="text-right"><strong>{{ formatarValor(dreData.resultado_liquido) }}</strong></td>
-               </tr>
-          </tbody>
-      </table>
+    <div class="card filter-card no-print">
+      <div class="filter-row">
+        <div class="form-group">
+            <label for="start-date">Data de Início</label>
+            <div class="input-wrapper">
+                <i class="far fa-calendar-alt input-icon"></i>
+                <input type="date" id="start-date" v-model="startDate" class="form-input has-icon">
+            </div>
+        </div>
+        <div class="form-group">
+            <label for="end-date">Data de Fim</label>
+            <div class="input-wrapper">
+                <i class="far fa-calendar-alt input-icon"></i>
+                <input type="date" id="end-date" v-model="endDate" class="form-input has-icon">
+            </div>
+        </div>
+        <div class="actions-group">
+            <button @click="fetchDRE" class="btn-primary" :disabled="isLoading">
+                <i v-if="isLoading" class="fas fa-spinner fa-spin"></i>
+                <span v-else><i class="fas fa-search"></i> Gerar Relatório</span>
+            </button>
+            <button @click="imprimirDRE" class="btn-secondary" :disabled="!dreData || isLoading">
+                <i class="fas fa-print"></i> Imprimir
+            </button>
+        </div>
+      </div>
     </div>
-     <div v-if="!dreData && !isLoading && !error" class="empty-state card">
-          Selecione o período e clique em "Gerar Relatório" para visualizar o DRE.
-     </div>
+
+    <div v-if="isLoading && !dreData" class="loading-state">
+        <div class="spinner"></div>
+        <p>Calculando resultados...</p>
+    </div>
+    
+    <div v-if="error" class="alert-box error no-print">
+        <i class="fas fa-exclamation-triangle"></i> {{ error }}
+    </div>
+
+    <div v-if="dreData" class="report-content fade-in" id="dre-print-area">
+        
+        <div class="report-header print-only">
+             <h2>DRE - Demonstrativo de Resultados</h2>
+             <p>Período: {{ formatarData(startDate) }} a {{ formatarData(endDate) }}</p>
+        </div>
+
+        <div class="summary-grid">
+            <div class="kpi-card green">
+                <div class="kpi-content">
+                    <span class="kpi-label">Total Receitas</span>
+                    <span class="kpi-value">{{ formatarValor(dreData.total_receitas) }}</span>
+                </div>
+                <div class="kpi-icon"><i class="fas fa-arrow-up"></i></div>
+            </div>
+
+            <div class="kpi-card red">
+                <div class="kpi-content">
+                    <span class="kpi-label">Total Despesas</span>
+                    <span class="kpi-value">{{ formatarValor(dreData.total_despesas) }}</span>
+                </div>
+                <div class="kpi-icon"><i class="fas fa-arrow-down"></i></div>
+            </div>
+
+            <div class="kpi-card" :class="dreData.resultado_liquido >= 0 ? 'blue' : 'orange'">
+                <div class="kpi-content">
+                    <span class="kpi-label">Resultado Líquido</span>
+                    <span class="kpi-value">{{ formatarValor(dreData.resultado_liquido) }}</span>
+                </div>
+                <div class="kpi-icon"><i class="fas fa-balance-scale"></i></div>
+            </div>
+        </div>
+
+       <div class="card table-card">
+           <table class="dre-table">
+              <thead>
+                  <tr>
+                      <th>Categoria / Descrição</th>
+                      <th class="text-right">Valor</th>
+                  </tr>
+              </thead>
+              <tbody>
+                  <tr class="section-header revenue-header">
+                      <td colspan="2"><i class="fas fa-plus-circle"></i> Receitas Operacionais</td>
+                  </tr>
+                  <tr v-for="receita in dreData.detalhes_receitas" :key="`rec-${receita.categoria_id}`" class="item-row">
+                      <td class="item-name">{{ receita.categoria_nome }}</td>
+                      <td class="text-right text-success">{{ formatarValor(receita.total) }}</td>
+                  </tr>
+                  <tr class="subtotal-row revenue-bg">
+                      <td><strong>Total de Receitas</strong></td>
+                      <td class="text-right text-success"><strong>{{ formatarValor(dreData.total_receitas) }}</strong></td>
+                  </tr>
+
+                  <tr class="spacer-row"><td colspan="2"></td></tr>
+                  <tr class="section-header expense-header">
+                      <td colspan="2"><i class="fas fa-minus-circle"></i> Despesas Operacionais</td>
+                  </tr>
+                   <tr v-for="despesa in dreData.detalhes_despesas" :key="`desp-${despesa.categoria_id}`" class="item-row">
+                      <td class="item-name">{{ despesa.categoria_nome }}</td>
+                      <td class="text-right text-danger">{{ formatarValor(despesa.total) }}</td>
+                  </tr>
+                  <tr class="subtotal-row expense-bg">
+                      <td><strong>Total de Despesas</strong></td>
+                      <td class="text-right text-danger"><strong>{{ formatarValor(dreData.total_despesas) }}</strong></td>
+                  </tr>
+
+                   <tr class="spacer-row"><td colspan="2"></td></tr>
+                   <tr class="resultado-final-row" :class="dreData.resultado_liquido >= 0 ? 'bg-success-light' : 'bg-danger-light'">
+                      <td><strong>RESULTADO LÍQUIDO DO PERÍODO</strong></td>
+                       <td class="text-right big-number" :class="dreData.resultado_liquido >= 0 ? 'text-success' : 'text-danger'">
+                           {{ formatarValor(dreData.resultado_liquido) }}
+                       </td>
+                   </tr>
+              </tbody>
+          </table>
+       </div>
+    </div>
+
+    <div v-if="!dreData && !isLoading && !error" class="empty-state">
+        <div class="empty-content">
+            <i class="fas fa-chart-pie"></i>
+            <h3>Geração de DRE</h3>
+            <p>Selecione o período desejado acima e clique em "Gerar Relatório".</p>
+        </div>
+    </div>
 
   </div>
 </template>
@@ -110,8 +165,8 @@ interface DreData {
 }
 
 const today = new Date();
-const startDate = ref(format(startOfMonth(today), 'yyyy-MM-dd')); // Início do mês atual
-const endDate = ref(format(endOfMonth(today), 'yyyy-MM-dd')); // Fim do mês atual
+const startDate = ref(format(startOfMonth(today), 'yyyy-MM-dd'));
+const endDate = ref(format(endOfMonth(today), 'yyyy-MM-dd'));
 
 const dreData = ref<DreData | null>(null);
 const isLoading = ref(false);
@@ -125,22 +180,14 @@ function formatarValor(valor: number | null | undefined): string {
 function formatarData(data: string | null | undefined): string {
     if (!data) return '-';
     try {
-        // Assume yyyy-MM-dd e adiciona T00:00:00 para tratar como local
         return format(new Date(data + 'T00:00:00'), 'dd/MM/yyyy', { locale: ptBR });
-    } catch {
-        return 'Inválida';
-    }
-}
-
-
-function getResultadoClass(valor: number): string {
-    return valor >= 0 ? 'text-success' : 'text-danger';
+    } catch { return 'Inválida'; }
 }
 
 async function fetchDRE() {
   isLoading.value = true;
   error.value = null;
-  dreData.value = null; // Limpa dados anteriores
+  dreData.value = null;
 
   if (!startDate.value || !endDate.value) {
       error.value = "Por favor, selecione as datas de início e fim.";
@@ -149,239 +196,210 @@ async function fetchDRE() {
   }
 
   try {
-    // URL ajustada para /v1/financeiro/dre/
     const response = await apiClient.get<DreData>('/v1/financeiro/dre/', {
-      params: {
-        start_date: startDate.value,
-        end_date: endDate.value
-      }
+      params: { start_date: startDate.value, end_date: endDate.value }
     });
     dreData.value = response.data;
   } catch (err) {
     console.error("Erro ao gerar DRE:", err);
-    error.value = "Não foi possível gerar o relatório. Verifique as datas e tente novamente.";
+    error.value = "Não foi possível gerar o relatório. Verifique a conexão.";
   } finally {
     isLoading.value = false;
   }
 }
 
 function imprimirDRE() {
-    const printContent = document.getElementById('dre-print-area');
-    if (printContent) {
-        const printWindow = window.open('', '_blank', 'height=800,width=800');
-        if (printWindow) {
-             printWindow.document.write('<html><head><title>Relatório DRE</title>');
-            // Adicionar estilos básicos para impressão
-            printWindow.document.write(`
-                <style>
-                    body { font-family: sans-serif; margin: 20px; }
-                    .report-header { text-align: center; margin-bottom: 20px; }
-                    .report-header h2 { margin: 0; }
-                    .report-header p { margin: 5px 0 0 0; color: #555; }
-                    .summary-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; margin-bottom: 1.5rem; border-bottom: 1px solid #ccc; padding-bottom: 1rem; }
-                    .summary-card { padding: 1rem; border-radius: 5px; text-align: center; color: #333; }
-                    .summary-card h4 { margin: 0 0 0.5rem 0; font-size: 0.9rem; font-weight: normal; color: #555;}
-                    .summary-card p { margin: 0; font-size: 1.5rem; font-weight: bold; }
-                    .revenue p { color: #198754; }
-                    .expenses p { color: #dc3545; }
-                    .balance.text-success p { color: #198754; }
-                    .balance.text-danger p { color: #dc3545; }
-                    .dre-table { width: 100%; border-collapse: collapse; margin-top: 1rem; }
-                    .dre-table th, .dre-table td { border: 1px solid #ddd; padding: 8px; text-align: left; }
-                    .dre-table th { background-color: #f2f2f2; font-weight: bold; }
-                    .text-right { text-align: right; }
-                    .text-success { color: #198754; }
-                    .text-danger { color: #dc3545; }
-                    .section-header td { background-color: #f8f9fa; font-weight: bold; padding-top: 15px; }
-                    .item-categoria { padding-left: 20px; }
-                    .subtotal td { border-top: 1px solid #aaa; font-weight: bold; }
-                    .resultado-final td { border-top: 2px solid #333; font-weight: bold; font-size: 1.1em; padding-top: 10px;}
-                    .resultado-final.text-success td { color: #198754; }
-                    .resultado-final.text-danger td { color: #dc3545; }
-                     @media print {
-                        .summary-grid { grid-template-columns: repeat(3, 1fr); } /* Garante 3 colunas na impressão */
-                        .btn-primary, .btn-secondary { display: none; } /* Esconde botões */
-                        body { margin: 0; } /* Remove margens do body na impressão */
-                    }
-                </style>
-            `);
-            printWindow.document.write('</head><body>');
-            printWindow.document.write(printContent.innerHTML);
-            printWindow.document.write('</body></html>');
-            printWindow.document.close();
-            printWindow.focus(); // Necessário para alguns navegadores
-             // Espera um pouco para garantir que o conteúdo foi carregado antes de imprimir
-            setTimeout(() => {
-                printWindow.print();
-                // printWindow.close(); // Fecha automaticamente após imprimir (opcional)
-            }, 500);
-        }
-    } else {
-        alert("Não foi possível encontrar a área de impressão.");
-    }
+    window.print();
 }
-
-
-// Inicialmente não busca os dados, espera o usuário clicar em gerar.
-// onMounted(fetchDRE); // Removido para não carregar ao montar
 </script>
 
 <style scoped>
+/* =========================================================
+   1. GERAL & HEADER
+   ========================================================= */
 .page-container {
-    /* padding: 2rem; */ /* Removido */
-    padding: 0; /* Adicionado */
+  min-height: 100vh;
+  background-color: #fcfcfc;
+  font-family: 'Inter', 'Segoe UI', Roboto, sans-serif;
+  padding: 1.5rem 2.5rem;
+  display: flex; flex-direction: column;
 }
 
-/* Regra .view-header removida */
+.page-header { margin-bottom: 2rem; }
+.title-area h1 { font-size: 1.5rem; font-weight: 300; color: #1f2937; margin: 0; letter-spacing: -0.02em; }
+.breadcrumb { display: flex; align-items: center; gap: 6px; font-size: 0.7rem; color: #94a3b8; font-weight: 500; text-transform: uppercase; letter-spacing: 0.05em; }
+.breadcrumb a { color: #94a3b8; text-decoration: none; transition: color 0.2s; }
+.breadcrumb a:hover { color: #2563eb; }
+.breadcrumb .separator { font-size: 0.5rem; color: #cbd5e1; }
+.breadcrumb .active { color: #2563eb; font-weight: 700; }
 
-.card { /* Estilo base comum */
-    background: white;
-    padding: 1.5rem;
-    border-radius: 8px;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
-    margin-bottom: 1.5rem; /* Espaçamento padrão abaixo */
-}
-.card:last-child {
-    margin-bottom: 0;
-}
+.header-main { display: flex; justify-content: space-between; align-items: flex-end; }
 
-.filters-card {
-    display: flex;
-    flex-wrap: wrap; /* Permite quebrar linha */
-    gap: 1rem 1.5rem;
-    align-items: flex-end; /* Alinha na base */
+/* =========================================================
+   2. FILTROS
+   ========================================================= */
+.card {
+  background-color: #fff; border-radius: 8px; box-shadow: 0 1px 2px rgba(0,0,0,0.03); 
+  border: 1px solid #e5e7eb; padding: 1.5rem;
 }
-.form-group {
-    display: flex;
-    flex-direction: column;
-    gap: 0.3rem;
-    flex-grow: 1; /* Tenta ocupar espaço */
-    min-width: 150px; /* Largura mínima */
+.filter-card { margin-bottom: 2rem; }
+
+.filter-row { display: flex; align-items: flex-end; gap: 1.5rem; flex-wrap: wrap; }
+.form-group { display: flex; flex-direction: column; gap: 0.4rem; min-width: 180px; }
+label { font-weight: 500; font-size: 0.85rem; color: #4b5563; }
+
+.input-wrapper { position: relative; }
+.input-icon { position: absolute; left: 10px; top: 50%; transform: translateY(-50%); color: #9ca3af; font-size: 0.85rem; pointer-events: none; }
+.form-input {
+    width: 100%; padding: 0.6rem 0.75rem; border: 1px solid #d1d5db; border-radius: 6px;
+    font-size: 0.9rem; transition: all 0.2s; background-color: #fff; box-sizing: border-box; color: #1f2937;
 }
-.form-group label {
-    font-weight: 500;
-    font-size: 0.85rem;
-    color: #495057;
-}
-.filter-input { /* Aplica aos inputs de data */
-    padding: 0.6rem 0.8rem;
-    border: 1px solid #ced4da;
-    border-radius: 5px;
-    font-size: 0.9rem;
-    width: 100%;
-    box-sizing: border-box;
-}
+.form-input.has-icon { padding-left: 2.2rem; }
+.form-input:focus { border-color: #3b82f6; outline: none; box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.1); }
+
+.actions-group { display: flex; gap: 0.8rem; margin-bottom: 1px; }
 .btn-primary, .btn-secondary {
-    padding: 0.6rem 1.2rem; /* Padding ajustado */
-    border: none;
-    border-radius: 5px;
-    cursor: pointer;
-    font-size: 0.9rem;
-    font-weight: 500;
-    height: fit-content; /* Alinha com inputs */
-    display: inline-flex; /* Para alinhar ícone se houver */
-    align-items: center;
-    gap: 0.5rem;
+    padding: 0.6rem 1.2rem; border-radius: 6px; border: none; font-weight: 500; cursor: pointer; font-size: 0.9rem;
+    display: flex; align-items: center; gap: 0.5rem; transition: all 0.2s;
 }
-.btn-primary { background-color: #0d6efd; color: white; }
-.btn-secondary { background-color: #6c757d; color: white; }
-.btn-primary:disabled, .btn-secondary:disabled { background-color: #adb5bd; cursor: not-allowed; }
+.btn-primary { background-color: #2563eb; color: white; box-shadow: 0 1px 2px rgba(37, 99, 235, 0.1); }
+.btn-primary:hover { background-color: #1d4ed8; transform: translateY(-1px); }
+.btn-secondary { background-color: #f8fafc; color: #64748b; border: 1px solid #e2e8f0; }
+.btn-secondary:hover { background-color: #f1f5f9; border-color: #cbd5e1; color: #334155; }
+.btn-primary:disabled { opacity: 0.7; cursor: not-allowed; }
 
-.loading-state, .error-message, .empty-state {
-  text-align: center; padding: 2rem; color: #6c757d;
-}
-.error-message { color: #dc3545; background-color: #f8d7da; border: 1px solid #f5c6cb; }
-
-.results-container {
-    padding: 2rem; /* Adiciona padding interno ao container de resultados */
-}
-
-.report-header {
-    text-align: center;
-    margin-bottom: 2rem;
-    border-bottom: 1px solid #eee;
-    padding-bottom: 1rem;
-}
-.report-header h2 {
-    margin: 0;
-    color: #343a40;
-}
-.report-header p {
-    margin: 5px 0 0 0;
-    color: #6c757d;
-}
-
+/* =========================================================
+   3. RESUMO (KPIS)
+   ========================================================= */
 .summary-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); /* Responsivo */
-    gap: 1.5rem;
-    margin-bottom: 2rem;
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); 
+    gap: 1.5rem; margin-bottom: 2rem;
 }
-.summary-card {
-    padding: 1.5rem;
-    border-radius: 8px;
-    text-align: center;
-    color: #fff; /* Texto branco para contraste */
-    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
-}
-.summary-card h4 { margin: 0 0 0.5rem 0; font-size: 0.9rem; font-weight: 500; opacity: 0.9; }
-.summary-card p { margin: 0; font-size: 2rem; font-weight: 600; }
 
-.revenue { background-color: #198754; } /* Verde escuro */
-.expenses { background-color: #dc3545; } /* Vermelho */
-.balance { background-color: #0d6efd; } /* Azul */
-/* Cor dinâmica para o resultado no card */
-.balance.text-success { background-color: #198754; }
-.balance.text-danger { background-color: #dc3545; }
+.kpi-card {
+  background: white; border-radius: 8px; padding: 1.25rem 1.5rem; border: 1px solid #f0f0f0;
+  display: flex; justify-content: space-between; align-items: center;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.02);
+}
+.kpi-content { display: flex; flex-direction: column; }
+.kpi-value { font-size: 1.6rem; font-weight: 600; line-height: 1.1; color: #111; }
+.kpi-label { font-size: 0.75rem; font-weight: 600; text-transform: uppercase; color: #9ca3af; margin-bottom: 4px; letter-spacing: 0.05em; }
+.kpi-icon { font-size: 1.8rem; opacity: 0.15; }
 
+.kpi-card.green { border-bottom: 3px solid #16a34a; }
+.kpi-card.green .kpi-value, .kpi-card.green .kpi-icon { color: #16a34a; }
 
-.dre-table {
-    width: 100%;
-    border-collapse: collapse;
-    margin-top: 1rem;
-    font-size: 0.95rem; /* Tamanho da fonte da tabela */
+.kpi-card.red { border-bottom: 3px solid #dc2626; }
+.kpi-card.red .kpi-value, .kpi-card.red .kpi-icon { color: #dc2626; }
+
+.kpi-card.blue { border-bottom: 3px solid #2563eb; }
+.kpi-card.blue .kpi-value, .kpi-card.blue .kpi-icon { color: #2563eb; }
+
+.kpi-card.orange { border-bottom: 3px solid #f97316; }
+.kpi-card.orange .kpi-value, .kpi-card.orange .kpi-icon { color: #f97316; }
+
+/* =========================================================
+   4. TABELA
+   ========================================================= */
+.table-card { padding: 0; overflow: hidden; border: 1px solid #e2e8f0; }
+
+.dre-table { width: 100%; border-collapse: collapse; }
+.dre-table th { 
+    background-color: #f8fafc; color: #64748b; font-weight: 600; font-size: 0.8rem; 
+    text-transform: uppercase; padding: 1rem 1.5rem; text-align: left; border-bottom: 1px solid #e2e8f0;
 }
-.dre-table th, .dre-table td {
-    border: 1px solid #e9ecef; /* Borda mais suave */
-    padding: 0.8rem 1rem;
-    text-align: left;
-    vertical-align: middle;
-}
-.dre-table th {
-    background-color: #f8f9fa;
-    font-weight: 600;
-    color: #495057;
-}
+.dre-table td { padding: 0.8rem 1.5rem; font-size: 0.9rem; color: #334155; border-bottom: 1px solid #f1f5f9; }
+
 .text-right { text-align: right; }
-.text-success { color: #198754; }
-.text-danger { color: #dc3545; }
+.text-success { color: #16a34a; }
+.text-danger { color: #dc2626; }
 
-.section-header td {
-    background-color: #f1f3f5; /* Fundo levemente diferente */
-    font-weight: bold;
-    padding-top: 1rem; /* Mais espaço acima */
-    padding-bottom: 0.5rem;
-    color: #343a40;
+/* Headers de Seção */
+.section-header td { 
+    background-color: #f8fafc; font-weight: 600; color: #475569; 
+    padding-top: 1.2rem; padding-bottom: 0.5rem; font-size: 0.85rem; letter-spacing: 0.03em;
+    border-top: 1px solid #e2e8f0;
 }
-.item-categoria {
-    padding-left: 2rem; /* Indentação */
-    color: #495057;
-}
-.subtotal td {
-    border-top: 1px solid #adb5bd; /* Linha de subtotal */
-    font-weight: bold;
-    padding-top: 0.8rem;
-    background-color: #f8f9fa;
-}
-.resultado-final td {
-    border-top: 2px solid #343a40; /* Linha dupla para resultado final */
-    font-weight: bold;
-    font-size: 1.1em; /* Maior */
-    padding-top: 1rem;
-    padding-bottom: 1rem;
-}
-/* Cor dinâmica para o resultado final */
-.resultado-final.text-success td { color: #198754; }
-.resultado-final.text-danger td { color: #dc3545; }
+.revenue-header td i { color: #16a34a; margin-right: 6px; }
+.expense-header td i { color: #dc2626; margin-right: 6px; }
 
+/* Linhas de Item */
+.item-row td { padding-left: 2.5rem; }
+.item-name { color: #475569; }
+
+/* Subtotais */
+.subtotal-row td { 
+    background-color: #fcfcfc; font-weight: 600; border-top: 2px solid #e2e8f0; 
+    padding-top: 0.8rem; padding-bottom: 0.8rem;
+}
+.revenue-bg td { background-color: #f0fdf4; border-top-color: #bbf7d0; }
+.expense-bg td { background-color: #fef2f2; border-top-color: #fecaca; }
+
+/* Resultado Final */
+.spacer-row td { border: none; height: 1.5rem; }
+.resultado-final-row td { 
+    font-size: 1.1rem; padding: 1.5rem; border-top: 2px solid #cbd5e1;
+    background-color: #f1f5f9; font-weight: 700; color: #1e293b;
+}
+.bg-success-light td { background-color: #dcfce7; border-top-color: #86efac; }
+.bg-danger-light td { background-color: #fee2e2; border-top-color: #fca5a5; }
+.big-number { font-size: 1.25rem; }
+
+/* =========================================================
+   5. UTILITÁRIOS
+   ========================================================= */
+.loading-state, .empty-state {
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    padding: 4rem; color: #94a3b8; text-align: center;
+}
+.spinner { width: 40px; height: 40px; border: 3px solid #e2e8f0; border-top-color: #2563eb; border-radius: 50%; animation: spin 1s linear infinite; margin-bottom: 1rem; }
+@keyframes spin { 100% { transform: rotate(360deg); } }
+
+.empty-content i { font-size: 3rem; margin-bottom: 1rem; opacity: 0.5; }
+.empty-content h3 { font-size: 1.2rem; color: #475569; margin: 0 0 0.5rem 0; }
+
+.alert-box { padding: 1rem; border-radius: 6px; margin-bottom: 1.5rem; display: flex; align-items: center; gap: 0.8rem; font-size: 0.9rem; }
+.alert-box.error { background-color: #fef2f2; color: #991b1b; border: 1px solid #fecaca; }
+
+.fade-in { animation: fadeIn 0.4s ease; }
+@keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+.print-only { display: none; }
+
+/* =========================================================
+   6. IMPRESSÃO
+   ========================================================= */
+@media print {
+    @page { margin: 1cm; size: A4; }
+    body { background-color: white; color: black; font-family: 'Times New Roman', Times, serif; }
+    .page-container { padding: 0; margin: 0; background: white; min-height: auto; }
+    .no-print, .page-header, .filter-card, .btn-primary, .btn-secondary { display: none !important; }
+    
+    .print-only { display: block; text-align: center; margin-bottom: 2rem; border-bottom: 2px solid #000; padding-bottom: 1rem; }
+    .print-only h2 { margin: 0; font-size: 24pt; }
+    .print-only p { margin: 5px 0 0 0; font-size: 12pt; }
+
+    .summary-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; margin-bottom: 2rem; }
+    .kpi-card { border: 1px solid #ccc; box-shadow: none; padding: 1rem; break-inside: avoid; }
+    .kpi-icon { display: none; }
+    .kpi-value { font-size: 16pt; }
+    .kpi-label { font-size: 10pt; color: #000; }
+
+    .table-card { border: none; box-shadow: none; }
+    .dre-table { border: 1px solid #000; }
+    .dre-table th { background-color: #eee !important; color: black !important; border: 1px solid #000; }
+    .dre-table td { border: 1px solid #000; color: black !important; }
+    
+    .revenue-bg td { background-color: #f0f0f0 !important; }
+    .expense-bg td { background-color: #f0f0f0 !important; }
+    .resultado-final-row td { background-color: #ddd !important; border-top: 2px solid #000 !important; }
+    
+    .text-success { color: black !important; } /* Impressão P&B geralmente */
+    .text-danger { color: black !important; }
+}
+
+@media (max-width: 1024px) {
+  .page-container { padding: 1rem; }
+  .summary-grid { grid-template-columns: 1fr; }
+}
 </style>

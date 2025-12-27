@@ -1992,3 +1992,142 @@ Traceback (most recent call last):
   File "C:\wamp64\www\imobcloud\venv\Lib\site-packages\django\template\base.py", line 914, in _resolve_lookup
     raise VariableDoesNotExist(
 django.template.base.VariableDoesNotExist: Failed lookup for key [razao_social] in <Imobiliaria: Estilo Musical>
+ERROR 2025-12-25 16:36:57,800 log 15712 9096 Internal Server Error: /api/v1/imoveis/relatorio-geral-autorizacoes/
+Traceback (most recent call last):
+  File "C:\wamp64\www\imobcloud\venv\Lib\site-packages\django\template\base.py", line 890, in _resolve_lookup
+    raise TypeError
+TypeError
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "C:\wamp64\www\imobcloud\venv\Lib\site-packages\django\template\base.py", line 901, in _resolve_lookup
+    current = getattr(current, bit)
+              ^^^^^^^^^^^^^^^^^^^^^
+AttributeError: 'Imobiliaria' object has no attribute 'razao_social'
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "C:\wamp64\www\imobcloud\venv\Lib\site-packages\django\template\base.py", line 907, in _resolve_lookup
+    current = current[int(bit)]
+                      ^^^^^^^^
+ValueError: invalid literal for int() with base 10: 'razao_social'
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "C:\wamp64\www\imobcloud\venv\Lib\site-packages\django\core\handlers\exception.py", line 55, in inner
+    response = get_response(request)
+               ^^^^^^^^^^^^^^^^^^^^^
+  File "C:\wamp64\www\imobcloud\venv\Lib\site-packages\django\core\handlers\base.py", line 197, in _get_response
+    response = wrapped_callback(request, *callback_args, **callback_kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\wamp64\www\imobcloud\venv\Lib\site-packages\django\views\decorators\csrf.py", line 65, in _view_wrapper
+    return view_func(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\wamp64\www\imobcloud\venv\Lib\site-packages\django\views\generic\base.py", line 105, in view
+    return self.dispatch(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\wamp64\www\imobcloud\venv\Lib\site-packages\rest_framework\views.py", line 509, in dispatch
+    response = self.handle_exception(exc)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\wamp64\www\imobcloud\venv\Lib\site-packages\rest_framework\views.py", line 469, in handle_exception
+    self.raise_uncaught_exception(exc)
+  File "C:\wamp64\www\imobcloud\venv\Lib\site-packages\rest_framework\views.py", line 480, in raise_uncaught_exception
+    raise exc
+  File "C:\wamp64\www\imobcloud\venv\Lib\site-packages\rest_framework\views.py", line 506, in dispatch
+    response = handler(request, *args, **kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\wamp64\www\imobcloud\app_imoveis\views.py", line 1215, in get
+    html_string = render_to_string('relatorio_autorizacoes_template.html', context)
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\wamp64\www\imobcloud\venv\Lib\site-packages\django\template\loader.py", line 62, in render_to_string
+    return template.render(context, request)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\wamp64\www\imobcloud\venv\Lib\site-packages\django\template\backends\django.py", line 107, in render
+    return self.template.render(context)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\wamp64\www\imobcloud\venv\Lib\site-packages\django\template\base.py", line 171, in render
+    return self._render(context)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "C:\wamp64\www\imobcloud\venv\Lib\site-packages\django\template\base.py", line 163, in _render
+    return self.nodelist.render(context)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\wamp64\www\imobcloud\venv\Lib\site-packages\django\template\base.py", line 1016, in render
+    return SafeString("".join([node.render_annotated(context) for node in self]))
+                               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\wamp64\www\imobcloud\venv\Lib\site-packages\django\template\base.py", line 977, in render_annotated
+    return self.render(context)
+           ^^^^^^^^^^^^^^^^^^^^
+  File "C:\wamp64\www\imobcloud\venv\Lib\site-packages\django\template\base.py", line 1075, in render
+    output = self.filter_expression.resolve(context)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\wamp64\www\imobcloud\venv\Lib\site-packages\django\template\base.py", line 743, in resolve
+    arg_vals.append(arg.resolve(context))
+                    ^^^^^^^^^^^^^^^^^^^^
+  File "C:\wamp64\www\imobcloud\venv\Lib\site-packages\django\template\base.py", line 854, in resolve
+    value = self._resolve_lookup(context)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\wamp64\www\imobcloud\venv\Lib\site-packages\django\template\base.py", line 914, in _resolve_lookup
+    raise VariableDoesNotExist(
+django.template.base.VariableDoesNotExist: Failed lookup for key [razao_social] in <Imobiliaria: Estilo Musical>
+WARNING 2025-12-25 17:24:59,255 log 15712 9900 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2025-12-25 17:25:14,235 log 15712 9900 Forbidden: /api/v1/stats/
+WARNING 2025-12-25 17:25:14,235 log 15712 1192 Forbidden: /api/v1/financeiro/transacoes/stats/
+WARNING 2025-12-25 17:25:14,287 log 15712 9900 Forbidden: /api/v1/alugueis/dashboard-stats/
+WARNING 2025-12-25 17:25:59,253 log 15712 9900 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2025-12-25 17:26:59,416 log 15712 9900 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2025-12-25 17:28:00,268 log 15712 9900 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2025-12-25 17:29:00,634 log 1756 14960 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2025-12-25 17:29:59,603 log 8884 11104 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2025-12-25 17:31:00,278 log 8884 11104 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2025-12-25 17:35:28,567 log 8884 11104 Forbidden: /api/v1/v1/token/
+WARNING 2025-12-25 17:35:44,923 log 8436 9296 Forbidden: /api/v1/v1/token/
+WARNING 2025-12-25 18:42:00,266 log 8436 3464 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2025-12-25 18:44:00,272 log 8436 3464 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2025-12-25 18:46:00,262 log 8436 3464 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2025-12-25 18:48:00,257 log 8436 3464 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2025-12-25 18:49:30,075 log 8436 3464 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2025-12-25 19:16:41,706 log 8436 14512 Not Found: /api/v1/financeiro/transacoes/dre/
+WARNING 2025-12-25 19:16:48,346 log 8436 3968 Not Found: /api/v1/financeiro/transacoes/dre/
+WARNING 2025-12-25 19:17:00,206 log 8436 14512 Not Found: /api/v1/financeiro/transacoes/dre/
+WARNING 2025-12-25 19:20:24,459 log 8436 9940 Not Found: /api/v1/publicacoes/status-conexoes/
+WARNING 2025-12-25 19:20:54,376 log 8436 9940 Not Found: /api/v1/publicacoes/status-conexoes/
+WARNING 2025-12-25 19:50:00,270 log 8436 10136 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2025-12-25 19:51:00,608 log 8436 12328 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2025-12-25 19:52:00,256 log 8436 12328 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2025-12-25 19:53:00,268 log 8436 12328 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2025-12-25 19:54:00,251 log 8436 12328 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2025-12-25 19:55:00,269 log 8436 12328 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2025-12-25 19:56:00,265 log 8436 12328 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2025-12-25 19:57:00,260 log 8436 12328 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2025-12-25 19:58:00,284 log 8436 12328 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2025-12-25 19:59:00,264 log 8436 12328 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2025-12-25 20:00:00,279 log 8436 12328 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2025-12-25 20:01:00,261 log 8436 12328 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2025-12-25 20:02:00,267 log 8436 12328 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2025-12-25 20:03:00,270 log 8436 12328 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2025-12-25 20:04:00,263 log 8436 12328 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2025-12-25 20:05:00,278 log 8436 12328 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2025-12-25 20:06:00,261 log 8436 12328 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2025-12-25 20:07:00,257 log 8436 12328 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2025-12-25 20:08:00,271 log 8436 12328 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2025-12-25 20:09:00,317 log 8436 12328 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2025-12-25 20:10:00,282 log 8436 12328 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2025-12-25 20:11:00,255 log 8436 12328 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2025-12-25 20:12:00,254 log 8436 12328 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2025-12-25 20:12:27,269 log 8436 12328 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2025-12-25 20:14:00,259 log 8436 12328 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2025-12-25 20:15:00,260 log 8436 12328 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2025-12-25 20:16:00,261 log 8436 12328 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2025-12-25 20:16:27,262 log 8436 12328 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2025-12-25 20:18:00,275 log 8436 12328 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2025-12-25 20:19:00,253 log 8436 12328 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2025-12-25 20:19:27,256 log 8436 12328 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2025-12-26 13:37:30,693 log 8832 3328 Not Found: /api/vistorias/vistorias/undefined/
+WARNING 2025-12-26 13:47:57,260 log 8832 16228 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+ERROR 2025-12-26 13:48:41,945 log 8832 16228 Service Unavailable: /api/v1/imoveis/3/gerar-descricao-ia/
+WARNING 2025-12-26 13:49:03,010 log 8832 16228 Not Found: /api/v1/imoveis/0/
+WARNING 2025-12-26 13:51:57,312 log 8832 7864 Not Found: /api/v1/financeiro/transacoes/dre/
+WARNING 2025-12-26 13:52:19,586 log 8832 7864 Not Found: /api/v1/financeiro/transacoes/dre/
