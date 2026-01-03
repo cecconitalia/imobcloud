@@ -2131,3 +2131,7 @@ ERROR 2025-12-26 13:48:41,945 log 8832 16228 Service Unavailable: /api/v1/imovei
 WARNING 2025-12-26 13:49:03,010 log 8832 16228 Not Found: /api/v1/imoveis/0/
 WARNING 2025-12-26 13:51:57,312 log 8832 7864 Not Found: /api/v1/financeiro/transacoes/dre/
 WARNING 2025-12-26 13:52:19,586 log 8832 7864 Not Found: /api/v1/financeiro/transacoes/dre/
+WARNING 2026-01-03 11:15:08,203 log 2064 15380 Forbidden: /api/v1/stats/
+WARNING 2026-01-03 11:15:08,203 log 2064 18232 Forbidden: /api/v1/alugueis/dashboard-stats/
+WARNING 2026-01-03 11:15:08,213 log 2064 10620 Forbidden: /api/v1/financeiro/transacoes/stats/
+WARNING 2026-01-03 11:15:08,214 log 2064 14768 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/

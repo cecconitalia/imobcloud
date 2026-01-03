@@ -203,15 +203,19 @@ class Imovel(models.Model):
 
     def save(self, *args, **kwargs):
         if not self.codigo_referencia:
-            ultimo_codigo_str = Imovel.objects.all().order_by('-codigo_referencia').values_list('codigo_referencia', flat=True).first()
-            ultimo_codigo_int = 0
-            if ultimo_codigo_str and ultimo_codigo_str.isdigit():
-                ultimo_codigo_int = int(ultimo_codigo_str)
-
-            if ultimo_codigo_int < 1000:
-                self.codigo_referencia = "1000"
-            else:
-                self.codigo_referencia = str(ultimo_codigo_int + 1)
+            # Correção: Busca todos os códigos e converte para número no Python para achar o real maior
+            codigos = Imovel.objects.values_list('codigo_referencia', flat=True)
+            maior_codigo = 0
+            
+            for codigo in codigos:
+                if codigo and codigo.isdigit():
+                    val = int(codigo)
+                    if val > maior_codigo:
+                        maior_codigo = val
+            
+            # Começa em 1000 se não houver nenhum maior
+            novo_codigo = max(maior_codigo + 1, 1000)
+            self.codigo_referencia = str(novo_codigo)
 
         super(Imovel, self).save(*args, **kwargs)
 
