@@ -2135,3 +2135,14 @@ WARNING 2026-01-03 11:15:08,203 log 2064 15380 Forbidden: /api/v1/stats/
 WARNING 2026-01-03 11:15:08,203 log 2064 18232 Forbidden: /api/v1/alugueis/dashboard-stats/
 WARNING 2026-01-03 11:15:08,213 log 2064 10620 Forbidden: /api/v1/financeiro/transacoes/stats/
 WARNING 2026-01-03 11:15:08,214 log 2064 14768 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2026-01-03 12:15:42,805 log 8484 11576 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2026-01-03 12:16:42,812 log 8484 11576 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2026-01-03 12:17:42,798 log 8484 11576 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2026-01-03 12:18:42,839 log 8484 11576 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2026-01-03 12:19:42,802 log 8484 11576 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2026-01-03 12:20:31,860 log 8484 11576 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2026-01-03 12:21:09,814 log 8484 11576 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2026-01-03 12:22:09,802 log 8484 11576 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2026-01-03 12:23:42,818 log 8484 11576 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2026-01-03 12:24:42,810 log 8484 11576 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2026-01-03 12:27:43,151 log 8484 19724 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/

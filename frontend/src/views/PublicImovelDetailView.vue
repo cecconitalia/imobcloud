@@ -109,6 +109,9 @@
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue';
 import { useRoute } from 'vue-router';
+// --- CORREÇÃO IMPORTANTE AQUI ---
+// A linha abaixo corrige o erro de build.
+// Importamos 'publicApiClient' como padrão (sem chaves {}), pois é assim que ele é exportado.
 import publicApiClient from '@/services/publicApiClient';
 
 const route = useRoute();
@@ -173,7 +176,8 @@ async function fetchImovelDetail() {
     if (parts.length > 1 && parts[0] !== 'www' && parts[0] !== 'localhost') {
       subdomain = parts[0];
     }
-    // CORRIGIDO: Fallback robusto para subdomínio em ambiente de desenvolvimento
+    
+    // Fallback para desenvolvimento
     if (subdomain === 'localhost' || !subdomain) {
         subdomain = 'estilomusical';
     }
@@ -185,7 +189,8 @@ async function fetchImovelDetail() {
     }
 
     const params = { subdomain };
-    // CORREÇÃO: Removido o prefixo '/v1/' que estava duplicando o path.
+    
+    // Usamos o publicApiClient que importamos corretamente
     const response = await publicApiClient.get(`/public/imoveis/${route.params.id}/`, { params });
 
     imovel.value = response.data;
@@ -207,8 +212,6 @@ async function fetchImovelDetail() {
 async function handleContatoSubmit() {
     isSubmittingContato.value = true;
     try {
-        // CORREÇÃO FINAL: Usar a rota pública definida no backend. 
-        // A rota anterior era '/api/v1/imoveis/contatos/', o que era bloqueado pelo middleware.
         await publicApiClient.post('/public/contatos/', contatoForm.value);
         contatoSuccess.value = true;
         contatoForm.value.nome = '';
@@ -244,13 +247,12 @@ function formatarPreco(imovel: any) {
 </script>
 
 <style scoped>
-@import url('https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css');
+/* REMOVIDO: @import url('https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css'); */
+/* O FontAwesome agora é carregado via main.ts para evitar erros de build */
 
 .imovel-detail-container {
-  /* ATUALIZADO: Removida a largura máxima para ocupar o ecrã todo */
-  /* max-width: 1200px; */
   margin: 2rem auto;
-  padding: 0 2rem; /* Aumentado o padding lateral para ecrãs grandes */
+  padding: 0 2rem;
 }
 .imovel-content {
   display: grid;
@@ -259,7 +261,6 @@ function formatarPreco(imovel: any) {
   align-items: flex-start;
 }
 .main-column {
-    /* Não precisa de regras de grid aqui, o pai já cuida */
 }
 .info-sidebar {
     position: sticky;
@@ -272,7 +273,6 @@ function formatarPreco(imovel: any) {
     overflow: hidden;
 }
 .imovel-title {
-  /* ATUALIZADO: Reduzido de 2.0rem para 1.8rem */
   font-size: 1.8rem; 
   font-weight: bold;
   margin-top: 0;
@@ -282,7 +282,6 @@ function formatarPreco(imovel: any) {
 .imovel-location {
   color: #6c757d;
   margin-bottom: 1.5rem;
-  /* ATUALIZADO: Reduzido de 1.1rem para 1.0rem */
   font-size: 1.0rem; 
 }
 .gallery {
@@ -291,11 +290,9 @@ function formatarPreco(imovel: any) {
 .main-image {
   width: 100%;
   height: auto;
-  /* ATUALIZADO: Reduzido de 450px para 400px para torná-la menor */
   max-height: 400px; 
-  /* ATUALIZADO: Usar 'contain' para garantir que a imagem inteira seja visível */
   object-fit: contain; 
-  background-color: #e9ecef; /* Adicionado um fundo para o espaço vazio do 'contain' */
+  background-color: #e9ecef;
   border-radius: 8px;
   margin-bottom: 1rem;
   cursor: pointer;
@@ -334,7 +331,6 @@ function formatarPreco(imovel: any) {
     margin-top: 0;
 }
 .imovel-price {
-  /* ATUALIZADO: Reduzido de 2.2rem para 2.0rem */
   font-size: 2.0rem; 
   font-weight: bold;
   color: #007bff;
@@ -364,12 +360,11 @@ function formatarPreco(imovel: any) {
   border-bottom: 2px solid var(--primary-color);
   padding-bottom: 0.5rem;
   margin-bottom: 1.5rem;
-  /* ATUALIZADO: Reduzido de 1.5rem para 1.4rem */
   font-size: 1.4rem; 
 }
 .description-text {
     line-height: 1.7;
-    white-space: pre-wrap; /* GARANTIA: Renderiza as quebras de linha e parágrafos do texto da IA */
+    white-space: pre-wrap;
 }
 .highlights-grid {
     display: grid;
@@ -384,7 +379,6 @@ function formatarPreco(imovel: any) {
     gap: 0.5rem;
 }
 .highlight-item i {
-    /* ATUALIZADO: Reduzido de 1.8rem para 1.6rem */
     font-size: 1.6rem; 
     color: var(--primary-color);
 }
@@ -455,10 +449,9 @@ function formatarPreco(imovel: any) {
   right: 20px;
 }
 
-/* --- REGRAS DE RESPONSIVIDADE --- */
 @media (max-width: 992px) {
     .imovel-detail-container {
-        padding: 0 1rem; /* Reduz o padding em tablets */
+        padding: 0 1rem;
     }
     .imovel-content {
         display: flex;
@@ -475,7 +468,6 @@ function formatarPreco(imovel: any) {
 }
 
 @media (max-width: 576px) {
-    /* ATUALIZADO: Reduzido de 1.8rem para 1.6rem */
     .imovel-title {
         font-size: 1.6rem; 
     }

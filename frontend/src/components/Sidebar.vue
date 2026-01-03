@@ -1,166 +1,59 @@
-<script setup lang="ts">
-import { ref, computed } from 'vue';
-import { useRoute, useRouter } from 'vue-router';
-import { 
-  LayoutDashboard, 
-  Users, 
-  Home, 
-  DollarSign, 
-  FileText, 
-  ClipboardCheck, 
-  Settings,
-  ChevronLeft,
-  ChevronRight,
-  LogOut,
-  Sparkles
-} from 'lucide-vue-next';
-import { useAuthStore } from '@/stores/auth';
-
-/**
- * Interface estrita para itens de menu do ImobCloud
- */
-interface MenuItem {
-  title: string;
-  icon: any;
-  path: string;
-  domain: 'clientes' | 'imoveis' | 'financeiro' | 'boletos' | 'vistorias' | 'ia' | 'config';
-}
-
-const route = useRoute();
-const router = useRouter();
-const authStore = useAuthStore();
-
-// Estado de colapso do menu (Mobile-first e responsivo)
-const isCollapsed = ref(false);
-
-/**
- * Mapeamento do Domínio Funcional conforme Protocolo ImobCloud
- */
-const menuItems: MenuItem[] = [
-  { title: 'Dashboard', icon: LayoutDashboard, path: '/dashboard', domain: 'ia' },
-  { title: 'CRM / Funil', icon: Users, path: '/clientes', domain: 'clientes' },
-  { title: 'Catálogo', icon: Home, path: '/imoveis', domain: 'imoveis' },
-  { title: 'Financeiro / DRE', icon: DollarSign, path: '/financeiro', domain: 'financeiro' },
-  { title: 'Boletos Bradesco', icon: FileText, path: '/boletos', domain: 'boletos' },
-  { title: 'Vistorias / Laudos', icon: ClipboardCheck, path: '/vistorias', domain: 'vistorias' },
-  { title: 'IA Generativa', icon: Sparkles, path: '/publicacoes', domain: 'ia' },
-  { title: 'Configurações', icon: Settings, path: '/configuracoes', domain: 'config' },
-];
-
-/**
- * Validação de rota ativa
- */
-const isActive = (path: string): boolean => {
-  return route.path.startsWith(path);
-};
-
-/**
- * Protocolo de Navegação
- */
-const navigateTo = (path: string): void => {
-  router.push(path);
-};
-
-/**
- * Logout Seguro
- */
-const handleLogout = async (): Promise<void> => {
-  try {
-    await authStore.logout();
-    router.push('/login');
-  } catch (error) {
-    console.error('Falha ao deslogar:', error);
-  }
-};
-
-/**
- * NOTA TÉCNICA: A funcionalidade "Fixar Menu" (isPinned) foi removida 
- * para simplificar a experiência do usuário e otimizar o espaço em tela 
- * seguindo a abordagem mobile-first real.
- */
-const toggleSidebar = (): void => {
-  isCollapsed.value = !isCollapsed.value;
-};
-</script>
-
 <template>
-  <aside
-    :class="[
-      'fixed top-0 left-0 z-50 h-screen transition-all duration-300 ease-in-out bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800 flex flex-col',
-      isCollapsed ? 'w-20' : 'w-64'
-    ]"
+  <aside 
+    class="bg-white border-r border-slate-200 h-screen fixed left-0 top-0 z-40 transition-all duration-300 flex flex-col shadow-sm"
+    :class="[isCollapsed ? 'w-20' : 'w-64']"
   >
-    <div class="flex items-center h-16 px-4 border-b border-slate-100 dark:border-slate-800">
-      <div class="flex items-center gap-3 overflow-hidden">
-        <div class="flex-shrink-0 w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
-          <span class="text-white font-bold text-lg">I</span>
+    <div class="h-16 flex items-center justify-between px-4 border-b border-slate-100">
+      <div v-show="!isCollapsed" class="flex items-center gap-2 overflow-hidden">
+        <div class="bg-blue-600 p-1.5 rounded-lg">
+          <Sparkles class="w-5 h-5 text-white" />
         </div>
-        <span 
-          v-show="!isCollapsed" 
-          class="font-bold text-xl tracking-tight text-slate-800 dark:text-white transition-opacity duration-200"
-        >
-          ImobCloud
-        </span>
+        <span class="font-bold text-xl text-slate-800 tracking-tight">ImobHome</span>
       </div>
       
-      <button
+      <button 
         @click="toggleSidebar"
-        class="hidden md:flex ml-auto p-1.5 rounded-lg bg-slate-50 dark:bg-slate-800 text-slate-500 hover:text-blue-600 active:scale-95 transition-all"
-        aria-label="Toggle Sidebar"
+        class="p-1.5 rounded-lg hover:bg-slate-100 text-slate-500 transition-colors"
       >
-        <component :is="isCollapsed ? ChevronRight : ChevronLeft" class="w-5 h-5" />
+        <ChevronRight v-if="isCollapsed" class="w-5 h-5" />
+        <ChevronLeft v-else class="w-5 h-5" />
       </button>
     </div>
 
-    <nav class="flex-1 overflow-y-auto py-4 px-3 space-y-1">
-      <button
-        v-for="item in menuItems"
-        :key="item.path"
-        @click="navigateTo(item.path)"
-        :class="[
-          'flex items-center w-full p-3 rounded-xl transition-all group active:scale-95 relative',
-          isActive(item.path) 
-            ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 font-medium' 
-            : 'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800'
-        ]"
-      >
-        <component 
-          :is="item.icon" 
+    <nav class="flex-1 overflow-y-auto py-4 px-3 space-y-1 custom-scrollbar">
+      <template v-for="item in menuItems" :key="item.path">
+        <router-link 
+          :to="item.path"
+          class="flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 group relative"
           :class="[
-            'flex-shrink-0 w-6 h-6 transition-colors',
-            isActive(item.path) ? 'text-blue-600' : 'text-slate-400 group-hover:text-slate-600'
+            route.path === item.path 
+              ? 'bg-blue-50 text-blue-600 font-medium shadow-sm' 
+              : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
           ]"
-        />
-        
-        <span 
-          v-show="!isCollapsed" 
-          class="ml-3 whitespace-nowrap overflow-hidden text-sm"
         >
-          {{ item.title }}
-        </span>
+          <component 
+            :is="item.icon" 
+            class="w-5 h-5 flex-shrink-0 transition-colors duration-200"
+            :class="[route.path === item.path ? 'text-blue-600' : 'text-slate-400 group-hover:text-slate-600']"
+          />
+          
+          <span v-show="!isCollapsed" class="whitespace-nowrap origin-left">
+            {{ item.title }}
+          </span>
 
-        <div 
-          v-if="isActive(item.path)"
-          class="absolute left-0 w-1 h-6 bg-blue-600 rounded-r-full"
-        ></div>
-
-        <div 
-          v-if="isCollapsed"
-          class="absolute left-full ml-2 px-2 py-1 bg-slate-800 text-white text-xs rounded opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity z-[60]"
-        >
-          {{ item.title }}
-        </div>
-      </button>
+          <div 
+            v-if="isCollapsed"
+            class="absolute left-full top-1/2 -translate-y-1/2 ml-2 px-2 py-1 bg-slate-800 text-white text-xs rounded opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity z-50 whitespace-nowrap"
+          >
+            {{ item.title }}
+          </div>
+        </router-link>
+      </template>
     </nav>
 
-    <div class="p-4 border-t border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50">
-      <div 
-        :class="[
-          'flex items-center gap-3 overflow-hidden transition-all',
-          isCollapsed ? 'justify-center' : ''
-        ]"
-      >
-        <div class="w-10 h-10 rounded-full bg-slate-200 dark:bg-slate-700 flex-shrink-0 flex items-center justify-center">
+    <div class="p-3 border-t border-slate-100 bg-slate-50/50">
+      <div class="flex items-center gap-3 p-2 rounded-xl transition-colors hover:bg-white hover:shadow-sm border border-transparent hover:border-slate-100">
+        <div class="w-9 h-9 rounded-full bg-slate-200 border-2 border-white shadow-sm ring-1 ring-slate-700 flex-shrink-0 flex items-center justify-center">
           <Users class="w-5 h-5 text-slate-500" />
         </div>
         
@@ -177,6 +70,7 @@ const toggleSidebar = (): void => {
           v-show="!isCollapsed"
           @click="handleLogout"
           class="p-2 text-slate-400 hover:text-red-500 transition-colors active:scale-90"
+          title="Sair do sistema"
         >
           <LogOut class="w-5 h-5" />
         </button>
@@ -186,6 +80,7 @@ const toggleSidebar = (): void => {
         v-if="isCollapsed"
         @click="handleLogout"
         class="mt-4 w-full flex justify-center text-slate-400 hover:text-red-500"
+        title="Sair"
       >
         <LogOut class="w-6 h-6" />
       </button>
@@ -194,24 +89,82 @@ const toggleSidebar = (): void => {
 
   <div 
     v-if="!isCollapsed" 
-    class="fixed inset-0 bg-black/20 backdrop-blur-sm z-40 md:hidden"
+    class="fixed inset-0 bg-black/20 z-30 lg:hidden glass-effect"
     @click="isCollapsed = true"
   ></div>
 </template>
 
+<script setup lang="ts">
+import { ref, computed } from 'vue';
+import { useRoute, useRouter } from 'vue-router'; // Importe useRouter
+import { 
+  LayoutDashboard, 
+  Users, 
+  Home, 
+  DollarSign, 
+  FileText, 
+  ClipboardCheck, 
+  Settings,
+  ChevronLeft,
+  ChevronRight,
+  LogOut,
+  Sparkles
+} from 'lucide-vue-next';
+import { useAuthStore } from '@/stores/auth';
+
+/**
+ * Interface estrita para itens de menu do ImobHome
+ */
+interface MenuItem {
+  title: string;
+  icon: any;
+  path: string;
+  domain: 'clientes' | 'imoveis' | 'financeiro' | 'boletos' | 'vistorias' | 'ia' | 'config';
+}
+
+const route = useRoute();
+const router = useRouter(); // Instancie o roteador
+const authStore = useAuthStore();
+
+// Estado de colapso do menu (Mobile-first e responsivo)
+const isCollapsed = ref(false);
+
+/**
+ * Mapeamento do Domínio Funcional conforme Protocolo ImobHome
+ */
+const menuItems: MenuItem[] = [
+  { title: 'Dashboard', icon: LayoutDashboard, path: '/dashboard', domain: 'ia' },
+  { title: 'CRM / Funil', icon: Users, path: '/clientes', domain: 'clientes' },
+  { title: 'Catálogo', icon: Home, path: '/imoveis', domain: 'imoveis' },
+  { title: 'Contratos', icon: FileText, path: '/contratos', domain: 'imoveis' }, // Ajustado domínio
+  { title: 'Vistorias', icon: ClipboardCheck, path: '/vistorias', domain: 'vistorias' },
+  { title: 'Financeiro', icon: DollarSign, path: '/financeiro', domain: 'financeiro' },
+  { title: 'Configurações', icon: Settings, path: '/configuracoes', domain: 'config' },
+];
+
+function toggleSidebar() {
+  isCollapsed.value = !isCollapsed.value;
+}
+
+// Função de logout corrigida com redirecionamento
+function handleLogout() {
+  authStore.logout();
+  router.push('/login'); // Redireciona explicitamente para o login
+}
+</script>
+
 <style scoped>
-/* Estilização da barra de rolagem para o nav */
-nav::-webkit-scrollbar {
+.custom-scrollbar::-webkit-scrollbar {
   width: 4px;
 }
-nav::-webkit-scrollbar-thumb {
+.custom-scrollbar::-webkit-scrollbar-track {
   background: transparent;
-  border-radius: 10px;
 }
-nav:hover::-webkit-scrollbar-thumb {
-  background: #e2e8f0;
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background-color: #cbd5e1;
+  border-radius: 20px;
 }
-.dark nav:hover::-webkit-scrollbar-thumb {
-  background: #334155;
+.glass-effect {
+  backdrop-filter: blur(2px);
 }
 </style>

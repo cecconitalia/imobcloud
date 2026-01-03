@@ -69,7 +69,8 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, PropType, onBeforeUnmount, defineExpose } from 'vue'; // Adicionado defineExpose
+// CORREÇÃO AQUI: 'type PropType' para evitar erro de exportação
+import { ref, onMounted, onBeforeUnmount, defineExpose, type PropType } from 'vue'; 
 import apiClient from '@/services/api';
 import { format, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -171,7 +172,6 @@ defineExpose({
 </script>
 
 <style scoped>
-/* O estilo CSS permanece o mesmo e foi omitido para brevidade, mas deve ser mantido no arquivo. */
 /* Overlay do Modal */
 .modal-overlay {
   position: fixed;

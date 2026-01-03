@@ -201,9 +201,9 @@ CORS_ALLOW_CREDENTIALS = True
 # Jazzmin Admin Theme Settings
 # =============================================================
 JAZZMIN_SETTINGS = {
-    "site_title": "ImobCloud Admin",
-    "site_header": "ImobCloud",
-    "site_brand": "ImobCloud",
+    "site_title": "ImobHome Admin",
+    "site_header": "ImobHome",
+    "site_brand": "ImobHome",
     "site_logo": "img/logo.png",
     "site_logo_classes": "img-circle",
     "login_logo": None,

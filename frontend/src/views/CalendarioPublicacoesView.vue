@@ -57,7 +57,8 @@ import FullCalendar from '@fullcalendar/vue3';
 import dayGridPlugin from '@fullcalendar/daygrid';
 import interactionPlugin from '@fullcalendar/interaction';
 import apiClient from '@/services/api';
-import { EventClickArg } from '@fullcalendar/core';
+// CORREÇÃO AQUI: Adicionado 'type' para importar apenas a definição de tipo
+import type { EventClickArg } from '@fullcalendar/core';
 
 const selectedEvent = ref<any | null>(null);
 const editableEvent = ref<any>({});
@@ -101,7 +102,7 @@ const calendarOptions = ref({
   eventClick: (clickInfo: EventClickArg) => {
     selectedEvent.value = clickInfo.event;
     // Formata a data para o formato 'YYYY-MM-DDTHH:mm' que o input datetime-local espera
-    const localDateTime = new Date(clickInfo.event.start.getTime() - (clickInfo.event.start.getTimezoneOffset() * 60000)).toISOString().slice(0, 16);
+    const localDateTime = new Date(clickInfo.event.start!.getTime() - (clickInfo.event.start!.getTimezoneOffset() * 60000)).toISOString().slice(0, 16);
     editableEvent.value = {
         id: clickInfo.event.id,
         texto: clickInfo.event.extendedProps.texto,
@@ -171,10 +172,8 @@ function closeModal() {
 
 <style scoped>
 .calendario-container {
-  padding: 0; /* Removido padding: 2rem; */
+  padding: 0; 
 }
-
-/* Regras .view-header e .view-header h1, .subtitle removidas */
 
 .card {
   background-color: #fff;
@@ -183,7 +182,7 @@ function closeModal() {
   box-shadow: 0 4px 12px rgba(0,0,0,0.08);
 }
 .card-body {
-    padding: 0; /* Remove padding extra dentro do card se necessário */
+    padding: 0;
 }
 
 /* Estilos do Modal */

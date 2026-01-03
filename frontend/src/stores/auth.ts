@@ -1,7 +1,7 @@
 // frontend/src/stores/auth.ts
 
 import { defineStore } from 'pinia';
-import api from '@/services/api'; // Certifique-se que o serviço de API existe
+import api from '@/services/api'; 
 
 interface UserState {
   token: string | null;
@@ -43,18 +43,20 @@ export const useAuthStore = defineStore('auth', {
     },
 
     logout() {
+      // 1. Limpa o estado da store
       this.token = null;
       this.user = null;
       this.userCargo = null;
       this.imobiliariaName = null;
 
+      // 2. Limpa o LocalStorage
       localStorage.removeItem('authToken');
       localStorage.removeItem('userData');
       localStorage.removeItem('userCargo');
       localStorage.removeItem('imobiliariaName');
       localStorage.removeItem('refreshToken');
       
-      // Remove o header do axios
+      // 3. Remove o header do axios para evitar uso acidental do token antigo
       delete api.defaults.headers.common['Authorization'];
     },
 
@@ -62,7 +64,7 @@ export const useAuthStore = defineStore('auth', {
     initialize() {
         const token = localStorage.getItem('authToken');
         if (token) {
-            api.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+            this.setToken(token);
         }
     }
   },
