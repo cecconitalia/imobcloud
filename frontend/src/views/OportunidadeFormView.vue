@@ -233,7 +233,13 @@
             </div>
             
             <div class="card activities-card">
-                <ClienteAtividades :oportunidadeId="oportunidadeId ? parseInt(oportunidadeId) : undefined" />
+                <ClienteAtividades 
+                    v-if="oportunidade.cliente_id" 
+                    :clienteId="oportunidade.cliente_id" 
+                />
+                <div v-else class="empty-state-widget">
+                    <p>Selecione um cliente para ver/adicionar atividades.</p>
+                </div>
             </div>
         </div> 
     </div> 
@@ -256,7 +262,8 @@ import apiClient from '@/services/api';
 import vSelect from 'vue-select';
 import 'vue-select/dist/vue-select.css';
 import MoneyInput from '@/components/MoneyInput.vue'; 
-import ClienteAtividades from '@/components/ClienteAtividades.vue';
+// CORREÇÃO: Removido o caminho '/clientes/' que não existe
+import ClienteAtividades from '@/components/ClienteAtividades.vue'; 
 import TarefaModal from '@/components/TarefaModal.vue';
 import { format, parseISO, isPast } from 'date-fns';
 import { ptBR } from 'date-fns/locale';

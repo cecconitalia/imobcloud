@@ -9,10 +9,10 @@
     >
       <div class="sidebar-header">
         <div class="brand-wrapper">
-          <div class="brand-icon brand-gradient">
-            <i class="fas fa-cube"></i>
+          <div class="brand-icon-circle">
+             <i class="fas fa-laptop-house"></i>
           </div>
-          <span class="brand-text">ImobCloud</span>
+          <span class="brand-text">ImobHome</span>
         </div>
         
         <button class="mobile-close-btn" @click="closeMobileSidebar">
@@ -128,9 +128,9 @@
           </button>
           
           <div class="system-identity">
-            <span class="sys-name">IMOBCLOUD</span>
+            <span class="sys-name">IMOBHOME</span>
             <span class="sys-divider">/</span>
-            <span class="tenant-name">{{ tenantName || 'Minha Imobiliária' }}</span>
+            <span class="tenant-name">{{ tenantName }}</span>
           </div>
         </div>
 
@@ -188,17 +188,54 @@
 import { ref, watch, onMounted, onUnmounted, computed } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import NotificationBell from '@/components/NotificationBell.vue';
-// Se usar Pinia, importe aqui: import { useAuthStore } from '@/stores/auth';
+import { useAuthStore } from '@/stores/auth';
+import api from '@/services/api';
 
 const router = useRouter();
 const route = useRoute();
-// const authStore = useAuthStore(); // Descomente se usar Pinia
+const authStore = useAuthStore(); 
 
-// --- Dados Mockados (Substitua pela integração real com seu Store) ---
-const tenantName = ref('Estilo Musical'); // authStore.user?.imobiliaria?.nome_fantasia
-const userNameFull = ref('Usuário Admin'); // authStore.user?.nome
+const currentUser = ref<any>(null);
+
+// --- DADOS DINÂMICOS ROBUSTOS ---
+const tenantName = computed(() => {
+    // 1. Tenta pegar dos dados frescos
+    let imob = currentUser.value?.imobiliaria;
+    
+    // 2. Tenta pegar do cache
+    if (!imob) imob = authStore.user?.imobiliaria;
+    
+    // 3. Se for objeto válido, retorna o nome (SUCESSO)
+    if (imob && typeof imob === 'object') {
+        const nome = imob.nome_fantasia || imob.razao_social || imob.nome;
+        if (nome) return nome;
+    }
+    
+    // 4. Se ainda for apenas um ID numérico, tentamos mostrar isso temporariamente
+    if (typeof imob === 'number') {
+        return `Empresa ID: ${imob}`;
+    }
+
+    // 5. Fallback final
+    if (currentUser.value?.first_name) return `${currentUser.value.first_name} (Admin)`;
+    
+    return 'Painel Imobiliário';
+});
+
+const userNameFull = computed(() => {
+    const u = currentUser.value || authStore.user;
+    if (!u) return 'Carregando...';
+    if (u.first_name) return `${u.first_name} ${u.last_name || ''}`.trim();
+    return u.username || 'Usuário';
+});
+
 const userName = computed(() => userNameFull.value.split(' ')[0]);
-const userInitials = computed(() => userNameFull.value.substring(0, 2).toUpperCase());
+
+const userInitials = computed(() => {
+    const name = userNameFull.value;
+    if (!name || name === 'Carregando...') return '-';
+    return name.substring(0, 2).toUpperCase();
+});
 
 // --- Estados Layout ---
 const isCollapsed = ref(false); 
@@ -216,7 +253,7 @@ function handleSidebarHover(value: boolean) {
     isHovered.value = value;
     if (!value && isCollapsed.value) {
       setTimeout(() => {
-        if (!isHovered.value) { /* Opcional: fechar submenus */ }
+        if (!isHovered.value) { /* Opcional */ }
       }, 300);
     }
   }
@@ -251,8 +288,7 @@ function isMenuOpen(menuName: string) {
 function toggleUserMenu() { isUserMenuOpen.value = !isUserMenuOpen.value; }
 
 function logout() {
-  localStorage.removeItem('authToken');
-  isUserMenuOpen.value = false;
+  authStore.logout(); 
   router.push('/login');
 }
 
@@ -268,7 +304,51 @@ watch(() => route.fullPath, () => {
   isUserMenuOpen.value = false;
 });
 
+// --- NOVA ESTRATÉGIA DE BUSCA ---
+async function fetchUserData() {
+    try {
+        // 1. Busca os dados básicos (que retornam ID da imobiliária)
+        const response = await api.get('/v1/core/usuarios/me/');
+        let userData = response.data;
+        
+        console.log("Dados Iniciais do Usuário:", userData);
+
+        // Se a imobiliária for apenas um NÚMERO e não temos a rota de detalhe...
+        if (userData.imobiliaria && typeof userData.imobiliaria === 'number') {
+            const imobId = userData.imobiliaria;
+            
+            // ESTRATÉGIA NOVA: Buscar na LISTA DE USUÁRIOS
+            // A lista de usuários geralmente expande os dados para mostrar na tabela
+            try {
+                // Buscamos pelo email do usuário atual
+                const listResp = await api.get(`/v1/core/usuarios/?search=${userData.email}`);
+                const results = listResp.data.results || listResp.data;
+                
+                if (Array.isArray(results) && results.length > 0) {
+                    // Encontramos o nosso próprio usuário na lista
+                    const meInList = results.find((u: any) => u.id === userData.id) || results[0];
+                    
+                    if (meInList && meInList.imobiliaria && typeof meInList.imobiliaria === 'object') {
+                        // BINGO! A lista tem o objeto completo
+                        console.log("Recuperado objeto imobiliária via Lista de Usuários:", meInList.imobiliaria);
+                        userData.imobiliaria = meInList.imobiliaria;
+                    }
+                }
+            } catch (searchErr) {
+                console.warn("Falha ao buscar detalhes via lista de usuários:", searchErr);
+            }
+        }
+        
+        currentUser.value = userData;
+        if (authStore.setUser) authStore.setUser(userData);
+
+    } catch (e) {
+        console.error("Erro fatal ao carregar usuário:", e);
+    }
+}
+
 onMounted(() => {
+  fetchUserData(); // Dispara a busca
   handleResize();
   window.addEventListener('resize', handleResize);
   window.addEventListener('click', closeMenus);
@@ -285,20 +365,17 @@ onUnmounted(() => {
 .dashboard-layout {
   --sidebar-width: 260px;
   --sidebar-width-collapsed: 80px; 
-  --header-height: 55px; /* Altura Fina do Header */
+  --header-height: 55px;
   
-  /* Cores Principais */
   --primary-color: #007bff;
   --primary-gradient: linear-gradient(135deg, #007bff 0%, #4f46e5 100%);
   
-  /* Cores de Fundo e Texto */
   --bg-sidebar: #ffffff;
   --bg-body: #f4f7f6;
   --border-color: #e5e7eb;
   --text-main: #374151;
   --text-muted: #9ca3af;
 
-  /* Gradiente Sutil para estado Ativo */
   --active-gradient-bg: linear-gradient(90deg, rgba(0,123,255,0.08) 0%, rgba(79,70,229,0.02) 100%);
   
   --transition-speed: 0.25s;
@@ -344,11 +421,17 @@ onUnmounted(() => {
 .dashboard-layout.sidebar-collapsed .sidebar:not(.sidebar-hover-expanded) .sidebar-header { padding: 0; justify-content: center; }
 
 .brand-wrapper { display: flex; align-items: center; gap: 0.75rem; }
-.brand-icon.brand-gradient {
-  width: 38px; height: 38px; background: var(--primary-gradient); color: white;
-  border-radius: 10px; display: flex; align-items: center; justify-content: center;
-  font-size: 1.3rem; flex-shrink: 0; box-shadow: 0 4px 10px rgba(0, 123, 255, 0.2);
+
+/* CORREÇÃO: Estilo do Ícone de Logo (Substituto da imagem) */
+.brand-icon-circle {
+    width: 40px; height: 40px;
+    background: var(--primary-gradient);
+    border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    color: white; font-size: 1.2rem;
+    box-shadow: 0 4px 6px rgba(0,123,255,0.2);
 }
+
 .brand-text { font-size: 1.25rem; font-weight: 800; color: #111827; letter-spacing: -0.02em; }
 
 /* Conteúdo Sidebar */
@@ -381,10 +464,10 @@ onUnmounted(() => {
 .submenu-list li a:hover { color: #111827; background-color: #f9fafb; }
 .submenu-list li a.active { color: var(--primary-color); font-weight: 600; background-color: var(--active-gradient-bg); }
 
-/* --- MAIN WRAPPER (CORRIGIDO PARA MANTER POSIÇÃO) --- */
+/* --- MAIN WRAPPER --- */
 .main-wrapper {
   flex: 1; display: flex; flex-direction: column;
-  margin-left: var(--sidebar-width); /* Importante para não quebrar layout */
+  margin-left: var(--sidebar-width);
   transition: margin-left var(--transition-speed) ease-in-out;
   width: 100%;
 }

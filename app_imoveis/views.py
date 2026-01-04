@@ -5,7 +5,7 @@ from rest_framework.response import Response
 from rest_framework import filters
 from django.core.mail import send_mail
 from rest_framework.decorators import action
-from rest_framework.exceptions import PermissionDenied
+from rest_framework.exceptions import PermissionDenied, ValidationError
 from rest_framework.views import APIView
 from rest_framework.generics import ListAPIView, RetrieveAPIView
 from django.db import models, transaction
@@ -44,17 +44,6 @@ from app_clientes.models import Cliente, Oportunidade
 from app_config_ia.models import ModeloDePrompt
 from core.serializers import ImobiliariaPublicSerializer
 
-# Configura a API do Google Gemini
-try:
-    api_key=os.getenv("GOOGLE_API_KEY")
-    if not api_key:
-        print("AVISO: GOOGLE_API_KEY não encontrada nas variáveis de ambiente.")
-    else:
-        genai.configure(api_key=api_key)
-except Exception as e:
-    print(f"Erro ao configurar a API do Google: {e}")
-
-
 # ===================================================================
 # VIEWS PÚBLICAS
 # ===================================================================
@@ -62,6 +51,8 @@ except Exception as e:
 class ImovelPublicListView(ListAPIView):
     serializer_class = ImovelPublicSerializer
     permission_classes = [permissions.AllowAny]
+    # Mantém a correção da paginação para o site
+    pagination_class = None
 
     def get_queryset(self):
         subdomain_param = self.request.query_params.get('subdomain', None)
@@ -79,7 +70,7 @@ class ImovelPublicListView(ListAPIView):
 
         imobiliaria_obj = None
 
-        if self.request.user.is_authenticated and self.request.tenant:
+        if self.request.user.is_authenticated and getattr(self.request, 'tenant', None):
             imobiliaria_obj = self.request.tenant
         elif subdomain_param:
             try:
@@ -155,7 +146,7 @@ class ImovelIAView(APIView):
             return Response({"error": "O campo 'query' é obrigatório."}, status=status.HTTP_400_BAD_REQUEST)
 
         imobiliaria_obj = None
-        if self.request.tenant:
+        if getattr(self.request, 'tenant', None):
              imobiliaria_obj = self.request.tenant
         elif subdomain_param:
             try:
@@ -173,6 +164,18 @@ class ImovelIAView(APIView):
              }, status=status.HTTP_400_BAD_REQUEST)
 
         try:
+            api_key = getattr(imobiliaria_obj, 'google_api_key', None) 
+            if not api_key:
+                api_key = os.getenv("GOOGLE_API_KEY")
+
+            if not api_key:
+                return Response(
+                    {"error": "Chave de API não encontrada."},
+                    status=status.HTTP_500_INTERNAL_SERVER_ERROR
+                )
+            
+            genai.configure(api_key=api_key)
+            
             prompt_config = ModeloDePrompt.objects.get(em_uso_busca=True)
             template_prompt = prompt_config.template_do_prompt
         except ModeloDePrompt.DoesNotExist:
@@ -213,39 +216,37 @@ class ImovelIAView(APIView):
         ).exclude(status=Imovel.Status.DESATIVADO)
 
         if search_params.get('busca_valida') == False:
-            mensagem_vaga = search_params.get('mensagem_resposta', "Não consegui identificar parâmetros de busca válidos. Por favor, especifique o que você procura.")
+            mensagem_vaga = search_params.get('mensagem_resposta', "Não consegui identificar parâmetros de busca válidos.")
             return Response({
                  "mensagem": mensagem_vaga,
                  "imoveis": []
             }, status=status.HTTP_200_OK)
         
-        status_filtro_ia = search_params.get('status', None)
-        if status_filtro_ia:
-             if status_filtro_ia in Imovel.Status.values:
-                 base_queryset = base_queryset.filter(status=status_filtro_ia)
+        status_filtro_ia = search_params.get('status')
+        if status_filtro_ia and status_filtro_ia in Imovel.Status.values:
+             base_queryset = base_queryset.filter(status=status_filtro_ia)
 
-        if 'finalidade' in search_params:
-            finalidade_param = search_params['finalidade']
-            if finalidade_param in Imovel.Finalidade.values:
-                base_queryset = base_queryset.filter(finalidade=finalidade_param)
+        finalidade_param = search_params.get('finalidade')
+        if finalidade_param and finalidade_param in Imovel.Finalidade.values:
+            base_queryset = base_queryset.filter(finalidade=finalidade_param)
 
-        if 'tipo' in search_params:
-            tipo_param = search_params['tipo'].upper()
+        tipo_param = search_params.get('tipo')
+        if tipo_param:
+            tipo_param = tipo_param.upper()
             if hasattr(Imovel.TipoImovel, tipo_param):
                 base_queryset = base_queryset.filter(tipo=tipo_param)
 
-        if 'cidade' in search_params:
-            base_queryset = base_queryset.filter(cidade__icontains=search_params['cidade'])
+        cidade_param = search_params.get('cidade')
+        if cidade_param and isinstance(cidade_param, str):
+            base_queryset = base_queryset.filter(cidade__icontains=cidade_param)
 
-        if 'bairro' in search_params:
-            bairro_param = search_params['bairro']
-            if bairro_param and isinstance(bairro_param, str):
-                base_queryset = base_queryset.filter(bairro__icontains=bairro_param)
+        bairro_param = search_params.get('bairro')
+        if bairro_param and isinstance(bairro_param, str):
+            base_queryset = base_queryset.filter(bairro__icontains=bairro_param)
 
-        if 'valor_min' in search_params:
-            valor_min_ia = search_params['valor_min']
+        if 'valor_min' in search_params and search_params['valor_min'] is not None:
             try:
-                valor_min_decimal = Decimal(valor_min_ia)
+                valor_min_decimal = Decimal(str(search_params['valor_min']))
                 q_filter_min = Q(valor_venda__gte=valor_min_decimal) if status_filtro_ia == Imovel.Status.A_VENDA else Q(valor_aluguel__gte=valor_min_decimal)
                 if not status_filtro_ia: 
                     q_filter_min = Q(valor_venda__gte=valor_min_decimal) | Q(valor_aluguel__gte=valor_min_decimal)
@@ -253,10 +254,9 @@ class ImovelIAView(APIView):
             except (ValueError, TypeError, InvalidOperation):
                  pass 
 
-        if 'valor_max' in search_params:
-            valor_max_ia = search_params['valor_max']
+        if 'valor_max' in search_params and search_params['valor_max'] is not None:
             try:
-                 valor_max_decimal = Decimal(valor_max_ia)
+                 valor_max_decimal = Decimal(str(search_params['valor_max']))
                  q_filter_max = Q(valor_venda__lte=valor_max_decimal) if status_filtro_ia == Imovel.Status.A_VENDA else Q(valor_aluguel__lte=valor_max_decimal)
                  if not status_filtro_ia:
                       q_filter_max = Q(valor_venda__lte=valor_max_decimal) | Q(valor_aluguel__lte=valor_max_decimal)
@@ -264,74 +264,65 @@ class ImovelIAView(APIView):
             except (ValueError, TypeError, InvalidOperation):
                  pass 
 
-        if 'quartos_min' in search_params:
-            try:
-                 quartos_min_ia = int(search_params['quartos_min'])
-                 if quartos_min_ia >= 0:
-                      base_queryset = base_queryset.filter(quartos__gte=quartos_min_ia)
-            except (ValueError, TypeError):
-                 pass 
+        def apply_int_filter(param_name, field_name):
+            val = search_params.get(param_name)
+            if val is not None:
+                try:
+                    val_int = int(val)
+                    if val_int >= 0:
+                        kwargs = {f"{field_name}__gte": val_int}
+                        return Q(**kwargs)
+                except (ValueError, TypeError):
+                    pass
+            return None
 
-        if 'vagas_min' in search_params:
-            try:
-                 vagas_min_ia = int(search_params['vagas_min'])
-                 if vagas_min_ia >= 0:
-                      base_queryset = base_queryset.filter(vagas_garagem__gte=vagas_min_ia)
-            except (ValueError, TypeError):
-                 pass
+        q_quartos = apply_int_filter('quartos_min', 'quartos')
+        if q_quartos: base_queryset = base_queryset.filter(q_quartos)
+
+        q_vagas = apply_int_filter('vagas_min', 'vagas_garagem')
+        if q_vagas: base_queryset = base_queryset.filter(q_vagas)
         
-        if 'banheiros_min' in search_params:
-            try:
-                 banheiros_min_ia = int(search_params['banheiros_min'])
-                 if banheiros_min_ia >= 0:
-                      base_queryset = base_queryset.filter(banheiros__gte=banheiros_min_ia) 
-            except (ValueError, TypeError):
-                 pass
+        q_banheiros = apply_int_filter('banheiros_min', 'banheiros')
+        if q_banheiros: base_queryset = base_queryset.filter(q_banheiros)
         
-        if 'suites_min' in search_params:
-            try:
-                 suites_min_ia = int(search_params['suites_min'])
-                 if suites_min_ia >= 0:
-                      base_queryset = base_queryset.filter(suites__gte=suites_min_ia) 
-            except (ValueError, TypeError):
-                 pass
+        q_suites = apply_int_filter('suites_min', 'suites')
+        if q_suites: base_queryset = base_queryset.filter(q_suites)
 
-        if 'andar_min' in search_params:
-            try:
-                 andar_min_ia = int(search_params['andar_min'])
-                 if andar_min_ia >= 0:
-                      base_queryset = base_queryset.filter(andar__gte=andar_min_ia) 
-            except (ValueError, TypeError):
-                 pass
+        q_andar = apply_int_filter('andar_min', 'andar')
+        if q_andar: base_queryset = base_queryset.filter(q_andar)
 
-        if 'area_min' in search_params:
+        area_min_ia = search_params.get('area_min')
+        if area_min_ia is not None:
             try:
-                 area_min_ia = Decimal(search_params['area_min'])
-                 if area_min_ia > 0:
+                 area_val = Decimal(str(area_min_ia))
+                 if area_val > 0:
                       base_queryset = base_queryset.filter(
-                           Q(area_util__gte=area_min_ia) | 
-                           Q(area_construida__gte=area_min_ia)
+                           Q(area_util__gte=area_val) | 
+                           Q(area_construida__gte=area_val)
                       )
             except (ValueError, TypeError, InvalidOperation):
                  pass
 
-        if search_params.get('aceita_pet') == True:
-            base_queryset = base_queryset.filter(aceita_pet=True)
-        if search_params.get('mobiliado') == True:
-            base_queryset = base_queryset.filter(mobiliado=True)
-        if search_params.get('piscina') == True:
-            base_queryset = base_queryset.filter(Q(piscina_privativa=True) | Q(piscina_condominio=True))
-        if search_params.get('ar_condicionado') == True:
-             base_queryset = base_queryset.filter(ar_condicionado=True)
-        if search_params.get('salao_festas') == True:
-             base_queryset = base_queryset.filter(salao_festas=True)
-        if search_params.get('elevador') == True:
-             base_queryset = base_queryset.filter(elevador=True)
+        features_map = {
+            'aceita_pet': 'aceita_pet',
+            'mobiliado': 'mobiliado',
+            'piscina': None,
+            'ar_condicionado': 'ar_condicionado',
+            'salao_festas': 'salao_festas',
+            'elevador': 'elevador'
+        }
+
+        for json_key, model_field in features_map.items():
+            if search_params.get(json_key) is True:
+                if json_key == 'piscina':
+                    base_queryset = base_queryset.filter(Q(piscina_privativa=True) | Q(piscina_condominio=True))
+                elif model_field:
+                    base_queryset = base_queryset.filter(**{model_field: True})
 
         serializer = ImovelPublicSerializer(base_queryset, many=True)
         mensagem_resposta = search_params.get('mensagem_resposta', "Resultados da sua pesquisa com IA.")
         if not base_queryset.exists():
-            mensagem_resposta = "Não encontrei nenhum imóvel que corresponda à sua procura. Tente refinar a sua pesquisa."
+            mensagem_resposta = "Não encontrei nenhum imóvel que corresponda exatamente à sua procura. Tente simplificar a pesquisa."
 
         return Response({
             "mensagem": mensagem_resposta,
@@ -349,12 +340,7 @@ class ImovelViewSet(viewsets.ModelViewSet):
     permission_classes = [permissions.IsAuthenticated]
     filter_backends = [filters.SearchFilter]
     
-    # ==========================================================
-    # === CORREÇÃO PARA CONFLITO DE ROTAS SEM ALTERAR URLS.PY ===
-    # ==========================================================
-    # Definimos que o lookup (ID do imóvel) deve ser APENAS numérico.
     lookup_value_regex = r'\d+' 
-    # ==========================================================
 
     search_fields = [
         'logradouro', 'cidade', 'titulo_anuncio', 'codigo_referencia', 'bairro',
@@ -362,20 +348,30 @@ class ImovelViewSet(viewsets.ModelViewSet):
     ] 
 
     def get_queryset(self):
-        if self.request.user.is_superuser:
-             base_queryset = Imovel.objects.all()
-        elif self.request.tenant:
-            base_queryset = Imovel.objects.filter(imobiliaria=self.request.tenant)
+        user = self.request.user
+        
+        # Lógica de fallback para Tenant
+        tenant = getattr(self.request, 'tenant', None)
+        if not tenant and hasattr(user, 'imobiliaria'):
+            tenant = user.imobiliaria
+
+        print(f"DEBUG IMOVEL: User={user}, Superuser={user.is_superuser}, Tenant={tenant}")
+
+        if user.is_superuser:
+            if not tenant:
+                 base_queryset = Imovel.objects.all()
+            else:
+                 base_queryset = Imovel.objects.filter(imobiliaria=tenant)
+        elif tenant:
+            base_queryset = Imovel.objects.filter(imobiliaria=tenant)
         else:
             return Imovel.objects.none()
 
         status_param = self.request.query_params.get('status', None)
-        
         if status_param:
              if status_param in Imovel.Status.values:
                 base_queryset = base_queryset.filter(status=status_param)
         elif self.action in ['list', 'lista_simples']: 
-             # Filtra desativados por padrão tanto na listagem normal quanto na simples
              base_queryset = base_queryset.exclude(status=Imovel.Status.DESATIVADO)
 
         finalidade = self.request.query_params.get('finalidade', None) 
@@ -395,24 +391,53 @@ class ImovelViewSet(viewsets.ModelViewSet):
         return base_queryset.order_by('-data_atualizacao')
 
     def perform_create(self, serializer):
-        if self.request.user.is_superuser and 'imobiliaria' in self.request.data:
-            imobiliaria_id = self.request.data['imobiliaria']
-            imobiliaria_obj = get_object_or_404(Imobiliaria, pk=imobiliaria_id)
-            serializer.save(imobiliaria=imobiliaria_obj)
-        elif self.request.tenant:
-            serializer.save(imobiliaria=self.request.tenant)
+        print(f"DEBUG IMOVEL CREATE: Iniciando cadastro para usuário {self.request.user}")
+        
+        tenant = getattr(self.request, 'tenant', None)
+        if not tenant and hasattr(self.request.user, 'imobiliaria'):
+            tenant = self.request.user.imobiliaria
+            
+        if self.request.user.is_superuser:
+            if 'imobiliaria' in self.request.data:
+                imobiliaria_id = self.request.data['imobiliaria']
+                imobiliaria_obj = get_object_or_404(Imobiliaria, pk=imobiliaria_id)
+                serializer.save(imobiliaria=imobiliaria_obj)
+                print("DEBUG IMOVEL CREATE: Salvo com imobiliária do formulário.")
+                return
+
+            if tenant:
+                serializer.save(imobiliaria=tenant)
+                print("DEBUG IMOVEL CREATE: Salvo com tenant detectado.")
+                return
+
+            first_tenant = Imobiliaria.objects.first()
+            if first_tenant:
+                serializer.save(imobiliaria=first_tenant)
+                print(f"DEBUG IMOVEL CREATE: Fallback para primeira imobiliária: {first_tenant}")
+                return
+            else:
+                raise PermissionDenied("Nenhuma imobiliária cadastrada no sistema.")
+
+        elif tenant:
+            serializer.save(imobiliaria=tenant)
+            print("DEBUG IMOVEL CREATE: Imóvel salvo com sucesso (usuário comum).")
         else:
-            raise PermissionDenied("Não foi possível associar o imóvel a uma imobiliária.")
+            print("DEBUG IMOVEL CREATE: ERRO - Tenant não identificado.")
+            raise PermissionDenied("Não foi possível associar o imóvel a uma imobiliária. Tenant não identificado.")
 
     def perform_update(self, serializer):
         instance = serializer.instance
-        if self.request.user.is_superuser or (self.request.tenant and instance.imobiliaria == self.request.tenant):
+        tenant = getattr(self.request, 'tenant', None) or getattr(self.request.user, 'imobiliaria', None)
+        
+        if self.request.user.is_superuser or (tenant and instance.imobiliaria == tenant):
              serializer.save()
         else:
              raise PermissionDenied("Você não tem permissão para atualizar este imóvel.")
 
     def perform_destroy(self, instance):
-        if self.request.user.is_superuser or (self.request.tenant and instance.imobiliaria == self.request.tenant):
+        tenant = getattr(self.request, 'tenant', None) or getattr(self.request.user, 'imobiliaria', None)
+        
+        if self.request.user.is_superuser or (tenant and instance.imobiliaria == tenant):
              instance.status = Imovel.Status.DESATIVADO
              instance.publicado_no_site = False
              instance.save()
@@ -476,6 +501,22 @@ class ImovelViewSet(viewsets.ModelViewSet):
              return Response({"error": f"Imóvel não encontrado: {e}"}, status=status.HTTP_404_NOT_FOUND)
 
         try:
+            # Tenta pegar a chave do campo 'google_api_key' da imobiliária do imóvel
+            # Se o nome do campo for diferente no seu modelo, ajuste 'google_api_key' aqui
+            api_key = getattr(imovel.imobiliaria, 'google_api_key', None)
+
+            if not api_key:
+                # Fallback: Tenta pegar das variáveis de ambiente
+                api_key = os.getenv("GOOGLE_API_KEY")
+
+            if not api_key:
+                return Response(
+                    {"error": "Chave de API da Google não configurada na imobiliária deste imóvel. Cadastre-a no Admin."},
+                    status=status.HTTP_500_INTERNAL_SERVER_ERROR
+                )
+            
+            genai.configure(api_key=api_key)
+
             prompt_config = ModeloDePrompt.objects.get(em_uso_descricao=True)
             template_prompt = prompt_config.template_do_prompt
         except ModeloDePrompt.DoesNotExist:
@@ -496,9 +537,6 @@ class ImovelViewSet(viewsets.ModelViewSet):
         prompt_final = prompt_final.replace('{{voz_da_marca}}', voz_da_marca)
 
         try:
-            if not api_key:
-                 raise ValueError("GOOGLE_API_KEY não está configurada no servidor.")
-
             model_name = 'models/gemini-flash-latest'
             model = genai.GenerativeModel(model_name)
             generation_config = genai.types.GenerationConfig(temperature=0.7)
@@ -531,10 +569,16 @@ class ImagemImovelViewSet(viewsets.ModelViewSet):
     permission_classes = [permissions.IsAuthenticated]
 
     def get_queryset(self):
-        if self.request.user.is_superuser:
-            return ImagemImovel.objects.all()
-        if self.request.tenant:
-            return ImagemImovel.objects.filter(imovel__imobiliaria=self.request.tenant)
+        user = self.request.user
+        tenant = getattr(self.request, 'tenant', None) or getattr(user, 'imobiliaria', None)
+        
+        if user.is_superuser:
+            if not tenant:
+                return ImagemImovel.objects.all()
+            return ImagemImovel.objects.filter(imovel__imobiliaria=tenant)
+            
+        if tenant:
+            return ImagemImovel.objects.filter(imovel__imobiliaria=tenant)
         return ImagemImovel.objects.none()
 
     @transaction.atomic
@@ -543,11 +587,16 @@ class ImagemImovelViewSet(viewsets.ModelViewSet):
         if not imovel_id:
             return Response({'imovel': ['O ID do imóvel é obrigatório.']}, status=status.HTTP_400_BAD_REQUEST)
 
+        tenant = getattr(self.request, 'tenant', None) or getattr(request.user, 'imobiliaria', None)
+
         try:
             if request.user.is_superuser:
-                 imovel = Imovel.objects.get(pk=imovel_id)
-            elif request.tenant:
-                 imovel = Imovel.objects.get(pk=imovel_id, imobiliaria=request.tenant)
+                 if tenant:
+                     imovel = Imovel.objects.get(pk=imovel_id, imobiliaria=tenant)
+                 else:
+                     imovel = Imovel.objects.get(pk=imovel_id)
+            elif tenant:
+                 imovel = Imovel.objects.get(pk=imovel_id, imobiliaria=tenant)
             else:
                  raise PermissionDenied("Tenant não identificado.")
         except Imovel.DoesNotExist:
@@ -580,7 +629,9 @@ class ImagemImovelViewSet(viewsets.ModelViewSet):
 
 
     def perform_destroy(self, instance):
-        if not (self.request.user.is_superuser or (self.request.tenant and instance.imovel.imobiliaria == self.request.tenant)):
+        tenant = getattr(self.request, 'tenant', None) or getattr(self.request.user, 'imobiliaria', None)
+        
+        if not (self.request.user.is_superuser or (tenant and instance.imovel.imobiliaria == tenant)):
             raise PermissionDenied("Você não tem permissão para excluir esta imagem.")
 
         imovel_da_imagem = instance.imovel
@@ -602,11 +653,16 @@ class ImagemImovelViewSet(viewsets.ModelViewSet):
         if not ordem_ids or not imovel_id:
             return Response({'detail': 'A lista de IDs de imagem e o ID do imóvel são necessários.'}, status=status.HTTP_400_BAD_REQUEST)
 
+        tenant = getattr(self.request, 'tenant', None) or getattr(request.user, 'imobiliaria', None)
+
         try:
             if request.user.is_superuser:
-                 imovel = Imovel.objects.get(pk=imovel_id)
-            elif request.tenant:
-                 imovel = Imovel.objects.get(pk=imovel_id, imobiliaria=request.tenant)
+                 if tenant:
+                     imovel = Imovel.objects.get(pk=imovel_id, imobiliaria=tenant)
+                 else:
+                     imovel = Imovel.objects.get(pk=imovel_id)
+            elif tenant:
+                 imovel = Imovel.objects.get(pk=imovel_id, imobiliaria=tenant)
             else:
                  raise PermissionDenied("Tenant não identificado.")
         except Imovel.DoesNotExist:
@@ -650,14 +706,25 @@ class ContatoImovelViewSet(viewsets.ModelViewSet):
         # CORREÇÃO: Adicionar select_related('imovel') para popular o imovel_obj no serializer
         base_queryset = ContatoImovel.objects.filter(arquivado=False).select_related('imovel')
         
-        if self.request.user.is_superuser:
-            return base_queryset.all().order_by('-data_contato')
-        elif self.request.user.is_authenticated and self.request.tenant:
-            return base_queryset.filter(imovel__imobiliaria=self.request.tenant).order_by('-data_contato')
+        user = self.request.user
+        tenant = getattr(self.request, 'tenant', None) or getattr(user, 'imobiliaria', None)
+        
+        if user.is_superuser:
+            if not tenant:
+                return base_queryset.all().order_by('-data_contato')
+            return base_queryset.filter(imovel__imobiliaria=tenant).order_by('-data_contato')
+        elif user.is_authenticated and tenant:
+            return base_queryset.filter(imovel__imobiliaria=tenant).order_by('-data_contato')
         return ContatoImovel.objects.none()
 
     @transaction.atomic 
     def perform_create(self, serializer):
+        # VALIDAÇÃO MANUAL DO TELEFONE
+        # Garante que o telefone venha preenchido, caso contrário bloqueia (Erro 400)
+        dados = serializer.validated_data
+        if not dados.get('telefone'):
+             raise ValidationError({"telefone": ["Este campo é obrigatório para o contato."]})
+
         contato = serializer.save()
         imovel = contato.imovel
         imobiliaria = imovel.imobiliaria
@@ -716,13 +783,16 @@ class ContatoImovelViewSet(viewsets.ModelViewSet):
                  # 3. Notificação no Painel
                  responsavel = oportunidade.responsavel
                  if not responsavel:
+                     # CORREÇÃO CRÍTICA: Removido .select_related('user') pois causava FieldError.
+                     # Também usamos getattr(admin_perfil, 'user', admin_perfil) para suportar
+                     # tanto se PerfilUsuario for um modelo de perfil (com user) ou o próprio usuário.
                      admin_perfil = PerfilUsuario.objects.filter(
                          imobiliaria=imobiliaria, 
                          is_admin=True
-                     ).select_related('user').first()
+                     ).first()
                      
                      if admin_perfil:
-                         responsavel = admin_perfil.user
+                         responsavel = getattr(admin_perfil, 'user', admin_perfil)
                      else:
                           responsavel = None 
 
@@ -798,11 +868,16 @@ class GerarAutorizacaoPDFView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def _get_imovel_data(self, request, imovel_id):
+        tenant = getattr(request, 'tenant', None) or getattr(request.user, 'imobiliaria', None)
+
         try:
             if request.user.is_superuser:
-                 imovel = Imovel.objects.get(pk=imovel_id)
-            elif request.tenant:
-                 imovel = Imovel.objects.get(pk=imovel_id, imobiliaria=request.tenant)
+                 if tenant:
+                     imovel = Imovel.objects.get(pk=imovel_id, imobiliaria=tenant)
+                 else:
+                     imovel = Imovel.objects.get(pk=imovel_id)
+            elif tenant:
+                 imovel = Imovel.objects.get(pk=imovel_id, imobiliaria=tenant)
             else:
                  raise PermissionDenied("Tenant não identificado para o usuário autenticado.")
         except Imovel.DoesNotExist:
@@ -943,7 +1018,8 @@ class AutorizacaoStatusView(APIView):
     permission_classes = [permissions.IsAuthenticated, permissions.IsAdminUser] 
 
     def get(self, request, *args, **kwargs):
-        tenant = request.tenant
+        tenant = getattr(request, 'tenant', None) or getattr(request.user, 'imobiliaria', None)
+        
         if not tenant and request.user.is_superuser:
              tenant = Imobiliaria.objects.first() 
         if not tenant:
@@ -1153,7 +1229,8 @@ class AutorizacaoReportView(APIView):
     permission_classes = [permissions.IsAuthenticated] 
 
     def get(self, request, *args, **kwargs):
-        tenant = request.tenant
+        tenant = getattr(request, 'tenant', None) or getattr(request.user, 'imobiliaria', None)
+        
         if not tenant and request.user.is_superuser:
             tenant = Imobiliaria.objects.first()
         if not tenant: return Response({"error": "Tenant não identificado."}, status=400)
@@ -1167,7 +1244,8 @@ class AutorizacaoReportPDFView(APIView):
 
     def get(self, request, *args, **kwargs):
         # 1. Definição do Tenant (Imobiliária)
-        tenant = request.tenant
+        tenant = getattr(request, 'tenant', None) or getattr(request.user, 'imobiliaria', None)
+        
         if not tenant and request.user.is_superuser:
             tenant = Imobiliaria.objects.first()
         

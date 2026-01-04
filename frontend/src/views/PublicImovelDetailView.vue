@@ -83,7 +83,7 @@
             <form @submit.prevent="handleContatoSubmit">
               <input type="text" v-model="contatoForm.nome" placeholder="Seu nome" required>
               <input type="email" v-model="contatoForm.email" placeholder="Seu e-mail" required>
-              <input type="tel" v-model="contatoForm.telefone" placeholder="Seu telefone (opcional)">
+              <input type="tel" v-model="contatoForm.telefone" placeholder="Seu telefone *" required>
               <textarea v-model="contatoForm.mensagem" rows="4" placeholder="Olá! Tenho interesse neste imóvel e gostaria de mais informações." required></textarea>
               <button type="submit" :disabled="isSubmittingContato">
                 {{ isSubmittingContato ? 'A enviar...' : 'Enviar Mensagem' }}

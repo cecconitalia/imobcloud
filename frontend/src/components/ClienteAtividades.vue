@@ -32,19 +32,23 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, defineProps } from 'vue';
+import { ref, onMounted, watch } from 'vue';
 import apiClient from '@/services/api';
 
+// Definição das props
 const props = defineProps<{
   clienteId: string | number;
 }>();
 
 const atividades = ref<any[]>([]);
-const isLoading = ref(true);
+const isLoading = ref(false); // Começa false para não mostrar loading se não tiver ID
 const novaNota = ref('');
 const isSubmittingNota = ref(false);
 
 async function fetchAtividades() {
+  // Se não tiver ID, não faz nada (evita erro 400 no GET)
+  if (!props.clienteId) return;
+
   isLoading.value = true;
   try {
     const response = await apiClient.get('/v1/atividades/', {
@@ -59,29 +63,51 @@ async function fetchAtividades() {
 }
 
 async function adicionarNota() {
-  if (!novaNota.value.trim()) return;
+  if (!novaNota.value.trim()) {
+      alert("A nota não pode estar vazia.");
+      return;
+  }
+
+  // TRAVA DE SEGURANÇA:
+  // Se o botão for clicado antes do ID chegar, avisa e cancela.
+  if (!props.clienteId) {
+      alert("Aguarde o carregamento completo dos dados do cliente para adicionar notas.");
+      console.warn("Tentativa de adicionar nota com clienteId vazio.");
+      return;
+  }
 
   isSubmittingNota.value = true;
   try {
     const payload = {
-      cliente: props.clienteId,
+      cliente: props.clienteId, 
       tipo: 'NOTA',
       descricao: novaNota.value,
     };
+    
     await apiClient.post('/v1/atividades/', payload);
-    novaNota.value = '';
+    
+    novaNota.value = ''; // Limpa o campo
     await fetchAtividades(); // Recarrega a lista
-  } catch (error) {
+  } catch (error: any) {
     console.error("Erro ao adicionar nota:", error);
-    alert('Não foi possível guardar a nota.');
+    if (error.response && error.response.data) {
+        alert(`Erro ao guardar: ${JSON.stringify(error.response.data)}`);
+    } else {
+        alert('Não foi possível guardar a nota.');
+    }
   } finally {
     isSubmittingNota.value = false;
   }
 }
 
-onMounted(() => {
-  fetchAtividades();
-});
+// CORREÇÃO CRÍTICA (Opção B):
+// Observa o ID com 'immediate: true'. Assim que o componente pai enviar o ID,
+// esta função dispara e carrega as atividades automaticamente.
+watch(() => props.clienteId, (newId) => {
+    if (newId) {
+        fetchAtividades();
+    }
+}, { immediate: true });
 
 function formatarData(data: string): string {
   if (!data) return '';
@@ -92,6 +118,7 @@ function formatarData(data: string): string {
 }
 
 function getIconClass(tipo: string): string {
+  if (!tipo) return 'fas fa-info-circle';
   switch (tipo.toUpperCase()) {
     case 'LIGACAO': return 'fas fa-phone-alt';
     case 'EMAIL': return 'fas fa-envelope';

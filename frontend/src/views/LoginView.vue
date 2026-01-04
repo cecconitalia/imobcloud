@@ -1,7 +1,7 @@
 <template>
   <div class="login-container">
     <div class="login-box">
-      <h2>ImobCloud Login</h2>
+      <h2>ImobHome Login</h2>
       <form @submit.prevent="handleLogin">
         <div class="form-group">
           <label for="username">Utilizador</label>

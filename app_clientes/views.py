@@ -5,8 +5,8 @@ from rest_framework.response import Response
 from rest_framework.decorators import action
 from rest_framework.exceptions import PermissionDenied
 from rest_framework import filters
-from rest_framework.parsers import MultiPartParser, FormParser
-from django.db.models import Count, Q
+from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
+from django.db.models import Count, Q, Sum
 from django.utils.timezone import localdate
 from django.utils import timezone
 from django.db.models.functions import TruncMonth
@@ -21,9 +21,6 @@ import os
 import json
 from django.conf import settings
 from django.core.files.storage import default_storage
-from django.db.models import Sum # Importação necessária para a soma
-
-# Imports para PDF
 from django.template.loader import render_to_string
 from io import BytesIO
 from xhtml2pdf import pisa
@@ -47,6 +44,25 @@ from app_imoveis.models import Imovel
 User = get_user_model()
 
 # ====================================================================
+# HELPER PARA VERIFICAR PERMISSÕES
+# ====================================================================
+def is_admin_or_corretor(user):
+    """
+    Verifica se o usuário é Admin ou Corretor de forma segura,
+    evitando erros se o atributo Cargo não existir como Enum.
+    """
+    is_admin_bool = getattr(user, 'is_admin', False)
+    is_corretor_bool = getattr(user, 'is_corretor', False)
+    
+    cargo = getattr(user, 'cargo', None)
+    
+    # CORREÇÃO: Comparação por string para evitar AttributeError
+    is_admin_cargo = (str(cargo).upper() == 'ADMIN')
+    is_corretor_cargo = (str(cargo).upper() == 'CORRETOR')
+    
+    return is_admin_bool or is_corretor_bool or is_admin_cargo or is_corretor_cargo
+
+# ====================================================================
 # VIEWS DO GOOGLE CALENDAR
 # ====================================================================
 SCOPES = ['https://www.googleapis.com/auth/calendar.events']
@@ -57,7 +73,6 @@ class GoogleCalendarAuthView(APIView):
 
     def get(self, request, *args, **kwargs):
         try:
-            # CORREÇÃO: Acesso direto ao usuário, pois PerfilUsuario é o AUTH_USER_MODEL
             user = request.user
             if not getattr(user, 'google_json_file', None):
                 return Response({"error": "Nenhum arquivo de credenciais do Google foi encontrado."}, status=status.HTTP_400_BAD_REQUEST)
@@ -130,19 +145,27 @@ class ClienteViewSet(viewsets.ModelViewSet):
     permission_classes = [permissions.IsAuthenticated]
     filter_backends = [filters.SearchFilter]
     search_fields = ['nome', 'documento', 'razao_social', 'email', 'telefone']
-    parser_classes = (MultiPartParser, FormParser)
+    
+    parser_classes = (MultiPartParser, FormParser, JSONParser)
 
     def get_queryset(self):
         base_queryset = Cliente.objects.filter(ativo=True)
+        user = self.request.user
         
-        if self.request.user.is_superuser:
-            queryset = base_queryset.all()
-        elif self.request.tenant:
-            queryset = base_queryset.filter(imobiliaria=self.request.tenant)
+        tenant = getattr(self.request, 'tenant', None)
+        if not tenant and hasattr(user, 'imobiliaria'):
+            tenant = user.imobiliaria
+
+        if user.is_superuser:
+            if not tenant:
+                queryset = base_queryset.all()
+            else:
+                queryset = base_queryset.filter(imobiliaria=tenant)
+        elif tenant:
+            queryset = base_queryset.filter(imobiliaria=tenant)
         else:
             return Cliente.objects.none()
             
-        # Ordena pelo ID decrescente para mostrar os últimos cadastrados primeiro
         return queryset.order_by('-id')
 
     def list(self, request, *args, **kwargs):
@@ -161,32 +184,45 @@ class ClienteViewSet(viewsets.ModelViewSet):
         return Response(serializer.data)
 
     def perform_create(self, serializer):
+        tenant = getattr(self.request, 'tenant', None)
+        if not tenant and hasattr(self.request.user, 'imobiliaria'):
+            tenant = self.request.user.imobiliaria
+
         if self.request.user.is_superuser:
             if 'imobiliaria' in self.request.data:
                 imobiliaria_id = self.request.data['imobiliaria']
                 imobiliaria_obj = get_object_or_404(Imobiliaria, pk=imobiliaria_id)
                 serializer.save(imobiliaria=imobiliaria_obj)
             else:
-                raise PermissionDenied("Para superusuário, a imobiliária é obrigatória.")
+                if tenant:
+                    serializer.save(imobiliaria=tenant)
+                else:
+                    first_tenant = Imobiliaria.objects.first()
+                    if first_tenant:
+                        serializer.save(imobiliaria=first_tenant)
+                    else:
+                        raise PermissionDenied("Nenhuma imobiliária disponível para associar.")
         else:
-            if not self.request.tenant:
-                raise PermissionDenied("Não foi possível associar o cliente a uma imobiliária. Tenant não identificado ou sem permissão.")
-            serializer.save(imobiliaria=self.request.tenant)
-
+            if not tenant:
+                raise PermissionDenied("Não foi possível associar o cliente a uma imobiliária. Tenant não identificado.")
+            serializer.save(imobiliaria=tenant)
+            
     def perform_update(self, serializer):
         user = self.request.user
+        tenant = getattr(self.request, 'tenant', None) or getattr(user, 'imobiliaria', None)
+
         if user.is_superuser:
             serializer.save()
-        # CORREÇÃO: Acesso direto aos atributos do usuário, sem .perfil
-        elif (getattr(user, 'is_admin', False) or getattr(user, 'is_corretor', False)) and serializer.instance.imobiliaria == self.request.tenant:
+        elif is_admin_or_corretor(user) and serializer.instance.imobiliaria == tenant:
             serializer.save()
         else:
             raise PermissionDenied("Você não tem permissão para atualizar este cliente.")
 
     def perform_destroy(self, instance):
         user = self.request.user
-        # CORREÇÃO: Acesso direto aos atributos do usuário
-        if user.is_superuser or ((getattr(user, 'is_admin', False) or getattr(user, 'is_corretor', False)) and instance.imobiliaria == self.request.tenant):
+        tenant = getattr(self.request, 'tenant', None) or getattr(user, 'imobiliaria', None)
+
+        if user.is_superuser or (is_admin_or_corretor(user) and instance.imobiliaria == tenant):
             instance.ativo = False
             instance.save()
         else:
@@ -228,10 +264,15 @@ class VisitaViewSet(viewsets.ModelViewSet):
     permission_classes = [permissions.IsAuthenticated]
 
     def get_queryset(self):
-        if self.request.user.is_superuser:
-            return Visita.objects.all().prefetch_related('imoveis', 'cliente')
-        elif self.request.tenant:
-            return Visita.objects.filter(imobiliaria=self.request.tenant).prefetch_related('imoveis', 'cliente')
+        user = self.request.user
+        tenant = getattr(self.request, 'tenant', None) or getattr(user, 'imobiliaria', None)
+
+        if user.is_superuser:
+            if not tenant:
+                return Visita.objects.all().prefetch_related('imoveis', 'cliente')
+            return Visita.objects.filter(imobiliaria=tenant).prefetch_related('imoveis', 'cliente')
+        elif tenant:
+            return Visita.objects.filter(imobiliaria=tenant).prefetch_related('imoveis', 'cliente')
         return Visita.objects.none()
 
     def perform_create(self, serializer):
@@ -239,8 +280,10 @@ class VisitaViewSet(viewsets.ModelViewSet):
         cliente = get_object_or_404(Cliente, pk=cliente_id)
         
         imobiliaria = None
-        if self.request.tenant:
-            imobiliaria = self.request.tenant
+        tenant = getattr(self.request, 'tenant', None) or getattr(self.request.user, 'imobiliaria', None)
+
+        if tenant:
+            imobiliaria = tenant
         elif self.request.user.is_superuser:
             imoveis_data = self.request.data.get('imoveis')
             if imoveis_data and isinstance(imoveis_data, list) and len(imoveis_data) > 0:
@@ -252,16 +295,17 @@ class VisitaViewSet(viewsets.ModelViewSet):
                     pass
             if not imobiliaria and cliente.imobiliaria:
                 imobiliaria = cliente.imobiliaria
+            if not imobiliaria:
+                 imobiliaria = Imobiliaria.objects.first()
         
         if not imobiliaria:
             raise PermissionDenied("Não foi possível associar a visita. Tenant/Imobiliária não identificada.")
 
-        # Salva o corretor responsável (quem criou a visita)
         serializer.save(imobiliaria=imobiliaria, cliente=cliente, corretor=self.request.user)
 
     def perform_update(self, serializer):
-        # VALIDAÇÃO: Impede edição se já houver assinaturas (exceto updates internos de assinatura)
         instance = serializer.instance
+        tenant = getattr(self.request, 'tenant', None) or getattr(self.request.user, 'imobiliaria', None)
         
         if (instance.assinatura_cliente or instance.assinatura_corretor):
              dados = self.request.data
@@ -270,23 +314,22 @@ class VisitaViewSet(viewsets.ModelViewSet):
              if not eh_processo_assinatura:
                  raise PermissionDenied("Não é possível editar os dados de uma visita que já possui assinaturas.")
 
-        # CORREÇÃO: Acesso direto aos atributos do usuário
         if self.request.user.is_superuser:
             serializer.save()
-        elif serializer.instance.imobiliaria == self.request.tenant:
+        elif serializer.instance.imobiliaria == tenant:
             serializer.save()
         else:
             raise PermissionDenied("Você não tem permissão para atualizar esta visita.")
 
     def perform_destroy(self, instance):
-        # VALIDAÇÃO: Impede a exclusão se já houver assinaturas
         if instance.assinatura_cliente or instance.assinatura_corretor:
              raise PermissionDenied("Não é possível excluir uma visita que já foi assinada pelo cliente ou corretor.")
 
-        # CORREÇÃO: Acesso direto aos atributos do usuário
+        tenant = getattr(self.request, 'tenant', None) or getattr(self.request.user, 'imobiliaria', None)
+
         if self.request.user.is_superuser:
             instance.delete()
-        elif instance.imobiliaria == self.request.tenant:
+        elif instance.imobiliaria == tenant:
             instance.delete()
         else:
             raise PermissionDenied("Você não tem permissão para excluir esta visita.")
@@ -302,8 +345,10 @@ class AtividadeViewSet(viewsets.ModelViewSet):
         queryset = super().get_queryset()
         queryset = queryset.order_by('-data_criacao')
         
-        if self.request.tenant:
-            queryset = queryset.filter(cliente__imobiliaria=self.request.tenant)
+        tenant = getattr(self.request, 'tenant', None) or getattr(self.request.user, 'imobiliaria', None)
+
+        if tenant:
+            queryset = queryset.filter(cliente__imobiliaria=tenant)
 
         return queryset
 
@@ -336,16 +381,20 @@ class OportunidadeViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         user = self.request.user
+        tenant = getattr(self.request, 'tenant', None) or getattr(user, 'imobiliaria', None)
+
         base_queryset = Oportunidade.objects.all()
 
         if user.is_superuser:
-            queryset = base_queryset
+            if tenant:
+                queryset = base_queryset.filter(imobiliaria=tenant)
+            else:
+                queryset = base_queryset
         
-        elif self.request.tenant:
-            queryset = base_queryset.filter(imobiliaria=self.request.tenant)
+        elif tenant:
+            queryset = base_queryset.filter(imobiliaria=tenant)
             
-            # CORREÇÃO: Verifica is_admin diretamente no usuário
-            if not getattr(user, 'is_admin', False):
+            if not is_admin_or_corretor(user):
                 queryset = queryset.filter(responsavel=user)
         
         else:
@@ -361,16 +410,16 @@ class OportunidadeViewSet(viewsets.ModelViewSet):
         return queryset.order_by('data_criacao') 
 
     def perform_create(self, serializer):
-        if not self.request.tenant:
+        tenant = getattr(self.request, 'tenant', None) or getattr(self.request.user, 'imobiliaria', None)
+
+        if not tenant:
+             if self.request.user.is_superuser:
+                 tenant = Imobiliaria.objects.first()
+        
+        if not tenant:
             raise PermissionDenied("Apenas utilizadores associados a uma imobiliária podem criar oportunidades.")
         
-        # CORREÇÃO: Remove verificação incorreta de .perfil
-        if not self.request.user.is_superuser and not (getattr(self.request.user, 'is_corretor', False) or getattr(self.request.user, 'is_admin', False)):
-             # Opcional: Se todo usuário autenticado puder criar, remova este bloco. 
-             # Mantendo a lógica de que precisa ser corretor ou admin.
-             pass 
-            
-        serializer.save(imobiliaria=self.request.tenant, responsavel=self.request.user)
+        serializer.save(imobiliaria=tenant, responsavel=self.request.user)
     
     def perform_update(self, serializer):
         oportunidade = self.get_object()
@@ -427,29 +476,41 @@ class FunilEtapaViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         user = self.request.user
+        tenant = getattr(self.request, 'tenant', None) or getattr(user, 'imobiliaria', None)
+
         if user.is_superuser:
-            return FunilEtapa.objects.all().order_by('imobiliaria', 'ordem')
+            if not tenant:
+                return FunilEtapa.objects.all().order_by('imobiliaria', 'ordem')
+            return FunilEtapa.objects.filter(imobiliaria=tenant).order_by('ordem')
         
-        if self.request.tenant:
-            return FunilEtapa.objects.filter(imobiliaria=self.request.tenant, ativa=True).order_by('ordem')
+        if tenant:
+            return FunilEtapa.objects.filter(imobiliaria=tenant, ativa=True).order_by('ordem')
         return FunilEtapa.objects.none()
 
     def perform_create(self, serializer):
-        if not self.request.user.is_superuser and not self.request.tenant:
+        tenant = getattr(self.request, 'tenant', None) or getattr(self.request.user, 'imobiliaria', None)
+
+        if not self.request.user.is_superuser and not tenant:
             raise PermissionDenied("Permissão negada.")
         
-        if not self.request.tenant:
+        if not tenant:
+             if self.request.user.is_superuser:
+                 tenant = Imobiliaria.objects.first()
+
+        if not tenant:
             raise PermissionDenied("Imobiliária não identificada.")
             
-        serializer.save(imobiliaria=self.request.tenant)
+        serializer.save(imobiliaria=tenant)
 
     def perform_update(self, serializer):
-        if not self.request.user.is_superuser and serializer.instance.imobiliaria != self.request.tenant:
+        tenant = getattr(self.request, 'tenant', None) or getattr(self.request.user, 'imobiliaria', None)
+        if not self.request.user.is_superuser and serializer.instance.imobiliaria != tenant:
             raise PermissionDenied("Permissão negada.")
         serializer.save()
 
     def perform_destroy(self, instance):
-        if not self.request.user.is_superuser and instance.imobiliaria != self.request.tenant:
+        tenant = getattr(self.request, 'tenant', None) or getattr(self.request.user, 'imobiliaria', None)
+        if not self.request.user.is_superuser and instance.imobiliaria != tenant:
             raise PermissionDenied("Permissão negada.")
         instance.delete()
 
@@ -460,14 +521,15 @@ class TarefaViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         user = self.request.user
-        tenant = self.request.tenant
+        tenant = getattr(self.request, 'tenant', None) or getattr(user, 'imobiliaria', None)
 
         if user.is_superuser:
-            return Tarefa.objects.all()
+            if not tenant:
+                return Tarefa.objects.all()
+            return Tarefa.objects.filter(oportunidade__imobiliaria=tenant)
 
         queryset = Tarefa.objects.filter(oportunidade__imobiliaria=tenant)
         
-        # Filtro por Oportunidade (importante para o form de edição)
         oportunidade_id = self.request.query_params.get('oportunidade')
         if oportunidade_id:
             queryset = queryset.filter(oportunidade_id=oportunidade_id)
@@ -477,14 +539,16 @@ class TarefaViewSet(viewsets.ModelViewSet):
     def perform_create(self, serializer):
         oportunidade_id = self.request.data.get('oportunidade')
         oportunidade = None
+        
+        tenant = getattr(self.request, 'tenant', None) or getattr(self.request.user, 'imobiliaria', None)
+
         if oportunidade_id:
             oportunidade = get_object_or_404(Oportunidade, pk=oportunidade_id)
-            if not (self.request.user.is_superuser or oportunidade.imobiliaria == self.request.tenant):
+            if not (self.request.user.is_superuser or oportunidade.imobiliaria == tenant):
                 raise PermissionDenied("Você não tem permissão para adicionar tarefas a esta oportunidade.")
         
         tarefa = serializer.save(oportunidade=oportunidade, responsavel=self.request.user)
 
-        # CORREÇÃO: Acesso direto ao token no usuário
         if tarefa.responsavel and getattr(tarefa.responsavel, 'google_calendar_token', None):
             try:
                 agendar_tarefa_no_calendario(tarefa)
@@ -493,11 +557,12 @@ class TarefaViewSet(viewsets.ModelViewSet):
     
     def perform_update(self, serializer):
         instance = self.get_object()
-        if not (self.request.user.is_superuser or (instance.oportunidade.imobiliaria == self.request.tenant)):
+        tenant = getattr(self.request, 'tenant', None) or getattr(self.request.user, 'imobiliaria', None)
+
+        if not (self.request.user.is_superuser or (instance.oportunidade.imobiliaria == tenant)):
             raise PermissionDenied("Você não tem permissão para atualizar esta tarefa.")
             
         tarefa = serializer.save()
-        # CORREÇÃO: Acesso direto ao token no usuário
         if tarefa.responsavel and getattr(tarefa.responsavel, 'google_calendar_token', None):
             try:
                 agendar_tarefa_no_calendario(tarefa, editar=True)
@@ -525,7 +590,11 @@ class RelatoriosView(viewsets.ViewSet):
     permission_classes = [IsAdminOrSuperUser]
 
     def list(self, request):
-        tenant = request.tenant
+        tenant = getattr(request, 'tenant', None)
+        
+        if not tenant and hasattr(request.user, 'imobiliaria'):
+            tenant = request.user.imobiliaria
+
         if not tenant and request.user.is_superuser:
             tenant = Imobiliaria.objects.first()
         
@@ -542,7 +611,7 @@ class RelatoriosView(viewsets.ViewSet):
             data = self._get_desempenho_corretores(tenant) 
         elif relatorio_tipo == 'imobiliaria':
             data = self._get_relatorio_imobiliaria(tenant)
-        elif relatorio_tipo == 'valor_estimado_aberto': # NOVO TIPO
+        elif relatorio_tipo == 'valor_estimado_aberto':
             data = self._get_valor_estimado_aberto(tenant)
         else:
             return Response({"error": "Tipo de relatório inválido."}, status=status.HTTP_400_BAD_REQUEST)
@@ -563,13 +632,9 @@ class RelatoriosView(viewsets.ViewSet):
     def _get_relatorio_imobiliaria(self, tenant):
          return {"message": "Relatório de imobiliária a ser implementado."}
          
-    # ====================================================================
-    # NOVO: Valor Estimado de Leads em Aberto
-    # ====================================================================
     def _get_valor_estimado_aberto(self, tenant):
         """Calcula a soma dos valores estimados para oportunidades que não são GANHO nem PERDIDO."""
         
-        # Fases em aberto: LEAD, CONTATO, VISITA, PROPOSTA, NEGOCIACAO
         fases_abertas = [
             Oportunidade.Fases.LEAD, 
             Oportunidade.Fases.CONTATO, 
@@ -578,18 +643,15 @@ class RelatoriosView(viewsets.ViewSet):
             Oportunidade.Fases.NEGOCIACAO
         ]
         
-        # Filtra por imobiliária E fase em aberto
         abertas_queryset = Oportunidade.objects.filter(
             imobiliaria=tenant,
             fase__in=fases_abertas
         )
         
-        # Soma o valor estimado
         soma = abertas_queryset.aggregate(
             valor_total_aberto=Sum('valor_estimado')
         )
         
-        # Retorna o resultado (usando 0 se for None)
         valor_total = soma['valor_total_aberto'] if soma['valor_total_aberto'] else 0.00
         
         return {
@@ -603,20 +665,22 @@ class GerarRelatorioVisitaPDFView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def get(self, request, pk, *args, **kwargs):
-        # 1. Busca a visita
-        if request.user.is_superuser:
-            visita = get_object_or_404(Visita, pk=pk)
-        elif request.tenant:
-            visita = get_object_or_404(Visita, pk=pk, imobiliaria=request.tenant)
-        else:
-            return HttpResponse("Visita não encontrada ou acesso negado.", status=404)
+        tenant = getattr(request, 'tenant', None) or getattr(request.user, 'imobiliaria', None)
 
-        # 2. Prepara os dados
+        if request.user.is_superuser:
+            if not tenant:
+                 visita = get_object_or_404(Visita, pk=pk)
+            else:
+                 visita = get_object_or_404(Visita, pk=pk, imobiliaria=tenant)
+        elif tenant:
+            visita = get_object_or_404(Visita, pk=pk, imobiliaria=tenant)
+        else:
+            return HttpResponse("Visita não encontrada ou acesso negado. Tenant não identificado.", status=404)
+
         imoveis = visita.imoveis.all()
         cliente = visita.cliente
         imobiliaria = visita.imobiliaria
         
-        # Busca o corretor responsável pela visita, ou usa o usuário atual se antigo
         corretor = visita.corretor if visita.corretor else request.user
         
         hoje = timezone.now()
@@ -627,14 +691,12 @@ class GerarRelatorioVisitaPDFView(APIView):
             'imobiliaria': imobiliaria,
             'imoveis': imoveis,
             'data_impressao': hoje,
-            'corretor': corretor, # Agora passa o corretor da visita
+            'corretor': corretor,
             'logo_url': None
         }
 
-        # 3. Renderiza o HTML
         html_string = render_to_string('relatorio_visita_template.html', context)
         
-        # 4. Gera o PDF
         result = BytesIO()
         pdf = pisa.pisaDocument(BytesIO(html_string.encode("UTF-8")), result, encoding='UTF-8')
 
