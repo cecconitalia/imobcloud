@@ -66,12 +66,92 @@
             <i class="fas fa-check-circle"></i> Sem necessidade de cartão de crédito
         </p>
 
-        <div class="dashboard-preview">
-          <div class="preview-frame">
-             <div class="preview-content">
-                <div class="preview-placeholder">
-                    <i class="fas fa-chart-pie"></i>
-                    <p>Visão Geral da Sua Imobiliária</p>
+        <div class="dashboard-preview fade-in-up">
+          <div class="browser-frame">
+             <div class="browser-header">
+               <div class="dots">
+                 <span class="dot-red"></span>
+                 <span class="dot-yellow"></span>
+                 <span class="dot-green"></span>
+               </div>
+               <div class="address-bar">imobhome.com.br/dashboard</div>
+             </div>
+             
+             <div class="mockup-container">
+                <div class="mock-sidebar">
+                   <div class="mock-nav-item active"><i class="fas fa-chart-pie"></i></div>
+                   <div class="mock-nav-item"><i class="fas fa-home"></i></div>
+                   <div class="mock-nav-item"><i class="fas fa-users"></i></div>
+                   <div class="mock-nav-item"><i class="fas fa-file-contract"></i></div>
+                   <div class="mock-nav-item"><i class="fas fa-wallet"></i></div>
+                </div>
+
+                <div class="mock-content">
+                   <div class="mock-topbar">
+                      <div class="mock-search"></div>
+                      <div class="mock-user-profile">
+                         <div class="mock-avatar"></div>
+                      </div>
+                   </div>
+
+                   <div class="mock-stats-grid">
+                      <div class="mock-card">
+                         <div class="mock-icon-bg indigo"><i class="fas fa-home"></i></div>
+                         <div class="mock-stat-info">
+                            <span class="label">Imóveis Ativos</span>
+                            <span class="value">142</span>
+                         </div>
+                      </div>
+                      <div class="mock-card">
+                         <div class="mock-icon-bg green"><i class="fas fa-check-circle"></i></div>
+                         <div class="mock-stat-info">
+                            <span class="label">Contratos</span>
+                            <span class="value">28</span>
+                         </div>
+                      </div>
+                      <div class="mock-card">
+                         <div class="mock-icon-bg orange"><i class="fas fa-users"></i></div>
+                         <div class="mock-stat-info">
+                            <span class="label">Novos Leads</span>
+                            <span class="value">+15</span>
+                         </div>
+                      </div>
+                      <div class="mock-card">
+                         <div class="mock-icon-bg blue"><i class="fas fa-dollar-sign"></i></div>
+                         <div class="mock-stat-info">
+                            <span class="label">Receita (Mês)</span>
+                            <span class="value">R$ 12k</span>
+                         </div>
+                      </div>
+                   </div>
+
+                   <div class="mock-panels-grid">
+                      <div class="mock-panel chart-panel">
+                         <div class="mock-panel-header">Desempenho de Vendas</div>
+                         <div class="mock-bars">
+                            <div class="bar" style="height: 40%"></div>
+                            <div class="bar" style="height: 70%"></div>
+                            <div class="bar" style="height: 50%"></div>
+                            <div class="bar active" style="height: 85%"></div>
+                            <div class="bar" style="height: 60%"></div>
+                         </div>
+                      </div>
+                      <div class="mock-panel list-panel">
+                         <div class="mock-panel-header">Últimos Contatos</div>
+                         <div class="mock-list-item">
+                            <div class="mock-avatar-sm"></div>
+                            <div class="mock-line"></div>
+                         </div>
+                         <div class="mock-list-item">
+                            <div class="mock-avatar-sm"></div>
+                            <div class="mock-line"></div>
+                         </div>
+                         <div class="mock-list-item">
+                            <div class="mock-avatar-sm"></div>
+                            <div class="mock-line"></div>
+                         </div>
+                      </div>
+                   </div>
                 </div>
              </div>
           </div>
@@ -397,17 +477,184 @@ a { text-decoration: none; color: inherit; }
 .btn-hero-secondary:hover { background: #f9fafb; border-color: #d1d5db; }
 .btn-hero-secondary i { color: #4f46e5; font-size: 1.2rem; }
 
+/* --- DASHBOARD PREVIEW MOCKUP --- */
 .dashboard-preview {
-  margin-top: 4rem; padding: 0.5rem; background: white;
-  border-radius: 1rem; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
-  max-width: 900px; margin-left: auto; margin-right: auto; border: 1px solid #e5e7eb;
+  margin-top: 4rem;
+  max-width: 1000px;
+  margin-left: auto;
+  margin-right: auto;
+  perspective: 1000px; /* Prepara para animação 3D se quiser */
 }
-.preview-frame {
-  background: #f3f4f6; border-radius: 0.5rem; aspect-ratio: 16/9;
-  display: flex; align-items: center; justify-content: center;
+
+.browser-frame {
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.15), 0 0 0 1px rgba(0,0,0,0.05);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
 }
-.preview-placeholder { text-align: center; color: #9ca3af; }
-.preview-placeholder i { font-size: 4rem; margin-bottom: 1rem; color: #d1d5db; }
+
+/* Barra do Navegador (Browser Header) */
+.browser-header {
+  background: #f1f5f9;
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid #e2e8f0;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.dots { display: flex; gap: 6px; }
+.dot-red { width: 10px; height: 10px; background: #ef4444; border-radius: 50%; }
+.dot-yellow { width: 10px; height: 10px; background: #f59e0b; border-radius: 50%; }
+.dot-green { width: 10px; height: 10px; background: #10b981; border-radius: 50%; }
+
+.address-bar {
+  flex: 1;
+  background: white;
+  padding: 4px 12px;
+  border-radius: 6px;
+  font-size: 0.75rem;
+  color: #94a3b8;
+  text-align: center;
+  border: 1px solid #e2e8f0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.address-bar::before { content: "\f023"; font-family: "Font Awesome 5 Free"; margin-right: 6px; font-weight: 900; font-size: 0.7rem;}
+
+/* Layout Interno do Mockup */
+.mockup-container {
+  display: flex;
+  height: 500px; /* Altura fixa para o preview */
+  background: #f8fafc;
+}
+
+/* Sidebar */
+.mock-sidebar {
+  width: 70px;
+  background: #1e1b4b; /* Azul escuro da marca */
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding-top: 1.5rem;
+  gap: 1.5rem;
+  flex-shrink: 0;
+}
+.mock-nav-item {
+  color: #6366f1;
+  font-size: 1.2rem;
+  cursor: default;
+  padding: 8px;
+  border-radius: 8px;
+}
+.mock-nav-item.active {
+  background: #4f46e5;
+  color: white;
+  box-shadow: 0 4px 6px rgba(0,0,0,0.2);
+}
+
+/* Conteúdo Principal */
+.mock-content {
+  flex: 1;
+  padding: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  overflow: hidden;
+}
+
+/* Topbar Interna */
+.mock-topbar {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 0.5rem;
+}
+.mock-search {
+  width: 200px; height: 32px; background: white; border-radius: 6px; border: 1px solid #e2e8f0;
+}
+.mock-avatar { width: 32px; height: 32px; background: #cbd5e1; border-radius: 50%; }
+
+/* Grid de Stats */
+.mock-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 1rem;
+}
+@media (max-width: 640px) { .mock-stats-grid { grid-template-columns: repeat(2, 1fr); } }
+
+.mock-card {
+  background: white;
+  padding: 1rem;
+  border-radius: 10px;
+  border: 1px solid #f1f5f9;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.02);
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+}
+
+.mock-icon-bg {
+  width: 40px; height: 40px; border-radius: 8px;
+  display: flex; align-items: center; justify-content: center; font-size: 1rem;
+}
+.mock-icon-bg.indigo { background: #e0e7ff; color: #4f46e5; }
+.mock-icon-bg.green { background: #dcfce7; color: #16a34a; }
+.mock-icon-bg.orange { background: #ffedd5; color: #ea580c; }
+.mock-icon-bg.blue { background: #dbeafe; color: #2563eb; }
+
+.mock-stat-info { display: flex; flex-direction: column; }
+.mock-stat-info .label { font-size: 0.65rem; text-transform: uppercase; color: #94a3b8; font-weight: 600; }
+.mock-stat-info .value { font-size: 1.1rem; font-weight: 700; color: #1e293b; }
+
+/* Paineis Inferiores (Gráfico e Lista) */
+.mock-panels-grid {
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  gap: 1rem;
+  flex: 1;
+}
+@media (max-width: 640px) { .mock-panels-grid { grid-template-columns: 1fr; } }
+
+.mock-panel {
+  background: white;
+  border-radius: 10px;
+  border: 1px solid #f1f5f9;
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+}
+.mock-panel-header {
+  font-size: 0.85rem; font-weight: 600; color: #334155; margin-bottom: 1rem;
+}
+
+/* Gráfico Simulado (Barras CSS) */
+.mock-bars {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-around;
+  flex: 1;
+  padding-bottom: 0.5rem;
+}
+.bar {
+  width: 12%;
+  background: #e2e8f0;
+  border-radius: 4px;
+}
+.bar.active { background: #4f46e5; }
+
+/* Lista Simulada */
+.mock-list-item {
+  display: flex; align-items: center; gap: 0.75rem; margin-bottom: 0.75rem;
+}
+.mock-avatar-sm { width: 24px; height: 24px; background: #e2e8f0; border-radius: 50%; }
+.mock-line { height: 8px; width: 70%; background: #f1f5f9; border-radius: 4px; }
+
+/* Animação de Entrada */
+.fade-in-up { animation: fadeInUp 0.8s ease-out forwards; opacity: 0; transform: translateY(20px); }
+@keyframes fadeInUp { to { opacity: 1; transform: translateY(0); } }
 
 /* --- RECURSOS --- */
 .features-section { padding: 5rem 0; background: white; }

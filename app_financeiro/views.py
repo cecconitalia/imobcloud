@@ -22,6 +22,7 @@ from datetime import timedelta, date
 import math
 
 from app_clientes.models import Cliente
+from core.models import Imobiliaria  # Importação necessária para o fallback
 
 try:
     from ImobCloud.utils.formatacao_util import apenas_numeros
@@ -89,9 +90,23 @@ class TransacaoViewSet(viewsets.ModelViewSet):
             return TransacaoSerializer
         return TransacaoListSerializer
 
+    # --- MÉTODO AUXILIAR PARA RESOLVER O TENANT ---
+    def _get_tenant(self):
+        tenant = getattr(self.request, 'tenant', None)
+        if not tenant and hasattr(self.request.user, 'imobiliaria'):
+            tenant = self.request.user.imobiliaria
+        if not tenant:
+            tenant = Imobiliaria.objects.filter(subdominio='imobhome').first()
+        return tenant
+
     def get_queryset(self):
-        # 1. Filtro Base
-        queryset = Transacao.objects.filter(imobiliaria=self.request.tenant)
+        # 1. Filtro Base com Fallback
+        tenant = self._get_tenant()
+        
+        if not tenant:
+            return Transacao.objects.none()
+
+        queryset = Transacao.objects.filter(imobiliaria=tenant)
 
         # 2. Captura os parâmetros
         params = self.request.query_params
@@ -137,7 +152,7 @@ class TransacaoViewSet(viewsets.ModelViewSet):
             if len(doc_limpo) >= 11:
                 clientes_ids = Cliente.objects.filter(
                     documento=doc_limpo, 
-                    imobiliaria=self.request.tenant
+                    imobiliaria=tenant
                 ).values_list('id', flat=True)
                 
                 queryset = queryset.filter(
@@ -157,15 +172,22 @@ class TransacaoViewSet(viewsets.ModelViewSet):
         return queryset.order_by('-id')
 
     def perform_create(self, serializer):
-        serializer.save(imobiliaria=self.request.tenant)
+        tenant = self._get_tenant()
+        if not tenant:
+            raise Exception("Imobiliária não identificada para criar transação.")
+        serializer.save(imobiliaria=tenant)
         
     def perform_update(self, serializer):
+        tenant = self._get_tenant()
+        if not tenant:
+            raise Exception("Imobiliária não identificada para atualizar transação.")
+
         instance = serializer.instance
         status_anterior = instance.status
         novo_status = serializer.validated_data.get('status')
         data_pagamento_receita = serializer.validated_data.get('data_pagamento')
         
-        serializer.save(imobiliaria=self.request.tenant)
+        serializer.save(imobiliaria=tenant)
         
         is_aluguel_pago_agora = (
             instance.tipo == 'RECEITA' and 
@@ -243,7 +265,8 @@ class TransacaoViewSet(viewsets.ModelViewSet):
         despesas = aggregates['total_despesas'] or Decimal(0)
         
         # Pega o nome da imobiliária do tenant atual
-        nome_imobiliaria = getattr(request.tenant, 'nome', 'Imobiliária')
+        tenant = self._get_tenant()
+        nome_imobiliaria = getattr(tenant, 'nome', 'Imobiliária')
         
         return Response({
             'receitas': safe_float_conversion(receitas),
@@ -309,6 +332,16 @@ class TransacaoViewSet(viewsets.ModelViewSet):
 class DREViewAPI(APIView):
     permission_classes = [IsAuthenticated]
     def get(self, request):
+        # Fallback de Tenant para DRE também
+        tenant = getattr(request, 'tenant', None)
+        if not tenant and hasattr(request.user, 'imobiliaria'):
+            tenant = request.user.imobiliaria
+        if not tenant:
+            tenant = Imobiliaria.objects.filter(subdominio='imobhome').first()
+            
+        if not tenant:
+             return Response({"error": "Imobiliária não encontrada."}, status=status.HTTP_400_BAD_REQUEST)
+
         start_date_str = request.query_params.get('start_date')
         end_date_str = request.query_params.get('end_date')
         if not start_date_str or not end_date_str:
@@ -321,7 +354,7 @@ class DREViewAPI(APIView):
             return Response({"error": "Data inválida."}, status=status.HTTP_400_BAD_REQUEST)
         
         queryset = Transacao.objects.filter(
-            imobiliaria=request.tenant, 
+            imobiliaria=tenant, 
             data_pagamento__range=[start_date, end_date], 
             status='PAGO'
         )

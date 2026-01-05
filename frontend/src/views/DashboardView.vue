@@ -41,7 +41,7 @@
       <section class="kpi-grid">
         <div class="kpi-card blue clickable" @click="$router.push('/imoveis')">
           <div class="kpi-content">
-            <span class="kpi-value">{{ geralStats?.imoveis_ativos || 0 }}</span>
+            <span class="kpi-value">{{ geralStats?.total_imoveis || 0 }}</span>
             <span class="kpi-label">Imóveis Ativos</span>
           </div>
           <div class="kpi-icon"><i class="fas fa-home"></i></div>
@@ -49,7 +49,7 @@
 
         <div class="kpi-card purple clickable" @click="$router.push('/clientes')">
           <div class="kpi-content">
-            <span class="kpi-value">{{ geralStats?.clientes_ativos || 0 }}</span>
+            <span class="kpi-value">{{ geralStats?.total_clientes || 0 }}</span>
             <span class="kpi-label">Clientes na Base</span>
           </div>
           <div class="kpi-icon"><i class="fas fa-users"></i></div>
@@ -57,7 +57,7 @@
 
         <div class="kpi-card orange clickable" @click="$router.push('/contratos')">
           <div class="kpi-content">
-            <span class="kpi-value">{{ geralStats?.contratos_ativos || 0 }}</span>
+            <span class="kpi-value">{{ geralStats?.total_contratos_ativos || 0 }}</span>
             <span class="kpi-label">Contratos Vigentes</span>
           </div>
           <div class="kpi-icon"><i class="fas fa-file-signature"></i></div>
@@ -65,8 +65,10 @@
 
         <div class="kpi-card green">
           <div class="kpi-content">
-            <span class="kpi-value">+{{ geralStats?.novos_clientes_30d || 0 }}</span>
-            <span class="kpi-label">Novos (30 dias)</span>
+            <span class="kpi-value" style="font-size: 1.3rem;">
+                {{ formatCurrency(geralStats?.total_a_receber_30d) }}
+            </span>
+            <span class="kpi-label">A Receber (30 dias)</span>
           </div>
           <div class="kpi-icon"><i class="fas fa-chart-line"></i></div>
         </div>
@@ -168,12 +170,12 @@ import { ref, onMounted, computed } from 'vue';
 import apiClient from '@/services/api';
 import '@fortawesome/fontawesome-free/css/all.css';
 
-// --- Interfaces ---
+// --- Interfaces Atualizadas para bater com o Backend ---
 interface GeralStats {
-  imoveis_ativos: number;
-  clientes_ativos: number;
-  contratos_ativos: number;
-  novos_clientes_30d: number;
+  total_imoveis: number;
+  total_clientes: number;
+  total_contratos_ativos: number;
+  total_a_receber_30d: number;
 }
 
 interface FinStats {
@@ -207,13 +209,18 @@ const error = ref<string | null>(null);
 // --- COMPUTED ---
 const saldoMesAtual = computed(() => {
   if (!finStats.value) return 0;
-  return (finStats.value.a_receber.pago_mes_atual || 0) - (finStats.value.a_pagar.pago_mes_atual || 0);
+  // Conversão de segurança caso venha string do backend (embora tenhamos tratado lá)
+  const receita = Number(finStats.value.a_receber.pago_mes_atual) || 0;
+  const despesa = Number(finStats.value.a_pagar.pago_mes_atual) || 0;
+  return receita - despesa;
 });
 
 // --- Helpers ---
-function formatCurrency(value: number | undefined) {
-  if (value === undefined || value === null || isNaN(value)) return 'R$ 0,00';
-  return value.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+function formatCurrency(value: number | string | undefined) {
+  if (value === undefined || value === null || value === '') return 'R$ 0,00';
+  const num = Number(value);
+  if (isNaN(num)) return 'R$ 0,00';
+  return num.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 }
 
 function formatDate(dateStr: string) {

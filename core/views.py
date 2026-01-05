@@ -101,30 +101,34 @@ class DashboardStatsView(APIView):
             user = request.user
             imobiliaria = getattr(request, 'tenant', None)
             
-            # Fallback: Se não veio pelo domínio, pega do cadastro do usuário
-            if not imobiliaria and hasattr(user, 'imobiliaria'):
+            # --- LÓGICA CORRIGIDA DE DETECÇÃO DE IMOBILIÁRIA ---
+            
+            # 1. Tenta pegar do usuário direto
+            if not imobiliaria and hasattr(user, 'imobiliaria') and user.imobiliaria:
                 imobiliaria = user.imobiliaria
 
+            # 2. Tenta pegar do PERFIL do usuário (Igual ao app_contratos)
+            if not imobiliaria and hasattr(user, 'perfil') and user.perfil:
+                imobiliaria = user.perfil.imobiliaria
+
+            # 3. Fallback para Localhost (Força 'imobhome')
+            if not imobiliaria:
+                imobiliaria = Imobiliaria.objects.filter(subdominio='imobhome').first()
+                # 4. Último recurso: pega a primeira do banco
+                if not imobiliaria:
+                    imobiliaria = Imobiliaria.objects.first()
+
             # ==================================================================
-            # ÁREA DE DIAGNÓSTICO (Olhe o seu Terminal/CMD)
-            # ==================================================================
-            print(f"\n--- DEBUG DASHBOARD ---")
-            print(f"Usuário Logado: {user.email} (ID: {user.id})")
-            print(f"Superusuário? {user.is_superuser}")
-            
+            # DEBUG
+            print(f"\n--- DEBUG DASHBOARD CORE ---")
             if imobiliaria:
-                print(f"Imobiliária Vinculada: {imobiliaria.nome_fantasia} (ID: {imobiliaria.id})")
+                print(f"Imobiliária Definida: {imobiliaria.nome} (ID: {imobiliaria.id})")
             else:
-                print("AVISO: Nenhuma Imobiliária vinculada a este request/usuário.")
-
-            # Teste de Contagem Global vs Filtrada
-            total_imoveis_banco = Imovel.objects.count()
-            print(f"Total de Imóveis no Banco inteiro: {total_imoveis_banco}")
+                print("ERRO: Nenhuma imobiliária encontrada.")
             # ==================================================================
 
-            # Se não tiver imobiliária e não for superuser, retorna tudo zerado
+            # Se mesmo assim não achar, retorna zerado (mas não deve acontecer com o fallback acima)
             if not imobiliaria and not user.is_superuser:
-                print("-> Retornando Zeros: Usuário comum sem imobiliária.")
                 return Response({
                     'total_imoveis': 0, 'total_clientes': 0,
                     'total_contratos_ativos': 0, 'total_a_receber_30d': 0,
@@ -136,61 +140,48 @@ class DashboardStatsView(APIView):
             
             # --- 1. IMÓVEIS ---
             try:
+                # Exclui DESATIVADO e VENDIDO (opcional, dependendo da regra de negócio)
                 total_imoveis = Imovel.objects.filter(**filter_kwargs).exclude(status='DESATIVADO').count()
-                print(f"-> Imóveis encontrados para esta imobiliária: {total_imoveis}")
             except Exception as e: 
-                print(f"Erro Imóveis: {e}")
+                print(f"Erro contagem Imóveis: {e}")
                 total_imoveis = 0
             
             # --- 2. CLIENTES ---
             try:
                 total_clientes = Cliente.objects.filter(**filter_kwargs).count()
-                print(f"-> Clientes encontrados: {total_clientes}")
-            except Exception: total_clientes = 0
+            except Exception: 
+                total_clientes = 0
             
             # --- 3. CONTRATOS ---
             try:
-                # Tenta buscar contratos pelo Imóvel
+                # Tenta filtrar diretamente pela imobiliária
                 total_contratos_ativos = Contrato.objects.filter(
-                    imovel__imobiliaria=imobiliaria, 
-                    status='ATIVO'
+                    imobiliaria=imobiliaria, 
+                    status_contrato='ATIVO'
                 ).count()
-            except Exception: 
-                # Fallback direto
-                try:
-                    total_contratos_ativos = Contrato.objects.filter(imobiliaria=imobiliaria, status='ATIVO').count()
-                except:
-                    total_contratos_ativos = 0
+            except Exception as e: 
+                print(f"Erro contagem Contratos: {e}")
+                total_contratos_ativos = 0
             
-            # --- 4. FINANCEIRO ---
+            # --- 4. FINANCEIRO (A Receber 30 dias) ---
             total_a_receber = 0
             try:
                 hoje = timezone.now().date()
                 trinta_dias = hoje + timedelta(days=30)
                 
                 if imobiliaria:
+                    # Filtra pagamentos pendentes de contratos ATIVOS dessa imobiliária
                     pagamentos_qs = Pagamento.objects.filter(
-                        contrato__imovel__imobiliaria=imobiliaria,
-                        tipo='RECEITA', 
+                        contrato__imobiliaria=imobiliaria,
                         status='PENDENTE',
                         data_vencimento__gte=hoje, 
                         data_vencimento__lte=trinta_dias
                     )
                     soma = pagamentos_qs.aggregate(Sum('valor'))['valor__sum']
                     total_a_receber = soma if soma else 0
-            except Exception:
-                try:
-                    pagamentos_qs = Pagamento.objects.filter(
-                        contrato__imobiliaria=imobiliaria,
-                        tipo='RECEITA', status='PENDENTE',
-                        data_vencimento__gte=hoje, data_vencimento__lte=trinta_dias
-                    )
-                    soma = pagamentos_qs.aggregate(Sum('valor'))['valor__sum']
-                    total_a_receber = soma if soma else 0
-                except:
-                    total_a_receber = 0
-
-            print(f"--- FIM DEBUG ---\n")
+            except Exception as e:
+                print(f"Erro Financeiro Dashboard: {e}")
+                total_a_receber = 0
 
             return Response({
                 'total_imoveis': total_imoveis,
