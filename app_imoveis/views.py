@@ -1191,6 +1191,7 @@ def _get_autorizacao_queryset(tenant, query_params):
              finalidade_display = imovel.get_status_display()
 
         data_list.append({
+            'id': imovel.id, # CORREÇÃO: Adicionado ID para o frontend
             'codigo': imovel.codigo_referencia,
             'titulo': imovel.titulo_anuncio,
             'endereco_resumido': f"{imovel.logradouro or ''}, {imovel.numero or ''}",

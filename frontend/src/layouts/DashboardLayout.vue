@@ -9,9 +9,13 @@
     >
       <div class="sidebar-header">
         <div class="brand-wrapper">
-          <div class="brand-icon-circle">
+          <div v-if="logoUrl" class="brand-logo-container">
+             <img :src="logoUrl" alt="Logo" class="brand-logo-img" />
+          </div>
+          <div v-else class="brand-icon-circle">
              <i class="fas fa-laptop-house"></i>
           </div>
+          
           <span class="brand-text">ImobHome</span>
         </div>
         
@@ -140,7 +144,8 @@
           <div class="user-dropdown-container">
             <div class="user-profile" @click.stop="toggleUserMenu">
               <div class="avatar-circle">
-                <span>{{ userInitials }}</span>
+                <img v-if="userAvatar" :src="userAvatar" alt="Avatar" class="w-full h-full object-cover rounded-full" />
+                <span v-else>{{ userInitials }}</span>
               </div>
               <span class="user-name-label">{{ userName }}</span>
               <i class="fas fa-chevron-down profile-arrow" :class="{ 'rotated': isUserMenuOpen }"></i>
@@ -150,6 +155,7 @@
               <div v-if="isUserMenuOpen" class="account-menu">
                 <div class="account-menu-header">
                   <span class="user-name-full">{{ userNameFull }}</span>
+                  <span class="user-role-label">{{ userRole }}</span>
                 </div>
                 <div class="account-menu-body">
                   <button class="menu-item">
@@ -199,27 +205,39 @@ const currentUser = ref<any>(null);
 
 // --- DADOS DINÂMICOS ROBUSTOS ---
 const tenantName = computed(() => {
-    // 1. Tenta pegar dos dados frescos
-    let imob = currentUser.value?.imobiliaria;
-    
-    // 2. Tenta pegar do cache
-    if (!imob) imob = authStore.user?.imobiliaria;
-    
-    // 3. Se for objeto válido, retorna o nome (SUCESSO)
-    if (imob && typeof imob === 'object') {
-        const nome = imob.nome_fantasia || imob.razao_social || imob.nome;
-        if (nome) return nome;
+    // 1. Prioridade absoluta: Dados frescos do Backend
+    if (currentUser.value && currentUser.value.imobiliaria_nome) {
+        return currentUser.value.imobiliaria_nome;
     }
     
-    // 4. Se ainda for apenas um ID numérico, tentamos mostrar isso temporariamente
-    if (typeof imob === 'number') {
-        return `Empresa ID: ${imob}`;
+    // 2. Dados do Store
+    if (authStore.user && authStore.user.imobiliaria_nome) {
+        return authStore.user.imobiliaria_nome;
+    }
+    if (authStore.imobiliariaName && authStore.imobiliariaName !== 'null') {
+        return authStore.imobiliariaName;
     }
 
-    // 5. Fallback final
-    if (currentUser.value?.first_name) return `${currentUser.value.first_name} (Admin)`;
-    
+    // 3. Fallback seguro
     return 'Painel Imobiliário';
+});
+
+// Nota: tenantNameTruncated não é mais usado no template, mas mantido se precisar reverter
+const tenantNameTruncated = computed(() => {
+    const name = tenantName.value;
+    if (name.length > 15) return name.substring(0, 15) + '...';
+    return name;
+});
+
+const logoUrl = computed(() => {
+    // Tenta pegar a logo do objeto de usuário atualizado
+    if (currentUser.value && currentUser.value.imobiliaria_foto) {
+        return currentUser.value.imobiliaria_foto;
+    }
+    if (authStore.user && authStore.user.imobiliaria_foto) {
+        return authStore.user.imobiliaria_foto;
+    }
+    return null;
 });
 
 const userNameFull = computed(() => {
@@ -234,7 +252,19 @@ const userName = computed(() => userNameFull.value.split(' ')[0]);
 const userInitials = computed(() => {
     const name = userNameFull.value;
     if (!name || name === 'Carregando...') return '-';
-    return name.substring(0, 2).toUpperCase();
+    return name.substring(0, 1).toUpperCase();
+});
+
+const userAvatar = computed(() => {
+    const u = currentUser.value || authStore.user;
+    return u?.foto || null;
+});
+
+const userRole = computed(() => {
+    const u = currentUser.value || authStore.user;
+    if (u?.is_superuser || u?.is_admin) return 'Administrador';
+    if (u?.is_corretor) return 'Corretor';
+    return 'Usuário';
 });
 
 // --- Estados Layout ---
@@ -304,51 +334,28 @@ watch(() => route.fullPath, () => {
   isUserMenuOpen.value = false;
 });
 
-// --- NOVA ESTRATÉGIA DE BUSCA ---
+// --- BUSCA DE DADOS OTIMIZADA ---
 async function fetchUserData() {
     try {
-        // 1. Busca os dados básicos (que retornam ID da imobiliária)
         const response = await api.get('/v1/core/usuarios/me/');
-        let userData = response.data;
+        const userData = response.data;
         
-        console.log("Dados Iniciais do Usuário:", userData);
-
-        // Se a imobiliária for apenas um NÚMERO e não temos a rota de detalhe...
-        if (userData.imobiliaria && typeof userData.imobiliaria === 'number') {
-            const imobId = userData.imobiliaria;
-            
-            // ESTRATÉGIA NOVA: Buscar na LISTA DE USUÁRIOS
-            // A lista de usuários geralmente expande os dados para mostrar na tabela
-            try {
-                // Buscamos pelo email do usuário atual
-                const listResp = await api.get(`/v1/core/usuarios/?search=${userData.email}`);
-                const results = listResp.data.results || listResp.data;
-                
-                if (Array.isArray(results) && results.length > 0) {
-                    // Encontramos o nosso próprio usuário na lista
-                    const meInList = results.find((u: any) => u.id === userData.id) || results[0];
-                    
-                    if (meInList && meInList.imobiliaria && typeof meInList.imobiliaria === 'object') {
-                        // BINGO! A lista tem o objeto completo
-                        console.log("Recuperado objeto imobiliária via Lista de Usuários:", meInList.imobiliaria);
-                        userData.imobiliaria = meInList.imobiliaria;
-                    }
-                }
-            } catch (searchErr) {
-                console.warn("Falha ao buscar detalhes via lista de usuários:", searchErr);
-            }
-        }
+        console.log("Dashboard: Dados atualizados do usuário:", userData);
         
         currentUser.value = userData;
-        if (authStore.setUser) authStore.setUser(userData);
+        
+        // Atualiza a store global para persistência
+        if (authStore.setUser) {
+            authStore.setUser(userData, null, userData.imobiliaria_nome);
+        }
 
     } catch (e) {
-        console.error("Erro fatal ao carregar usuário:", e);
+        console.error("Erro ao carregar dados do usuário no Dashboard:", e);
     }
 }
 
 onMounted(() => {
-  fetchUserData(); // Dispara a busca
+  fetchUserData(); // Garante dados frescos ao montar
   handleResize();
   window.addEventListener('resize', handleResize);
   window.addEventListener('click', closeMenus);
@@ -420,9 +427,9 @@ onUnmounted(() => {
 .sidebar-header { height: 70px; display: flex; align-items: center; padding: 0 1.5rem; white-space: nowrap; transition: padding var(--transition-speed); }
 .dashboard-layout.sidebar-collapsed .sidebar:not(.sidebar-hover-expanded) .sidebar-header { padding: 0; justify-content: center; }
 
-.brand-wrapper { display: flex; align-items: center; gap: 0.75rem; }
+.brand-wrapper { display: flex; align-items: center; gap: 0.75rem; width: 100%; overflow: hidden; }
 
-/* CORREÇÃO: Estilo do Ícone de Logo (Substituto da imagem) */
+/* Ícone de Marca (Placeholder) */
 .brand-icon-circle {
     width: 40px; height: 40px;
     background: var(--primary-gradient);
@@ -430,9 +437,19 @@ onUnmounted(() => {
     display: flex; align-items: center; justify-content: center;
     color: white; font-size: 1.2rem;
     box-shadow: 0 4px 6px rgba(0,123,255,0.2);
+    flex-shrink: 0;
 }
 
-.brand-text { font-size: 1.25rem; font-weight: 800; color: #111827; letter-spacing: -0.02em; }
+/* Container para Imagem da Logo */
+.brand-logo-container {
+    height: 40px; width: auto; max-width: 180px;
+    display: flex; align-items: center;
+}
+.brand-logo-img {
+    height: 100%; width: auto; object-fit: contain;
+}
+
+.brand-text { font-size: 1.25rem; font-weight: 800; color: #111827; letter-spacing: -0.02em; overflow: hidden; text-overflow: ellipsis; }
 
 /* Conteúdo Sidebar */
 .sidebar-content { flex: 1; overflow-y: auto; overflow-x: hidden; padding: 1.5rem 0.75rem; scrollbar-width: thin; }
@@ -473,7 +490,7 @@ onUnmounted(() => {
 }
 .dashboard-layout.sidebar-collapsed .main-wrapper { margin-left: var(--sidebar-width-collapsed); }
 
-/* --- TOP HEADER (ESTILO NOVO) --- */
+/* --- TOP HEADER --- */
 .top-header {
   height: var(--header-height); background: #fff;
   border-bottom: 1px solid #f0f0f0;
@@ -491,7 +508,7 @@ onUnmounted(() => {
 }
 .sys-name { font-weight: 700; color: #d1d5db; } /* Cinza Claro */
 .sys-divider { color: #e5e7eb; font-weight: 300; }
-.tenant-name { font-weight: 300; color: #374151; text-transform: uppercase; } /* Fino */
+.tenant-name { font-weight: 600; color: #374151; text-transform: uppercase; font-size: 0.85rem; } 
 
 .header-right { display: flex; align-items: center; gap: 1.5rem; }
 
@@ -499,14 +516,16 @@ onUnmounted(() => {
 .user-dropdown-container { position: relative; }
 .user-profile { display: flex; align-items: center; gap: 0.5rem; cursor: pointer; padding: 0.25rem; border-radius: 50px; transition: background 0.2s; }
 .user-profile:hover { background-color: #f3f4f6; }
-.avatar-circle { width: 32px; height: 32px; background: linear-gradient(135deg, #2563eb, #1e40af); border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-size: 0.75rem; font-weight: 600; }
+.avatar-circle { width: 32px; height: 32px; background: linear-gradient(135deg, #2563eb, #1e40af); border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-size: 0.75rem; font-weight: 600; overflow: hidden; }
 .user-name-label { font-size: 0.85rem; color: #4b5563; font-weight: 500; }
 .profile-arrow { font-size: 0.8rem; color: var(--text-muted); transition: transform 0.2s; }
 .profile-arrow.rotated { transform: rotate(180deg); }
 
 .account-menu { position: absolute; top: calc(100% + 10px); right: 0; width: 220px; background: #fff; border-radius: 12px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); border: 1px solid var(--border-color); overflow: hidden; z-index: 100; }
-.account-menu-header { padding: 1rem; background-color: #f9fafb; border-bottom: 1px solid var(--border-color); }
+.account-menu-header { padding: 1rem; background-color: #f9fafb; border-bottom: 1px solid var(--border-color); display: flex; flex-direction: column; }
 .user-name-full { font-size: 0.9rem; font-weight: 600; color: #111827; }
+.user-role-label { font-size: 0.75rem; color: var(--text-muted); margin-top: 0.2rem; }
+
 .account-menu-body { padding: 0.5rem; }
 .menu-item { width: 100%; display: flex; align-items: center; gap: 0.75rem; padding: 0.7rem 0.75rem; border: none; background: transparent; border-radius: 8px; cursor: pointer; color: var(--text-main); font-size: 0.9rem; transition: background 0.2s; }
 .menu-item:hover { background-color: #f3f4f6; }

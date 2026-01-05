@@ -32,14 +32,40 @@ export const useAuthStore = defineStore('auth', {
       api.defaults.headers.common['Authorization'] = `Bearer ${token}`;
     },
 
-    setUser(user: any, cargo: string, imobiliaria: string) {
+    setUser(user: any, cargo: string | null, imobiliaria: string | null) {
+      // --- LÓGICA DE CORREÇÃO AUTOMÁTICA DE CARGO ---
+      let finalCargo = cargo;
+
+      if (!finalCargo && user) {
+          if (user.is_superuser) {
+              finalCargo = 'SUPERADMIN';
+          } 
+          // CORREÇÃO: Aceita 'is_staff' (padrão Django) ou 'is_admin'
+          else if (user.is_admin || user.is_staff) {
+              finalCargo = 'ADMIN';
+          } 
+          else if (user.is_corretor) {
+              finalCargo = 'CORRETOR';
+          } else {
+              finalCargo = 'USUARIO';
+          }
+          console.log("AuthStore: Cargo detectado automaticamente:", finalCargo);
+      }
+      // ------------------------------------------------
+
       this.user = user;
-      this.userCargo = cargo;
+      this.userCargo = finalCargo;
       this.imobiliariaName = imobiliaria;
       
       localStorage.setItem('userData', JSON.stringify(user));
-      localStorage.setItem('userCargo', cargo);
-      localStorage.setItem('imobiliariaName', imobiliaria);
+      
+      if (finalCargo) {
+          localStorage.setItem('userCargo', finalCargo);
+      }
+      
+      if (imobiliaria) {
+          localStorage.setItem('imobiliariaName', imobiliaria);
+      }
     },
 
     logout() {
@@ -65,6 +91,12 @@ export const useAuthStore = defineStore('auth', {
         const token = localStorage.getItem('authToken');
         if (token) {
             this.setToken(token);
+        }
+        
+        // Garante que o cargo seja lido do localStorage na inicialização
+        const cargo = localStorage.getItem('userCargo');
+        if (cargo) {
+            this.userCargo = cargo;
         }
     }
   },

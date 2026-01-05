@@ -6,74 +6,79 @@ from django.contrib.auth import get_user_model
 from core.models import PerfilUsuario, Notificacao, Imobiliaria
 from django.db import transaction
 
-User = get_user_model() # PerfilUsuario
+# Obtém o modelo de usuário ativo (PerfilUsuario)
+User = get_user_model()
 
 class MyTokenObtainPairSerializer(TokenObtainPairSerializer):
     """
     Personaliza o serializer de token para adicionar o subdomínio da imobiliária,
     o cargo e o nome do utilizador na resposta do login.
-    
-    CORRIGIDO: Acessa os campos diretamente, pois PerfilUsuario agora é AbstractUser.
     """
     def validate(self, attrs):
-        data = super().validate(attrs) # Valida e autentica o usuário (self.user é setado aqui)
+        # Valida e autentica o usuário (self.user é definido aqui)
+        data = super().validate(attrs)
 
         # Adiciona o nome do usuário para ser usado no frontend
+        # Tenta pegar o primeiro nome, senão usa o username
         data['user_name'] = self.user.first_name or self.user.username
+        data['user_id'] = self.user.id
 
-        # Lógica para determinar o cargo (Acessando campos diretamente)
+        # Lógica para determinar o cargo (Acessando campos diretamente no User)
         cargo = 'USER'
         
         if self.user.is_superuser:
-             cargo = 'SUPERADMIN' # Nome mais claro para superusuario
-        elif self.user.is_admin: # Acessando diretamente
+             cargo = 'SUPERADMIN'
+        elif self.user.is_admin:
              cargo = 'ADMIN'
-        elif self.user.is_corretor: # Acessando diretamente
+        elif self.user.is_corretor:
              cargo = 'CORRETOR'
         
         data['cargo'] = cargo
 
-        # Dados da Imobiliária (Acessando campos diretamente)
+        # Dados da Imobiliária (Acessando diretamente no User)
         if self.user.imobiliaria:
             data['subdomain'] = self.user.imobiliaria.subdominio
+            # CORREÇÃO: Usa 'nome' pois 'nome_fantasia' não existe no model
             data['imobiliaria_name'] = self.user.imobiliaria.nome
+            data['imobiliaria_id'] = self.user.imobiliaria.id
         else:
             data['subdomain'] = None
             data['imobiliaria_name'] = 'Superuser' if self.user.is_superuser else 'N/A'
+            data['imobiliaria_id'] = None
 
         return data
 
-# SERIALIZER PARA O MODELO NOTIFICACAO
 class NotificacaoSerializer(serializers.ModelSerializer):
     class Meta:
         model = Notificacao
         fields = ['id', 'mensagem', 'lida', 'data_criacao', 'link']
 
-
-# PerfilUsuarioSerializer agora não é mais um serializer aninhado, 
-# mas uma representação dos campos de perfil adicionais. 
-# O CorretorRegistrationSerializer irá manipular todos os campos.
-
-# REMOVEMOS O PerfilUsuarioSerializer pois os campos agora estão no User.
-
-
 class CorretorRegistrationSerializer(serializers.ModelSerializer):
-    # Todos os campos de perfil (is_admin, is_corretor, creci, etc.) 
-    # estão diretamente no modelo User (PerfilUsuario).
-
+    """
+    Serializer para criação e atualização de usuários (Corretores/Admins).
+    Manipula a senha e a associação com a imobiliária (tenant).
+    """
     password = serializers.CharField(write_only=True, min_length=8, required=False)
     
-    # Campos customizados para registro (mantidos para clareza)
-    is_admin = serializers.BooleanField(required=False)
-    is_corretor = serializers.BooleanField(required=False)
+    # Campos booleanos explícitos para controle de permissão
+    is_admin = serializers.BooleanField(required=False, default=False)
+    is_corretor = serializers.BooleanField(required=False, default=True)
 
     class Meta:
         model = User
         fields = [
-            'id', 'username', 'first_name', 'last_name', 'email', 'password', 
-            'is_admin', 'is_corretor', 
-            'creci', 'telefone', 'assinatura',
-            # Adicione aqui outros campos que você deseja permitir no registro
+            'id', 
+            'username', 
+            'first_name', 
+            'last_name', 
+            'email', 
+            'password', 
+            'is_admin', 
+            'is_corretor', 
+            'creci', 
+            'telefone', 
+            'assinatura'
+            # Removido 'foto' pois não existe no model PerfilUsuario
         ]
         extra_kwargs = {
             'username': {'required': True},
@@ -83,24 +88,31 @@ class CorretorRegistrationSerializer(serializers.ModelSerializer):
     
     @transaction.atomic
     def create(self, validated_data):
-        # Campos customizados
+        # Remove campos especiais do validated_data para tratar separadamente
+        password = validated_data.pop('password', None)
         is_admin = validated_data.pop('is_admin', False)
-        is_corretor = validated_data.pop('is_corretor', False)
-        password = validated_data.pop('password')
+        is_corretor = validated_data.pop('is_corretor', True)
         
-        # Cria o usuário PerfilUsuario (AbstractUser)
-        user = User.objects.create_user(
-            **validated_data
-        )
+        # Tenta obter a imobiliária do request (middleware tenant)
+        # Se for superuser criando sem tenant, isso pode ser None
+        imobiliaria = None
+        request = self.context.get('request')
+        if request and hasattr(request, 'tenant'):
+            imobiliaria = request.tenant
+
+        # Cria a instância do usuário mas não salva ainda no banco
+        user = User(**validated_data)
         
-        # Define os campos customizados (agora que são diretos)
+        # Define a senha com hash
+        if password:
+            user.set_password(password)
+        
+        # Define os atributos
         user.is_admin = is_admin
         user.is_corretor = is_corretor
-        user.imobiliaria = self.context['request'].tenant # Associa o tenant
-        user.set_password(password)
+        user.imobiliaria = imobiliaria
+        
         user.save()
-
-        # REMOVEMOS: PerfilUsuario.objects.create(user=user, ...)
         
         return user
     
@@ -108,36 +120,59 @@ class CorretorRegistrationSerializer(serializers.ModelSerializer):
     def update(self, instance, validated_data):
         password = validated_data.pop('password', None)
         
-        # Atualiza campos do PerfilUsuario (que é o User)
+        # Atualiza os campos normais
         for attr, value in validated_data.items():
             setattr(instance, attr, value)
             
+        # Se houver senha nova, faz o hash e salva
         if password:
             instance.set_password(password)
             
         instance.save()
-
-        # REMOVEMOS TODA A LÓGICA DE ATUALIZAÇÃO DO PERFIL SEPARADO
         return instance
 
-
 class CorretorDisplaySerializer(serializers.ModelSerializer):
-    # Mostra os campos diretamente
-    cargo = serializers.CharField(source='cargo_display', read_only=True) # Usa o @property do model
-    
+    """
+    Serializer apenas para leitura/exibição de dados do usuário.
+    """
+    # Usa a property 'cargo_display' do model se existir, ou calcula no frontend
+    cargo = serializers.SerializerMethodField()
+    # CORREÇÃO: Usa 'nome' em vez de 'nome_fantasia'
+    imobiliaria_nome = serializers.CharField(source='imobiliaria.nome', read_only=True)
+
     class Meta:
         model = User
         fields = [
-            'id', 'username', 'first_name', 'last_name', 'email', 'cargo', 
-            'is_admin', 'is_corretor', 'creci', 'telefone', 'assinatura',
-            'imobiliaria' # Incluir FK da imobiliária
+            'id', 
+            'username', 
+            'first_name', 
+            'last_name', 
+            'email', 
+            'cargo', 
+            'is_admin', 
+            'is_corretor', 
+            'creci', 
+            'telefone', 
+            'assinatura',
+            'imobiliaria',
+            'imobiliaria_nome'
+            # Removido 'foto'
         ]
+
+    def get_cargo(self, obj):
+        if obj.is_superuser:
+            return 'Super Admin'
+        if obj.is_admin:
+            return 'Administrador'
+        if obj.is_corretor:
+            return 'Corretor'
+        return 'Usuário'
 
 class ImobiliariaIntegracaoSerializer(serializers.ModelSerializer):
     class Meta:
         model = Imobiliaria
         fields = [
-            'facebook_user_access_token', # Adicionado de volta
+            'facebook_user_access_token',
             'facebook_page_id',
             'facebook_page_access_token',
             'instagram_business_account_id',
@@ -146,4 +181,5 @@ class ImobiliariaIntegracaoSerializer(serializers.ModelSerializer):
 class ImobiliariaPublicSerializer(serializers.ModelSerializer):
     class Meta:
         model = Imobiliaria
+        # CORREÇÃO: Ajustado para usar apenas campos existentes no model Imobiliaria
         fields = ['nome', 'cor_primaria']

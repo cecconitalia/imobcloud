@@ -391,3 +391,19 @@ LOGGING = {
 # Para testes locais com Instagram, use a URL do Ngrok atual.
 # ATUALIZE ESTA LINHA SEMPRE QUE REINICIAR O NGROK
 SITE_URL = "https://6595c62c5f39.ngrok-free.app"
+
+# Pega as configurações do .env ou usa valores padrão/seguros
+EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+EMAIL_HOST = 'smtp.gmail.com'
+EMAIL_PORT = 587
+EMAIL_USE_TLS = True
+
+# Estes valores DEVEM estar no seu arquivo .env
+EMAIL_HOST_USER = os.getenv('EMAIL_HOST_USER') 
+EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD')
+DEFAULT_FROM_EMAIL = os.getenv('DEFAULT_FROM_EMAIL', 'ImobHome <no-reply@imobhome.com.br>')
+
+# Fallback: Se não tiver senha no .env, usa Console para não dar erro 500 no envio
+if not EMAIL_HOST_PASSWORD:
+    print("AVISO: EMAIL_HOST_PASSWORD não encontrado no .env. Usando Console Email Backend.")
+    EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'

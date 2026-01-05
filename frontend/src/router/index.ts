@@ -1,7 +1,7 @@
 // frontend/src/router/index.ts
 
 import { createRouter, createWebHistory } from 'vue-router'
-import { useAuthStore } from '@/stores/auth' // CORRIGIDO: Removido .ts para compatibilidade padrão
+import { useAuthStore } from '@/stores/auth' 
 
 // Importações dos layouts
 import DashboardLayout from '@/layouts/DashboardLayout.vue'
@@ -75,16 +75,27 @@ declare module 'vue-router' {
 const router = createRouter({
     history: createWebHistory(import.meta.env.BASE_URL),
     routes: [
-        // --- ROTAS DO SITE PÚBLICO ---
+        // --- 1. ROTA RAIZ (AGORA É A LANDING PAGE) ---
+        {
+            path: '/',
+            name: 'public-home',
+            component: PublicHomeView,
+            meta: { 
+                title: 'Início - ImobHome',
+                requiresAuth: false // Explícito: não requer login
+            }
+        },
+
+        // --- 2. SITE DE IMÓVEIS (SUBDOMÍNIO) ---
         {
             path: '/site',
             component: PublicLayout,
             children: [
                 {
-                    path: '',
-                    name: 'public-home',
-                    component: PublicHomeView,
-                    meta: { title: 'Início' }
+                    path: '', // /site redireciona para a home pública também se necessário, ou lista de imóveis
+                    name: 'site-home',
+                    component: PublicHomeView, // Reutilizando a home ou criar uma específica
+                    meta: { title: 'Imóveis' }
                 },
                 {
                     path: 'imovel/:id',
@@ -95,23 +106,26 @@ const router = createRouter({
             ]
         },
 
-        // --- ROTAS DO PAINEL DE GESTÃO ---
+        // --- 3. LOGIN ---
         {
             path: '/login',
             name: 'login',
             component: LoginView,
             meta: {
-                title: 'Login'
+                title: 'Login',
+                requiresAuth: false
             }
         },
+
+        // --- 4. PAINEL DE GESTÃO (MOVIDO DE '/' PARA '/painel') ---
         {
-            path: '/',
+            path: '/', // MUDANÇA IMPORTANTE: Prefixo para área logada
             component: DashboardLayout,
-            meta: { requiresAuth: true },
+            meta: { requiresAuth: true }, // Proteção continua aqui
             children: [
                 {
                     path: '',
-                    redirect: '/dashboard'
+                    redirect: '/dashboard' // Redirecionamento interno
                 },
                 {
                     path: 'dashboard',
@@ -235,7 +249,7 @@ const router = createRouter({
                     }
                 },
                 {
-                    path: 'contratos/editar/:id', // Edição do FORMULÁRIO de dados
+                    path: 'contratos/editar/:id',
                     name: 'contrato-editar',
                     component: ContratoFormView,
                     meta: {
@@ -250,7 +264,7 @@ const router = createRouter({
                     meta: { title: 'Detalhes do Contrato', requiresAuth: true }
                 },
                 {
-                    path: 'contratos/editar-documento/:id', // Edição do DOCUMENTO HTML
+                    path: 'contratos/editar-documento/:id',
                     name: 'contrato-editar-documento',
                     component: ContratoEditorView,
                     meta: {
@@ -258,10 +272,7 @@ const router = createRouter({
                         requiresAuth: true
                     }
                 },
-                
-                // ===========================================
                 // === ROTAS DE VISTORIA ===
-                // ===========================================
                 { 
                     path: 'vistorias', 
                     name: 'vistorias', 
@@ -290,13 +301,12 @@ const router = createRouter({
                     }
                 },
                 {
-                    path: 'vistorias/checklist/:id', // URL com ID da vistoria
+                    path: 'vistorias/checklist/:id',
                     name: 'vistoria-checklist',
                     component: VistoriaAmbientesView,
                     meta: { title: 'Executar Vistoria', requiresAuth: true }
                 },
-                // ===========================================
-
+                // ==========================
                 {
                     path: 'visitas',
                     name: 'visitas',
@@ -463,7 +473,7 @@ const router = createRouter({
                 {
                     path: 'financeiro',
                     name: 'financeiro',
-                    redirect: '/financeiro/dashboard',
+                    redirect: '/dashboard', // Ajustado para incluir /painel
                 },
                 {
                     path: 'financeiro/dashboard',
@@ -641,56 +651,74 @@ const router = createRouter({
         // Rota de fallback
         {
             path: '/:pathMatch(.*)*',
-            redirect: '/login'
+            redirect: '/' // Redireciona para a Home (PublicHomeView) se não encontrar
         }
     ]
 })
 
 router.beforeEach((to, from, next) => {
-    // Tenta usar o store de autenticação, se existir
+    // Diagnóstico
+    console.log(`[Router] Navegando para: ${String(to.name)}, Path: ${to.path}`);
+
     let authStore: any;
     try {
-      authStore = useAuthStore();
+        authStore = useAuthStore();
     } catch (e) {
-      console.warn("Pinia/Vuex store não carregado.");
+        // Ignora
     }
-    
 
-    document.title = `${to.meta.title || 'ImobCloud'}`
+    document.title = `${to.meta.title || 'ImobHome'}`;
 
-    const requiresAuth = to.matched.some(record => record.meta.requiresAuth)
+    // Verifica explicitamente se a rota requer auth (true)
+    const requiresAuth = to.matched.some(record => record.meta.requiresAuth === true);
     
-    // Usa o store ou localStorage como fallback
-    let isAuthenticated = authStore ? authStore.isAuthenticated : !!localStorage.getItem('authToken');
-    let currentCargo = authStore ? authStore.userCargo : localStorage.getItem('userCargo');
+    // Recupera dados
+    let isAuthenticated = false;
+    let currentCargo: string | null = null;
+    let isSuperUser = false;
 
-    // Tenta revalidar se autenticado, mas store não tem info (caso de refresh)
-    if (!isAuthenticated && localStorage.getItem('authToken')) {
-         isAuthenticated = true;
-         // Se o token existe, talvez o store precise ser re-hidratado.
-    }
-    
-    // Define o cargo de volta se o store não o pegou na inicialização
-    if (!currentCargo) {
+    // 1. Tenta pegar do Store
+    if (authStore && authStore.token) {
+        isAuthenticated = true;
+        currentCargo = authStore.userCargo;
+        isSuperUser = authStore.user?.is_superuser === true; 
+    } else {
+        // 2. Tenta pegar do LocalStorage
+        const token = localStorage.getItem('authToken');
+        isAuthenticated = !!token;
         currentCargo = localStorage.getItem('userCargo');
+        
+        try {
+            const storedUser = JSON.parse(localStorage.getItem('userData') || '{}');
+            isSuperUser = storedUser?.is_superuser === true;
+        } catch (e) {
+            isSuperUser = false;
+        }
     }
 
+    if (isAuthenticated && authStore && !authStore.token) {
+        authStore.initialize(); 
+    }
 
+    // --- LÓGICA DE PROTEÇÃO DE ROTAS ---
     if (requiresAuth && !isAuthenticated) {
-        next({ name: 'login' })
+        // Se tenta acessar rota protegida (ex: /painel/...) sem login -> vai para Login
+        next({ name: 'login' });
     } else if (to.name === 'login' && isAuthenticated) {
-        next({ name: 'dashboard' })
-    } else if (isAuthenticated) {
-        // Verificação de permissão de administrador
-        if (to.meta.isAdmin && currentCargo !== 'ADMIN' && currentCargo !== 'SUPERADMIN') {
-            alert("Você não tem permissão para aceder a esta página.")
-            next({ name: 'dashboard' })
+        // Se já está logado e tenta ir para Login -> vai para Dashboard
+        next({ name: 'dashboard' });
+    } else if (isAuthenticated && to.meta.isAdmin) {
+        // Proteção de rotas Admin
+        if (currentCargo === 'ADMIN' || currentCargo === 'SUPERADMIN') {
+            next();
         } else {
-            next()
+            console.warn(`Acesso negado. Rota exige ADMIN/SUPERADMIN.`);
+            next({ name: 'dashboard' });
         }
     } else {
-        next()
+        // Rotas públicas (como /, /login, /site) passam direto
+        next();
     }
-})
+});
 
 export default router

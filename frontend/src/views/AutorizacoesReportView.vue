@@ -179,7 +179,12 @@
                     <button class="btn-action edit" @click="editAutorizacao(item.id)" title="Editar Imóvel">
                         <i class="fas fa-pen"></i>
                     </button>
-                    <button class="btn-action pdf" @click="downloadIndividualPdf(item.id)" title="Baixar PDF Individual">
+                    <button 
+                        class="btn-action pdf" 
+                        @click="downloadIndividualPdf(item.id)" 
+                        title="Baixar PDF Individual"
+                        :disabled="!item.id"
+                    >
                         <i class="fas fa-file-pdf"></i>
                     </button>
                 </div>
@@ -250,8 +255,13 @@ const fetchAutorizacoes = async () => {
   try {
     const response = await api.get('/v1/imoveis/relatorio/autorizacoes/'); 
     
+    // Log para diagnóstico (verifique no console F12 se o campo ID está vindo como 'id', 'pk' ou 'imovel_id')
+    console.log("Dados de Autorizações Recebidos:", response.data);
+
     rawList.value = response.data.map((item: any) => ({
-      id: item.id || 0,
+      // Correção Principal: Tenta buscar id, pk ou imovel_id
+      id: item.id || item.pk || item.imovel_id || 0,
+      
       codigo: item.codigo_referencia || item.codigo || '?',
       endereco: item.titulo_anuncio || item.endereco_completo || item.endereco_resumido || 'Endereço não informado',
       proprietario: item.proprietario_nome || item.proprietario || 'N/A',
@@ -341,13 +351,25 @@ const getDaysClass = (days: number) => {
     return 'text-green font-bold';
 }
 
-const editAutorizacao = (id: number) => router.push({ name: 'imovel-editar', params: { id } });
+const editAutorizacao = (id: number) => {
+    if (!id) {
+        alert("ID do imóvel inválido.");
+        return;
+    }
+    router.push({ name: 'imovel-editar', params: { id } });
+};
 
 const downloadIndividualPdf = async (id: number) => {
+    if (!id || id === 0) {
+        alert("Erro: ID do imóvel inválido ou não encontrado. Verifique se o imóvel foi salvo corretamente.");
+        return;
+    }
     try {
         const response = await api.get(`/v1/imoveis/${id}/gerar-autorizacao-pdf/`, { responseType: 'blob' });
         window.open(window.URL.createObjectURL(new Blob([response.data], { type: 'application/pdf' })), '_blank');
-    } catch { alert("Erro ao gerar PDF."); }
+    } catch { 
+        alert("Erro ao gerar PDF. Verifique se a autorização existe para este imóvel."); 
+    }
 };
 
 const generateGeneralReportPdf = async () => {
@@ -529,6 +551,7 @@ onMounted(fetchAutorizacoes);
 .btn-action.edit:hover { background-color: #2563eb; color: #fff; }
 .btn-action.pdf { background-color: #fff1f2; color: #e11d48; }
 .btn-action.pdf:hover { background-color: #e11d48; color: #fff; }
+.btn-action:disabled { opacity: 0.5; cursor: not-allowed; filter: grayscale(1); }
 
 .loading-state, .empty-state { text-align: center; padding: 4rem 2rem; color: #64748b; }
 .empty-icon { font-size: 2.5rem; color: #e2e8f0; margin-bottom: 1rem; }
