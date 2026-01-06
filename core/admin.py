@@ -1,88 +1,72 @@
-import logging
+# core/admin.py
+
 from django.contrib import admin
-from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
-from django.contrib.auth import get_user_model
-from django.utils.translation import gettext_lazy as _
-from .models import Imobiliaria, PerfilUsuario, Notificacao
-from django.contrib.auth.models import User as DjangoUser # Para desregistrar o User padrão
+from django.contrib.auth.admin import UserAdmin
+from .models import Imobiliaria, PerfilUsuario, Notificacao, Plano
 
-logger = logging.getLogger(__name__)
+# --- ADMINISTRAÇÃO DE PLANOS ---
+@admin.register(Plano)
+class PlanoAdmin(admin.ModelAdmin):
+    list_display = ('nome', 'valor', 'dias_ciclo', 'dias_para_bloqueio', 'ativo')
+    list_filter = ('ativo',)
+    search_fields = ('nome',)
 
-# Obtém o modelo de usuário customizado (core.PerfilUsuario)
-User = get_user_model()
-
-# Tentativa de desregistro seguro do User padrão do Django
-try:
-    admin.site.unregister(DjangoUser)
-except admin.sites.NotRegistered:
-    pass
-except Exception:
-    pass
-
-@admin.register(User)
-class UserAdmin(BaseUserAdmin):
-    # Campos customizados do PerfilUsuario integrados ao list_display
-    list_display = ('username', 'email', 'first_name', 'last_name', 'is_staff', 'is_active', 'imobiliaria', 'is_admin', 'is_corretor')
-    list_filter = ('is_staff', 'is_active', 'is_admin', 'is_corretor', 'imobiliaria')
-    search_fields = ('username', 'email', 'first_name', 'last_name', 'creci')
-    ordering = ('username',)
-
-    # Definimos a ordem dos campos no formulário de edição do usuário
-    fieldsets = (
-        (None, {"fields": ("username", "password")}),
-        (_("Informações Pessoais"), {"fields": ("first_name", "last_name", "email", 'telefone', 'creci', 'assinatura')}),
-        (_("Permissões e Grupos"), {
-            "fields": (
-                "is_active",
-                "is_staff",
-                "is_superuser",
-                "imobiliaria", 
-                "is_admin",    
-                "is_corretor", 
-                "groups",
-                "user_permissions",
-            ),
-        }),
-        (_("Endereço e Observações"), {
-            'fields': ('endereco_logradouro', 'endereco_numero', 'endereco_bairro', 'endereco_cidade', 'endereco_estado', 'endereco_cep', 'observacoes'),
-            'classes': ('collapse',)
-        }),
-        (_("Integração Google"), {
-            'fields': ('google_json_file', 'google_calendar_token'),
-            'classes': ('collapse',)
-        }),
-        (_("Datas Importantes"), {"fields": ("last_login", "date_joined")}),
-    )
+# --- ADMINISTRAÇÃO DE IMOBILIÁRIAS (COM FINANCEIRO) ---
+class PerfilUsuarioInline(admin.TabularInline):
+    model = PerfilUsuario
+    extra = 0
+    fields = ('username', 'email', 'is_admin', 'is_corretor')
+    readonly_fields = ('username',)
 
 @admin.register(Imobiliaria)
 class ImobiliariaAdmin(admin.ModelAdmin):
-    # 'telefone' e 'data_cadastro' agora existem
-    list_display = ['nome', 'cnpj', 'creci', 'telefone', 'data_cadastro'] # 'telefone' adicionado aqui
-    search_fields = ['nome', 'cnpj', 'telefone']
-    readonly_fields = ['data_cadastro'] 
+    list_display = ('nome', 'subdominio', 'plano_contratado', 'status_financeiro', 'data_vencimento_atual', 'data_cadastro')
+    list_filter = ('status_financeiro', 'plano_contratado', 'data_cadastro')
+    search_fields = ('nome', 'subdominio', 'cnpj', 'email_contato')
+    inlines = [PerfilUsuarioInline]
     
     fieldsets = (
-        (None, {
-            'fields': ('nome', 'cnpj', 'creci', 'data_cadastro', 'subdominio') # Adicionei subdominio
+        ('Dados Cadastrais', {
+            'fields': ('nome', 'subdominio', 'cnpj', 'creci', 'email_contato', 'telefone')
         }),
-        ('Contatos', {
-            'fields': ('telefone', 'email_contato', 'cor_primaria') # 'telefone' está aqui
+        ('Financeiro (SaaS)', {
+            'fields': ('plano_contratado', 'status_financeiro', 'data_vencimento_atual'),
+            'description': 'Configure aqui o plano e o vencimento para controle automático de bloqueio.'
         }),
-        ('Integrações', {
-            'fields': ('facebook_user_access_token', # 'facebook_user_access_token' está aqui
-                       'facebook_page_access_token', 
-                       'facebook_page_id', 
-                       'instagram_business_account_id', # Adicionando o campo de instagram para consistência
-                       'google_gemini_api_key', 
-                       'voz_da_marca_preferida'),
-            'description': 'Tokens e Chaves de API para uso da IA e redes sociais.',
-        })
+        ('Integrações Sociais', {
+            'fields': ('facebook_page_id', 'instagram_business_account_id', 'facebook_user_access_token', 'facebook_page_access_token'),
+            'classes': ('collapse',)
+        }),
+        ('Configurações IA e Estilo', {
+            'fields': ('google_gemini_api_key', 'voz_da_marca_preferida', 'cor_primaria')
+        }),
+    )
+
+    actions = ['atualizar_status_bloqueio']
+
+    @admin.action(description='Forçar verificação de bloqueio/assinatura')
+    def atualizar_status_bloqueio(self, request, queryset):
+        count = 0
+        for imob in queryset:
+            imob.verificar_status_bloqueio()
+            count += 1
+        self.message_user(request, f"{count} imobiliárias verificadas com sucesso.")
+
+# --- ADMINISTRAÇÃO DE USUÁRIOS ---
+@admin.register(PerfilUsuario)
+class PerfilUsuarioAdmin(UserAdmin):
+    list_display = ('username', 'email', 'imobiliaria', 'is_admin', 'is_corretor', 'is_staff')
+    list_filter = ('imobiliaria', 'is_admin', 'is_corretor', 'is_staff', 'is_active')
+    search_fields = ('username', 'email', 'first_name', 'last_name', 'creci')
+    
+    fieldsets = UserAdmin.fieldsets + (
+        ('Informações Profissionais', {'fields': ('imobiliaria', 'creci', 'is_admin', 'is_corretor')}),
+        ('Endereço e Contato', {'fields': ('telefone', 'endereco_logradouro', 'endereco_numero', 'endereco_bairro', 'endereco_cidade', 'endereco_estado', 'endereco_cep')}),
+        ('Integrações e Assinatura', {'fields': ('google_json_file', 'google_calendar_token', 'assinatura')}),
     )
 
 @admin.register(Notificacao)
 class NotificacaoAdmin(admin.ModelAdmin):
-    # 'usuario' corrigido para 'destinatario'
-    list_display = ('titulo', 'tipo', 'destinatario', 'lida', 'data_criacao') 
-    list_filter = ('tipo', 'lida')
-    search_fields = ('titulo', 'destinatario__username', 'destinatario__email') 
-    readonly_fields = ('data_criacao',)
+    list_display = ('destinatario', 'titulo', 'tipo', 'lida', 'data_criacao')
+    list_filter = ('tipo', 'lida', 'data_criacao')
+    search_fields = ('destinatario__username', 'mensagem')

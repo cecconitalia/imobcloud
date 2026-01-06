@@ -41,9 +41,11 @@ import ListaCategoriasView from '@/views/ListaCategoriasView.vue'
 import ListaContasView from '@/views/ListaContasView.vue'
 import ListaFormasPagamentoView from '@/views/ListaFormasPagamentoView.vue'
 import ListaTransacoesView from '@/views/ListaTransacoes.vue'
+import LockScreenView from '@/views/LockScreenView.vue' // <--- IMPORTAÇÃO NOVA
 import LoginView from '@/views/LoginView.vue'
 import OportunidadeFormView from '@/views/OportunidadeFormView.vue'
 import PublicacoesView from '@/views/PublicacoesView.vue'
+import RegisterView from '@/views/RegisterView.vue'
 import RelatoriosView from '@/views/RelatoriosView.vue'
 import TransacaoFormView from '@/views/TransacaoForm.vue'
 import VisitaFormView from '@/views/VisitaFormView.vue'
@@ -114,6 +116,28 @@ const router = createRouter({
             meta: {
                 title: 'Login',
                 requiresAuth: false
+            }
+        },
+
+        // --- 3.1 CADASTRO (NOVA ROTA) ---
+        {
+            path: '/cadastro',
+            name: 'register',
+            component: RegisterView,
+            meta: {
+                title: 'Crie sua conta',
+                requiresAuth: false
+            }
+        },
+
+        // --- 3.2 TELA DE BLOQUEIO FINANCEIRO (NOVA ROTA) ---
+        {
+            path: '/bloqueado',
+            name: 'lock-screen',
+            component: LockScreenView,
+            meta: {
+                title: 'Acesso Suspenso',
+                requiresAuth: false // Permite ver a tela mesmo sem passar no guard padrão
             }
         },
 
@@ -716,7 +740,7 @@ router.beforeEach((to, from, next) => {
             next({ name: 'dashboard' });
         }
     } else {
-        // Rotas públicas (como /, /login, /site) passam direto
+        // Rotas públicas (como /, /login, /site, /bloqueado) passam direto
         next();
     }
 });

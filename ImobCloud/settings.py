@@ -166,7 +166,8 @@ REST_FRAMEWORK = {
         'rest_framework.authentication.SessionAuthentication',
     ],
     'DEFAULT_PERMISSION_CLASSES': [
-        'rest_framework.permissions.AllowAny', # Permite acesso sem autenticação
+        'rest_framework.permissions.IsAuthenticated', # Exige login por padrão
+        'core.permissions.IsSubscriptionActive',      # Exige pagamento em dia por padrão
     ],
     'DEFAULT_RENDERER_CLASSES': [
         'rest_framework.renderers.JSONRenderer',

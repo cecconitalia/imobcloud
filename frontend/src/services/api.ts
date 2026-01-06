@@ -36,7 +36,7 @@ apiClient.interceptors.request.use(
 );
 
 /**
- * Interceptor de Resposta (Trata erros de sessão e 401)
+ * Interceptor de Resposta (Trata erros de sessão e bloqueio)
  */
 export const setupInterceptors = (router: Router, authStore: any) => {
     apiClient.interceptors.response.use(
@@ -45,30 +45,48 @@ export const setupInterceptors = (router: Router, authStore: any) => {
         },
         async (error: AxiosError) => {
             
-            // Tratamento para token expirado (403) ou inválido (401)
-            if (error.response && (error.response.status === 401 || error.response.status === 403)) {
+            if (error.response) {
                 
-                // Evita loop infinito se já estiver na tela de login
-                if (router.currentRoute.value.name === 'login') {
-                    return Promise.reject(error);
+                // --- 1. LÓGICA DE BLOQUEIO FINANCEIRO (SaaS) ---
+                if (error.response.status === 403) {
+                    const errorMessage = (error.response.data as any)?.detail || '';
+                    
+                    // Verifica se é Expiração de Teste
+                    if (errorMessage === 'TRIAL_EXPIRED') {
+                        router.push({ name: 'lock-screen', query: { reason: 'trial' } });
+                        return Promise.reject(error);
+                    }
+
+                    // Verifica se é Expiração de Assinatura (Plano)
+                    if (errorMessage === 'SUBSCRIPTION_EXPIRED' || 
+                        (typeof errorMessage === 'string' && errorMessage.includes('suspenso'))) {
+                        router.push({ name: 'lock-screen', query: { reason: 'subscription' } });
+                        return Promise.reject(error);
+                    }
                 }
 
-                console.warn(`Sessão expirada ou inválida (${error.response.status}). Realizando logout...`);
-                
-                if (authStore && typeof authStore.logout === 'function') {
-                    authStore.logout();
-                } else {
-                    console.error("AuthStore não disponível. Limpando LocalStorage.");
-                    localStorage.clear();
-                }
-                
-                // Redireciona para o login
-                router.replace({ 
-                    name: 'login', 
-                    query: { next: router.currentRoute.value.fullPath } 
-                });
+                // --- 2. TRATAMENTO DE TOKEN EXPIRADO / INVÁLIDO ---
+                if (error.response.status === 401) {
+                    
+                    if (router.currentRoute.value.name === 'login') {
+                        return Promise.reject(error);
+                    }
 
-                return Promise.reject(new Error("Sessão encerrada. Por favor, faça login novamente."));
+                    console.warn(`Sessão expirada (${error.response.status}). Realizando logout...`);
+                    
+                    if (authStore && typeof authStore.logout === 'function') {
+                        authStore.logout();
+                    } else {
+                        localStorage.clear();
+                    }
+                    
+                    router.replace({ 
+                        name: 'login', 
+                        query: { next: router.currentRoute.value.fullPath } 
+                    });
+
+                    return Promise.reject(new Error("Sessão encerrada."));
+                }
             }
 
             return Promise.reject(error);

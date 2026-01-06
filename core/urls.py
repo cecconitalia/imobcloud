@@ -6,18 +6,30 @@ from .views import (
     DashboardStatsView, 
     CorretorRegistrationViewSet, 
     IntegracaoRedesSociaisView,
-    PublicRegisterView # Importação da Nova View
+    PublicRegisterView,
+    MarcarNotificacaoLidaView,
+    MinhasNotificacoesView
 )
 
+# Configuração do Router
 router = DefaultRouter()
-router.register(r'core/usuarios', CorretorRegistrationViewSet, basename='usuario')
+# Registra 'usuarios'. A URL final será /api/v1/core/usuarios/
+# O router gera automaticamente: /usuarios/me/ e /usuarios/minhas-notificacoes/
+router.register(r'usuarios', CorretorRegistrationViewSet, basename='usuario')
 
 urlpatterns = [
-    path('stats/', DashboardStatsView.as_view(), name='dashboard_stats'),
+    # Rotas manuais que NÃO estão no ViewSet
+    path('usuarios/marcar-notificacao-lida/<int:pk>/', MarcarNotificacaoLidaView.as_view(), name='marcar-notificacao-lida'),
+    
+    # Rota auxiliar de estatísticas (caso o frontend chame via core)
+    path('stats/', DashboardStatsView.as_view(), name='dashboard_stats_core'),
+    
+    # Integrações
     path('integracoes/redes-sociais/', IntegracaoRedesSociaisView.as_view(), name='integracoes-redes-sociais'),
     
-    # Nova Rota Pública para Cadastro
-    path('public/register/', PublicRegisterView.as_view(), name='public-register'),
+    # Cadastro Público
+    path('public-register/', PublicRegisterView.as_view(), name='public-register'),
     
+    # Inclui as rotas do Router por último para evitar conflitos
     path('', include(router.urls)),
 ]

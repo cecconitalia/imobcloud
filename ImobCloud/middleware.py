@@ -1,6 +1,6 @@
 from django.utils.deprecation import MiddlewareMixin
 from core.models import Imobiliaria
-from django.http import HttpResponseForbidden
+from django.http import HttpResponseForbidden, JsonResponse
 from django.contrib.auth import get_user_model
 from rest_framework_simplejwt.tokens import AccessToken
 from rest_framework_simplejwt.exceptions import TokenError
@@ -83,6 +83,7 @@ class TenantIdentificationMiddleware(MiddlewareMixin):
             '/api/v1/core/refresh/',
             '/api/v1/core/register/',
             '/api/v1/relatorios/', # Validação de ACL delegada à camada de View
+            '/api/v1/core/public-register/' # Cadastro
         ]
 
         is_public = any(request.path.startswith(p) for p in public_paths)
@@ -106,7 +107,7 @@ class TenantIdentificationMiddleware(MiddlewareMixin):
         # 1. Bloqueio de acesso anônimo em rotas privadas
         if not is_public and not (user and user.is_authenticated):
             print(f"BLOQUEIO MW: Acesso anônimo negado para {request.path}")
-            return HttpResponseForbidden("Autenticação necessária.")
+            return JsonResponse({"detail": "Autenticação necessária."}, status=403)
 
         # 2. Segurança Cross-Tenant (Anti-Session Hijacking)
         # Garante que um usuário autenticado não acesse dados de outro tenant via subdomínio incorreto

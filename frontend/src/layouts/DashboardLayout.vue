@@ -85,6 +85,7 @@
               <i class="fas fa-chevron-down arrow-icon"></i>
             </div>
             <ul class="submenu-list" :style="{ maxHeight: isMenuOpen('financeiro') ? '300px' : '0' }">
+              <li><router-link to="/financeiro/dashboard" active-class="active">Dashboard Fin.</router-link></li>
               <li><router-link to="/financeiro/contas-a-receber" active-class="active">A Receber</router-link></li>
               <li><router-link to="/financeiro/contas-a-pagar" active-class="active">A Pagar</router-link></li>
               <li><router-link to="/financeiro/transacoes" active-class="active">Transações</router-link></li>
@@ -179,6 +180,8 @@
         </div>
       </header>
 
+      <FinanceiroBanner />
+
       <main class="page-content">
         <router-view v-slot="{ Component }">
           <transition name="fade" mode="out-in">
@@ -194,6 +197,7 @@
 import { ref, watch, onMounted, onUnmounted, computed } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import NotificationBell from '@/components/NotificationBell.vue';
+import FinanceiroBanner from '@/components/FinanceiroBanner.vue'; // <--- IMPORTADO AQUI
 import { useAuthStore } from '@/stores/auth';
 import api from '@/services/api';
 
@@ -214,19 +218,13 @@ const tenantName = computed(() => {
     if (authStore.user && authStore.user.imobiliaria_nome) {
         return authStore.user.imobiliaria_nome;
     }
-    if (authStore.imobiliariaName && authStore.imobiliariaName !== 'null') {
-        return authStore.imobiliariaName;
+    // Verificação segura para propriedade opcional
+    if ((authStore as any).imobiliariaName && (authStore as any).imobiliariaName !== 'null') {
+        return (authStore as any).imobiliariaName;
     }
 
     // 3. Fallback seguro
     return 'Painel Imobiliário';
-});
-
-// Nota: tenantNameTruncated não é mais usado no template, mas mantido se precisar reverter
-const tenantNameTruncated = computed(() => {
-    const name = tenantName.value;
-    if (name.length > 15) return name.substring(0, 15) + '...';
-    return name;
 });
 
 const logoUrl = computed(() => {
@@ -337,6 +335,7 @@ watch(() => route.fullPath, () => {
 // --- BUSCA DE DADOS OTIMIZADA ---
 async function fetchUserData() {
     try {
+        // Usa v1/core/usuarios/me/ conforme corrigido
         const response = await api.get('/v1/core/usuarios/me/');
         const userData = response.data;
         
@@ -344,9 +343,9 @@ async function fetchUserData() {
         
         currentUser.value = userData;
         
-        // Atualiza a store global para persistência
-        if (authStore.setUser) {
-            authStore.setUser(userData, null, userData.imobiliaria_nome);
+        // Atualiza a store global para persistência se o método existir
+        if ((authStore as any).setUser) {
+            (authStore as any).setUser(userData, null, userData.imobiliaria_nome);
         }
 
     } catch (e) {

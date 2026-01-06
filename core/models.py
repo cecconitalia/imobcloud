@@ -1,11 +1,25 @@
-# C:\wamp64\www\imobcloud\core\models.py
+# core/models.py
 
 from django.db import models
 from django.conf import settings
-# Importação necessária para criar um modelo de usuário customizado
-from django.contrib.auth.models import AbstractUser # <-- CORRIGIDO
+from django.contrib.auth.models import AbstractUser
 from app_config_ia.models import OpcaoVozDaMarca
-from django.utils import timezone # Para data_cadastro de Imobiliaria
+from django.utils import timezone
+from datetime import timedelta
+
+# --- NOVO MODELO: PLANO ---
+class Plano(models.Model):
+    nome = models.CharField(max_length=100, help_text="Ex: Mensal Básico, Anual Pro")
+    valor = models.DecimalField(max_digits=10, decimal_places=2, verbose_name="Valor do Plano")
+    dias_ciclo = models.IntegerField(default=30, help_text="A cada quantos dias vence? (30 = Mensal, 365 = Anual)")
+    dias_para_bloqueio = models.IntegerField(
+        default=5, 
+        help_text="Quantos dias após o vencimento o sistema deve bloquear o acesso? (Ex: 5 dias de tolerância)"
+    )
+    ativo = models.BooleanField(default=True)
+
+    def __str__(self):
+        return f"{self.nome} - R$ {self.valor}"
 
 class Imobiliaria(models.Model):
     nome = models.CharField(max_length=255, unique=True)
@@ -15,15 +29,13 @@ class Imobiliaria(models.Model):
     cnpj = models.CharField(max_length=18, blank=True, null=True, verbose_name="CNPJ")
     creci = models.CharField(max_length=20, blank=True, null=True, verbose_name="CRECI")
 
-    # CAMPOS FALTANTES ADICIONADOS:
-    telefone = models.CharField(max_length=20, blank=True, null=True, verbose_name="Telefone de Contato") # <--- ADICIONADO
-    facebook_user_access_token = models.CharField(max_length=512, blank=True, null=True, verbose_name="Token de Acesso do Usuário FB") # <--- ADICIONADO
+    telefone = models.CharField(max_length=20, blank=True, null=True, verbose_name="Telefone de Contato")
+    facebook_user_access_token = models.CharField(max_length=512, blank=True, null=True, verbose_name="Token de Acesso do Usuário FB")
     
     facebook_page_id = models.CharField(max_length=255, blank=True, null=True, verbose_name="ID da Página do Facebook")
     facebook_page_access_token = models.CharField(max_length=512, blank=True, null=True, verbose_name="Token de Acesso da Página do Facebook")
     instagram_business_account_id = models.CharField(max_length=255, blank=True, null=True, verbose_name="ID da Conta Business do Instagram")
 
-    # NOVO CAMPO: Chave API do Google Gemini para o Admin configurar
     google_gemini_api_key = models.CharField(
         max_length=255, 
         blank=True, 
@@ -47,20 +59,72 @@ class Imobiliaria(models.Model):
         verbose_name="Cor Principal do Site"
     )
     
-    data_cadastro = models.DateTimeField(auto_now_add=True, verbose_name="Data de Cadastro") # Campo adicionado na migração 0017
+    data_cadastro = models.DateTimeField(auto_now_add=True, verbose_name="Data de Cadastro")
+
+    # --- CAMPOS FINANCEIROS (SAAS) ---
+    plano_contratado = models.ForeignKey(Plano, on_delete=models.SET_NULL, null=True, blank=True, verbose_name="Plano Atual")
+    data_vencimento_atual = models.DateField(null=True, blank=True, verbose_name="Próximo Vencimento")
     
+    STATUS_FINANCEIRO_CHOICES = [
+        ('ATIVO', 'Ativo (Em dia)'),
+        ('PENDENTE', 'Pagamento Pendente (Em tolerância)'),
+        ('BLOQUEADO', 'Acesso Bloqueado (Inadimplente)'),
+        ('CANCELADO', 'Cancelado'),
+        ('GRATIS', 'Período de Teste'),
+    ]
+    status_financeiro = models.CharField(
+        max_length=20, 
+        choices=STATUS_FINANCEIRO_CHOICES, 
+        default='GRATIS',
+        verbose_name="Status da Assinatura"
+    )
+
+    def verificar_status_bloqueio(self):
+        """
+        Lógica automática para verificar vencimento e aplicar bloqueio.
+        """
+        # Se for teste grátis, verifica os 7 dias
+        if self.status_financeiro == 'GRATIS':
+            limite_teste = self.data_cadastro + timedelta(days=7)
+            if timezone.now() > limite_teste:
+                self.status_financeiro = 'BLOQUEADO'
+                self.save(update_fields=['status_financeiro'])
+            return
+
+        # Se não tem plano ou data de vencimento, e não é grátis, assume bloqueado ou incompleto
+        if not self.plano_contratado or not self.data_vencimento_atual:
+            return 
+
+        hoje = timezone.now().date()
+        dias_atraso = (hoje - self.data_vencimento_atual).days
+
+        # Se dias_atraso > 0, está vencido
+        if dias_atraso > 0:
+            if dias_atraso <= self.plano_contratado.dias_para_bloqueio:
+                # Dentro da tolerância -> PENDENTE
+                if self.status_financeiro != 'PENDENTE':
+                    self.status_financeiro = 'PENDENTE'
+                    self.save(update_fields=['status_financeiro'])
+            else:
+                # Passou da tolerância -> BLOQUEADO
+                if self.status_financeiro != 'BLOQUEADO':
+                    self.status_financeiro = 'BLOQUEADO'
+                    self.save(update_fields=['status_financeiro'])
+        else:
+            # Em dia
+            if self.status_financeiro in ['PENDENTE', 'BLOQUEADO']:
+                self.status_financeiro = 'ATIVO'
+                self.save(update_fields=['status_financeiro'])
+
     class Meta:
         verbose_name_plural = "Imobiliárias"
 
     def __str__(self):
-        return self.nome
+        return f"{self.nome} ({self.get_status_financeiro_display()})"
 
-# PERFILUSUARIO: MANTIDO COMO ABSTRACTUSER PARA CONSISTÊNCIA APÓS A MIGRAÇÃO 0017
 class PerfilUsuario(AbstractUser): 
-    # Os campos de autenticação (username, password, email, etc.) são herdados de AbstractUser
-    
     imobiliaria = models.ForeignKey(
-        'Imobiliaria', # Referência de string para evitar dependência circular
+        'Imobiliaria', 
         on_delete=models.SET_NULL,
         null=True,
         blank=True,

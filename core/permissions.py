@@ -1,25 +1,59 @@
-# C:\wamp64\www\ImobCloud\core\permissions.py
+# core/permissions.py
 
 from rest_framework import permissions
 from rest_framework.request import Request
 from typing import Any
 
+class IsSubscriptionActive(permissions.BasePermission):
+    """
+    Bloqueia requisições se a imobiliária estiver com status BLOQUEADO ou CANCELADO.
+    Define mensagens de erro específicas para o Frontend distinguir entre Teste e Assinatura.
+    """
+    message = "Acesso suspenso." # Mensagem padrão (fallback)
+
+    def has_permission(self, request: Request, view: Any) -> bool:
+        user = request.user
+
+        # Superusuário do sistema (você) nunca é bloqueado
+        if user and user.is_superuser:
+            return True
+
+        # Usuários não autenticados
+        if not user or not user.is_authenticated:
+            return True
+
+        # Usuário sem imobiliária vinculada
+        if not hasattr(user, 'imobiliaria') or not user.imobiliaria:
+            return True
+
+        # Verifica o status financeiro
+        status = user.imobiliaria.status_financeiro
+        
+        # Se estiver bloqueado ou cancelado, nega o acesso
+        if status in ['BLOQUEADO', 'CANCELADO']:
+            # Lógica para definir a mensagem correta para o Frontend
+            # Se não tem plano contratado (None), é porque estava no trial
+            if not user.imobiliaria.plano_contratado:
+                self.message = "TRIAL_EXPIRED"
+            else:
+                # Se tem plano, é inadimplência
+                self.message = "SUBSCRIPTION_EXPIRED"
+                
+            return False
+            
+        return True
+
 class IsAdminOrSuperUser(permissions.BasePermission):
     """
     Permite acesso apenas a superusuários ou usuários com perfil de Administrador (is_admin=True).
     Utiliza o modelo PerfilUsuario (Custom User Model) do ImobCloud.
-    Esta permissão corrige o erro de referência a '.perfil', acessando os atributos diretamente no User.
     """
     def has_permission(self, request: Request, view: Any) -> bool:
         user = request.user
         
-        # Superusuários têm acesso irrestrito
         if user and user.is_superuser:
             return True
             
-        # Verifica se o usuário está autenticado e possui a flag is_admin ativa.
-        # No ImobCloud, PerfilUsuario herda de AbstractUser, portanto os campos booleanos
-        # is_admin e is_corretor residem diretamente no objeto de usuário da requisição.
         if user and user.is_authenticated:
             return getattr(user, 'is_admin', False)
             
@@ -27,26 +61,21 @@ class IsAdminOrSuperUser(permissions.BasePermission):
 
 class IsCorretorOrReadOnly(permissions.BasePermission):
     """
-    Permite acesso de escrita (POST, PUT, PATCH, DELETE) a corretores ou administradores.
-    Permite leitura (GET, HEAD, OPTIONS) para qualquer usuário autenticado.
-    Sincronizado com o modelo PerfilUsuario customizado.
+    Permite acesso de escrita a corretores ou administradores.
+    Permite leitura para qualquer usuário autenticado.
     """
     def has_permission(self, request: Request, view: Any) -> bool:
         user = request.user
         
-        # Bloqueio imediato de usuários não autenticados
         if not user or not user.is_authenticated:
             return False
 
-        # Métodos de leitura (Safe Methods) são permitidos para qualquer membro autenticado
         if request.method in permissions.SAFE_METHODS:
             return True
             
-        # Superusuários têm acesso de escrita irrestrito
         if user.is_superuser:
             return True
             
-        # Verifica privilégios de Administrador ou Corretor no modelo PerfilUsuario
         is_admin: bool = getattr(user, 'is_admin', False)
         is_corretor: bool = getattr(user, 'is_corretor', False)
         

@@ -1,3 +1,5 @@
+# app_alugueis/views.py
+
 from rest_framework import viewsets, permissions, status
 from rest_framework.views import APIView
 from rest_framework.response import Response
@@ -11,12 +13,14 @@ from .models import Aluguel
 from .serializers import AluguelSerializer
 from app_contratos.models import Contrato, Pagamento 
 from app_financeiro.models import Transacao 
+from core.permissions import IsSubscriptionActive # IMPORTANTE: Adicionado importação
 
 # --- VIEWSET PADRÃO ---
 class AluguelViewSet(viewsets.ModelViewSet):
     queryset = Aluguel.objects.all()
     serializer_class = AluguelSerializer
-    permission_classes = [permissions.IsAuthenticated]
+    # Garante que verifica autenticação E pagamento
+    permission_classes = [permissions.IsAuthenticated, IsSubscriptionActive]
 
     def get_queryset(self):
         user = self.request.user
@@ -36,9 +40,10 @@ class AluguelViewSet(viewsets.ModelViewSet):
             
         return Aluguel.objects.none()
 
-# --- VIEW DO DASHBOARD (AQUI ESTÁ A CORREÇÃO) ---
+# --- VIEW DO DASHBOARD ---
 class DashboardStatsView(APIView):
-    permission_classes = [permissions.IsAuthenticated]
+    # Garante que verifica autenticação E pagamento
+    permission_classes = [permissions.IsAuthenticated, IsSubscriptionActive]
 
     def get(self, request, *args, **kwargs):
         print(f"DEBUG: Iniciando DashboardStats para usuário {request.user}")

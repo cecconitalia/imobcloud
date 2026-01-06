@@ -1,4 +1,4 @@
-# C:\wamp64\www\imobcloud\core\serializers.py
+# C:\wamp64\www\ImobCloud\core\serializers.py
 
 from rest_framework import serializers
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
@@ -32,53 +32,101 @@ class MyTokenObtainPairSerializer(TokenObtainPairSerializer):
              cargo = 'ADMIN'
         elif self.user.is_corretor:
              cargo = 'CORRETOR'
-        
+             
         data['cargo'] = cargo
 
         # Dados da Imobiliária (Acessando diretamente no User)
-        if self.user.imobiliaria:
+        if hasattr(self.user, 'imobiliaria') and self.user.imobiliaria:
             data['subdomain'] = self.user.imobiliaria.subdominio
-            # CORREÇÃO: Usa 'nome' pois 'nome_fantasia' não existe no model
             data['imobiliaria_name'] = self.user.imobiliaria.nome
             data['imobiliaria_id'] = self.user.imobiliaria.id
+            
+            # --- CORREÇÃO DO ERRO 500 ---
+            # Verifica se o campo 'foto' ou 'logo' existe antes de acessar
+            data['imobiliaria_foto'] = None
+            
+            # Tenta 'foto'
+            if hasattr(self.user.imobiliaria, 'foto') and self.user.imobiliaria.foto:
+                 data['imobiliaria_foto'] = self.user.imobiliaria.foto.url
+            # Tenta 'logo' como fallback (caso o nome do campo seja diferente)
+            elif hasattr(self.user.imobiliaria, 'logo') and self.user.imobiliaria.logo:
+                 data['imobiliaria_foto'] = self.user.imobiliaria.logo.url
+
         else:
             data['subdomain'] = None
             data['imobiliaria_name'] = 'Superuser' if self.user.is_superuser else 'N/A'
             data['imobiliaria_id'] = None
+            data['imobiliaria_foto'] = None
 
         return data
 
+# --- SERIALIZERS PARA AVISO FINANCEIRO ---
+
+class ImobiliariaSerializer(serializers.ModelSerializer):
+    """
+    Serializer completo da imobiliária, incluindo campos financeiros
+    para o frontend verificar bloqueios e avisos.
+    """
+    class Meta:
+        model = Imobiliaria
+        fields = [
+            'id', 'nome', 'subdominio', 'email_contato', 'cnpj', 'creci', 
+            'telefone', 'cor_primaria', 'voz_da_marca_preferida',
+            # Campos Financeiros Importantes para o Frontend:
+            'status_financeiro', 'data_vencimento_atual', 'plano_contratado'
+        ]
+
+class PerfilUsuarioSerializer(serializers.ModelSerializer):
+    """
+    Serializer principal do usuário logado (/me).
+    Aninha os dados da imobiliária para facilitar o acesso no frontend.
+    """
+    # Aninha os dados da imobiliária
+    imobiliaria_detalhes = ImobiliariaSerializer(source='imobiliaria', read_only=True)
+    
+    # Campo calculado para exibir o nome completo ou username
+    nome_completo = serializers.SerializerMethodField()
+    
+    # Mantendo compatibilidade com código antigo
+    imobiliaria_nome = serializers.CharField(source='imobiliaria.nome', read_only=True)
+
+    class Meta:
+        model = PerfilUsuario
+        fields = [
+            'id', 'username', 'email', 'first_name', 'last_name', 
+            'nome_completo', 'is_active', 'is_staff', 'is_superuser',
+            'is_admin', 'is_corretor', 'creci', 'telefone',
+            'imobiliaria', 'imobiliaria_detalhes', 'imobiliaria_nome',
+            'assinatura'
+        ]
+        read_only_fields = ['imobiliaria_detalhes', 'imobiliaria_nome']
+
+    def get_nome_completo(self, obj):
+        return obj.get_full_name() or obj.username
+
 class NotificacaoSerializer(serializers.ModelSerializer):
+    data_criacao_formatada = serializers.SerializerMethodField()
+
     class Meta:
         model = Notificacao
-        fields = ['id', 'mensagem', 'lida', 'data_criacao', 'link']
+        fields = ['id', 'titulo', 'mensagem', 'tipo', 'lida', 'data_criacao', 'data_criacao_formatada', 'link']
+
+    def get_data_criacao_formatada(self, obj):
+        return obj.data_criacao.strftime("%d/%m/%Y %H:%M")
 
 class CorretorRegistrationSerializer(serializers.ModelSerializer):
     """
     Serializer para criação e atualização de usuários (Corretores/Admins).
-    Manipula a senha e a associação com a imobiliária (tenant).
     """
     password = serializers.CharField(write_only=True, min_length=8, required=False)
-    
-    # Campos booleanos explícitos para controle de permissão
     is_admin = serializers.BooleanField(required=False, default=False)
     is_corretor = serializers.BooleanField(required=False, default=True)
 
     class Meta:
         model = User
         fields = [
-            'id', 
-            'username', 
-            'first_name', 
-            'last_name', 
-            'email', 
-            'password', 
-            'is_admin', 
-            'is_corretor', 
-            'creci', 
-            'telefone', 
-            'assinatura'
-            # Removido 'foto' pois não existe no model PerfilUsuario
+            'id', 'username', 'first_name', 'last_name', 'email', 'password', 
+            'is_admin', 'is_corretor', 'creci', 'telefone', 'assinatura'
         ]
         extra_kwargs = {
             'username': {'required': True},
@@ -88,84 +136,57 @@ class CorretorRegistrationSerializer(serializers.ModelSerializer):
     
     @transaction.atomic
     def create(self, validated_data):
-        # Remove campos especiais do validated_data para tratar separadamente
         password = validated_data.pop('password', None)
         is_admin = validated_data.pop('is_admin', False)
         is_corretor = validated_data.pop('is_corretor', True)
         
-        # Tenta obter a imobiliária do request (middleware tenant)
-        # Se for superuser criando sem tenant, isso pode ser None
         imobiliaria = None
         request = self.context.get('request')
         if request and hasattr(request, 'tenant'):
             imobiliaria = request.tenant
 
-        # Cria a instância do usuário mas não salva ainda no banco
         user = User(**validated_data)
-        
-        # Define a senha com hash
         if password:
             user.set_password(password)
         
-        # Define os atributos
         user.is_admin = is_admin
         user.is_corretor = is_corretor
         user.imobiliaria = imobiliaria
-        
         user.save()
-        
         return user
     
     @transaction.atomic
     def update(self, instance, validated_data):
         password = validated_data.pop('password', None)
-        
-        # Atualiza os campos normais
         for attr, value in validated_data.items():
             setattr(instance, attr, value)
-            
-        # Se houver senha nova, faz o hash e salva
         if password:
             instance.set_password(password)
-            
         instance.save()
         return instance
 
 class CorretorDisplaySerializer(serializers.ModelSerializer):
     """
-    Serializer apenas para leitura/exibição de dados do usuário.
+    Serializer apenas para leitura/exibição de dados do usuário (Endpoint /me).
     """
-    # Usa a property 'cargo_display' do model se existir, ou calcula no frontend
     cargo = serializers.SerializerMethodField()
-    # CORREÇÃO: Usa 'nome' em vez de 'nome_fantasia'
     imobiliaria_nome = serializers.CharField(source='imobiliaria.nome', read_only=True)
+    
+    # Campo de detalhes financeiros da imobiliária
+    imobiliaria_detalhes = ImobiliariaSerializer(source='imobiliaria', read_only=True)
 
     class Meta:
         model = User
         fields = [
-            'id', 
-            'username', 
-            'first_name', 
-            'last_name', 
-            'email', 
-            'cargo', 
-            'is_admin', 
-            'is_corretor', 
-            'creci', 
-            'telefone', 
-            'assinatura',
-            'imobiliaria',
-            'imobiliaria_nome'
-            # Removido 'foto'
+            'id', 'username', 'first_name', 'last_name', 'email', 
+            'cargo', 'is_admin', 'is_corretor', 'creci', 'telefone', 'assinatura',
+            'imobiliaria', 'imobiliaria_nome', 'imobiliaria_detalhes'
         ]
 
     def get_cargo(self, obj):
-        if obj.is_superuser:
-            return 'Super Admin'
-        if obj.is_admin:
-            return 'Administrador'
-        if obj.is_corretor:
-            return 'Corretor'
+        if obj.is_superuser: return 'Super Admin'
+        if obj.is_admin: return 'Administrador'
+        if obj.is_corretor: return 'Corretor'
         return 'Usuário'
 
 class ImobiliariaIntegracaoSerializer(serializers.ModelSerializer):
@@ -181,5 +202,4 @@ class ImobiliariaIntegracaoSerializer(serializers.ModelSerializer):
 class ImobiliariaPublicSerializer(serializers.ModelSerializer):
     class Meta:
         model = Imobiliaria
-        # CORREÇÃO: Ajustado para usar apenas campos existentes no model Imobiliaria
         fields = ['nome', 'cor_primaria']

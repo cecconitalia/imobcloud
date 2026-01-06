@@ -7,10 +7,17 @@ from django.conf.urls.static import static
 from rest_framework_simplejwt.views import TokenRefreshView
 
 # Importações principais do seu app 'core'
-from core.views import MyTokenObtainPairView, LogoutView
+# ATENÇÃO: Adicionei DashboardStatsView aqui para a rota raiz
+from core.views import CustomTokenObtainPairView, LogoutView, DashboardStatsView
 
 # Views públicas
-from app_imoveis.views import ImovelPublicListView, ImovelPublicDetailView, ImobiliariaPublicDetailView, ImovelIAView, ContatoImovelViewSet
+from app_imoveis.views import (
+    ImovelPublicListView, 
+    ImovelPublicDetailView, 
+    ImobiliariaPublicDetailView, 
+    ImovelIAView, 
+    ContatoImovelViewSet
+)
 
 urlpatterns = [
     # Rota de administração do Django
@@ -24,21 +31,21 @@ urlpatterns = [
     path('public/contatos/', ContatoImovelViewSet.as_view({'post': 'create'}), name='contato-public-create'),
 
     # --- ROTAS DA API (Para o painel de gestão) ---
-    path('api/v1/token/', MyTokenObtainPairView.as_view(), name='token_obtain_pair'),
+    
+    # LOGIN
+    path('api/v1/token/', CustomTokenObtainPairView.as_view(), name='token_obtain_pair'),
     path('api/v1/token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
     path('api/v1/logout/', LogoutView.as_view(), name='auth_logout'),
     
-    # --- Inclusão das rotas de cada app da API ---
-    path('api/v1/', include('core.urls')),
+    # --- CORREÇÃO DO ERRO 404 DO DASHBOARD ---
+    # O frontend chama /api/v1/stats/, então definimos ela aqui explicitamente
+    path('api/v1/stats/', DashboardStatsView.as_view(), name='dashboard_stats_root'),
     
-    # Prefixos corrigidos para casar com o Frontend
+    # --- Inclusão das rotas de cada app da API ---
+    path('api/v1/core/', include('core.urls')),
     path('api/v1/', include('app_imoveis.urls')), 
     path('api/v1/', include('app_clientes.urls')),
-    
-    # --- CORREÇÃO AQUI: Adicionado 'contratos/' para formar /api/v1/contratos/contratos/ ---
     path('api/v1/', include('app_contratos.urls')),
-
-    
     path('api/v1/financeiro/', include('app_financeiro.urls')),
     path('api/v1/alugueis/', include('app_alugueis.urls')),
     path('api/v1/boletos/', include('app_boletos.urls')),

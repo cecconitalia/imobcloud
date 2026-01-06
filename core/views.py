@@ -43,6 +43,15 @@ User = get_user_model()
 class MyTokenObtainPairView(TokenObtainPairView):
     serializer_class = MyTokenObtainPairSerializer
 
+class CustomTokenObtainPairView(TokenObtainPairView):
+    """
+    View de Login personalizada que força a permissão AllowAny.
+    Isso é necessário porque o settings.py bloqueia tudo por padrão (IsSubscriptionActive),
+    então precisamos abrir uma exceção explícita para a tela de login.
+    """
+    permission_classes = [AllowAny] # Permite acesso sem token e sem checagem financeira
+    serializer_class = MyTokenObtainPairSerializer
+
 class LogoutView(APIView):
     permission_classes = [IsAuthenticated]
 
@@ -218,6 +227,59 @@ class IntegracaoRedesSociaisView(APIView):
             serializer.save()
             return Response({"success": "Credenciais salvas com sucesso!"})
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+class PerfilUsuarioViewSet(viewsets.ModelViewSet):
+    """
+    ViewSet para gerenciar perfis de usuários.
+    """
+    serializer_class = CorretorDisplaySerializer # ou PerfilUsuarioSerializer dependendo do uso
+    # Usa as permissões padrão do settings.py (IsAuthenticated + IsSubscriptionActive)
+
+    def get_queryset(self):
+        user = self.request.user
+        if user.is_superuser:
+            return User.objects.all()
+        # Usuário comum vê apenas a si mesmo e colegas da mesma imobiliária
+        if hasattr(user, 'imobiliaria') and user.imobiliaria:
+            return User.objects.filter(imobiliaria=user.imobiliaria)
+        return User.objects.filter(id=user.id)
+
+    def get_object(self):
+        # Permite retornar o usuário logado com a rota /me/
+        pk = self.kwargs.get('pk')
+        if pk == 'me':
+            return self.request.user
+        return super().get_object()
+
+    def perform_create(self, serializer):
+        # Garante que o usuário criado pertença à mesma imobiliária de quem cria
+        if self.request.user.imobiliaria:
+            serializer.save(imobiliaria=self.request.user.imobiliaria)
+        else:
+            serializer.save()
+
+class MinhasNotificacoesView(APIView):
+    """
+    Retorna as notificações não lidas do usuário logado.
+    """
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        notificacoes = Notificacao.objects.filter(destinatario=request.user, lida=False)
+        serializer = NotificacaoSerializer(notificacoes, many=True)
+        return Response(serializer.data)
+
+class MarcarNotificacaoLidaView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, pk):
+        try:
+            notificacao = Notificacao.objects.get(pk=pk, destinatario=request.user)
+            notificacao.lida = True
+            notificacao.save()
+            return Response({'status': 'ok'})
+        except Notificacao.DoesNotExist:
+            return Response({'error': 'Notificação não encontrada'}, status=404)
 
 # ==============================================================================
 # NOVA VIEW: AUTO-CADASTRO PÚBLICO COM ENVIO DE EMAIL

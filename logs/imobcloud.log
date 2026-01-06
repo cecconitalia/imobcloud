@@ -3707,3 +3707,139 @@ WARNING 2026-01-05 14:52:12,149 log 16452 3728 Forbidden: /api/v1/core/usuarios/
 WARNING 2026-01-05 14:52:12,155 log 16452 3728 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
 WARNING 2026-01-05 14:53:11,343 log 16452 3728 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
 WARNING 2026-01-05 14:53:11,357 log 16452 3728 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2026-01-06 12:46:19,386 log 2360 13872 Forbidden: /admin
+WARNING 2026-01-06 12:46:19,965 log 2360 13872 Forbidden: /favicon.ico
+WARNING 2026-01-06 12:46:23,679 log 2360 13872 Forbidden: /favicon.ico
+WARNING 2026-01-06 12:46:32,600 log 2360 13872 Forbidden: /favicon.ico
+WARNING 2026-01-06 12:46:34,679 log 2360 13872 Forbidden: /favicon.ico
+WARNING 2026-01-06 12:46:54,921 log 2360 13872 Forbidden: /favicon.ico
+WARNING 2026-01-06 12:47:12,158 log 2360 13872 Forbidden: /favicon.ico
+WARNING 2026-01-06 12:47:21,777 log 2360 13872 Forbidden: /favicon.ico
+WARNING 2026-01-06 12:47:25,442 log 2360 13872 Forbidden: /favicon.ico
+WARNING 2026-01-06 12:47:29,818 log 2360 13872 Forbidden: /favicon.ico
+WARNING 2026-01-06 12:47:40,094 log 2360 13872 Forbidden: /favicon.ico
+WARNING 2026-01-06 12:55:44,372 log 12952 228 Forbidden: /favicon.ico
+WARNING 2026-01-06 12:55:51,235 log 12952 228 Forbidden: /favicon.ico
+WARNING 2026-01-06 12:55:54,859 log 12952 228 Forbidden: /favicon.ico
+WARNING 2026-01-06 12:55:57,254 log 12952 228 Forbidden: /favicon.ico
+WARNING 2026-01-06 12:56:11,119 log 12952 228 Forbidden: /favicon.ico
+WARNING 2026-01-06 12:56:14,052 log 12952 3848 Forbidden: /favicon.ico
+WARNING 2026-01-06 12:56:27,852 log 12952 3848 Forbidden: /favicon.ico
+WARNING 2026-01-06 12:57:08,563 log 12952 3848 Forbidden: /favicon.ico
+WARNING 2026-01-06 12:57:22,368 log 12952 3848 Forbidden: /favicon.ico
+WARNING 2026-01-06 13:08:16,351 log 12952 9256 Forbidden: /favicon.ico
+WARNING 2026-01-06 13:08:31,290 log 12952 9256 Forbidden: /favicon.ico
+WARNING 2026-01-06 13:25:21,310 log 15088 7464 Forbidden: /api/v1/alugueis/dashboard-stats/
+WARNING 2026-01-06 13:28:44,798 log 3160 13464 Forbidden: /api/v1/alugueis/dashboard-stats/
+WARNING 2026-01-06 13:29:45,533 log 3160 6212 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2026-01-06 13:30:45,201 log 3160 6212 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2026-01-06 13:31:45,212 log 3160 6212 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2026-01-06 13:46:42,092 log 14932 8576 Forbidden: /api/api/v1/token/
+WARNING 2026-01-06 13:47:11,973 log 12952 10628 Forbidden: /api/api/v1/token/
+WARNING 2026-01-06 13:52:15,453 log 14860 2808 Forbidden: /api/api/v1/token/
+WARNING 2026-01-06 13:52:24,732 log 14860 2808 Forbidden: /api/api/v1/token/
+WARNING 2026-01-06 14:18:08,312 log 10504 10116 Not Found: /api/v1/core/usuarios/me/
+WARNING 2026-01-06 14:18:08,866 log 10504 10116 Not Found: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2026-01-06 14:18:08,913 log 10504 12616 Not Found: /api/v1/stats/
+WARNING 2026-01-06 14:18:09,278 log 10504 12044 Forbidden: /api/v1/alugueis/dashboard-stats/
+WARNING 2026-01-06 14:18:22,587 log 10504 12876 Forbidden: /favicon.ico
+WARNING 2026-01-06 14:18:38,640 log 10504 12876 Forbidden: /favicon.ico
+WARNING 2026-01-06 14:18:44,787 log 10504 11616 Not Found: /api/v1/core/usuarios/me/
+WARNING 2026-01-06 14:18:45,530 log 10504 12044 Not Found: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2026-01-06 14:18:45,618 log 10504 11616 Not Found: /api/v1/stats/
+WARNING 2026-01-06 14:19:09,356 log 10504 11616 Not Found: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2026-01-06 14:19:45,386 log 10504 11616 Not Found: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2026-01-06 14:20:09,343 log 10504 11616 Not Found: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2026-01-06 14:20:45,368 log 10504 11616 Not Found: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2026-01-06 14:21:09,395 log 10504 11616 Not Found: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2026-01-06 14:21:45,743 log 10504 11616 Not Found: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2026-01-06 14:22:09,395 log 10504 11616 Not Found: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2026-01-06 14:23:09,989 log 13892 7536 Not Found: /api/v1/stats/
+WARNING 2026-01-06 14:23:19,179 log 13892 7536 Not Found: /api/v1/stats/
+WARNING 2026-01-06 14:23:46,422 log 13892 14640 Not Found: /api/v1/stats/
+WARNING 2026-01-06 14:23:54,511 log 13892 7536 Not Found: /api/v1/stats/
+WARNING 2026-01-06 14:24:06,351 log 13892 6728 Not Found: /api/v1/stats/
+WARNING 2026-01-06 14:31:53,479 log 128 3652 Forbidden: /favicon.ico
+WARNING 2026-01-06 14:32:11,089 log 128 3652 Forbidden: /favicon.ico
+ERROR 2026-01-06 14:41:03,485 log 9172 12048 Internal Server Error: /api/v1/token/
+Traceback (most recent call last):
+  File "C:\wamp64\www\imobhome\venv\Lib\site-packages\django\core\handlers\exception.py", line 55, in inner
+    response = get_response(request)
+               ^^^^^^^^^^^^^^^^^^^^^
+  File "C:\wamp64\www\imobhome\venv\Lib\site-packages\django\core\handlers\base.py", line 197, in _get_response
+    response = wrapped_callback(request, *callback_args, **callback_kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\wamp64\www\imobhome\venv\Lib\site-packages\django\views\decorators\csrf.py", line 65, in _view_wrapper
+    return view_func(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\wamp64\www\imobhome\venv\Lib\site-packages\django\views\generic\base.py", line 105, in view
+    return self.dispatch(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\wamp64\www\imobhome\venv\Lib\site-packages\rest_framework\views.py", line 509, in dispatch
+    response = self.handle_exception(exc)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\wamp64\www\imobhome\venv\Lib\site-packages\rest_framework\views.py", line 469, in handle_exception
+    self.raise_uncaught_exception(exc)
+  File "C:\wamp64\www\imobhome\venv\Lib\site-packages\rest_framework\views.py", line 480, in raise_uncaught_exception
+    raise exc
+  File "C:\wamp64\www\imobhome\venv\Lib\site-packages\rest_framework\views.py", line 506, in dispatch
+    response = handler(request, *args, **kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\wamp64\www\imobhome\venv\Lib\site-packages\rest_framework_simplejwt\views.py", line 46, in post
+    serializer.is_valid(raise_exception=True)
+  File "C:\wamp64\www\imobhome\venv\Lib\site-packages\rest_framework\serializers.py", line 223, in is_valid
+    self._validated_data = self.run_validation(self.initial_data)
+                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\wamp64\www\imobhome\venv\Lib\site-packages\rest_framework\serializers.py", line 445, in run_validation
+    value = self.validate(value)
+            ^^^^^^^^^^^^^^^^^^^^
+  File "C:\wamp64\www\imobhome\core\serializers.py", line 46, in validate
+    if self.user.imobiliaria.foto:
+       ^^^^^^^^^^^^^^^^^^^^^^^^^^
+AttributeError: 'Imobiliaria' object has no attribute 'foto'
+WARNING 2026-01-06 14:41:18,781 log 14912 9780 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2026-01-06 14:41:19,509 log 14912 9780 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2026-01-06 14:41:27,016 log 14912 13012 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+ERROR 2026-01-06 14:41:28,384 log 14912 9780 Internal Server Error: /api/v1/token/
+Traceback (most recent call last):
+  File "C:\wamp64\www\imobhome\venv\Lib\site-packages\django\core\handlers\exception.py", line 55, in inner
+    response = get_response(request)
+               ^^^^^^^^^^^^^^^^^^^^^
+  File "C:\wamp64\www\imobhome\venv\Lib\site-packages\django\core\handlers\base.py", line 197, in _get_response
+    response = wrapped_callback(request, *callback_args, **callback_kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\wamp64\www\imobhome\venv\Lib\site-packages\django\views\decorators\csrf.py", line 65, in _view_wrapper
+    return view_func(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\wamp64\www\imobhome\venv\Lib\site-packages\django\views\generic\base.py", line 105, in view
+    return self.dispatch(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\wamp64\www\imobhome\venv\Lib\site-packages\rest_framework\views.py", line 509, in dispatch
+    response = self.handle_exception(exc)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\wamp64\www\imobhome\venv\Lib\site-packages\rest_framework\views.py", line 469, in handle_exception
+    self.raise_uncaught_exception(exc)
+  File "C:\wamp64\www\imobhome\venv\Lib\site-packages\rest_framework\views.py", line 480, in raise_uncaught_exception
+    raise exc
+  File "C:\wamp64\www\imobhome\venv\Lib\site-packages\rest_framework\views.py", line 506, in dispatch
+    response = handler(request, *args, **kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\wamp64\www\imobhome\venv\Lib\site-packages\rest_framework_simplejwt\views.py", line 46, in post
+    serializer.is_valid(raise_exception=True)
+  File "C:\wamp64\www\imobhome\venv\Lib\site-packages\rest_framework\serializers.py", line 223, in is_valid
+    self._validated_data = self.run_validation(self.initial_data)
+                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\wamp64\www\imobhome\venv\Lib\site-packages\rest_framework\serializers.py", line 445, in run_validation
+    value = self.validate(value)
+            ^^^^^^^^^^^^^^^^^^^^
+  File "C:\wamp64\www\imobhome\core\serializers.py", line 46, in validate
+    if self.user.imobiliaria.foto:
+       ^^^^^^^^^^^^^^^^^^^^^^^^^^
+AttributeError: 'Imobiliaria' object has no attribute 'foto'
+WARNING 2026-01-06 14:41:31,226 log 14912 9780 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2026-01-06 14:42:19,213 log 12048 6352 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2026-01-06 14:42:20,235 log 12048 6352 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2026-01-06 14:42:27,213 log 12048 6352 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2026-01-06 14:42:31,220 log 12048 6352 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2026-01-06 14:42:42,211 log 12048 6352 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2026-01-06 14:42:53,206 log 12048 6352 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
