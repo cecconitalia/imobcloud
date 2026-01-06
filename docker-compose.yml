@@ -1,0 +1,54 @@
+version: '3.8'
+
+services:
+  db:
+    image: postgres:15
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    environment:
+      - POSTGRES_DB=${POSTGRES_DB}
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${DB_PASSWORD}
+    restart: always
+
+  redis:
+    image: redis:7-alpine
+    restart: always
+
+  web:
+    build: .
+    command: gunicorn ImobCloud.wsgi:application --bind 0.0.0.0:8000 --workers 3
+    volumes:
+      - media_volume:/app/media
+      - ./logs:/app/logs
+    ports:
+      - "8001:8000" # Porta 8001 para não conflitar com o site antigo
+    depends_on:
+      - db
+      - redis
+    env_file: .env
+    restart: always
+
+  celery:
+    build: .
+    command: celery -A ImobCloud worker -l info
+    volumes:
+      - media_volume:/app/media
+    depends_on:
+      - db
+      - redis
+    env_file: .env
+    restart: always
+
+  celery-beat:
+    build: .
+    command: celery -A ImobCloud beat -l info
+    depends_on:
+      - db
+      - redis
+    env_file: .env
+    restart: always
+
+volumes:
+  postgres_data:
+  media_volume:

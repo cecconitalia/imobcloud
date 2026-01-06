@@ -15,7 +15,7 @@ logger = logging.getLogger(__name__)
 
 def get_base_url():
     """Recupera a URL base do site definida nas configurações."""
-    base_url = getattr(settings, 'SITE_URL', 'http://localhost:8000')
+    base_url = getattr(settings, 'SITE_URL', 'http://localhost:8001')
     if not settings.DEBUG and not base_url.startswith('https://'):
         base_url = base_url.replace('http://', 'https://')
     return base_url

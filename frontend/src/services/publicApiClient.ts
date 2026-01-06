@@ -7,7 +7,7 @@ import axios from 'axios';
 // CORRIGIDO: A base deve ser a raiz do domínio (http://localhost:8000) porque as rotas públicas (public/imoveis/)
 // estão mapeadas diretamente na raiz do projeto Django, fora do prefixo /api/v1.
 const publicApiClient = axios.create({
-  baseURL: 'http://localhost:8000', 
+  baseURL: 'http://localhost:8001', 
   headers: {
     'Content-Type': 'application/json',
   },

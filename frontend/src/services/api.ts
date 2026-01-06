@@ -1,21 +1,20 @@
 // frontend/src/services/api.ts
-
 import axios, { type AxiosInstance, type AxiosError, type AxiosResponse } from 'axios';
 import type { Router } from 'vue-router'; 
 
-// --- CORREÇÃO DA URL ---
-// Função para definir a URL base dinamicamente
 const getBaseUrl = () => {
-  // Se estiver acessando pelo navegador em localhost, usa a porta 8000
+  // Se estiver rodando localmente (desenvolvimento), aponta para a porta do Django
   if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
-    return 'http://localhost:8000/api';
+    return 'http://localhost:8001/api/v1';
   }
-  // Caso contrário (produção na Vultr), usa o domínio atual com HTTPS
-  return 'https://imobhome.com.br/api';
+  
+  // Em produção, usa caminho relativo. O navegador vai completar com o domínio atual.
+  // Ex: Se estiver em https://imobhome.com.br, vai chamar https://imobhome.com.br/api
+  return '/api';
 };
 
 const apiClient: AxiosInstance = axios.create({
-  baseURL: getBaseUrl(), // Usa a função inteligente aqui
+  baseURL: getBaseUrl(),
   headers: {
     'Content-Type': 'application/json',
   },

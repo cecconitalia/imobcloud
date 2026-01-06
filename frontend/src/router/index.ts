@@ -41,7 +41,7 @@ import ListaCategoriasView from '@/views/ListaCategoriasView.vue'
 import ListaContasView from '@/views/ListaContasView.vue'
 import ListaFormasPagamentoView from '@/views/ListaFormasPagamentoView.vue'
 import ListaTransacoesView from '@/views/ListaTransacoes.vue'
-import LockScreenView from '@/views/LockScreenView.vue' // <--- IMPORTAÇÃO NOVA
+import LockScreenView from '@/views/LockScreenView.vue'
 import LoginView from '@/views/LoginView.vue'
 import OportunidadeFormView from '@/views/OportunidadeFormView.vue'
 import PublicacoesView from '@/views/PublicacoesView.vue'
@@ -77,14 +77,15 @@ declare module 'vue-router' {
 const router = createRouter({
     history: createWebHistory(import.meta.env.BASE_URL),
     routes: [
-        // --- 1. ROTA RAIZ (AGORA É A LANDING PAGE) ---
+        // --- 1. ROTA RAIZ (HOME PÚBLICA) ---
+        // IMPORTANTE: Definida primeiro. Se a URL for exatamente "/", carrega isso.
         {
             path: '/',
             name: 'public-home',
             component: PublicHomeView,
             meta: { 
                 title: 'Início - ImobHome',
-                requiresAuth: false // Explícito: não requer login
+                requiresAuth: false
             }
         },
 
@@ -94,9 +95,9 @@ const router = createRouter({
             component: PublicLayout,
             children: [
                 {
-                    path: '', // /site redireciona para a home pública também se necessário, ou lista de imóveis
+                    path: '',
                     name: 'site-home',
-                    component: PublicHomeView, // Reutilizando a home ou criar uma específica
+                    component: PublicHomeView,
                     meta: { title: 'Imóveis' }
                 },
                 {
@@ -108,56 +109,43 @@ const router = createRouter({
             ]
         },
 
-        // --- 3. LOGIN ---
+        // --- 3. AUTENTICAÇÃO E UTILITÁRIOS ---
         {
             path: '/login',
             name: 'login',
             component: LoginView,
-            meta: {
-                title: 'Login',
-                requiresAuth: false
-            }
+            meta: { title: 'Login', requiresAuth: false }
         },
-
-        // --- 3.1 CADASTRO (NOVA ROTA) ---
         {
             path: '/cadastro',
             name: 'register',
             component: RegisterView,
-            meta: {
-                title: 'Crie sua conta',
-                requiresAuth: false
-            }
+            meta: { title: 'Crie sua conta', requiresAuth: false }
         },
-
-        // --- 3.2 TELA DE BLOQUEIO FINANCEIRO (NOVA ROTA) ---
         {
             path: '/bloqueado',
             name: 'lock-screen',
             component: LockScreenView,
-            meta: {
-                title: 'Acesso Suspenso',
-                requiresAuth: false // Permite ver a tela mesmo sem passar no guard padrão
-            }
+            meta: { title: 'Acesso Suspenso', requiresAuth: false }
         },
 
-        // --- 4. PAINEL DE GESTÃO (MOVIDO DE '/' PARA '/painel') ---
+        // --- 4. PAINEL DE GESTÃO (SEM PREFIXO /PAINEL) ---
+        // Também usa path: '/', mas só será ativado se corresponder a uma das rotas filhas.
+        // Ex: /dashboard, /imoveis, etc.
         {
-            path: '/', // MUDANÇA IMPORTANTE: Prefixo para área logada
+            path: '/', 
             component: DashboardLayout,
-            meta: { requiresAuth: true }, // Proteção continua aqui
+            meta: { requiresAuth: true },
             children: [
                 {
-                    path: '',
-                    redirect: '/dashboard' // Redirecionamento interno
+                    path: '', 
+                    redirect: '/dashboard' // Se cair no vazio (após login), joga pro dashboard
                 },
                 {
                     path: 'dashboard',
                     name: 'dashboard',
                     component: DashboardView,
-                    meta: {
-                        title: 'Dashboard'
-                    }
+                    meta: { title: 'Dashboard' }
                 },
                 {
                     path: 'alugueis/dashboard',
@@ -169,505 +157,328 @@ const router = createRouter({
                     path: 'funil-vendas',
                     name: 'funil-vendas',
                     component: FunilVendasView,
-                    meta: {
-                        title: 'Funil de Vendas',
-                        requiresAuth: true
-                    }
+                    meta: { title: 'Funil de Vendas' }
                 },
                 {
                     path: 'oportunidades/nova',
                     name: 'oportunidade-nova',
                     component: OportunidadeFormView,
-                    meta: {
-                        title: 'Nova Oportunidade',
-                        requiresAuth: true
-                    }
+                    meta: { title: 'Nova Oportunidade' }
                 },
                 {
                     path: 'oportunidades/editar/:id',
                     name: 'oportunidade-editar',
                     component: OportunidadeFormView,
-                    meta: {
-                        title: 'Editar Oportunidade',
-                        requiresAuth: true
-                    }
+                    meta: { title: 'Editar Oportunidade' }
                 },
                 {
                     path: 'imoveis',
                     name: 'imoveis',
                     component: ImoveisView,
-                    meta: {
-                        title: 'Gerenciar Imóveis'
-                    }
+                    meta: { title: 'Gerenciar Imóveis' }
                 },
                 {
                     path: 'imoveis/novo',
                     name: 'imovel-novo',
                     component: ImovelFormView,
-                    meta: {
-                        title: 'Adicionar Novo Imóvel',
-                        requiresAuth: true
-                    }
+                    meta: { title: 'Adicionar Novo Imóvel' }
                 },
                 {
                     path: 'imoveis/editar/:id',
                     name: 'imovel-editar',
                     component: ImovelFormView,
-                    meta: {
-                        title: 'Editar Imóvel',
-                        requiresAuth: true
-                    }
+                    meta: { title: 'Editar Imóvel' }
                 },
                 {
                     path: 'imoveis/:id/imagens',
                     name: 'imovel-imagens',
                     component: ImovelImagensView,
                     props: (route) => ({ imovelId: route.params.id }),
-                    meta: {
-                        title: 'Gerenciar Imagens do Imóvel',
-                        requiresAuth: true,
-                        isAdmin: true
-                    }
+                    meta: { title: 'Gerenciar Imagens do Imóvel', isAdmin: true }
                 },
                 {
                     path: 'clientes',
                     name: 'clientes',
                     component: ClientesView,
-                    meta: {
-                        title: 'Gerenciar Clientes'
-                    }
+                    meta: { title: 'Gerenciar Clientes' }
                 },
                 {
                     path: 'clientes/novo',
                     name: 'cliente-novo',
                     component: ClienteFormView,
-                    meta: {
-                        title: 'Adicionar Novo Cliente',
-                        requiresAuth: true
-                    }
+                    meta: { title: 'Adicionar Novo Cliente' }
                 },
                 {
                     path: 'clientes/editar/:id',
                     name: 'cliente-editar',
                     component: ClienteFormView,
-                    meta: {
-                        title: 'Editar Cliente',
-                        requiresAuth: true
-                    }
+                    meta: { title: 'Editar Cliente' }
                 },
                 {
                     path: 'contratos',
                     name: 'contratos',
                     component: ContratosView,
-                    meta: {
-                        title: 'Gerenciar Contratos'
-                    }
+                    meta: { title: 'Gerenciar Contratos' }
                 },
                 {
                     path: 'contratos/novo',
                     name: 'contrato-novo',
                     component: ContratoFormView,
-                    meta: {
-                        title: 'Adicionar Novo Contrato',
-                        requiresAuth: true
-                    }
+                    meta: { title: 'Adicionar Novo Contrato' }
                 },
                 {
                     path: 'contratos/editar/:id',
                     name: 'contrato-editar',
                     component: ContratoFormView,
-                    meta: {
-                        title: 'Editar Contrato',
-                        requiresAuth: true
-                    }
+                    meta: { title: 'Editar Contrato' }
                 },
                 {
                     path: 'contratos/:id/detalhes', 
                     name: 'ContratoRead', 
                     component: ContratoReadView,
-                    meta: { title: 'Detalhes do Contrato', requiresAuth: true }
+                    meta: { title: 'Detalhes do Contrato' }
                 },
                 {
                     path: 'contratos/editar-documento/:id',
                     name: 'contrato-editar-documento',
                     component: ContratoEditorView,
-                    meta: {
-                        title: 'Editar Documento do Contrato',
-                        requiresAuth: true
-                    }
+                    meta: { title: 'Editar Documento do Contrato' }
                 },
-                // === ROTAS DE VISTORIA ===
+                // === VISTORIAS ===
                 { 
                     path: 'vistorias', 
                     name: 'vistorias', 
                     component: VistoriasView, 
-                    meta: { 
-                        title: 'Gerenciar Vistorias', 
-                        requiresAuth: true 
-                    } 
+                    meta: { title: 'Gerenciar Vistorias' } 
                 },
                 {
                     path: 'vistorias/nova',
                     name: 'vistoria-nova',
                     component: VistoriaFormView,
-                    meta: { 
-                        title: 'Nova Vistoria', 
-                        requiresAuth: true 
-                    }
+                    meta: { title: 'Nova Vistoria' }
                 },
                 {
                     path: 'vistorias/editar/:id',
                     name: 'vistoria-editar',
                     component: VistoriaFormView,
-                    meta: { 
-                        title: 'Editar Vistoria', 
-                        requiresAuth: true 
-                    }
+                    meta: { title: 'Editar Vistoria' }
                 },
                 {
                     path: 'vistorias/checklist/:id',
                     name: 'vistoria-checklist',
                     component: VistoriaAmbientesView,
-                    meta: { title: 'Executar Vistoria', requiresAuth: true }
+                    meta: { title: 'Executar Vistoria' }
                 },
-                // ==========================
+                // =================
                 {
                     path: 'visitas',
                     name: 'visitas',
                     component: VisitasView,
-                    meta: {
-                        title: 'Gerenciar Visitas'
-                    }
+                    meta: { title: 'Gerenciar Visitas' }
                 },
                 {
                     path: 'visitas/nova',
                     name: 'visita-nova',
                     component: VisitaFormView,
-                    meta: {
-                        title: 'Agendar Nova Visita',
-                        requiresAuth: true
-                    }
+                    meta: { title: 'Agendar Nova Visita' }
                 },
                 {
                     path: 'visitas/editar/:id',
                     name: 'visita-editar',
                     component: VisitaFormView,
-                    meta: {
-                        title: 'Editar Visita',
-                        requiresAuth: true
-                    }
+                    meta: { title: 'Editar Visita' }
                 },
                 {
                     path: 'contatos',
                     name: 'contatos',
                     component: ContatosView,
-                    meta: {
-                        title: 'Gerenciar Contatos',
-                        requiresAuth: true,
-                        isAdmin: true
-                    }
+                    meta: { title: 'Gerenciar Contatos', isAdmin: true }
                 },
                 {
                     path: 'corretores',
                     name: 'corretores',
                     component: CorretoresView,
-                    meta: {
-                        title: 'Gerenciar Utilizadores',
-                        requiresAuth: true,
-                        isAdmin: true
-                    }
+                    meta: { title: 'Gerenciar Utilizadores', isAdmin: true }
                 },
                 {
                     path: 'corretores/novo',
                     name: 'corretor-novo',
                     component: CorretorRegistrationView,
-                    meta: {
-                        title: 'Registar Novo Utilizador',
-                        requiresAuth: true,
-                        isAdmin: true
-                    }
+                    meta: { title: 'Registar Novo Utilizador', isAdmin: true }
                 },
                 {
                     path: 'corretores/editar/:id',
                     name: 'corretor-editar',
                     component: CorretorRegistrationView,
-                    meta: {
-                        title: 'Editar Utilizador',
-                        requiresAuth: true,
-                        isAdmin: true
-                    }
+                    meta: { title: 'Editar Utilizador', isAdmin: true }
                 },
                 {
                     path: 'calendario',
                     name: 'calendario',
                     component: CalendarioTarefas,
-                    meta: {
-                        title: 'Meu Calendário',
-                        requiresAuth: true
-                    }
+                    meta: { title: 'Meu Calendário' }
                 },
                 {
                     path: 'publicacoes',
                     name: 'publicacoes',
                     component: PublicacoesView,
-                    meta: {
-                        title: 'Central de Publicações',
-                        requiresAuth: true
-                    }
+                    meta: { title: 'Central de Publicações' }
                 },
                 {
                     path: 'calendario-publicacoes',
                     name: 'calendario-publicacoes',
                     component: CalendarioPublicacoesView,
-                    meta: {
-                        title: 'Calendário de Publicações',
-                        requiresAuth: true
-                    }
+                    meta: { title: 'Calendário de Publicações' }
                 },
                 {
                     path: 'relatorios',
                     name: 'relatorios',
                     component: RelatoriosView,
-                    meta: {
-                        title: 'Relatórios',
-                        requiresAuth: true,
-                        isAdmin: true
-                    }
+                    meta: { title: 'Relatórios', isAdmin: true }
                 },
                 {
                     path: 'relatorios/autorizacoes',
                     name: 'relatorio-autorizacoes',
                     component: AutorizacoesReportView,
-                    meta: { 
-                        title: 'Relatório de Autorizações',
-                        requiresAuth: true,
-                        isAdmin: true 
-                    }
+                    meta: { title: 'Relatório de Autorizações', isAdmin: true }
                 },
                 {
                     path: 'autorizacoes',
                     name: 'autorizacoes',
                     component: AutorizacoesView,
-                    meta: {
-                        title: 'Gestão de Autorizações',
-                        requiresAuth: true,
-                        isAdmin: true
-                    }
+                    meta: { title: 'Gestão de Autorizações', isAdmin: true }
                 },
                 {
                     path: 'configuracoes-ia',
                     name: 'configuracoes-ia',
                     component: ConfiguracaoIAView,
-                    meta: {
-                        title: 'Configurações da IA',
-                        requiresAuth: true,
-                        isAdmin: true
-                    }
+                    meta: { title: 'Configurações da IA', isAdmin: true }
                 },
                 {
                     path: 'integracoes',
                     name: 'integracoes',
                     component: IntegracoesView,
-                    meta: {
-                        title: 'Integrações',
-                        requiresAuth: true,
-                        isAdmin: true
-                    }
+                    meta: { title: 'Integrações', isAdmin: true }
                 },
                 {
                     path: 'integracoes/bancos/nova',
                     name: 'configuracao-banco-nova',
                     component: ConfiguracaoBancoView,
-                    meta: {
-                        title: 'Nova Configuração de Banco',
-                        requiresAuth: true,
-                        isAdmin: true
-                    }
+                    meta: { title: 'Nova Configuração de Banco', isAdmin: true }
                 },
                 {
                     path: 'integracoes/bancos/editar/:id',
                     name: 'configuracao-banco-editar',
                     component: ConfiguracaoBancoView,
-                    meta: {
-                        title: 'Editar Configuração de Banco',
-                        requiresAuth: true,
-                        isAdmin: true
-                    }
+                    meta: { title: 'Editar Configuração de Banco', isAdmin: true }
                 },
+                // === FINANCEIRO ===
                 {
                     path: 'financeiro',
                     name: 'financeiro',
-                    redirect: '/dashboard', // Ajustado para incluir /painel
+                    redirect: { name: 'financeiro-dashboard' }, 
                 },
                 {
                     path: 'financeiro/dashboard',
                     name: 'financeiro-dashboard',
                     component: FinanceiroDashboardView,
-                    meta: {
-                        title: 'Dashboard Financeiro',
-                        requiresAuth: true,
-                        isAdmin: true
-                    }
+                    meta: { title: 'Dashboard Financeiro', isAdmin: true }
                 },
                 {
                     path: 'financeiro/transacoes',
                     name: 'lista-transacoes',
                     component: ListaTransacoesView,
-                    meta: {
-                        title: 'Transações Financeiras',
-                        requiresAuth: true,
-                        isAdmin: true
-                    }
+                    meta: { title: 'Transações Financeiras', isAdmin: true }
                 },
                 {
                     path: 'financeiro/transacoes/nova',
                     name: 'transacao-nova',
                     component: TransacaoFormView,
-                    meta: {
-                        title: 'Nova Transação',
-                        requiresAuth: true,
-                        isAdmin: true
-                    }
+                    meta: { title: 'Nova Transação', isAdmin: true }
                 },
                 {
                     path: 'financeiro/transacoes/editar/:id',
                     name: 'transacao-editar',
                     component: TransacaoFormView,
-                    meta: {
-                        title: 'Editar Transação',
-                        requiresAuth: true,
-                        isAdmin: true
-                    }
+                    meta: { title: 'Editar Transação', isAdmin: true }
                 },
                 {
                     path: 'financeiro/dre',
                     name: 'dre',
                     component: DREView,
-                    meta: {
-                        title: 'Relatório DRE',
-                        requiresAuth: true,
-                        isAdmin: true
-                    }
+                    meta: { title: 'Relatório DRE', isAdmin: true }
                 },
                 {
                     path: 'financeiro/contas',
                     name: 'lista-contas',
                     component: ListaContasView,
-                    meta: {
-                        title: 'Gerenciar Contas Bancárias',
-                        requiresAuth: true,
-                        isAdmin: true
-                    }
+                    meta: { title: 'Gerenciar Contas Bancárias', isAdmin: true }
                 },
                 {
                     path: 'financeiro/contas/nova',
                     name: 'conta-nova',
                     component: ContaFormView,
-                    meta: {
-                        title: 'Nova Conta Bancária',
-                        requiresAuth: true,
-                        isAdmin: true
-                    }
+                    meta: { title: 'Nova Conta Bancária', isAdmin: true }
                 },
                 {
                     path: 'financeiro/contas/editar/:id',
                     name: 'conta-editar',
                     component: ContaFormView,
-                    meta: {
-                        title: 'Editar Conta Bancária',
-                        requiresAuth: true,
-                        isAdmin: true
-                    }
+                    meta: { title: 'Editar Conta Bancária', isAdmin: true }
                 },
                 {
                     path: 'financeiro/categorias',
                     name: 'lista-categorias',
                     component: ListaCategoriasView,
-                    meta: {
-                        title: 'Gerenciar Categorias Financeiras',
-                        requiresAuth: true,
-                        isAdmin: true
-                    }
+                    meta: { title: 'Gerenciar Categorias Financeiras', isAdmin: true }
                 },
                 {
                     path: 'financeiro/categorias/nova',
                     name: 'nova-categoria',
                     component: CategoriaFormView,
-                    meta: {
-                        title: 'Adicionar Categoria',
-                        requiresAuth: true,
-                        isAdmin: true
-                    }
+                    meta: { title: 'Adicionar Categoria', isAdmin: true }
                 },
                 {
                     path: 'financeiro/categorias/editar/:id',
                     name: 'editar-categoria',
                     component: CategoriaFormView,
-                    meta: {
-                        title: 'Editar Categoria',
-                        requiresAuth: true,
-                        isAdmin: true
-                    }
+                    meta: { title: 'Editar Categoria', isAdmin: true }
                 },
                 {
                     path: 'financeiro/formas-pagamento',
                     name: 'lista-formas-pagamento',
                     component: ListaFormasPagamentoView,
-                    meta: {
-                        title: 'Gerenciar Formas de Pagamento',
-                        requiresAuth: true,
-                        isAdmin: true
-                    }
+                    meta: { title: 'Gerenciar Formas de Pagamento', isAdmin: true }
                 },
                 {
                     path: 'financeiro/formas-pagamento/nova',
                     name: 'nova-forma-pagamento',
                     component: FormaPagamentoFormView,
-                    meta: {
-                        title: 'Adicionar Forma de Pagamento',
-                        requiresAuth: true,
-                        isAdmin: true
-                    }
+                    meta: { title: 'Adicionar Forma de Pagamento', isAdmin: true }
                 },
                 {
                     path: 'financeiro/formas-pagamento/editar/:id',
                     name: 'editar-forma-pagamento',
                     component: FormaPagamentoFormView,
-                    meta: {
-                        title: 'Editar Forma de Pagamento',
-                        requiresAuth: true,
-                        isAdmin: true
-                    }
+                    meta: { title: 'Editar Forma de Pagamento', isAdmin: true }
                 },
                 {
                     path: 'financeiro/contas-a-pagar',
                     name: 'contas-a-pagar',
                     component: ContasPagarView,
-                    meta: {
-                        title: 'Contas a Pagar',
-                        requiresAuth: true,
-                        isAdmin: true
-                    }
+                    meta: { title: 'Contas a Pagar', isAdmin: true }
                 },
                 {
                     path: 'financeiro/contas-a-receber',
                     name: 'contas-a-receber',
                     component: ContasReceberView,
-                    meta: {
-                        title: 'Contas a Receber',
-                        requiresAuth: true,
-                        isAdmin: true
-                    }
+                    meta: { title: 'Contas a Receber', isAdmin: true }
                 },
                 {
                     path: 'financeiro/remessa-retorno',
                     name: 'remessa-retorno',
                     component: RemessaRetornoView,
-                    meta: {
-                        title: 'Remessa e Retorno',
-                        requiresAuth: true,
-                        isAdmin: true
-                    }
+                    meta: { title: 'Remessa e Retorno', isAdmin: true }
                 },
             ]
         },
@@ -675,7 +486,7 @@ const router = createRouter({
         // Rota de fallback
         {
             path: '/:pathMatch(.*)*',
-            redirect: '/' // Redireciona para a Home (PublicHomeView) se não encontrar
+            redirect: '/' // Redireciona para a Home Pública
         }
     ]
 })
@@ -693,31 +504,22 @@ router.beforeEach((to, from, next) => {
 
     document.title = `${to.meta.title || 'ImobHome'}`;
 
-    // Verifica explicitamente se a rota requer auth (true)
+    // Verifica se a rota ou a rota pai requer auth
     const requiresAuth = to.matched.some(record => record.meta.requiresAuth === true);
     
     // Recupera dados
     let isAuthenticated = false;
     let currentCargo: string | null = null;
-    let isSuperUser = false;
 
     // 1. Tenta pegar do Store
     if (authStore && authStore.token) {
         isAuthenticated = true;
         currentCargo = authStore.userCargo;
-        isSuperUser = authStore.user?.is_superuser === true; 
     } else {
         // 2. Tenta pegar do LocalStorage
         const token = localStorage.getItem('authToken');
         isAuthenticated = !!token;
         currentCargo = localStorage.getItem('userCargo');
-        
-        try {
-            const storedUser = JSON.parse(localStorage.getItem('userData') || '{}');
-            isSuperUser = storedUser?.is_superuser === true;
-        } catch (e) {
-            isSuperUser = false;
-        }
     }
 
     if (isAuthenticated && authStore && !authStore.token) {
@@ -726,10 +528,10 @@ router.beforeEach((to, from, next) => {
 
     // --- LÓGICA DE PROTEÇÃO DE ROTAS ---
     if (requiresAuth && !isAuthenticated) {
-        // Se tenta acessar rota protegida (ex: /painel/...) sem login -> vai para Login
+        // Se tenta acessar rota protegida (ex: /dashboard) sem login -> Login
         next({ name: 'login' });
     } else if (to.name === 'login' && isAuthenticated) {
-        // Se já está logado e tenta ir para Login -> vai para Dashboard
+        // Se já está logado e tenta ir para Login -> Dashboard
         next({ name: 'dashboard' });
     } else if (isAuthenticated && to.meta.isAdmin) {
         // Proteção de rotas Admin
@@ -740,7 +542,7 @@ router.beforeEach((to, from, next) => {
             next({ name: 'dashboard' });
         }
     } else {
-        // Rotas públicas (como /, /login, /site, /bloqueado) passam direto
+        // Rotas públicas (como /, /login, /site) passam direto
         next();
     }
 });
