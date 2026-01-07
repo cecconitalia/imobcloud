@@ -1,3 +1,5 @@
+# ImobCloud/middleware.py
+
 from django.utils.deprecation import MiddlewareMixin
 from core.models import Imobiliaria
 from django.http import HttpResponseForbidden, JsonResponse
@@ -95,7 +97,11 @@ class TenantIdentificationMiddleware(MiddlewareMixin):
                 try:
                     request.tenant = Imobiliaria.objects.get(subdominio=subdomain)
                 except Imobiliaria.DoesNotExist:
-                    pass
+                    # CORREÇÃO CRÍTICA PARA LOCALHOST:
+                    # Se estamos em ambiente local e não achou tenant "localhost", 
+                    # pega a primeira imobiliária disponível para permitir o acesso.
+                    if host in ['localhost', '127.0.0.1']:
+                        request.tenant = Imobiliaria.objects.first()
 
         # --- Fase 4: Validação de Segurança e Bloqueios ---
         
@@ -116,7 +122,11 @@ class TenantIdentificationMiddleware(MiddlewareMixin):
 
         # 3. Bloqueio de API privada sem Tenant identificado
         if not is_public and not request.tenant and request.path.startswith('/api/'):
-            return HttpResponseForbidden("Imobiliária não identificada.")
+            # Permite que Superusuário passe mesmo sem Tenant (para poder criar um, por exemplo)
+            if user and user.is_superuser:
+                pass
+            else:
+                return HttpResponseForbidden("Imobiliária não identificada.")
 
         return None
 

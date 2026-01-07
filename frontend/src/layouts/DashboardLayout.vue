@@ -75,6 +75,13 @@
             </ul>
           </li>
 
+          <li class="nav-item">
+            <router-link to="/publicacoes" class="nav-link" active-class="active">
+              <i class="fas fa-share-alt nav-icon"></i>
+              <span class="nav-label">Publicações</span>
+            </router-link>
+          </li>
+
           <li class="nav-section">GESTÃO</li>
           <li class="divider" v-show="isCollapsed && !isHovered"></li>
 
@@ -197,7 +204,7 @@
 import { ref, watch, onMounted, onUnmounted, computed } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import NotificationBell from '@/components/NotificationBell.vue';
-import FinanceiroBanner from '@/components/FinanceiroBanner.vue'; // <--- IMPORTADO AQUI
+import FinanceiroBanner from '@/components/FinanceiroBanner.vue'; 
 import { useAuthStore } from '@/stores/auth';
 import api from '@/services/api';
 
@@ -335,7 +342,6 @@ watch(() => route.fullPath, () => {
 // --- BUSCA DE DADOS OTIMIZADA ---
 async function fetchUserData() {
     try {
-        // Usa v1/core/usuarios/me/ conforme corrigido
         const response = await api.get('/v1/core/usuarios/me/');
         const userData = response.data;
         

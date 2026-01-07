@@ -26,7 +26,7 @@
           :to="item.path"
           class="flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 group relative"
           :class="[
-            route.path === item.path 
+            route.path.startsWith(item.path) 
               ? 'bg-blue-50 text-blue-600 font-medium shadow-sm' 
               : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
           ]"
@@ -34,7 +34,7 @@
           <component 
             :is="item.icon" 
             class="w-5 h-5 flex-shrink-0 transition-colors duration-200"
-            :class="[route.path === item.path ? 'text-blue-600' : 'text-slate-400 group-hover:text-slate-600']"
+            :class="[route.path.startsWith(item.path) ? 'text-blue-600' : 'text-slate-400 group-hover:text-slate-600']"
           />
           
           <span v-show="!isCollapsed" class="whitespace-nowrap origin-left">
@@ -95,8 +95,8 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue';
-import { useRoute, useRouter } from 'vue-router'; // Importe useRouter
+import { ref } from 'vue';
+import { useRoute, useRouter } from 'vue-router';
 import { 
   LayoutDashboard, 
   Users, 
@@ -108,7 +108,8 @@ import {
   ChevronLeft,
   ChevronRight,
   LogOut,
-  Sparkles
+  Sparkles,
+  Share2 // Ícone para Publicações
 } from 'lucide-vue-next';
 import { useAuthStore } from '@/stores/auth';
 
@@ -123,7 +124,7 @@ interface MenuItem {
 }
 
 const route = useRoute();
-const router = useRouter(); // Instancie o roteador
+const router = useRouter();
 const authStore = useAuthStore();
 
 // Estado de colapso do menu (Mobile-first e responsivo)
@@ -136,8 +137,9 @@ const menuItems: MenuItem[] = [
   { title: 'Dashboard', icon: LayoutDashboard, path: '/dashboard', domain: 'ia' },
   { title: 'CRM / Funil', icon: Users, path: '/clientes', domain: 'clientes' },
   { title: 'Catálogo', icon: Home, path: '/imoveis', domain: 'imoveis' },
-  { title: 'Contratos', icon: FileText, path: '/contratos', domain: 'imoveis' }, // Ajustado domínio
+  { title: 'Contratos', icon: FileText, path: '/contratos', domain: 'imoveis' },
   { title: 'Vistorias', icon: ClipboardCheck, path: '/vistorias', domain: 'vistorias' },
+  { title: 'Publicações', icon: Share2, path: '/publicacoes', domain: 'ia' }, // <--- AQUI ESTÁ O ITEM
   { title: 'Financeiro', icon: DollarSign, path: '/financeiro', domain: 'financeiro' },
   { title: 'Configurações', icon: Settings, path: '/configuracoes', domain: 'config' },
 ];
@@ -149,7 +151,7 @@ function toggleSidebar() {
 // Função de logout corrigida com redirecionamento
 function handleLogout() {
   authStore.logout();
-  router.push('/login'); // Redireciona explicitamente para o login
+  router.push('/login');
 }
 </script>
 

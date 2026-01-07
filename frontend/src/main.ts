@@ -1,5 +1,12 @@
-import './assets/main.css'
-import './assets/fontawesome.css' // Importante para os ícones do sistema
+import './style.css' 
+// ^^^ CORRIGIDO: O arquivo padrão do Vite é 'style.css' e fica na raiz de src.
+// Se você tiver um 'assets/main.css' específico, verifique se a pasta e o arquivo existem.
+
+// import './assets/fontawesome.css' 
+// ^^^ ATENÇÃO: Comentei esta linha preventivamente. 
+// Se você NÃO tiver o arquivo 'fontawesome.css' dentro de 'src/assets/', o build vai quebrar aqui também.
+// Se você usa FontAwesome via pacote npm (ex: @fortawesome/...), essa importação manual não é necessária.
+// Caso você tenha o arquivo, pode descomentar.
 
 import { createApp } from 'vue'
 import { createPinia } from 'pinia'

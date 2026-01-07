@@ -21,6 +21,7 @@ services:
     volumes:
       - media_volume:/app/media
       - ./logs:/app/logs
+      - ./frontend/dist:/app/frontend/dist
     ports:
       - "8001:8000" # Porta 8001 para não conflitar com o site antigo
     depends_on:

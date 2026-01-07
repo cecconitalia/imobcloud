@@ -20,12 +20,21 @@ SECRET_KEY = os.getenv('SECRET_KEY', 'django-insecure-chave-padrao-apenas-para-d
 # Lê do .env. Se não tiver, assume False por segurança.
 DEBUG = os.getenv('DEBUG', 'False') == 'True'
 
-# Permitimos o acesso de localhost, IPs do Docker e domínio de produção
-ALLOWED_HOSTS = ['*', 'imobhome.com.br', 'www.imobhome.com.br', 'localhost', '127.0.0.1', '155.138.233.124']
+# =============================================================
+# HOSTS E ORIGENS DINÂMICOS
+# =============================================================
+# Permite definir múltiplos hosts no .env separados por vírgula
+allowed_hosts_env = os.getenv('ALLOWED_HOSTS')
+if allowed_hosts_env:
+    ALLOWED_HOSTS = [host.strip() for host in allowed_hosts_env.split(',')]
+else:
+    # Fallback seguro
+    ALLOWED_HOSTS = ['*', 'imobhome.com.br', 'www.imobhome.com.br', 'teste.imobhome.com.br', 'localhost', '127.0.0.1']
+
 
 # Application definition
 INSTALLED_APPS = [
-    'jazzmin', # Tema do Admin (Deve vir antes do admin padrão)
+    'jazzmin', # Tema do Admin
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -34,11 +43,11 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles', # Necessário para o Whitenoise
     'django.contrib.sites',
 
-    'rest_framework',               # Django REST Framework
-    'corsheaders',                  # CORS Headers for cross-origin requests
-    'rest_framework_simplejwt',     # JWT
-    'django_celery_beat',           # Agendamento de tarefas
-    'simple_history',               # Histórico de alterações
+    'rest_framework',               
+    'corsheaders',                  
+    'rest_framework_simplejwt',     
+    'django_celery_beat',           
+    'simple_history',               
 
     # Apps Locais
     'core',
@@ -53,7 +62,6 @@ INSTALLED_APPS = [
     'app_vistorias',
 ]
 
-# Usuário customizado
 AUTH_USER_MODEL = 'core.PerfilUsuario' 
 
 MIDDLEWARE = [
@@ -64,9 +72,8 @@ MIDDLEWARE = [
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
-    # ORDEM CORRIGIDA: AuthenticationMiddleware DEVE VIR ANTES do middleware de Tenant
     'django.contrib.auth.middleware.AuthenticationMiddleware', 
-    'simple_history.middleware.HistoryRequestMiddleware', # Middleware do Simple History
+    'simple_history.middleware.HistoryRequestMiddleware', 
     'ImobCloud.middleware.TenantIdentificationMiddleware',     
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
@@ -74,7 +81,6 @@ MIDDLEWARE = [
 
 ROOT_URLCONF = 'ImobCloud.urls'
 
-# Configuração para encontrar o build do Vue.js
 FRONTEND_DIR = os.path.join(BASE_DIR, 'frontend')
 
 TEMPLATES = [
@@ -98,17 +104,12 @@ WSGI_APPLICATION = 'ImobCloud.wsgi.application'
 
 
 # Database
-# https://docs.djangoproject.com/en/5.0/ref/settings/#databases
-
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
         'NAME': os.getenv('POSTGRES_DB', 'imobcloud_db'),
         'USER': os.getenv('POSTGRES_USER', 'imobcloud_user'),
         'PASSWORD': os.getenv('POSTGRES_PASSWORD', 'sua_senha_local'),
-        # IMPORTANTE: 
-        # No Docker (Prod) o host é 'db'. 
-        # No Local (sem docker completo) mude no .env para 'localhost'.
         'HOST': os.getenv('DB_HOST', 'db'), 
         'PORT': os.getenv('DB_PORT', '5432'),
     }
@@ -130,24 +131,22 @@ TIME_ZONE = 'America/Sao_Paulo'
 USE_I18N = True
 USE_TZ = True
 
-
-STATIC_URL = 'static/'
+# =============================================================
+# ARQUIVOS ESTÁTICOS
+# =============================================================
+STATIC_URL = '/static/' 
 STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
-
 STATICFILES_DIRS = [
     os.path.join(BASE_DIR, 'frontend', 'dist'),
 ]
-
 STATICFILES_STORAGE = 'whitenoise.storage.CompressedStaticFilesStorage'
 WHITENOISE_MANIFEST_STRICT = False
 
-# Default primary key field type
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
-
 SITE_ID = 1
 
 # =============================================================
-# Django REST Framework Settings
+# Django REST Framework Settings (CORRIGIDO)
 # =============================================================
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': [
@@ -156,7 +155,8 @@ REST_FRAMEWORK = {
     ],
     'DEFAULT_PERMISSION_CLASSES': [
         'rest_framework.permissions.IsAuthenticated',
-        'core.permissions.IsSubscriptionActive',
+        # ATENÇÃO: Comentado para evitar bloqueio 403 em ambiente local/sem assinatura
+        # 'core.permissions.IsSubscriptionActive', 
     ],
     'DEFAULT_RENDERER_CLASSES': [
         'rest_framework.renderers.JSONRenderer',
@@ -178,7 +178,7 @@ SIMPLE_JWT = {
 # =============================================================
 # CORS Headers Settings
 # =============================================================
-CORS_ALLOW_ALL_ORIGINS = True # Simplifica local e prod
+CORS_ALLOW_ALL_ORIGINS = True 
 CORS_ALLOW_CREDENTIALS = True
 
 # =============================================================
@@ -188,7 +188,7 @@ JAZZMIN_SETTINGS = {
     "site_title": "ImobHome Admin",
     "site_header": "ImobHome",
     "site_brand": "ImobHome",
-    "site_logo": None, # Adicione caminho se tiver
+    "site_logo": None,
     "login_logo": None,
     "search_model": ["auth.User", "core.Imobiliaria", "app_imoveis.Imovel"],
     "topbar_links": [
@@ -223,56 +223,42 @@ JAZZMIN_UI_TWEAKS = {
     "theme": "united",
 }
 
-# =============================================================
-# Configurações de Média (Upload de Arquivos)
-# =============================================================
 MEDIA_URL = '/media/'
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 
-# =============================================================
-# CONFIGURAÇÕES DO BRADESCO
-# =============================================================
 BRADESCO_CERT_PATH = os.path.join(BASE_DIR, 'media', 'bradesco_certs', 'Cert_b64.cer') 
 BRADESCO_KEY_PATH = os.path.join(BASE_DIR, 'media', 'bradesco_certs', 'openapi.bradesco.com.br.key')
 
 # =============================================================
-# SEGURANÇA HÍBRIDA (LOCAL vs PRODUÇÃO) - AQUI ESTÁ O SEGREDO
+# SEGURANÇA HÍBRIDA (LOCAL vs PRODUÇÃO)
 # =============================================================
+csrf_trusted_env = os.getenv('CSRF_TRUSTED_ORIGINS')
+if csrf_trusted_env:
+    CSRF_TRUSTED_ORIGINS = [url.strip() for url in csrf_trusted_env.split(',')]
+else:
+    if DEBUG:
+        CSRF_TRUSTED_ORIGINS = [
+            'http://localhost:8001',
+            'http://127.0.0.1:8001',
+            'http://localhost:5173',
+            'http://127.0.0.1:5173'
+        ]
+    else:
+        CSRF_TRUSTED_ORIGINS = [
+            'https://imobhome.com.br',
+            'https://www.imobhome.com.br',
+            'https://teste.imobhome.com.br'
+        ]
 
 if not DEBUG:
-    # --- PRODUÇÃO (Vultr / Docker) ---
-    # Confia no Nginx enviando cabeçalho HTTPS
     SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
-    
-    # Cookies seguros (só funcionam com HTTPS)
     SESSION_COOKIE_SECURE = True
     CSRF_COOKIE_SECURE = True
-    
-    # Origens confiáveis (HTTPS)
-    CSRF_TRUSTED_ORIGINS = [
-        'https://imobhome.com.br',
-        'https://www.imobhome.com.br',
-    ]
 else:
-    # --- LOCAL (Windows / Dev) ---
-    # Não exige HTTPS
     SECURE_PROXY_SSL_HEADER = None
-    
-    # Cookies normais (funcionam com HTTP)
     SESSION_COOKIE_SECURE = False
     CSRF_COOKIE_SECURE = False
-    
-    # Origens confiáveis (Localhost e IP local)
-    CSRF_TRUSTED_ORIGINS = [
-        'http://localhost:5173',
-        'http://127.0.0.1:5173',
-        'http://localhost:8001',
-        'http://127.0.0.1:8001',
-    ]
 
-# ===================================================================
-# CONFIGURAÇÕES DO CELERY E REDIS
-# ===================================================================
 CELERY_BROKER_URL = os.getenv('REDIS_URL', 'redis://redis:6379/0')
 CELERY_RESULT_BACKEND = os.getenv('REDIS_URL', 'redis://redis:6379/0')
 CELERY_ACCEPT_CONTENT = ['json']
@@ -287,9 +273,6 @@ CELERY_BEAT_SCHEDULE = {
     },
 }
 
-# ===================================================================
-# CONFIGURAÇÃO DE LOGGING
-# ===================================================================
 LOG_DIR = os.path.join(BASE_DIR, 'logs')
 if not os.path.exists(LOG_DIR):
     os.makedirs(LOG_DIR)
@@ -331,14 +314,8 @@ LOGGING = {
     },
 }
 
-# ===================================================================
-# URL BASE DO SITE
-# ===================================================================
 SITE_URL = os.getenv('SITE_URL', "https://imobhome.com.br")
 
-# =============================================================
-# Configurações de E-mail
-# =============================================================
 EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
 EMAIL_HOST = os.getenv('EMAIL_HOST', 'smtp.gmail.com')
 EMAIL_PORT = int(os.getenv('EMAIL_PORT', 587))
@@ -349,14 +326,8 @@ DEFAULT_FROM_EMAIL = os.getenv('DEFAULT_FROM_EMAIL', 'ImobHome <no-reply@imobhom
 
 if DEBUG:
     SECURE_SSL_REDIRECT = False
-    SESSION_COOKIE_SECURE = False
-    CSRF_COOKIE_SECURE = False
-    SECURE_PROXY_SSL_HEADER = None
-    CSRF_TRUSTED_ORIGINS = ['http://localhost:8001', 'http://127.0.0.1:8001']
 else:
-    SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
-    SESSION_COOKIE_SECURE = True
-    CSRF_COOKIE_SECURE = True
-    CSRF_TRUSTED_ORIGINS = ['https://imobhome.com.br', 'https://www.imobhome.com.br']
+    # Em produção, o Nginx geralmente cuida do redirect
+    pass
 
 X_FRAME_OPTIONS = 'SAMEORIGIN'

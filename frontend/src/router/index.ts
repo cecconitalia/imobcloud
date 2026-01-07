@@ -75,7 +75,10 @@ declare module 'vue-router' {
 }
 
 const router = createRouter({
-    history: createWebHistory(import.meta.env.BASE_URL),
+    // CORREÇÃO CRÍTICA AQUI:
+    // Usamos '/' explicitamente para garantir que a navegação ocorra na raiz,
+    // ignorando o base '/static/' configurado no vite.config.ts (que serve apenas para carregar arquivos).
+    history: createWebHistory('/'),
     routes: [
         // --- 1. ROTA RAIZ (HOME PÚBLICA) ---
         // IMPORTANTE: Definida primeiro. Se a URL for exatamente "/", carrega isso.
@@ -547,4 +550,4 @@ router.beforeEach((to, from, next) => {
     }
 });
 
-export default router
+export default router;

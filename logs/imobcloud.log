@@ -4582,3 +4582,737 @@ WARNING 2026-01-06 16:34:57,196 utils 9 137227301342080 Could not reverse url fr
 WARNING 2026-01-06 16:34:57,199 utils 9 137227301342080 Could not reverse url from auth.user
 WARNING 2026-01-06 16:47:17,687 log 9 131858915498880 Method Not Allowed: /api/v1/token/
 WARNING 2026-01-06 16:47:18,390 log 8 131858915498880 Not Found: /favicon.ico
+ERROR 2026-01-07 08:56:03,269 log 7 132226087357312 Internal Server Error: /
+Traceback (most recent call last):
+  File "/usr/local/lib/python3.12/site-packages/django/core/handlers/exception.py", line 55, in inner
+    response = get_response(request)
+               ^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/django/core/handlers/base.py", line 197, in _get_response
+    response = wrapped_callback(request, *callback_args, **callback_kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/django/utils/decorators.py", line 188, in _view_wrapper
+    result = _process_exception(request, e)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/django/utils/decorators.py", line 186, in _view_wrapper
+    response = view_func(request, *args, **kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/app/ImobCloud/urls.py", line 30, in index_view
+    return render(request, 'index.html')
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/django/shortcuts.py", line 24, in render
+    content = loader.render_to_string(template_name, context, request, using=using)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/django/template/loader.py", line 61, in render_to_string
+    template = get_template(template_name, using=using)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/django/template/loader.py", line 19, in get_template
+    raise TemplateDoesNotExist(template_name, chain=chain)
+django.template.exceptions.TemplateDoesNotExist: index.html
+WARNING 2026-01-07 08:56:07,844 log 9 132226087357312 Not Found: /favicon.ico
+WARNING 2026-01-07 08:56:08,745 utils 7 132226087357312 Could not reverse url from auth.user
+WARNING 2026-01-07 08:56:08,768 utils 7 132226087357312 Could not reverse url from auth.user
+WARNING 2026-01-07 08:56:08,777 utils 7 132226087357312 Could not reverse url from auth.user
+WARNING 2026-01-07 08:56:08,779 utils 7 132226087357312 Could not reverse url from auth.user
+WARNING 2026-01-07 08:56:08,787 utils 7 132226087357312 Could not reverse url from auth.user
+ERROR 2026-01-07 08:56:29,187 log 8 132226087357312 Internal Server Error: /
+Traceback (most recent call last):
+  File "/usr/local/lib/python3.12/site-packages/django/core/handlers/exception.py", line 55, in inner
+    response = get_response(request)
+               ^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/django/core/handlers/base.py", line 197, in _get_response
+    response = wrapped_callback(request, *callback_args, **callback_kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/django/utils/decorators.py", line 188, in _view_wrapper
+    result = _process_exception(request, e)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/django/utils/decorators.py", line 186, in _view_wrapper
+    response = view_func(request, *args, **kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/app/ImobCloud/urls.py", line 30, in index_view
+    return render(request, 'index.html')
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/django/shortcuts.py", line 24, in render
+    content = loader.render_to_string(template_name, context, request, using=using)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/django/template/loader.py", line 61, in render_to_string
+    template = get_template(template_name, using=using)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/django/template/loader.py", line 19, in get_template
+    raise TemplateDoesNotExist(template_name, chain=chain)
+django.template.exceptions.TemplateDoesNotExist: index.html
+ERROR 2026-01-07 09:00:08,668 log 8 138372078906240 Internal Server Error: /
+Traceback (most recent call last):
+  File "/usr/local/lib/python3.12/site-packages/django/core/handlers/exception.py", line 55, in inner
+    response = get_response(request)
+               ^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/django/core/handlers/base.py", line 197, in _get_response
+    response = wrapped_callback(request, *callback_args, **callback_kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/django/utils/decorators.py", line 188, in _view_wrapper
+    result = _process_exception(request, e)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/django/utils/decorators.py", line 186, in _view_wrapper
+    response = view_func(request, *args, **kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/app/ImobCloud/urls.py", line 30, in index_view
+    return render(request, 'index.html')
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/django/shortcuts.py", line 24, in render
+    content = loader.render_to_string(template_name, context, request, using=using)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/django/template/loader.py", line 61, in render_to_string
+    template = get_template(template_name, using=using)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/django/template/loader.py", line 19, in get_template
+    raise TemplateDoesNotExist(template_name, chain=chain)
+django.template.exceptions.TemplateDoesNotExist: index.html
+WARNING 2026-01-07 09:00:13,719 log 9 138372078906240 Not Found: /favicon.ico
+ERROR 2026-01-07 09:00:15,181 log 9 138372078906240 Internal Server Error: /.well-known/appspecific/com.chrome.devtools.json
+Traceback (most recent call last):
+  File "/usr/local/lib/python3.12/site-packages/django/core/handlers/exception.py", line 55, in inner
+    response = get_response(request)
+               ^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/django/core/handlers/base.py", line 197, in _get_response
+    response = wrapped_callback(request, *callback_args, **callback_kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/django/utils/decorators.py", line 188, in _view_wrapper
+    result = _process_exception(request, e)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/django/utils/decorators.py", line 186, in _view_wrapper
+    response = view_func(request, *args, **kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/app/ImobCloud/urls.py", line 30, in index_view
+    return render(request, 'index.html')
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/django/shortcuts.py", line 24, in render
+    content = loader.render_to_string(template_name, context, request, using=using)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/django/template/loader.py", line 61, in render_to_string
+    template = get_template(template_name, using=using)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/django/template/loader.py", line 19, in get_template
+    raise TemplateDoesNotExist(template_name, chain=chain)
+django.template.exceptions.TemplateDoesNotExist: index.html
+WARNING 2026-01-07 09:17:45,315 log 9 140207445953408 Not Found: /assets/index-B43jz4d3.js
+WARNING 2026-01-07 09:17:51,949 log 9 140207445953408 Not Found: /assets/index-B43jz4d3.js
+WARNING 2026-01-07 09:17:55,779 log 9 140207445953408 Not Found: /assets/index-B43jz4d3.js
+WARNING 2026-01-07 09:17:56,878 log 8 140207445953408 Not Found: /assets/index-B43jz4d3.js
+WARNING 2026-01-07 09:21:28,330 log 8 140207445953408 Not Found: /assets/index-B43jz4d3.js
+WARNING 2026-01-07 09:21:28,356 log 7 140207445953408 Not Found: /assets/index-Bpk3s_jd.css
+WARNING 2026-01-07 09:23:15,491 log 9 140207445953408 Not Found: /assets/index-B43jz4d3.js
+WARNING 2026-01-07 09:23:15,524 log 8 140207445953408 Not Found: /assets/index-Bpk3s_jd.css
+WARNING 2026-01-07 09:23:16,918 log 7 140207445953408 Not Found: /assets/index-B43jz4d3.js
+WARNING 2026-01-07 09:23:17,007 log 9 140207445953408 Not Found: /assets/index-Bpk3s_jd.css
+WARNING 2026-01-07 09:24:47,460 log 9 139469887654784 Forbidden: /api/v1/v1/token/
+WARNING 2026-01-07 09:24:58,325 utils 7 139469887654784 Could not reverse url from auth.user
+WARNING 2026-01-07 09:24:58,354 utils 7 139469887654784 Could not reverse url from auth.user
+WARNING 2026-01-07 09:24:58,368 utils 7 139469887654784 Could not reverse url from auth.user
+WARNING 2026-01-07 09:24:58,372 utils 7 139469887654784 Could not reverse url from auth.user
+WARNING 2026-01-07 09:24:58,378 utils 7 139469887654784 Could not reverse url from auth.user
+WARNING 2026-01-07 09:25:01,295 utils 8 139469887654784 Could not reverse url from auth.user
+WARNING 2026-01-07 09:25:01,308 utils 8 139469887654784 Could not reverse url from auth.user
+WARNING 2026-01-07 09:25:01,316 utils 8 139469887654784 Could not reverse url from auth.user
+WARNING 2026-01-07 09:25:01,320 utils 8 139469887654784 Could not reverse url from auth.user
+WARNING 2026-01-07 09:25:03,411 utils 9 139469887654784 Could not reverse url from auth.user
+WARNING 2026-01-07 09:25:03,418 utils 9 139469887654784 Could not reverse url from auth.user
+WARNING 2026-01-07 09:25:03,425 utils 9 139469887654784 Could not reverse url from auth.user
+WARNING 2026-01-07 09:25:03,427 utils 9 139469887654784 Could not reverse url from auth.user
+WARNING 2026-01-07 09:25:03,435 utils 9 139469887654784 Could not reverse url from auth.user
+WARNING 2026-01-07 09:25:35,424 log 9 139469887654784 Not Found: /static/login
+WARNING 2026-01-07 09:25:35,948 log 9 139469887654784 Not Found: /favicon.ico
+WARNING 2026-01-07 09:27:27,941 log 8 123436115725184 Not Found: /static/
+WARNING 2026-01-07 09:27:28,394 log 8 123436115725184 Not Found: /favicon.ico
+WARNING 2026-01-07 09:34:38,484 log 7 123596538170240 Not Found: /static/
+WARNING 2026-01-07 09:34:38,957 log 7 123596538170240 Not Found: /favicon.ico
+WARNING 2026-01-07 09:34:46,345 log 8 123596538170240 Not Found: /static/
+WARNING 2026-01-07 09:34:52,068 log 7 123596538170240 Not Found: /static/
+WARNING 2026-01-07 09:34:52,494 log 9 123596538170240 Not Found: /favicon.ico
+WARNING 2026-01-07 09:34:53,033 log 8 123596538170240 Not Found: /static/
+WARNING 2026-01-07 09:34:53,410 log 8 123596538170240 Not Found: /static/
+WARNING 2026-01-07 09:34:53,580 log 8 123596538170240 Not Found: /static/
+WARNING 2026-01-07 09:34:53,858 log 7 123596538170240 Not Found: /static/
+WARNING 2026-01-07 09:34:54,157 log 9 123596538170240 Not Found: /static/
+WARNING 2026-01-07 09:34:54,477 log 7 123596538170240 Not Found: /static/
+WARNING 2026-01-07 09:34:54,977 log 9 123596538170240 Not Found: /favicon.ico
+WARNING 2026-01-07 09:34:55,413 log 7 123596538170240 Not Found: /static/
+WARNING 2026-01-07 09:34:55,816 log 9 123596538170240 Not Found: /favicon.ico
+WARNING 2026-01-07 09:39:59,878 log 8 126687505308544 Not Found: /static/
+WARNING 2026-01-07 09:40:00,159 log 9 126687505308544 Not Found: /favicon.ico
+WARNING 2026-01-07 09:40:12,888 log 9 126687505308544 Not Found: /static/
+WARNING 2026-01-07 09:40:13,131 log 8 126687505308544 Not Found: /favicon.ico
+WARNING 2026-01-07 09:40:23,967 log 9 126687505308544 Not Found: /static/
+WARNING 2026-01-07 09:40:24,090 log 9 126687505308544 Not Found: /favicon.ico
+WARNING 2026-01-07 09:40:25,369 log 9 126687505308544 Not Found: /static/
+WARNING 2026-01-07 09:40:25,453 log 7 126687505308544 Not Found: /favicon.ico
+WARNING 2026-01-07 09:40:25,634 log 9 126687505308544 Not Found: /static/
+WARNING 2026-01-07 09:40:25,721 log 9 126687505308544 Not Found: /favicon.ico
+WARNING 2026-01-07 09:40:25,893 log 9 126687505308544 Not Found: /static/
+WARNING 2026-01-07 09:40:25,984 log 7 126687505308544 Not Found: /favicon.ico
+WARNING 2026-01-07 09:40:26,515 log 8 126687505308544 Not Found: /static/
+WARNING 2026-01-07 09:40:26,595 log 8 126687505308544 Not Found: /favicon.ico
+WARNING 2026-01-07 09:40:26,835 log 8 126687505308544 Not Found: /static/
+WARNING 2026-01-07 09:40:26,922 log 8 126687505308544 Not Found: /favicon.ico
+WARNING 2026-01-07 09:40:27,101 log 9 126687505308544 Not Found: /static/
+WARNING 2026-01-07 09:40:27,192 log 9 126687505308544 Not Found: /favicon.ico
+WARNING 2026-01-07 09:40:27,369 log 9 126687505308544 Not Found: /static/
+WARNING 2026-01-07 09:40:27,459 log 9 126687505308544 Not Found: /favicon.ico
+WARNING 2026-01-07 10:01:02,061 log 8 135721364151168 Forbidden: /api/v1/v1/token/
+WARNING 2026-01-07 10:01:14,162 log 9 135721364151168 Forbidden: /api/v1/v1/token/
+WARNING 2026-01-07 10:01:19,270 log 7 135721364151168 Forbidden: /api/v1/v1/token/
+WARNING 2026-01-07 10:01:28,086 log 8 135721364151168 Forbidden: /api/v1/v1/token/
+WARNING 2026-01-07 10:04:51,887 log 8 135721364151168 Forbidden: /api/v1/v1/token/
+WARNING 2026-01-07 10:04:56,229 log 9 135721364151168 Forbidden: /api/v1/v1/token/
+WARNING 2026-01-07 10:06:22,513 log 6 135065463479168 Forbidden: /api/v1/core/usuarios/me/
+WARNING 2026-01-07 10:06:22,699 log 6 135065463479168 Forbidden: /api/v1/v1/stats/
+WARNING 2026-01-07 10:06:22,806 log 7 135065463479168 Forbidden: /api/v1/v1/core/usuarios/minhas-notificacoes/
+WARNING 2026-01-07 10:06:22,820 log 8 135065463479168 Forbidden: /api/v1/v1/financeiro/transacoes/stats/
+WARNING 2026-01-07 10:06:22,830 log 6 135065463479168 Forbidden: /api/v1/v1/core/usuarios/me/
+WARNING 2026-01-07 10:06:22,901 log 7 135065463479168 Forbidden: /api/v1/v1/alugueis/dashboard-stats/
+WARNING 2026-01-07 10:06:41,913 log 7 135065463479168 Forbidden: /api/v1/v1/stats/
+WARNING 2026-01-07 10:06:41,919 log 6 135065463479168 Forbidden: /api/v1/v1/financeiro/transacoes/stats/
+WARNING 2026-01-07 10:06:41,920 log 8 135065463479168 Forbidden: /api/v1/v1/alugueis/dashboard-stats/
+WARNING 2026-01-07 10:06:42,611 log 8 135065463479168 Forbidden: /api/v1/v1/stats/
+WARNING 2026-01-07 10:06:42,628 log 6 135065463479168 Forbidden: /api/v1/v1/alugueis/dashboard-stats/
+WARNING 2026-01-07 10:06:42,643 log 7 135065463479168 Forbidden: /api/v1/v1/financeiro/transacoes/stats/
+WARNING 2026-01-07 10:06:46,358 log 8 135065463479168 Forbidden: /api/v1/core/usuarios/me/
+WARNING 2026-01-07 10:06:46,557 log 7 135065463479168 Forbidden: /api/v1/v1/stats/
+WARNING 2026-01-07 10:06:46,582 log 6 135065463479168 Forbidden: /api/v1/v1/core/usuarios/minhas-notificacoes/
+WARNING 2026-01-07 10:06:46,654 log 7 135065463479168 Forbidden: /api/v1/v1/core/usuarios/me/
+WARNING 2026-01-07 10:06:46,710 log 8 135065463479168 Forbidden: /api/v1/v1/financeiro/transacoes/stats/
+WARNING 2026-01-07 10:06:46,748 log 6 135065463479168 Forbidden: /api/v1/v1/alugueis/dashboard-stats/
+WARNING 2026-01-07 10:06:51,655 log 6 135065463479168 Forbidden: /api/v1/v1/financeiro/transacoes/stats/
+WARNING 2026-01-07 10:06:51,662 log 7 135065463479168 Forbidden: /api/v1/v1/stats/
+WARNING 2026-01-07 10:06:51,663 log 8 135065463479168 Forbidden: /api/v1/v1/alugueis/dashboard-stats/
+WARNING 2026-01-07 10:07:23,126 log 7 135065463479168 Forbidden: /api/v1/v1/core/usuarios/minhas-notificacoes/
+WARNING 2026-01-07 10:07:47,116 log 7 135065463479168 Forbidden: /api/v1/v1/core/usuarios/minhas-notificacoes/
+WARNING 2026-01-07 10:08:23,152 log 7 135065463479168 Forbidden: /api/v1/v1/core/usuarios/minhas-notificacoes/
+WARNING 2026-01-07 10:08:47,483 log 6 135065463479168 Forbidden: /api/v1/v1/core/usuarios/minhas-notificacoes/
+WARNING 2026-01-07 10:09:18,579 utils 8 135065463479168 Could not reverse url from auth.user
+WARNING 2026-01-07 10:09:18,611 utils 8 135065463479168 Could not reverse url from auth.user
+WARNING 2026-01-07 10:09:18,628 utils 8 135065463479168 Could not reverse url from auth.user
+WARNING 2026-01-07 10:09:18,632 utils 8 135065463479168 Could not reverse url from auth.user
+WARNING 2026-01-07 10:09:18,641 utils 8 135065463479168 Could not reverse url from auth.user
+WARNING 2026-01-07 10:09:23,133 log 6 135065463479168 Forbidden: /api/v1/v1/core/usuarios/minhas-notificacoes/
+WARNING 2026-01-07 10:09:47,090 log 7 135065463479168 Forbidden: /api/v1/v1/core/usuarios/minhas-notificacoes/
+WARNING 2026-01-07 10:10:23,114 log 6 135065463479168 Forbidden: /api/v1/v1/core/usuarios/minhas-notificacoes/
+WARNING 2026-01-07 10:10:36,203 log 6 135065463479168 Forbidden: /api/v1/v1/financeiro/transacoes/stats/
+WARNING 2026-01-07 10:10:36,206 log 8 135065463479168 Forbidden: /api/v1/v1/alugueis/dashboard-stats/
+WARNING 2026-01-07 10:10:36,222 log 7 135065463479168 Forbidden: /api/v1/v1/stats/
+WARNING 2026-01-07 10:10:37,356 log 6 135065463479168 Forbidden: /api/v1/v1/financeiro/transacoes/stats/
+WARNING 2026-01-07 10:10:37,360 log 8 135065463479168 Forbidden: /api/v1/v1/alugueis/dashboard-stats/
+WARNING 2026-01-07 10:10:37,361 log 7 135065463479168 Forbidden: /api/v1/v1/stats/
+WARNING 2026-01-07 10:10:46,490 log 8 135065463479168 Forbidden: /api/v1/v1/core/usuarios/minhas-notificacoes/
+WARNING 2026-01-07 10:11:10,085 log 8 135065463479168 Forbidden: /api/v1/core/usuarios/me/
+WARNING 2026-01-07 10:11:10,257 log 8 135065463479168 Forbidden: /api/v1/v1/core/usuarios/minhas-notificacoes/
+WARNING 2026-01-07 10:11:10,276 log 7 135065463479168 Forbidden: /api/v1/v1/financeiro/transacoes/stats/
+WARNING 2026-01-07 10:11:10,287 log 6 135065463479168 Forbidden: /api/v1/v1/stats/
+WARNING 2026-01-07 10:11:10,380 log 6 135065463479168 Forbidden: /api/v1/v1/alugueis/dashboard-stats/
+WARNING 2026-01-07 10:11:10,419 log 7 135065463479168 Forbidden: /api/v1/v1/core/usuarios/me/
+WARNING 2026-01-07 10:11:12,919 log 6 135065463479168 Forbidden: /api/v1/v1/financeiro/transacoes/stats/
+WARNING 2026-01-07 10:11:12,922 log 7 135065463479168 Forbidden: /api/v1/v1/stats/
+WARNING 2026-01-07 10:11:12,940 log 8 135065463479168 Forbidden: /api/v1/v1/alugueis/dashboard-stats/
+WARNING 2026-01-07 10:11:23,113 log 8 135065463479168 Forbidden: /api/v1/v1/core/usuarios/minhas-notificacoes/
+WARNING 2026-01-07 10:11:47,098 log 7 135065463479168 Forbidden: /api/v1/v1/core/usuarios/minhas-notificacoes/
+WARNING 2026-01-07 10:12:11,111 log 8 135065463479168 Forbidden: /api/v1/v1/core/usuarios/minhas-notificacoes/
+WARNING 2026-01-07 10:12:23,257 log 6 135065463479168 Forbidden: /api/v1/v1/core/usuarios/minhas-notificacoes/
+WARNING 2026-01-07 10:12:47,115 log 6 135065463479168 Forbidden: /api/v1/v1/core/usuarios/minhas-notificacoes/
+WARNING 2026-01-07 10:13:11,111 log 7 135065463479168 Forbidden: /api/v1/v1/core/usuarios/minhas-notificacoes/
+WARNING 2026-01-07 10:13:23,136 log 6 135065463479168 Forbidden: /api/v1/v1/core/usuarios/minhas-notificacoes/
+WARNING 2026-01-07 10:14:11,130 log 7 135065463479168 Forbidden: /api/v1/v1/core/usuarios/minhas-notificacoes/
+WARNING 2026-01-07 10:14:23,176 log 6 135065463479168 Forbidden: /api/v1/v1/core/usuarios/minhas-notificacoes/
+WARNING 2026-01-07 10:14:23,176 log 8 135065463479168 Forbidden: /api/v1/v1/core/usuarios/minhas-notificacoes/
+WARNING 2026-01-07 10:15:11,173 log 6 135065463479168 Forbidden: /api/v1/v1/core/usuarios/minhas-notificacoes/
+WARNING 2026-01-07 10:15:23,146 log 8 135065463479168 Forbidden: /api/v1/v1/core/usuarios/minhas-notificacoes/
+WARNING 2026-01-07 10:15:23,177 log 6 135065463479168 Forbidden: /api/v1/v1/core/usuarios/minhas-notificacoes/
+WARNING 2026-01-07 10:15:35,948 log 6 135065463479168 Forbidden: /api/v1/core/usuarios/me/
+WARNING 2026-01-07 10:15:36,052 log 8 135065463479168 Forbidden: /api/v1/v1/core/usuarios/me/
+WARNING 2026-01-07 10:15:36,107 log 7 135065463479168 Forbidden: /api/v1/v1/alugueis/dashboard-stats/
+WARNING 2026-01-07 10:15:36,226 log 6 135065463479168 Forbidden: /api/v1/v1/financeiro/transacoes/stats/
+WARNING 2026-01-07 10:15:36,253 log 8 135065463479168 Forbidden: /api/v1/v1/stats/
+WARNING 2026-01-07 10:15:36,284 log 7 135065463479168 Forbidden: /api/v1/v1/core/usuarios/minhas-notificacoes/
+WARNING 2026-01-07 10:15:45,503 log 6 135065463479168 Forbidden: /api/v1/core/usuarios/me/
+WARNING 2026-01-07 10:15:45,714 log 8 135065463479168 Forbidden: /api/v1/v1/core/usuarios/minhas-notificacoes/
+WARNING 2026-01-07 10:15:45,734 log 7 135065463479168 Forbidden: /api/v1/v1/stats/
+WARNING 2026-01-07 10:15:45,781 log 6 135065463479168 Forbidden: /api/v1/v1/financeiro/transacoes/stats/
+WARNING 2026-01-07 10:15:45,836 log 7 135065463479168 Forbidden: /api/v1/v1/alugueis/dashboard-stats/
+WARNING 2026-01-07 10:15:45,846 log 8 135065463479168 Forbidden: /api/v1/v1/core/usuarios/me/
+WARNING 2026-01-07 10:16:46,126 log 7 135065463479168 Forbidden: /api/v1/v1/core/usuarios/minhas-notificacoes/
+WARNING 2026-01-07 10:17:46,145 log 7 135065463479168 Forbidden: /api/v1/v1/core/usuarios/minhas-notificacoes/
+WARNING 2026-01-07 10:18:46,113 log 7 135065463479168 Forbidden: /api/v1/v1/core/usuarios/minhas-notificacoes/
+WARNING 2026-01-07 10:19:46,107 log 8 135065463479168 Forbidden: /api/v1/v1/core/usuarios/minhas-notificacoes/
+WARNING 2026-01-07 10:20:38,857 log 8 124926833568640 Forbidden: /api/v1/core/usuarios/me/
+WARNING 2026-01-07 10:20:39,156 log 9 124926833568640 Forbidden: /api/v1/stats/
+WARNING 2026-01-07 10:20:39,232 log 8 124926833568640 Forbidden: /api/v1/core/usuarios/me/
+WARNING 2026-01-07 10:20:39,251 log 7 124926833568640 Forbidden: /api/v1/alugueis/dashboard-stats/
+WARNING 2026-01-07 10:20:39,278 log 9 124926833568640 Forbidden: /api/v1/financeiro/transacoes/stats/
+WARNING 2026-01-07 10:20:39,346 log 7 124926833568640 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2026-01-07 10:21:37,038 log 7 124926833568640 Forbidden: /api/v1/stats/
+WARNING 2026-01-07 10:21:37,040 log 8 124926833568640 Forbidden: /api/v1/financeiro/transacoes/stats/
+WARNING 2026-01-07 10:21:37,058 log 9 124926833568640 Forbidden: /api/v1/alugueis/dashboard-stats/
+WARNING 2026-01-07 10:21:38,960 log 9 124926833568640 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2026-01-07 10:23:39,127 log 8 131080694393728 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2026-01-07 10:24:39,105 log 8 131080694393728 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2026-01-07 10:25:39,119 log 9 131080694393728 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2026-01-07 10:26:03,691 log 9 131962593463168 Forbidden: /api/v1/core/usuarios/me/
+WARNING 2026-01-07 10:26:03,860 log 9 131962593463168 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2026-01-07 10:26:03,905 log 8 131962593463168 Forbidden: /api/v1/stats/
+WARNING 2026-01-07 10:26:03,929 log 7 131962593463168 Forbidden: /api/v1/financeiro/transacoes/stats/
+WARNING 2026-01-07 10:26:03,953 log 9 131962593463168 Forbidden: /api/v1/core/usuarios/me/
+WARNING 2026-01-07 10:26:04,013 log 8 131962593463168 Forbidden: /api/v1/alugueis/dashboard-stats/
+WARNING 2026-01-07 10:26:25,337 log 8 140346299022208 Forbidden: /api/v1/core/usuarios/me/
+WARNING 2026-01-07 10:26:25,445 log 8 140346299022208 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2026-01-07 10:26:25,445 log 9 140346299022208 Forbidden: /api/v1/stats/
+WARNING 2026-01-07 10:26:25,516 log 7 140346299022208 Forbidden: /api/v1/alugueis/dashboard-stats/
+WARNING 2026-01-07 10:26:25,546 log 9 140346299022208 Forbidden: /api/v1/core/usuarios/me/
+WARNING 2026-01-07 10:26:25,555 log 8 140346299022208 Forbidden: /api/v1/financeiro/transacoes/stats/
+WARNING 2026-01-07 10:26:36,696 log 8 140346299022208 Forbidden: /api/v1/core/usuarios/me/
+WARNING 2026-01-07 10:26:36,890 log 9 140346299022208 Forbidden: /api/v1/stats/
+WARNING 2026-01-07 10:26:36,905 log 8 140346299022208 Forbidden: /api/v1/financeiro/transacoes/stats/
+WARNING 2026-01-07 10:26:36,918 log 7 140346299022208 Forbidden: /api/v1/alugueis/dashboard-stats/
+WARNING 2026-01-07 10:26:37,006 log 7 140346299022208 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2026-01-07 10:26:37,018 log 9 140346299022208 Forbidden: /api/v1/core/usuarios/me/
+WARNING 2026-01-07 10:27:37,128 log 7 140346299022208 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2026-01-07 10:28:37,108 log 7 140346299022208 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2026-01-07 10:29:36,609 log 9 140346299022208 Forbidden: /api/v1/core/usuarios/me/
+WARNING 2026-01-07 10:29:36,854 log 9 140346299022208 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2026-01-07 10:29:36,877 log 8 140346299022208 Forbidden: /api/v1/financeiro/transacoes/stats/
+WARNING 2026-01-07 10:29:36,892 log 7 140346299022208 Forbidden: /api/v1/stats/
+WARNING 2026-01-07 10:29:36,960 log 9 140346299022208 Forbidden: /api/v1/alugueis/dashboard-stats/
+WARNING 2026-01-07 10:29:36,977 log 8 140346299022208 Forbidden: /api/v1/core/usuarios/me/
+WARNING 2026-01-07 10:31:37,184 log 8 127241427549056 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2026-01-07 10:32:37,207 log 9 127241427549056 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2026-01-07 10:33:37,119 log 9 127241427549056 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2026-01-07 10:34:31,174 log 7 136522405964672 Forbidden: /api/v1/core/usuarios/me/
+WARNING 2026-01-07 10:34:31,381 log 9 136522405964672 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2026-01-07 10:34:31,385 log 7 136522405964672 Forbidden: /api/v1/stats/
+WARNING 2026-01-07 10:34:31,454 log 8 136522405964672 Forbidden: /api/v1/financeiro/transacoes/stats/
+WARNING 2026-01-07 10:34:31,498 log 9 136522405964672 Forbidden: /api/v1/alugueis/dashboard-stats/
+WARNING 2026-01-07 10:34:31,509 log 7 136522405964672 Forbidden: /api/v1/core/usuarios/me/
+WARNING 2026-01-07 10:35:32,112 log 7 136522405964672 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2026-01-07 10:36:32,145 log 8 136522405964672 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2026-01-07 10:37:06,190 log 7 136522405964672 Forbidden: /api/v1/core/usuarios/me/
+WARNING 2026-01-07 10:37:06,440 log 7 136522405964672 Forbidden: /api/v1/stats/
+WARNING 2026-01-07 10:37:06,456 log 8 136522405964672 Forbidden: /api/v1/financeiro/transacoes/stats/
+WARNING 2026-01-07 10:37:06,511 log 9 136522405964672 Forbidden: /api/v1/alugueis/dashboard-stats/
+WARNING 2026-01-07 10:37:06,567 log 8 136522405964672 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2026-01-07 10:37:06,585 log 7 136522405964672 Forbidden: /api/v1/core/usuarios/me/
+WARNING 2026-01-07 10:37:32,100 log 7 136522405964672 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2026-01-07 10:38:07,107 log 9 136522405964672 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2026-01-07 10:38:32,140 log 7 136522405964672 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2026-01-07 10:39:07,383 log 7 136522405964672 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2026-01-07 10:39:32,178 log 7 136522405964672 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2026-01-07 10:40:07,111 log 9 136522405964672 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+ERROR 2026-01-07 10:41:11,416 log 9 136985758169984 Internal Server Error: /api/v1/core/usuarios/minhas-notificacoes/
+Traceback (most recent call last):
+  File "/usr/local/lib/python3.12/site-packages/django/contrib/sessions/backends/base.py", line 187, in _get_session
+    return self._session_cache
+           ^^^^^^^^^^^^^^^^^^^
+AttributeError: 'SessionStore' object has no attribute '_session_cache'
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/usr/local/lib/python3.12/site-packages/django/db/backends/utils.py", line 105, in _execute
+    return self.cursor.execute(sql, params)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+psycopg2.errors.UndefinedTable: relation "django_session" does not exist
+LINE 1: ...ession_data", "django_session"."expire_date" FROM "django_se...
+                                                             ^
+
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/usr/local/lib/python3.12/site-packages/django/core/handlers/exception.py", line 55, in inner
+    response = get_response(request)
+               ^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/django/utils/deprecation.py", line 133, in __call__
+    response = self.process_request(request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/app/ImobCloud/middleware.py", line 24, in process_request
+    user_info = f"User: {request.user.username}" if hasattr(request, 'user') and request.user.is_authenticated else "User: Anonymous"
+                                                                                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/django/utils/functional.py", line 251, in inner
+    self._setup()
+  File "/usr/local/lib/python3.12/site-packages/django/utils/functional.py", line 404, in _setup
+    self._wrapped = self._setupfunc()
+                    ^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/django/contrib/auth/middleware.py", line 33, in <lambda>
+    request.user = SimpleLazyObject(lambda: get_user(request))
+                                            ^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/django/contrib/auth/middleware.py", line 13, in get_user
+    request._cached_user = auth.get_user(request)
+                           ^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/django/contrib/auth/__init__.py", line 209, in get_user
+    user_id = _get_user_session_key(request)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/django/contrib/auth/__init__.py", line 62, in _get_user_session_key
+    return get_user_model()._meta.pk.to_python(request.session[SESSION_KEY])
+                                               ~~~~~~~~~~~~~~~^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/django/contrib/sessions/backends/base.py", line 53, in __getitem__
+    return self._session[key]
+           ^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/django/contrib/sessions/backends/base.py", line 192, in _get_session
+    self._session_cache = self.load()
+                          ^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/django/contrib/sessions/backends/db.py", line 42, in load
+    s = self._get_session_from_db()
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/django/contrib/sessions/backends/db.py", line 32, in _get_session_from_db
+    return self.model.objects.get(
+           ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/django/db/models/manager.py", line 87, in manager_method
+    return getattr(self.get_queryset(), name)(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/django/db/models/query.py", line 643, in get
+    num = len(clone)
+          ^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/django/db/models/query.py", line 380, in __len__
+    self._fetch_all()
+  File "/usr/local/lib/python3.12/site-packages/django/db/models/query.py", line 1926, in _fetch_all
+    self._result_cache = list(self._iterable_class(self))
+                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/django/db/models/query.py", line 91, in __iter__
+    results = compiler.execute_sql(
+              ^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/django/db/models/sql/compiler.py", line 1562, in execute_sql
+    cursor.execute(sql, params)
+  File "/usr/local/lib/python3.12/site-packages/django/db/backends/utils.py", line 122, in execute
+    return super().execute(sql, params)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/django/db/backends/utils.py", line 79, in execute
+    return self._execute_with_wrappers(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/django/db/backends/utils.py", line 92, in _execute_with_wrappers
+    return executor(sql, params, many, context)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/django/db/backends/utils.py", line 100, in _execute
+    with self.db.wrap_database_errors:
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/django/db/utils.py", line 91, in __exit__
+    raise dj_exc_value.with_traceback(traceback) from exc_value
+  File "/usr/local/lib/python3.12/site-packages/django/db/backends/utils.py", line 105, in _execute
+    return self.cursor.execute(sql, params)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+django.db.utils.ProgrammingError: relation "django_session" does not exist
+LINE 1: ...ession_data", "django_session"."expire_date" FROM "django_se...
+                                                             ^
+
+WARNING 2026-01-07 10:41:46,291 utils 7 136985758169984 Could not reverse url from auth.user
+WARNING 2026-01-07 10:41:51,487 utils 8 136985758169984 Could not reverse url from auth.user
+WARNING 2026-01-07 10:42:07,113 log 8 136985758169984 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2026-01-07 10:42:14,175 utils 7 136985758169984 Could not reverse url from auth.user
+WARNING 2026-01-07 10:42:23,114 log 8 136985758169984 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2026-01-07 10:42:42,719 utils 7 136985758169984 Could not reverse url from auth.user
+WARNING 2026-01-07 10:42:44,809 utils 9 136985758169984 Could not reverse url from auth.user
+WARNING 2026-01-07 10:43:07,118 log 7 136985758169984 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2026-01-07 10:43:08,125 utils 8 136985758169984 Could not reverse url from auth.user
+WARNING 2026-01-07 10:43:23,097 log 8 136985758169984 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2026-01-07 10:43:37,075 utils 8 136985758169984 Could not reverse url from auth.user
+WARNING 2026-01-07 10:43:42,171 utils 9 136985758169984 Could not reverse url from auth.user
+WARNING 2026-01-07 10:43:46,744 utils 7 136985758169984 Could not reverse url from auth.user
+WARNING 2026-01-07 10:44:00,851 utils 8 136985758169984 Could not reverse url from auth.user
+WARNING 2026-01-07 10:44:23,119 log 8 136985758169984 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2026-01-07 10:44:23,137 log 9 136985758169984 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2026-01-07 10:45:23,137 log 8 136985758169984 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2026-01-07 10:45:23,136 log 7 136985758169984 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2026-01-07 10:46:23,143 log 7 136985758169984 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2026-01-07 10:46:23,165 log 8 136985758169984 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2026-01-07 10:46:38,101 utils 9 136985758169984 Could not reverse url from auth.user
+WARNING 2026-01-07 10:46:44,146 utils 8 136985758169984 Could not reverse url from auth.user
+WARNING 2026-01-07 10:46:44,165 utils 8 136985758169984 Could not reverse url from auth.user
+WARNING 2026-01-07 10:46:44,181 utils 8 136985758169984 Could not reverse url from auth.user
+WARNING 2026-01-07 10:46:44,185 utils 8 136985758169984 Could not reverse url from auth.user
+WARNING 2026-01-07 10:46:44,222 utils 8 136985758169984 Could not reverse url from auth.user
+WARNING 2026-01-07 10:46:54,072 utils 9 136985758169984 Could not reverse url from auth.user
+WARNING 2026-01-07 10:46:54,075 utils 9 136985758169984 Could not reverse url from auth.user
+WARNING 2026-01-07 10:46:54,084 utils 9 136985758169984 Could not reverse url from auth.user
+WARNING 2026-01-07 10:46:54,086 utils 9 136985758169984 Could not reverse url from auth.user
+WARNING 2026-01-07 10:46:54,094 utils 9 136985758169984 Could not reverse url from auth.user
+WARNING 2026-01-07 10:47:01,922 utils 8 136985758169984 Could not reverse url from auth.user
+WARNING 2026-01-07 10:47:01,924 utils 8 136985758169984 Could not reverse url from auth.user
+WARNING 2026-01-07 10:47:01,931 utils 8 136985758169984 Could not reverse url from auth.user
+WARNING 2026-01-07 10:47:01,932 utils 8 136985758169984 Could not reverse url from auth.user
+WARNING 2026-01-07 10:47:01,938 utils 8 136985758169984 Could not reverse url from auth.user
+WARNING 2026-01-07 10:47:07,037 utils 9 136985758169984 Could not reverse url from auth.user
+WARNING 2026-01-07 10:47:07,039 utils 9 136985758169984 Could not reverse url from auth.user
+WARNING 2026-01-07 10:47:07,048 utils 9 136985758169984 Could not reverse url from auth.user
+WARNING 2026-01-07 10:47:07,051 utils 9 136985758169984 Could not reverse url from auth.user
+WARNING 2026-01-07 10:47:07,056 utils 9 136985758169984 Could not reverse url from auth.user
+WARNING 2026-01-07 10:47:15,171 log 8 136985758169984 Unauthorized: /api/v1/core/usuarios/me/
+WARNING 2026-01-07 10:47:22,089 log 8 136985758169984 Unauthorized: /api/v1/core/usuarios/me/
+WARNING 2026-01-07 10:47:23,133 log 9 136985758169984 Unauthorized: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2026-01-07 10:47:23,148 log 7 136985758169984 Unauthorized: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2026-01-07 10:47:25,849 utils 7 136985758169984 Could not reverse url from auth.user
+WARNING 2026-01-07 10:47:25,866 utils 7 136985758169984 Could not reverse url from auth.user
+WARNING 2026-01-07 10:47:25,884 utils 7 136985758169984 Could not reverse url from auth.user
+WARNING 2026-01-07 10:47:25,887 utils 7 136985758169984 Could not reverse url from auth.user
+WARNING 2026-01-07 10:47:25,901 utils 7 136985758169984 Could not reverse url from auth.user
+WARNING 2026-01-07 10:47:31,908 utils 7 136985758169984 Could not reverse url from auth.user
+WARNING 2026-01-07 10:47:31,911 utils 7 136985758169984 Could not reverse url from auth.user
+WARNING 2026-01-07 10:47:31,917 utils 7 136985758169984 Could not reverse url from auth.user
+WARNING 2026-01-07 10:47:31,919 utils 7 136985758169984 Could not reverse url from auth.user
+WARNING 2026-01-07 10:47:34,936 utils 7 136985758169984 Could not reverse url from auth.user
+WARNING 2026-01-07 10:47:34,943 utils 7 136985758169984 Could not reverse url from auth.user
+WARNING 2026-01-07 10:47:34,954 utils 7 136985758169984 Could not reverse url from auth.user
+WARNING 2026-01-07 10:47:34,957 utils 7 136985758169984 Could not reverse url from auth.user
+WARNING 2026-01-07 10:47:34,968 utils 7 136985758169984 Could not reverse url from auth.user
+WARNING 2026-01-07 10:47:46,150 utils 7 136985758169984 Could not reverse url from auth.user
+WARNING 2026-01-07 10:47:46,153 utils 7 136985758169984 Could not reverse url from auth.user
+WARNING 2026-01-07 10:47:46,161 utils 7 136985758169984 Could not reverse url from auth.user
+WARNING 2026-01-07 10:47:46,164 utils 7 136985758169984 Could not reverse url from auth.user
+WARNING 2026-01-07 10:47:49,394 utils 7 136985758169984 Could not reverse url from auth.user
+WARNING 2026-01-07 10:47:49,397 utils 7 136985758169984 Could not reverse url from auth.user
+WARNING 2026-01-07 10:47:49,403 utils 7 136985758169984 Could not reverse url from auth.user
+WARNING 2026-01-07 10:47:49,405 utils 7 136985758169984 Could not reverse url from auth.user
+WARNING 2026-01-07 10:47:49,410 utils 7 136985758169984 Could not reverse url from auth.user
+WARNING 2026-01-07 10:47:58,966 utils 8 136985758169984 Could not reverse url from auth.user
+WARNING 2026-01-07 10:47:58,974 utils 8 136985758169984 Could not reverse url from auth.user
+WARNING 2026-01-07 10:47:58,984 utils 8 136985758169984 Could not reverse url from auth.user
+WARNING 2026-01-07 10:47:58,987 utils 8 136985758169984 Could not reverse url from auth.user
+WARNING 2026-01-07 10:48:02,482 utils 9 136985758169984 Could not reverse url from auth.user
+WARNING 2026-01-07 10:48:02,485 utils 9 136985758169984 Could not reverse url from auth.user
+WARNING 2026-01-07 10:48:02,491 utils 9 136985758169984 Could not reverse url from auth.user
+WARNING 2026-01-07 10:48:02,497 utils 9 136985758169984 Could not reverse url from auth.user
+WARNING 2026-01-07 10:48:14,435 utils 8 136985758169984 Could not reverse url from auth.user
+WARNING 2026-01-07 10:48:14,440 utils 8 136985758169984 Could not reverse url from auth.user
+WARNING 2026-01-07 10:48:14,449 utils 8 136985758169984 Could not reverse url from auth.user
+WARNING 2026-01-07 10:48:14,453 utils 8 136985758169984 Could not reverse url from auth.user
+WARNING 2026-01-07 10:48:19,535 utils 8 136985758169984 Could not reverse url from auth.user
+WARNING 2026-01-07 10:48:19,542 utils 8 136985758169984 Could not reverse url from auth.user
+WARNING 2026-01-07 10:48:19,551 utils 8 136985758169984 Could not reverse url from auth.user
+WARNING 2026-01-07 10:48:19,553 utils 8 136985758169984 Could not reverse url from auth.user
+WARNING 2026-01-07 10:48:19,566 utils 8 136985758169984 Could not reverse url from auth.user
+WARNING 2026-01-07 10:48:23,526 utils 7 136985758169984 Could not reverse url from auth.user
+WARNING 2026-01-07 10:48:23,530 utils 7 136985758169984 Could not reverse url from auth.user
+WARNING 2026-01-07 10:48:23,540 utils 7 136985758169984 Could not reverse url from auth.user
+WARNING 2026-01-07 10:48:23,543 utils 7 136985758169984 Could not reverse url from auth.user
+WARNING 2026-01-07 10:48:24,732 utils 8 136985758169984 Could not reverse url from auth.user
+WARNING 2026-01-07 10:48:24,736 utils 8 136985758169984 Could not reverse url from auth.user
+WARNING 2026-01-07 10:48:24,746 utils 8 136985758169984 Could not reverse url from auth.user
+WARNING 2026-01-07 10:48:24,749 utils 8 136985758169984 Could not reverse url from auth.user
+WARNING 2026-01-07 10:48:24,762 utils 8 136985758169984 Could not reverse url from auth.user
+WARNING 2026-01-07 10:48:34,470 utils 9 136985758169984 Could not reverse url from auth.user
+WARNING 2026-01-07 10:48:34,473 utils 9 136985758169984 Could not reverse url from auth.user
+WARNING 2026-01-07 10:48:34,480 utils 9 136985758169984 Could not reverse url from auth.user
+WARNING 2026-01-07 10:48:34,482 utils 9 136985758169984 Could not reverse url from auth.user
+WARNING 2026-01-07 10:48:37,435 utils 9 136985758169984 Could not reverse url from auth.user
+WARNING 2026-01-07 10:48:37,438 utils 9 136985758169984 Could not reverse url from auth.user
+WARNING 2026-01-07 10:48:37,447 utils 9 136985758169984 Could not reverse url from auth.user
+WARNING 2026-01-07 10:48:37,448 utils 9 136985758169984 Could not reverse url from auth.user
+WARNING 2026-01-07 10:48:37,454 utils 9 136985758169984 Could not reverse url from auth.user
+WARNING 2026-01-07 10:48:39,869 utils 9 136985758169984 Could not reverse url from auth.user
+WARNING 2026-01-07 10:48:39,872 utils 9 136985758169984 Could not reverse url from auth.user
+WARNING 2026-01-07 10:48:39,879 utils 9 136985758169984 Could not reverse url from auth.user
+WARNING 2026-01-07 10:48:39,881 utils 9 136985758169984 Could not reverse url from auth.user
+WARNING 2026-01-07 10:48:41,698 utils 9 136985758169984 Could not reverse url from auth.user
+WARNING 2026-01-07 10:48:41,701 utils 9 136985758169984 Could not reverse url from auth.user
+WARNING 2026-01-07 10:48:41,709 utils 9 136985758169984 Could not reverse url from auth.user
+WARNING 2026-01-07 10:48:41,711 utils 9 136985758169984 Could not reverse url from auth.user
+WARNING 2026-01-07 10:48:41,716 utils 9 136985758169984 Could not reverse url from auth.user
+WARNING 2026-01-07 10:48:56,870 utils 7 136985758169984 Could not reverse url from auth.user
+WARNING 2026-01-07 10:48:56,873 utils 7 136985758169984 Could not reverse url from auth.user
+WARNING 2026-01-07 10:48:56,879 utils 7 136985758169984 Could not reverse url from auth.user
+WARNING 2026-01-07 10:48:56,881 utils 7 136985758169984 Could not reverse url from auth.user
+WARNING 2026-01-07 10:48:56,888 utils 7 136985758169984 Could not reverse url from auth.user
+WARNING 2026-01-07 10:50:37,787 utils 9 136985758169984 Could not reverse url from auth.user
+WARNING 2026-01-07 10:50:37,791 utils 9 136985758169984 Could not reverse url from auth.user
+WARNING 2026-01-07 10:50:37,799 utils 9 136985758169984 Could not reverse url from auth.user
+WARNING 2026-01-07 10:50:37,800 utils 9 136985758169984 Could not reverse url from auth.user
+WARNING 2026-01-07 10:50:40,128 utils 8 136985758169984 Could not reverse url from auth.user
+WARNING 2026-01-07 10:50:40,131 utils 8 136985758169984 Could not reverse url from auth.user
+WARNING 2026-01-07 10:50:40,138 utils 8 136985758169984 Could not reverse url from auth.user
+WARNING 2026-01-07 10:50:40,140 utils 8 136985758169984 Could not reverse url from auth.user
+WARNING 2026-01-07 10:50:40,152 utils 8 136985758169984 Could not reverse url from auth.user
+WARNING 2026-01-07 10:50:53,624 utils 9 136985758169984 Could not reverse url from auth.user
+WARNING 2026-01-07 10:50:53,631 utils 9 136985758169984 Could not reverse url from auth.user
+WARNING 2026-01-07 10:50:53,641 utils 9 136985758169984 Could not reverse url from auth.user
+WARNING 2026-01-07 10:50:53,644 utils 9 136985758169984 Could not reverse url from auth.user
+WARNING 2026-01-07 10:50:57,370 utils 8 136985758169984 Could not reverse url from auth.user
+WARNING 2026-01-07 10:50:57,373 utils 8 136985758169984 Could not reverse url from auth.user
+WARNING 2026-01-07 10:50:57,378 utils 8 136985758169984 Could not reverse url from auth.user
+WARNING 2026-01-07 10:50:57,380 utils 8 136985758169984 Could not reverse url from auth.user
+WARNING 2026-01-07 10:50:57,386 utils 8 136985758169984 Could not reverse url from auth.user
+WARNING 2026-01-07 10:51:06,160 utils 9 136985758169984 Could not reverse url from auth.user
+WARNING 2026-01-07 10:51:06,166 utils 9 136985758169984 Could not reverse url from auth.user
+WARNING 2026-01-07 10:51:06,173 utils 9 136985758169984 Could not reverse url from auth.user
+WARNING 2026-01-07 10:51:06,176 utils 9 136985758169984 Could not reverse url from auth.user
+WARNING 2026-01-07 11:11:36,257 log 8 136366367554432 Not Found: /public/imoveis/1/
+WARNING 2026-01-07 11:11:36,286 log 7 136366367554432 Not Found: /public/imobiliaria/estilomusical/
+WARNING 2026-01-07 11:11:44,328 log 8 136366367554432 Not Found: /public/imoveis/1/
+WARNING 2026-01-07 11:11:44,347 log 7 136366367554432 Not Found: /public/imobiliaria/estilomusical/
+WARNING 2026-01-07 11:22:07,039 log 8 134724858014592 Not Found: /static/assets/index-nbqV9SIj.js
+WARNING 2026-01-07 11:22:07,054 log 9 134724858014592 Not Found: /static/assets/index-BRmcUcY2.css
+WARNING 2026-01-07 11:22:11,112 log 9 134724858014592 Not Found: /static/assets/index-BRmcUcY2.css
+WARNING 2026-01-07 11:22:11,127 log 7 134724858014592 Not Found: /static/assets/index-nbqV9SIj.js
+WARNING 2026-01-07 11:22:12,045 log 9 134724858014592 Not Found: /static/assets/index-BRmcUcY2.css
+WARNING 2026-01-07 11:22:12,066 log 8 134724858014592 Not Found: /static/assets/index-nbqV9SIj.js
+WARNING 2026-01-07 11:22:20,637 log 7 134724858014592 Not Found: /static/assets/index-nbqV9SIj.js
+WARNING 2026-01-07 11:22:20,656 log 9 134724858014592 Not Found: /static/assets/index-BRmcUcY2.css
+WARNING 2026-01-07 11:22:24,384 log 8 134724858014592 Not Found: /public/imoveis/1/
+WARNING 2026-01-07 11:22:24,402 log 7 134724858014592 Not Found: /public/imobiliaria/estilomusical/
+WARNING 2026-01-07 11:22:25,909 log 7 134724858014592 Not Found: /public/imoveis/1/
+WARNING 2026-01-07 11:22:25,928 log 8 134724858014592 Not Found: /public/imobiliaria/estilomusical/
+WARNING 2026-01-07 11:22:28,276 log 9 134724858014592 Not Found: /static/assets/index-BRmcUcY2.css
+WARNING 2026-01-07 11:22:28,277 log 8 134724858014592 Not Found: /static/assets/index-nbqV9SIj.js
+WARNING 2026-01-07 11:32:11,687 log 9 134724858014592 Not Found: /static/assets/index-DLKrpCYE.js
+WARNING 2026-01-07 11:32:11,704 log 7 134724858014592 Not Found: /static/assets/index-BYrRnWfE.css
+WARNING 2026-01-07 11:32:19,990 log 7 134724858014592 Not Found: /static/assets/index-DLKrpCYE.js
+WARNING 2026-01-07 11:32:20,012 log 8 134724858014592 Not Found: /static/assets/index-BYrRnWfE.css
+WARNING 2026-01-07 11:32:33,605 log 9 134724858014592 Not Found: /static/assets/index-DLKrpCYE.js
+WARNING 2026-01-07 11:32:33,608 log 7 134724858014592 Not Found: /static/assets/index-BYrRnWfE.css
+WARNING 2026-01-07 11:32:38,234 log 7 134724858014592 Not Found: /static/assets/index-BRmcUcY2.css
+WARNING 2026-01-07 11:32:38,256 log 8 134724858014592 Not Found: /static/assets/index-nbqV9SIj.js
+WARNING 2026-01-07 11:32:38,932 log 9 134724858014592 Not Found: /static/assets/index-DLKrpCYE.js
+WARNING 2026-01-07 11:32:38,949 log 8 134724858014592 Not Found: /static/assets/index-BYrRnWfE.css
+WARNING 2026-01-07 11:32:39,364 log 8 134724858014592 Not Found: /static/assets/index-DLKrpCYE.js
+WARNING 2026-01-07 11:32:39,365 log 7 134724858014592 Not Found: /static/assets/index-BYrRnWfE.css
+WARNING 2026-01-07 11:32:39,673 log 7 134724858014592 Not Found: /static/assets/index-DLKrpCYE.js
+WARNING 2026-01-07 11:32:39,689 log 8 134724858014592 Not Found: /static/assets/index-BYrRnWfE.css
+WARNING 2026-01-07 11:32:40,342 log 7 134724858014592 Not Found: /static/assets/index-DLKrpCYE.js
+WARNING 2026-01-07 11:32:40,344 log 8 134724858014592 Not Found: /static/assets/index-BYrRnWfE.css
+WARNING 2026-01-07 11:32:40,901 log 8 134724858014592 Not Found: /static/assets/index-BYrRnWfE.css
+WARNING 2026-01-07 11:32:40,915 log 7 134724858014592 Not Found: /static/assets/index-DLKrpCYE.js
+WARNING 2026-01-07 11:32:41,403 log 7 134724858014592 Not Found: /static/assets/index-BYrRnWfE.css
+WARNING 2026-01-07 11:32:41,428 log 8 134724858014592 Not Found: /static/assets/index-DLKrpCYE.js
+WARNING 2026-01-07 11:32:42,010 log 8 134724858014592 Not Found: /static/assets/index-DLKrpCYE.js
+WARNING 2026-01-07 11:32:42,018 log 7 134724858014592 Not Found: /static/assets/index-BYrRnWfE.css
+ERROR 2026-01-07 11:34:05,241 log 8 138116495190912 Internal Server Error: /api/v1/publicacoes/gerar-texto/
+WARNING 2026-01-07 11:39:39,841 log 9 125370134875008 Not Found: /static/assets/index-CveIjaNQ.js
+WARNING 2026-01-07 11:39:39,858 log 8 125370134875008 Not Found: /static/assets/index-D42CgJ4P.css
+WARNING 2026-01-07 12:32:48,264 log 7 134594487143296 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2026-01-07 12:33:48,271 log 7 134594487143296 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2026-01-07 12:34:49,164 log 9 134594487143296 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2026-01-07 12:35:49,170 log 8 134594487143296 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2026-01-07 12:36:49,179 log 7 134594487143296 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2026-01-07 12:37:49,253 log 7 134594487143296 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2026-01-07 12:38:49,261 log 7 134594487143296 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2026-01-07 12:39:49,268 log 9 134594487143296 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2026-01-07 12:40:23,158 log 7 134594487143296 Unauthorized: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2026-01-07 12:40:23,224 log 8 134594487143296 Unauthorized: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2026-01-07 12:40:49,277 log 9 134594487143296 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2026-01-07 12:41:49,285 log 7 134594487143296 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2026-01-07 12:42:49,299 log 8 134594487143296 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2026-01-07 12:43:49,300 log 8 134594487143296 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2026-01-07 12:44:49,308 log 7 134594487143296 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2026-01-07 12:45:49,317 log 7 134594487143296 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2026-01-07 12:46:49,320 log 7 134594487143296 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2026-01-07 12:47:49,332 log 9 134594487143296 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2026-01-07 12:48:49,342 log 7 134594487143296 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2026-01-07 12:49:49,351 log 8 134594487143296 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2026-01-07 12:50:49,358 log 7 134594487143296 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2026-01-07 12:51:49,362 log 8 134594487143296 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2026-01-07 12:52:49,373 log 7 134594487143296 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2026-01-07 12:53:49,377 log 9 134594487143296 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2026-01-07 12:54:49,388 log 7 134594487143296 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2026-01-07 12:55:49,396 log 8 134594487143296 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2026-01-07 12:56:49,402 log 9 134594487143296 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2026-01-07 12:57:49,412 log 8 134594487143296 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2026-01-07 12:58:49,428 log 8 134594487143296 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2026-01-07 12:59:49,428 log 8 134594487143296 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2026-01-07 13:00:49,434 log 7 134594487143296 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2026-01-07 13:01:49,443 log 7 134594487143296 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2026-01-07 13:02:49,448 log 8 134594487143296 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2026-01-07 13:03:49,459 log 9 134594487143296 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2026-01-07 13:04:49,993 log 7 134594487143296 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2026-01-07 13:05:49,992 log 7 134594487143296 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2026-01-07 13:06:50,034 log 8 134594487143296 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2026-01-07 13:07:50,040 log 7 134594487143296 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2026-01-07 13:08:50,047 log 7 134594487143296 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2026-01-07 13:09:50,059 log 7 134594487143296 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2026-01-07 13:10:50,064 log 7 134594487143296 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2026-01-07 13:11:50,074 log 7 134594487143296 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2026-01-07 13:12:50,130 log 7 134594487143296 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2026-01-07 13:13:50,138 log 7 134594487143296 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2026-01-07 13:14:50,147 log 8 134594487143296 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2026-01-07 13:15:50,830 log 8 134594487143296 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2026-01-07 13:16:50,828 log 7 134594487143296 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2026-01-07 13:17:50,857 log 9 134594487143296 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2026-01-07 13:18:51,277 log 8 134594487143296 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2026-01-07 13:19:51,298 log 7 134594487143296 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2026-01-07 13:20:51,293 log 9 134594487143296 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2026-01-07 13:21:51,302 log 7 134594487143296 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2026-01-07 13:22:51,940 log 9 134594487143296 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2026-01-07 13:23:51,949 log 7 134594487143296 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2026-01-07 13:24:51,957 log 8 134594487143296 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2026-01-07 13:25:51,965 log 7 134594487143296 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2026-01-07 13:26:51,973 log 9 134594487143296 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2026-01-07 13:27:52,259 log 8 134594487143296 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2026-01-07 13:28:52,252 log 8 134594487143296 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2026-01-07 13:29:52,264 log 8 134594487143296 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2026-01-07 13:30:52,263 log 7 134594487143296 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2026-01-07 13:31:52,278 log 8 134594487143296 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2026-01-07 13:32:52,286 log 7 134594487143296 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2026-01-07 13:33:52,295 log 8 134594487143296 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2026-01-07 13:34:52,304 log 8 134594487143296 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2026-01-07 13:35:52,314 log 9 134594487143296 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2026-01-07 13:36:52,318 log 7 134594487143296 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2026-01-07 13:37:52,328 log 8 134594487143296 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2026-01-07 13:38:52,334 log 7 134594487143296 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2026-01-07 13:39:52,342 log 7 134594487143296 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2026-01-07 13:40:52,354 log 7 134594487143296 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2026-01-07 13:41:52,359 log 9 134594487143296 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2026-01-07 13:42:52,369 log 8 134594487143296 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2026-01-07 13:43:52,375 log 8 134594487143296 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2026-01-07 13:44:52,383 log 8 134594487143296 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2026-01-07 13:45:52,392 log 9 134594487143296 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2026-01-07 13:46:52,399 log 9 134594487143296 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2026-01-07 13:47:52,407 log 8 134594487143296 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2026-01-07 13:48:52,414 log 9 134594487143296 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2026-01-07 13:49:52,421 log 7 134594487143296 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2026-01-07 13:50:52,436 log 8 134594487143296 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2026-01-07 13:51:52,439 log 8 134594487143296 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2026-01-07 13:52:52,452 log 9 134594487143296 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2026-01-07 13:53:52,454 log 8 134594487143296 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2026-01-07 13:54:52,462 log 7 134594487143296 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2026-01-07 13:55:52,470 log 7 134594487143296 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2026-01-07 13:56:52,504 log 8 134594487143296 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2026-01-07 13:57:52,492 log 7 134594487143296 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2026-01-07 13:58:52,492 log 9 134594487143296 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2026-01-07 13:59:52,501 log 9 134594487143296 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2026-01-07 14:00:52,513 log 8 134594487143296 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2026-01-07 14:01:52,550 log 8 134594487143296 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2026-01-07 14:02:52,559 log 8 134594487143296 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2026-01-07 14:03:52,566 log 7 134594487143296 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2026-01-07 14:04:52,571 log 9 134594487143296 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2026-01-07 14:05:52,590 log 7 134594487143296 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2026-01-07 14:06:52,591 log 8 134594487143296 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2026-01-07 14:07:52,597 log 9 134594487143296 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2026-01-07 14:08:52,604 log 8 134594487143296 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2026-01-07 14:09:52,617 log 7 134594487143296 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2026-01-07 14:10:52,629 log 9 134594487143296 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2026-01-07 14:11:52,631 log 8 134594487143296 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2026-01-07 14:12:52,638 log 8 134594487143296 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2026-01-07 14:13:52,656 log 8 134594487143296 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2026-01-07 14:14:52,663 log 9 134594487143296 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2026-01-07 14:15:52,669 log 8 134594487143296 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2026-01-07 14:16:52,669 log 8 134594487143296 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2026-01-07 14:17:52,678 log 7 134594487143296 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2026-01-07 14:18:52,686 log 7 134594487143296 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2026-01-07 14:19:52,694 log 7 134594487143296 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2026-01-07 14:20:52,709 log 8 134594487143296 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2026-01-07 14:21:52,720 log 8 134594487143296 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2026-01-07 14:22:52,716 log 7 134594487143296 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2026-01-07 14:23:52,724 log 7 134594487143296 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2026-01-07 14:24:52,733 log 8 134594487143296 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2026-01-07 14:25:52,740 log 8 134594487143296 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2026-01-07 14:26:52,746 log 8 134594487143296 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2026-01-07 14:27:52,758 log 7 134594487143296 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2026-01-07 14:28:52,764 log 9 134594487143296 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2026-01-07 14:29:52,774 log 7 134594487143296 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2026-01-07 14:30:53,498 log 8 134594487143296 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2026-01-07 14:31:53,505 log 9 134594487143296 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2026-01-07 14:32:53,512 log 9 134594487143296 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2026-01-07 14:33:53,521 log 7 134594487143296 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2026-01-07 14:34:53,730 log 8 134594487143296 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2026-01-07 14:35:53,826 log 8 133244652346240 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2026-01-07 14:35:56,275 log 7 133244652346240 Not Found: /public/imoveis/1/
+WARNING 2026-01-07 14:35:56,284 log 8 133244652346240 Not Found: /public/imobiliaria/estilomusical/
+WARNING 2026-01-07 14:35:58,706 log 8 133244652346240 Not Found: /public/imoveis/1/
+WARNING 2026-01-07 14:35:58,713 log 9 133244652346240 Not Found: /public/imobiliaria/estilomusical/
+WARNING 2026-01-07 14:36:53,828 log 8 133244652346240 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2026-01-07 14:37:53,834 log 7 133244652346240 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2026-01-07 14:38:53,838 log 8 131304636775296 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2026-01-07 14:39:54,186 log 7 131304636775296 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2026-01-07 14:40:54,203 log 9 131304636775296 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2026-01-07 14:41:54,287 log 8 130828565040000 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/

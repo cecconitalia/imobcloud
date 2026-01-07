@@ -5,11 +5,12 @@ from django.conf import settings
 from django.conf.urls.static import static
 from django.shortcuts import render
 from django.views.decorators.csrf import ensure_csrf_cookie
-from django.views.static import serve
 
+# Views de Autenticação e API
 from rest_framework_simplejwt.views import TokenRefreshView
 from core.views import CustomTokenObtainPairView, LogoutView, DashboardStatsView
 
+# Views Públicas
 from app_imoveis.views import (
     ImovelPublicListView,
     ImovelPublicDetailView,
@@ -25,7 +26,6 @@ from app_imoveis.views import (
 def index_view(request):
     """
     Renderiza o index.html do build do Vue.js.
-    O Django procura este arquivo nas pastas definidas em TEMPLATES['DIRS'].
     """
     return render(request, 'index.html')
 
@@ -36,7 +36,7 @@ urlpatterns = [
     path('admin/', admin.site.urls),
 
     # =========================================================
-    # ROTAS PÚBLICAS (BACKEND)
+    # ROTAS PÚBLICAS E API
     # =========================================================
     path('public/imoveis/', ImovelPublicListView.as_view(), name='imovel-public-list'),
     path('public/imoveis/<int:pk>/', ImovelPublicDetailView.as_view(), name='imovel-public-detail'),
@@ -44,14 +44,12 @@ urlpatterns = [
     path('public/imoveis/busca-ia/', ImovelIAView.as_view(), name='imovel-busca-ia'),
     path('public/contatos/', ContatoImovelViewSet.as_view({'post': 'create'}), name='contato-public-create'),
 
-    # =========================================================
-    # API
-    # =========================================================
     path('api/v1/token/', CustomTokenObtainPairView.as_view(), name='token_obtain_pair'),
     path('api/v1/token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
     path('api/v1/logout/', LogoutView.as_view(), name='auth_logout'),
     path('api/v1/stats/', DashboardStatsView.as_view(), name='dashboard_stats_root'),
 
+    # Includes dos Apps
     path('api/v1/core/', include('core.urls')),
     path('api/v1/', include('app_imoveis.urls')),
     path('api/v1/', include('app_clientes.urls')),
@@ -68,29 +66,22 @@ urlpatterns = [
 
 # =============================================================
 # FRONTEND E ARQUIVOS ESTÁTICOS
-# ⚠️ ORDEM IMPORTANTE: 
-# 1. Assets físicos primeiro
-# 2. Rota raiz exata
-# 3. Media (se debug)
-# 4. Catch-all por último
 # =============================================================
 
-# Servir arquivos de assets do Vue diretamente por aqui se o WhiteNoise falhar
-urlpatterns += [
-    re_path(r'^assets/(?P<path>.*)$', serve, {'document_root': os.path.join(settings.BASE_DIR, 'frontend/dist/assets')}),
-]
+# Configura arquivos de Mídia (Uploads) apenas em DEBUG
+if settings.DEBUG:
+    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
+    # Adiciona rota estática explícita para garantir carregamento local se Whitenoise falhar em DEV
+    urlpatterns += static(settings.STATIC_URL, document_root=os.path.join(settings.BASE_DIR, 'frontend', 'dist'))
 
 # Rota raiz exata (Home)
 urlpatterns += [
     path('', index_view, name='index'),
 ]
 
-# Media (Imagens de upload)
-if settings.DEBUG:
-    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
-
-# REGRA CATCH-ALL (Vue Router)
-# Redireciona qualquer URL que não comece com palavras reservadas para o index.html
+# Regra Catch-All (Vue Router)
+# Redireciona qualquer URL não encontrada para o index.html, 
+# EXCETO se começar com /static, /media, /api ou /admin
 urlpatterns += [
-    re_path(r'^(?!api|admin|static|media|assets|favicon.ico).*$', index_view, name='vue_catch_all'),
+    re_path(r'^(?!api|admin|static|media|favicon.ico).*$', index_view, name='vue_catch_all'),
 ]

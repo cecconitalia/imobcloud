@@ -6,7 +6,6 @@ import apiClient from '@/services/api';
 export const useAuthStore = defineStore('auth', {
     state: () => ({
         token: localStorage.getItem('authToken') || null,
-        // Tenta fazer o parse do JSON, se falhar ou for null, inicia como null
         user: JSON.parse(localStorage.getItem('userData') || 'null'),
         userCargo: localStorage.getItem('userCargo') || null,
     }),
@@ -18,24 +17,15 @@ export const useAuthStore = defineStore('auth', {
         
         isSuperUser: (state) => state.user?.is_superuser === true,
 
-        // --- LÓGICA DO BANNER FINANCEIRO ---
-        // Retorna true se o status for 'PENDENTE' (Vencido, mas na tolerância)
         isFinancialPending: (state) => {
-            // Superusuários nunca veem avisos de pagamento
             if (state.user?.is_superuser) return false;
-
-            // Verifica o status dentro dos detalhes da imobiliária (vindos do serializer atualizado)
-            // Usa optional chaining (?.) para evitar erro se imobiliaria_detalhes for undefined
             const status = state.user?.imobiliaria_detalhes?.status_financeiro;
             return status === 'PENDENTE';
         },
 
-        // Recupera e formata a data de vencimento para exibir no banner
         vencimentoAtual: (state) => {
             const data = state.user?.imobiliaria_detalhes?.data_vencimento_atual;
             if (!data) return '';
-            
-            // Formata YYYY-MM-DD para DD/MM/YYYY
             try {
                 const [ano, mes, dia] = data.split('-');
                 return `${dia}/${mes}/${ano}`;
@@ -48,9 +38,8 @@ export const useAuthStore = defineStore('auth', {
     actions: {
         async login(credentials: any) {
             try {
-                // CORREÇÃO: Removido '/api' do início. 
-                // O axios já tem baseURL 'http://localhost:8000/api'
-                // Resultado final será: http://localhost:8000/api/v1/token/
+                // AJUSTE: Adicionado '/v1/' (já que a base agora é só /api)
+                // Resultado: http://localhost:8001/api/v1/token/
                 const response = await apiClient.post('/v1/token/', credentials);
                 const { access, refresh } = response.data;
 
@@ -58,10 +47,8 @@ export const useAuthStore = defineStore('auth', {
                 localStorage.setItem('authToken', access);
                 localStorage.setItem('refreshToken', refresh);
 
-                // Configura o header padrão para as próximas requisições
                 apiClient.defaults.headers.common['Authorization'] = `Bearer ${access}`;
 
-                // Busca dados do usuário (incluindo status financeiro atualizado)
                 await this.fetchUser();
                 
                 return true; 
@@ -73,23 +60,21 @@ export const useAuthStore = defineStore('auth', {
 
         async fetchUser() {
             try {
-                // CORREÇÃO: Removido '/api' do início
+                // AJUSTE: Adicionado '/v1/' para alinhar com a nova base
+                // Resultado: http://localhost:8001/api/v1/core/usuarios/me/
                 const response = await apiClient.get('/v1/core/usuarios/me/');
                 this.user = response.data;
                 
-                // Define cargo
                 let cargo = 'CORRETOR';
                 if (this.user.is_superuser) cargo = 'SUPERADMIN';
                 else if (this.user.is_admin) cargo = 'ADMIN';
                 
                 this.userCargo = cargo;
 
-                // Salva no LocalStorage
                 localStorage.setItem('userData', JSON.stringify(this.user));
                 localStorage.setItem('userCargo', cargo);
             } catch (error) {
                 console.error('Erro ao buscar usuário:', error);
-                // Erros de autenticação (401/403) são tratados pelo interceptor do api.ts
             }
         },
 
@@ -111,8 +96,6 @@ export const useAuthStore = defineStore('auth', {
             if (token) {
                 this.token = token;
                 apiClient.defaults.headers.common['Authorization'] = `Bearer ${token}`;
-                // Atualiza dados do usuário ao recarregar a página 
-                // Isso garante que se o status financeiro mudou, o banner atualiza
                 this.fetchUser();
             }
         }

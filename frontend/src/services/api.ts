@@ -3,14 +3,9 @@ import axios, { type AxiosInstance, type AxiosError, type AxiosResponse } from '
 import type { Router } from 'vue-router'; 
 
 const getBaseUrl = () => {
-  // Se estiver rodando localmente (desenvolvimento), aponta para a porta do Django
-  if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
-    return 'http://localhost:8001/api/v1';
-  }
-  
-  // Em produção, usa caminho relativo. O navegador vai completar com o domínio atual.
-  // Ex: Se estiver em https://imobhome.com.br, vai chamar https://imobhome.com.br/api
-  return '/api';
+  // Pega a URL definida no arquivo .env correspondente (development ou production)
+  // Fallback para '/api' caso a variável não esteja definida
+  return import.meta.env.VITE_API_BASE_URL || '/api';
 };
 
 const apiClient: AxiosInstance = axios.create({
