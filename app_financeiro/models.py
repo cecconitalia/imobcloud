@@ -4,6 +4,7 @@ from django.db import models
 from core.models import Imobiliaria
 from app_clientes.models import Cliente
 from app_imoveis.models import Imovel
+from django.utils import timezone
 
 class Categoria(models.Model):
     imobiliaria = models.ForeignKey(Imobiliaria, on_delete=models.CASCADE)
@@ -47,7 +48,10 @@ class Transacao(models.Model):
     imobiliaria = models.ForeignKey(Imobiliaria, on_delete=models.CASCADE)
     descricao = models.CharField(max_length=255)
     valor = models.DecimalField(max_digits=10, decimal_places=2)
-    data_transacao = models.DateField()
+    data_transacao = models.DateField(
+        default=timezone.now, 
+        verbose_name="Data do Lançamento"
+    )
     data_vencimento = models.DateField()
     data_pagamento = models.DateField(
         null=True, 

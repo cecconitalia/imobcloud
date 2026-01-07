@@ -13,7 +13,8 @@ from .serializers import (
 )
 from rest_framework.response import Response
 from rest_framework.decorators import action
-from django.db.models import Sum, Q, Case, When, DecimalField
+from django.db.models import Sum, Q, Case, When, DecimalField, F
+from django.db.models.functions import TruncMonth, Coalesce
 from django.utils import timezone
 from django.utils.dateparse import parse_date
 from rest_framework.views import APIView
@@ -22,7 +23,7 @@ from datetime import timedelta, date
 import math
 
 from app_clientes.models import Cliente
-from core.models import Imobiliaria  # Importação necessária para o fallback
+from core.models import Imobiliaria
 
 try:
     from ImobCloud.utils.formatacao_util import apenas_numeros
@@ -31,16 +32,14 @@ except ImportError:
         if text is None: return ''
         return ''.join(filter(str.isdigit, str(text)))
 
-# --- FUNÇÃO DE SEGURANÇA PARA SERIALIZAÇÃO ---
 def safe_float_conversion(value):
-    """Converte valores Decimal ou None para float, prevenindo erros de serialização."""
+    """Converte valores Decimal ou None para float."""
     if value is None:
         return 0.0
     if isinstance(value, Decimal):
         return float(value)
     return value
 
-# --- Paginação Padrão ---
 class StandardResultsSetPagination(PageNumberPagination):
     page_size = 20
     page_size_query_param = 'page_size'
@@ -90,28 +89,23 @@ class TransacaoViewSet(viewsets.ModelViewSet):
             return TransacaoSerializer
         return TransacaoListSerializer
 
-    # --- MÉTODO AUXILIAR PARA RESOLVER O TENANT ---
     def _get_tenant(self):
         tenant = getattr(self.request, 'tenant', None)
         if not tenant and hasattr(self.request.user, 'imobiliaria'):
             tenant = self.request.user.imobiliaria
         if not tenant:
+            # Fallback seguro para desenvolvimento
             tenant = Imobiliaria.objects.filter(subdominio='imobhome').first()
         return tenant
 
     def get_queryset(self):
-        # 1. Filtro Base com Fallback
         tenant = self._get_tenant()
-        
         if not tenant:
             return Transacao.objects.none()
 
         queryset = Transacao.objects.filter(imobiliaria=tenant)
-
-        # 2. Captura os parâmetros
         params = self.request.query_params
         
-        # Filtros
         tipo = params.get('tipo')
         if tipo: queryset = queryset.filter(tipo=tipo)
 
@@ -124,7 +118,10 @@ class TransacaoViewSet(viewsets.ModelViewSet):
         conta = params.get('conta')
         if conta: queryset = queryset.filter(conta_id=conta)
 
-        # Filtro de Data
+        imovel = params.get('imovel')
+        if imovel: queryset = queryset.filter(imovel_id=imovel)
+
+        # Filtros de data (Vencimento)
         data_inicio = params.get('data_vencimento__gte') or params.get('data_inicio')
         data_fim = params.get('data_vencimento__lte') or params.get('data_fim')
         
@@ -136,10 +133,8 @@ class TransacaoViewSet(viewsets.ModelViewSet):
             dt_fim = parse_date(data_fim)
             if dt_fim: queryset = queryset.filter(data_vencimento__lte=dt_fim)
 
-        # Filtro de Busca
-        search = params.get('search')
+        # Filtro de Cliente (Direto ou via Contrato)
         cliente_id = params.get('cliente_id')
-
         if cliente_id:
             queryset = queryset.filter(
                 Q(cliente_id=cliente_id) | 
@@ -147,6 +142,8 @@ class TransacaoViewSet(viewsets.ModelViewSet):
                 Q(contrato__proprietario_id=cliente_id)
             )
         
+        # Busca Textual Inteligente
+        search = params.get('search')
         if search:
             doc_limpo = apenas_numeros(search)
             if len(doc_limpo) >= 11:
@@ -165,11 +162,13 @@ class TransacaoViewSet(viewsets.ModelViewSet):
                     Q(descricao__icontains=search) |
                     Q(observacoes__icontains=search) |
                     Q(cliente__nome__icontains=search) |
-                    Q(cliente__razao_social__icontains=search)
+                    Q(cliente__razao_social__icontains=search) |
+                    Q(imovel__titulo_anuncio__icontains=search) |
+                    Q(imovel__logradouro__icontains=search) |
+                    Q(imovel__codigo_referencia__icontains=search)
                 )
 
-        # ORDENAÇÃO: ÚLTIMO REGISTRO (ID mais alto = mais novo)
-        return queryset.order_by('-id')
+        return queryset.order_by('-data_vencimento', '-id')
 
     def perform_create(self, serializer):
         tenant = self._get_tenant()
@@ -189,6 +188,7 @@ class TransacaoViewSet(viewsets.ModelViewSet):
         
         serializer.save(imobiliaria=tenant)
         
+        # Lógica de Repasse Automático (Se for Aluguel e virou PAGO)
         is_aluguel_pago_agora = (
             instance.tipo == 'RECEITA' and 
             instance.contrato and 
@@ -248,91 +248,136 @@ class TransacaoViewSet(viewsets.ModelViewSet):
             observacoes=f"Repasse automático. Comissão {taxa}% retida."
         )
 
-    # --- ENDPOINT ATUALIZADO: Totais Filtrados + Nome da Imobiliária ---
-    @action(detail=False, methods=['get'], url_path='resumo-filtros')
-    def resumo_filtros(self, request):
-        """
-        Retorna o somatório e o nome da imobiliária atual.
-        """
-        queryset = self.get_queryset()
-        
-        aggregates = queryset.aggregate(
-            total_receitas=Sum(Case(When(tipo='RECEITA', then='valor'), default=0, output_field=DecimalField())),
-            total_despesas=Sum(Case(When(tipo='DESPESA', then='valor'), default=0, output_field=DecimalField()))
-        )
-        
-        receitas = aggregates['total_receitas'] or Decimal(0)
-        despesas = aggregates['total_despesas'] or Decimal(0)
-        
-        # Pega o nome da imobiliária do tenant atual
-        tenant = self._get_tenant()
-        nome_imobiliaria = getattr(tenant, 'nome', 'Imobiliária')
-        
-        return Response({
-            'receitas': safe_float_conversion(receitas),
-            'despesas': safe_float_conversion(despesas),
-            'saldo': safe_float_conversion(receitas - despesas),
-            'nome_imobiliaria': nome_imobiliaria 
-        })
-
-    @action(detail=False, methods=['get'], url_path='a-receber')
-    def a_receber(self, request):
-        queryset = self.get_queryset().filter(tipo='RECEITA')
-        page = self.paginate_queryset(queryset)
-        if page is not None:
-            serializer = self.get_serializer(page, many=True)
-            return self.get_paginated_response(serializer.data)
-        serializer = self.get_serializer(queryset, many=True)
-        return Response(serializer.data)
-
-    @action(detail=False, methods=['get'], url_path='a-pagar')
-    def a_pagar(self, request):
-        queryset = self.get_queryset().filter(tipo='DESPESA')
-        page = self.paginate_queryset(queryset)
-        if page is not None:
-            serializer = self.get_serializer(page, many=True)
-            return self.get_paginated_response(serializer.data)
-        serializer = self.get_serializer(queryset, many=True)
-        return Response(serializer.data)
-        
+    # --- ACTION STATS CORRIGIDA E DEBUGADA ---
     @action(detail=False, methods=['get'])
     def stats(self, request):
-        queryset = self.get_queryset() 
-        today = timezone.now().date()
+        tenant = self._get_tenant()
+        if not tenant:
+            return Response({})
+
+        # DEBUG: Verificar Tenant
+        # print(f"--- DEBUG STATS --- Tenant: {tenant}")
+
+        # 1. DADOS DINÂMICOS (Baseados nos filtros da tela - Data, Status, etc.)
+        # Usa o get_queryset que já aplica data_inicio/fim e search
+        queryset_filtrada = self.filter_queryset(self.get_queryset())
         
-        aggregates = queryset.aggregate(
-            a_receber_pendente=Sum(Case(When(tipo='RECEITA', status__in=['PENDENTE', 'ATRASADO'], then='valor'), default=0, output_field=DecimalField())),
-            a_receber_pago_mes=Sum(Case(When(tipo='RECEITA', status='PAGO', data_pagamento__month=today.month, data_pagamento__year=today.year, then='valor'), default=0, output_field=DecimalField())),
-            a_pagar_pendente=Sum(Case(When(tipo='DESPESA', status__in=['PENDENTE', 'ATRASADO'], then='valor'), default=0, output_field=DecimalField())),
-            a_pagar_pago_mes=Sum(Case(When(tipo='DESPESA', status='PAGO', data_pagamento__month=today.month, data_pagamento__year=today.year, then='valor'), default=0, output_field=DecimalField()))
+        # DEBUG: Contagem
+        # count = queryset_filtrada.count()
+        # print(f"Transações encontradas no filtro: {count}")
+
+        aggregates_filtered = queryset_filtrada.aggregate(
+            receitas_periodo=Sum(Case(When(tipo='RECEITA', then='valor'), default=0, output_field=DecimalField(max_digits=19, decimal_places=2))),
+            despesas_periodo=Sum(Case(When(tipo='DESPESA', then='valor'), default=0, output_field=DecimalField(max_digits=19, decimal_places=2)))
+        )
+        
+        receitas_mes = aggregates_filtered['receitas_periodo'] or Decimal(0)
+        despesas_mes = aggregates_filtered['despesas_periodo'] or Decimal(0)
+        resultado_mes = receitas_mes - despesas_mes
+
+        # 2. SALDO REAL (Acumulado Geral - Ignora filtros de data da tela)
+        # Saldo = Saldo Inicial das Contas + Receitas Pagas (Tudo) - Despesas Pagas (Tudo)
+        total_receitas_pagas = Transacao.objects.filter(imobiliaria=tenant, tipo='RECEITA', status='PAGO').aggregate(t=Sum('valor'))['t'] or Decimal(0)
+        total_despesas_pagas = Transacao.objects.filter(imobiliaria=tenant, tipo='DESPESA', status='PAGO').aggregate(t=Sum('valor'))['t'] or Decimal(0)
+        saldo_inicial_contas = Conta.objects.filter(imobiliaria=tenant).aggregate(t=Sum('saldo_inicial'))['t'] or Decimal(0)
+        
+        saldo_atual_real = saldo_inicial_contas + total_receitas_pagas - total_despesas_pagas
+
+        # 3. DADOS PARA O DASHBOARD (Mantém compatibilidade)
+        today = timezone.now().date()
+        qs_dashboard = Transacao.objects.filter(imobiliaria=tenant)
+        
+        dash_aggs = qs_dashboard.aggregate(
+            a_receber_pendente=Sum(Case(When(tipo='RECEITA', status__in=['PENDENTE', 'ATRASADO'], then='valor'), default=0, output_field=DecimalField(max_digits=19, decimal_places=2))),
+            a_receber_pago_mes=Sum(Case(When(tipo='RECEITA', status='PAGO', data_pagamento__month=today.month, data_pagamento__year=today.year, then='valor'), default=0, output_field=DecimalField(max_digits=19, decimal_places=2))),
+            a_pagar_pendente=Sum(Case(When(tipo='DESPESA', status__in=['PENDENTE', 'ATRASADO'], then='valor'), default=0, output_field=DecimalField(max_digits=19, decimal_places=2))),
+            a_pagar_pago_mes=Sum(Case(When(tipo='DESPESA', status='PAGO', data_pagamento__month=today.month, data_pagamento__year=today.year, then='valor'), default=0, output_field=DecimalField(max_digits=19, decimal_places=2)))
         )
 
         return Response({
+            # CAMPOS PARA A LISTA (ListaTransacoes.vue)
+            'saldo_atual': safe_float_conversion(saldo_atual_real),
+            'receitas_mes': safe_float_conversion(receitas_mes), # "Mes" aqui significa "Período Filtrado"
+            'despesas_mes': safe_float_conversion(despesas_mes),
+            'resultado_mes': safe_float_conversion(resultado_mes),
+
+            # CAMPOS PARA O DASHBOARD (FinanceiroDashboard.vue)
             'a_receber': {
-                'pendente': safe_float_conversion(aggregates['a_receber_pendente']),
-                'pago_mes_atual': safe_float_conversion(aggregates['a_receber_pago_mes'])
+                'pendente': safe_float_conversion(dash_aggs['a_receber_pendente']),
+                'pago_mes_atual': safe_float_conversion(dash_aggs['a_receber_pago_mes'])
             },
             'a_pagar': {
-                'pendente': safe_float_conversion(aggregates['a_pagar_pendente']),
-                'pago_mes_atual': safe_float_conversion(aggregates['a_pagar_pago_mes'])
+                'pendente': safe_float_conversion(dash_aggs['a_pagar_pendente']),
+                'pago_mes_atual': safe_float_conversion(dash_aggs['a_pagar_pago_mes'])
             },
-            'saldo_previsto': safe_float_conversion((aggregates['a_receber_pendente'] or 0) - (aggregates['a_pagar_pendente'] or 0))
+            'saldo_previsto': safe_float_conversion((dash_aggs['a_receber_pendente'] or 0) - (dash_aggs['a_pagar_pendente'] or 0))
         })
 
-    @action(detail=False, methods=['get'], url_path='contas-pendentes-stats')
-    def contas_pendentes_stats(self, request):
-        queryset = self.get_queryset()
-        total_a_receber = queryset.filter(tipo='RECEITA', status__in=['PENDENTE', 'ATRASADO']).aggregate(total=Sum('valor'))['total'] or Decimal(0)
-        total_a_pagar = queryset.filter(tipo='DESPESA', status__in=['PENDENTE', 'ATRASADO']).aggregate(total=Sum('valor'))['total'] or Decimal(0)
+    @action(detail=False, methods=['get'], url_path='dashboard-general-stats')
+    def dashboard_general_stats(self, request):
+        tenant = self._get_tenant()
+        if not tenant:
+            return Response({})
+
+        # 1. Ranking de Imóveis (Top 5 Despesas)
+        ranking_imoveis = Transacao.objects.filter(
+            imobiliaria=tenant, tipo='DESPESA', imovel__isnull=False
+        ).values('imovel__titulo_anuncio', 'imovel__logradouro').annotate(
+            total=Sum('valor')
+        ).order_by('-total')[:5]
+
+        ranking_data = []
+        for item in ranking_imoveis:
+            nome = item['imovel__titulo_anuncio'] or item['imovel__logradouro'] or 'Sem Nome'
+            ranking_data.append({
+                'label': nome,
+                'value': safe_float_conversion(item['total'])
+            })
+
+        # 2. Despesas por Categoria (Top 5 para gráfico de Rosca)
+        categorias = Transacao.objects.filter(
+            imobiliaria=tenant, tipo='DESPESA'
+        ).values('categoria__nome').annotate(
+            total=Sum('valor')
+        ).order_by('-total')[:5]
+
+        categorias_data = [{
+            'label': item['categoria__nome'], 
+            'value': safe_float_conversion(item['total'])
+        } for item in categorias]
+
+        # 3. Evolução Financeira (Últimos 6 meses)
+        seis_meses_atras = timezone.now().date().replace(day=1) - timedelta(days=180)
+        
+        evolucao = Transacao.objects.filter(
+            imobiliaria=tenant,
+            data_pagamento__gte=seis_meses_atras,
+            status='PAGO'
+        ).annotate(
+            mes=TruncMonth('data_pagamento')
+        ).values('mes').annotate(
+            receitas=Sum(Case(When(tipo='RECEITA', then='valor'), default=0, output_field=DecimalField(max_digits=19, decimal_places=2))),
+            despesas=Sum(Case(When(tipo='DESPESA', then='valor'), default=0, output_field=DecimalField(max_digits=19, decimal_places=2)))
+        ).order_by('mes')
+
+        evolucao_data = []
+        for item in evolucao:
+            if item['mes']:
+                evolucao_data.append({
+                    'mes': item['mes'].strftime('%b/%Y'),
+                    'receitas': safe_float_conversion(item['receitas']),
+                    'despesas': safe_float_conversion(item['despesas'])
+                })
+
         return Response({
-            'total_a_receber': safe_float_conversion(total_a_receber),
-            'total_a_pagar': safe_float_conversion(total_a_pagar)
+            'ranking_imoveis': ranking_data,
+            'despesas_categoria': categorias_data,
+            'evolucao_financeira': evolucao_data
         })
 
 class DREViewAPI(APIView):
     permission_classes = [IsAuthenticated]
     def get(self, request):
-        # Fallback de Tenant para DRE também
         tenant = getattr(request, 'tenant', None)
         if not tenant and hasattr(request.user, 'imobiliaria'):
             tenant = request.user.imobiliaria
@@ -365,7 +410,6 @@ class DREViewAPI(APIView):
         total_receitas = sum(item['total'] for item in receitas if item['total'])
         total_despesas = sum(item['total'] for item in despesas if item['total'])
         
-        # Converte as listas de resultados para que os campos 'total' sejam float
         def convert_list(data_list):
             return [{
                 'categoria__nome': item['categoria__nome'], 

@@ -8,7 +8,12 @@ services:
     environment:
       - POSTGRES_DB=${POSTGRES_DB}
       - POSTGRES_USER=${POSTGRES_USER}
-      - POSTGRES_PASSWORD=${DB_PASSWORD}
+      # Garante que usa a senha definida no .env
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+    ports:
+      # Mapeia a porta 5433 do seu Windows para a 5432 do Container
+      # Isso resolve o conflito com o Postgres local e permite o acesso via 'localhost:5433'
+      - "5433:5432"
     restart: always
 
   redis:
@@ -23,11 +28,16 @@ services:
       - ./logs:/app/logs
       - ./frontend/dist:/app/frontend/dist
     ports:
-      - "8001:8000" # Porta 8001 para não conflitar com o site antigo
+      - "8001:8000" # Porta 8001 para acessar o site
     depends_on:
       - db
       - redis
     env_file: .env
+    # Sobrescreve as configs do .env para funcionar DENTRO do Docker
+    environment:
+      - DB_HOST=db
+      - DB_PORT=5432
+      - REDIS_URL=redis://redis:6379/0
     restart: always
 
   celery:
@@ -39,6 +49,11 @@ services:
       - db
       - redis
     env_file: .env
+    # Sobrescreve as configs do .env para funcionar DENTRO do Docker
+    environment:
+      - DB_HOST=db
+      - DB_PORT=5432
+      - REDIS_URL=redis://redis:6379/0
     restart: always
 
   celery-beat:
@@ -48,6 +63,11 @@ services:
       - db
       - redis
     env_file: .env
+    # Sobrescreve as configs do .env para funcionar DENTRO do Docker
+    environment:
+      - DB_HOST=db
+      - DB_PORT=5432
+      - REDIS_URL=redis://redis:6379/0
     restart: always
 
 volumes:

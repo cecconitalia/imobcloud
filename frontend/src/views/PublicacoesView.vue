@@ -14,10 +14,14 @@
         </div>
         
         <div class="actions-area">
+            <button class="btn-secondary-action" @click="goToCalendar" title="Ver Calendário de Agendamentos">
+              <i class="fas fa-calendar-alt"></i> Ver Calendário
+            </button>
+
             <button class="btn-icon-thin" @click="fetchImoveis" title="Atualizar Lista">
               <i class="fas fa-sync-alt" :class="{ 'fa-spin': isLoading }"></i>
             </button>
-            </div>
+        </div>
       </div>
     </header>
 
@@ -38,7 +42,7 @@
         <div class="kpi-icon"><i class="fas fa-eye-slash"></i></div>
       </div>
       
-      <div class="kpi-card green">
+      <div class="kpi-card green" @click="goToCalendar" title="Ver no Calendário">
         <div class="kpi-content">
           <span class="kpi-value text-sm-kpi">{{ proximoAgendamento ? formatarDataHora(proximoAgendamento.data_agendada) : '-' }}</span>
           <span class="kpi-label">Próximo Agendamento</span>
@@ -46,7 +50,7 @@
         <div class="kpi-icon"><i class="fas fa-calendar-check"></i></div>
       </div>
       
-      <div class="kpi-card purple">
+      <div class="kpi-card purple" @click="goToCalendar" title="Ver Histórico no Calendário">
         <div class="kpi-content">
           <span class="kpi-value">{{ totalPublicado30d }}</span>
           <span class="kpi-label">Posts (30 dias)</span>
@@ -105,7 +109,8 @@
             <div 
                 v-for="imovel in paginatedImoveis" 
                 :key="imovel.id" 
-                class="standard-card"
+                class="standard-card clickable-card"
+                @click="goToImovel(imovel.id)"
             >
                 <div class="card-body">
                     <ImovelCard :imovel="imovel" />
@@ -145,6 +150,7 @@
 
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue';
+import { useRouter } from 'vue-router';
 import apiClient from '@/services/api';
 import ImovelCard from "@/components/ImovelPublicCard.vue"; 
 import AgendarPostModal from "@/components/AgendarPostModal.vue";
@@ -164,6 +170,7 @@ interface ImovelPublicacao {
     imagens?: any[];
 }
 
+const router = useRouter();
 const imoveis = ref<ImovelPublicacao[]>([]);
 const isLoading = ref(true);
 const error = ref<string | null>(null);
@@ -174,7 +181,7 @@ const statusFilter = ref('');
 
 // Paginação
 const currentPage = ref(1);
-const itemsPerPage = ref(8); // Ajustado para Grid 4x2
+const itemsPerPage = ref(8);
 
 // Métricas
 const totalPublicado30d = ref(12); 
@@ -183,6 +190,16 @@ const proximoAgendamento = ref<any | null>(null);
 // Modal
 const showModal = ref(false);
 const selectedImovel = ref<ImovelPublicacao | null>(null);
+
+// --- NAVEGAÇÃO ---
+function goToCalendar() {
+  router.push({ name: 'calendario-publicacoes' });
+}
+
+// CORREÇÃO: Função para navegar para os detalhes/edição do imóvel
+function goToImovel(id: number) {
+  router.push({ name: 'imovel-editar', params: { id } });
+}
 
 function openModal(imovel: ImovelPublicacao) {
     selectedImovel.value = imovel;
@@ -270,7 +287,7 @@ onMounted(() => { fetchImoveis(); });
 
 <style scoped>
 /* ==========================================================================
-   LAYOUT PADRÃO (Copiado e Adaptado de ClientesView.vue)
+   LAYOUT PADRÃO
    ========================================================================== */
 
 .page-container {
@@ -296,7 +313,19 @@ onMounted(() => { fetchImoveis(); });
 .breadcrumb .active { color: #2563eb; font-weight: 700; }
 
 .header-main { display: flex; justify-content: space-between; align-items: flex-end; }
-.actions-area { display: flex; gap: 0.75rem; }
+.actions-area { display: flex; gap: 0.75rem; align-items: center; }
+
+/* Botão secundário */
+.btn-secondary-action {
+  background: white; border: 1px solid #cbd5e1; color: #475569;
+  height: 34px; padding: 0 16px; border-radius: 6px;
+  font-size: 0.85rem; font-weight: 500; cursor: pointer;
+  display: flex; align-items: center; gap: 8px;
+  transition: all 0.2s;
+}
+.btn-secondary-action:hover {
+  border-color: #2563eb; color: #2563eb; background: #f8fafc;
+}
 
 .btn-icon-thin {
   background: white; border: 1px solid #e2e8f0; color: #64748b; width: 34px; height: 34px;
@@ -322,7 +351,7 @@ onMounted(() => { fetchImoveis(); });
 
 .kpi-content { display: flex; flex-direction: column; }
 .kpi-value { font-size: 1.6rem; font-weight: 300; line-height: 1.1; color: #111; }
-.text-sm-kpi { font-size: 1.1rem; font-weight: 600; color: #111; line-height: 1.4; } /* Ajuste para datas */
+.text-sm-kpi { font-size: 1.1rem; font-weight: 600; color: #111; line-height: 1.4; } 
 .kpi-label { font-size: 0.7rem; font-weight: 600; text-transform: uppercase; color: #9ca3af; margin-top: 4px; letter-spacing: 0.05em; }
 .kpi-icon { font-size: 1.8rem; opacity: 0.1; position: absolute; right: 1.5rem; bottom: 1rem; }
 
@@ -372,10 +401,6 @@ onMounted(() => { fetchImoveis(); });
 .btn-clear:hover { background: #fee2e2; color: #ef4444; border-color: #fca5a5; }
 
 /* GRID DE CONTEÚDO */
-.content-wrapper {
-    /* Diferente da tabela, usamos grid para imóveis, mas mantendo a leveza */
-}
-
 .imoveis-grid {
     display: grid; 
     grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); 
@@ -394,7 +419,12 @@ onMounted(() => { fetchImoveis(); });
     box-shadow: 0 10px 15px -3px rgba(0,0,0,0.05);
 }
 
-.card-body { flex: 1; } /* Conteúdo do imóvel */
+/* Novo estilo para cards clicáveis */
+.clickable-card {
+  cursor: pointer;
+}
+
+.card-body { flex: 1; }
 
 .card-footer-action {
     padding: 10px 12px;

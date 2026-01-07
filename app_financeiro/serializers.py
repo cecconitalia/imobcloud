@@ -3,6 +3,8 @@
 from rest_framework import serializers
 from django.db.models import Sum
 from .models import Categoria, Conta, Transacao, FormaPagamento
+from app_clientes.models import Cliente
+from app_imoveis.models import Imovel
 
 # --- Serializers Básicos (Modelos de Configuração) ---
 
@@ -48,67 +50,94 @@ class FormaPagamentoSerializer(serializers.ModelSerializer):
         fields = ['id', 'nome', 'imobiliaria']
         read_only_fields = ['imobiliaria']
 
-# --- Serializer de Transação de Listagem ---
+# --- Serializer Principal de Transação (Criação/Edição) ---
+# [IMPORTANTE] Este serializer é blindado contra erros de validação (400)
+
+class TransacaoSerializer(serializers.ModelSerializer):
+    # Campos Read-Only (O Frontend NÃO manda, o Backend define pelo Token)
+    imobiliaria = serializers.PrimaryKeyRelatedField(read_only=True)
+    
+    # Campos Opcionais (Permitir Null explicitamente evita erro 400)
+    cliente = serializers.PrimaryKeyRelatedField(
+        queryset=Cliente.objects.all(), required=False, allow_null=True
+    )
+    imovel = serializers.PrimaryKeyRelatedField(
+        queryset=Imovel.objects.all(), required=False, allow_null=True
+    )
+    forma_pagamento = serializers.PrimaryKeyRelatedField(
+        queryset=FormaPagamento.objects.all(), required=False, allow_null=True
+    )
+    
+    # Validação de Data de Pagamento
+    data_pagamento = serializers.DateField(required=False, allow_null=True)
+    
+    cliente_detalhes = serializers.SerializerMethodField(read_only=True)
+
+    class Meta:
+        model = Transacao
+        fields = '__all__'
+        read_only_fields = ['imobiliaria']
+
+    def validate(self, data):
+        """
+        Validações extras de regra de negócio
+        """
+        # Se estiver PAGO, data_pagamento é obrigatória
+        # Verifica se 'status' está no payload ou usa o da instância (edição)
+        status = data.get('status')
+        if not status and self.instance:
+            status = self.instance.status
+            
+        data_pagamento = data.get('data_pagamento')
+        if not data_pagamento and self.instance:
+            data_pagamento = self.instance.data_pagamento
+
+        if status == 'PAGO' and not data_pagamento:
+             raise serializers.ValidationError({"data_pagamento": "A Data de Pagamento é obrigatória para status PAGO."})
+        
+        return data
+
+    def get_cliente_detalhes(self, obj):
+        try:
+            from app_clientes.serializers import ClienteSerializer 
+            cliente_obj = obj.cliente
+            if not cliente_obj and obj.contrato and hasattr(obj.contrato, 'inquilino'):
+                cliente_obj = obj.contrato.inquilino
+            
+            if cliente_obj:
+                return ClienteSerializer(cliente_obj).data
+        except ImportError:
+            pass
+        return None
+
+# --- Serializer de Transação de Listagem (Leitura Otimizada) ---
 
 class TransacaoListSerializer(serializers.ModelSerializer):
-    categoria_nome = serializers.SerializerMethodField()
-    conta_nome = serializers.SerializerMethodField()
-    forma_pagamento_nome = serializers.SerializerMethodField()
-    cliente_nome = serializers.SerializerMethodField()
+    """
+    Serializer otimizado para LEITURA (Listagem). 
+    Traz os nomes legíveis em vez de apenas IDs.
+    """
+    # Usando 'source' para pegar os nomes diretamente das relações
+    categoria_nome = serializers.CharField(source='categoria.nome', read_only=True, default='')
+    conta_nome = serializers.CharField(source='conta.nome', read_only=True, default='')
+    forma_pagamento_nome = serializers.CharField(source='forma_pagamento.nome', read_only=True, default='')
     
-    # [NOVO CAMPO] Para exibir o ID da transação de origem (se for um repasse)
-    transacao_origem = serializers.PrimaryKeyRelatedField(read_only=True) 
+    # Propriedade personalizada do model ou relação direta
+    cliente_nome = serializers.CharField(source='cliente.nome', read_only=True, default='')
+    imovel_titulo = serializers.CharField(source='imovel.titulo_anuncio', read_only=True, default='')
+    
+    transacao_origem = serializers.PrimaryKeyRelatedField(read_only=True)
 
     class Meta:
         model = Transacao
         fields = [
             'id', 'descricao', 'valor', 'data_transacao', 'data_vencimento', 'data_pagamento',
             'tipo', 'status', 'observacoes',
-            'categoria_nome', 'conta_nome', 'forma_pagamento_nome',
-            'cliente_nome',
-            'cliente', 'imovel', 'contrato',
-            'transacao_origem' # CAMPO NOVO
+            'categoria', 'categoria_nome', 
+            'conta', 'conta_nome', 
+            'forma_pagamento', 'forma_pagamento_nome',
+            'cliente', 'cliente_nome',
+            'imovel', 'imovel_titulo', 
+            'contrato',
+            'transacao_origem'
         ]
-        
-    def get_categoria_nome(self, obj: Transacao):
-        """ Retorna o nome da Categoria ou uma string vazia se for nulo. """
-        return obj.categoria.nome if obj.categoria else ''
-
-    def get_conta_nome(self, obj: Transacao):
-        """ Retorna o nome da Conta ou uma string vazia se for nulo. """
-        return obj.conta.nome if obj.conta else ''
-
-    def get_forma_pagamento_nome(self, obj: Transacao):
-        """ Retorna o nome da Forma de Pagamento ou uma string vazia se for nulo. """
-        return obj.forma_pagamento.nome if obj.forma_pagamento else ''
-
-    def get_cliente_nome(self, obj: Transacao):
-        """ Retorna o valor da propriedade cliente_nome do modelo. """
-        return obj.cliente_nome 
-
-
-# --- Serializer Completo de Transação (Para criação/edição e detalhes) ---
-
-class TransacaoSerializer(serializers.ModelSerializer):
-    cliente_detalhes = serializers.SerializerMethodField(read_only=True)
-    
-    class Meta:
-        model = Transacao
-        fields = '__all__' 
-        read_only_fields = ['imobiliaria']
-
-    def get_cliente_detalhes(self, obj):
-        # Importa o ClienteSerializer internamente para evitar possíveis referências circulares
-        try:
-            from app_clientes.serializers import ClienteSerializer 
-        except ImportError:
-            return None
-
-        cliente_obj = obj.cliente
-        # Tenta pegar o inquilino se não houver cliente direto e houver contrato
-        if not cliente_obj and obj.contrato and hasattr(obj.contrato, 'inquilino'):
-            cliente_obj = obj.contrato.inquilino
-            
-        if cliente_obj:
-            return ClienteSerializer(cliente_obj).data
-        return None

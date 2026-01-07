@@ -5,11 +5,11 @@
       <div class="header-main">
         <div class="title-area">
            <nav class="breadcrumb">
-              <router-link to="/">Início</router-link>
+              <span>Financeiro</span> 
               <i class="fas fa-chevron-right separator"></i> 
-              <router-link to="/financeiro">Financeiro</router-link>
+              <router-link to="/financeiro/transacoes">Transações</router-link>
               <i class="fas fa-chevron-right separator"></i>
-              <span class="active">{{ isEditing ? 'Editar' : 'Novo' }}</span>
+              <span class="active">{{ isEditing ? 'Editar' : 'Nova' }} Transação</span>
            </nav>
            
            <h1>{{ isEditing ? 'Editar Lançamento' : 'Novo Lançamento' }}</h1>
@@ -17,63 +17,115 @@
       </div>
     </header>
 
-    <div v-if="isLoadingData" class="loading-state">
-         <div class="spinner"></div>
-         <p>A carregar dados...</p>
-    </div>
+    <main class="content-wrapper">
+        <div v-if="isLoading" class="loading-container">
+            <div class="spinner"></div>
+            <p>Carregando formulário...</p>
+        </div>
 
-    <form v-else @submit.prevent="submitForm" class="main-content-grid">
-      
-      <div class="left-column">
-        <div class="card form-card">
+        <form v-else @submit.prevent="handleSubmit" class="standard-form">
             
-            <div class="form-section" v-if="!isEditing">
-                <div class="tipo-toggle-wrapper">
-                    <label class="radio-label" :class="{ 'active-receita': transacao.tipo === 'RECEITA' }">
-                        <input type="radio" value="RECEITA" v-model="transacao.tipo" name="tipo">
-                        <i class="fas fa-arrow-up"></i> Receita
-                    </label>
-                    <label class="radio-label" :class="{ 'active-despesa': transacao.tipo === 'DESPESA' }">
-                        <input type="radio" value="DESPESA" v-model="transacao.tipo" name="tipo">
-                        <i class="fas fa-arrow-down"></i> Despesa
-                    </label>
-                </div>
-            </div>
-
-            <div class="form-section compact-section">
-                <h3 class="section-title"><i class="far fa-file-alt"></i> Detalhes da Transação</h3>
-                
-                <div class="form-grid">
-                    <div class="form-group full-width">
-                        <label>Descrição <span class="required">*</span></label>
-                        <div class="input-wrapper">
-                            <i class="fas fa-pen input-icon"></i>
-                            <input 
-                                type="text" 
-                                v-model="transacao.descricao" 
-                                required 
-                                class="form-input has-icon" 
-                                placeholder="Ex: Aluguel Apto 304 - Maio/2025" 
-                            />
+            <div class="form-section highlight-section">
+                <div class="form-grid-top">
+                    <div class="form-group type-selector">
+                        <label>Tipo de Movimentação</label>
+                        <div class="toggle-type">
+                            <label class="type-option receita" :class="{ active: form.tipo === 'RECEITA' }">
+                                <input type="radio" v-model="form.tipo" value="RECEITA">
+                                <span class="icon"><i class="fas fa-arrow-up"></i></span>
+                                <span class="text">Receita</span>
+                            </label>
+                            <label class="type-option despesa" :class="{ active: form.tipo === 'DESPESA' }">
+                                <input type="radio" v-model="form.tipo" value="DESPESA">
+                                <span class="icon"><i class="fas fa-arrow-down"></i></span>
+                                <span class="text">Despesa</span>
+                            </label>
                         </div>
                     </div>
 
-                    <div class="form-group">
-                        <label>Valor Total</label>
-                        <MoneyInput 
-                            v-model="transacao.valor" 
-                            required 
-                            class="form-input" 
-                            :prefix="'R$ '"
-                        />
+                    <div class="form-group value-input">
+                        <label>Valor (R$) *</label>
+                        <MoneyInput v-model.number="form.valor" class="form-control money-field" :class="form.tipo === 'DESPESA' ? 'text-red' : 'text-green'" />
                     </div>
 
+                    <div class="form-group date-input">
+                        <label>Vencimento *</label>
+                        <input type="date" v-model="form.data_vencimento" class="form-control" required>
+                    </div>
+                </div>
+
+                <div class="form-group full-width mt-4">
+                    <label>Descrição *</label>
+                    <input type="text" v-model="form.descricao" class="form-control" placeholder="Ex: Aluguel Ref. Janeiro/2025" required>
+                </div>
+            </div>
+
+            <div class="form-section">
+                <h3 class="section-title"><i class="fas fa-link"></i> Vínculos</h3>
+                <div class="form-grid-2col">
+                    
+                    <div class="form-group relative" ref="clienteDropdownRef">
+                        <label>Cliente / Parte (Opcional)</label>
+                        <div class="input-with-icon">
+                            <i class="fas fa-user"></i>
+                            <input 
+                                type="text" 
+                                v-model="clienteSearch" 
+                                class="form-control" 
+                                placeholder="Pesquisar por nome ou CPF/CNPJ..."
+                                @focus="showClienteList = true"
+                                @input="onClienteInput"
+                            >
+                            <i v-if="form.cliente || clienteSearch" class="fas fa-times clear-icon" @click="clearCliente" title="Limpar"></i>
+                        </div>
+                        
+                        <ul v-if="showClienteList && filteredClientes.length > 0" class="dropdown-list">
+                            <li v-for="c in filteredClientes" :key="c.id" @click="selectCliente(c)">
+                                <div class="dd-main-text">{{ c.nome }}</div>
+                                <div class="dd-sub-text" v-if="c.documento">{{ c.documento }}</div>
+                            </li>
+                        </ul>
+                        <ul v-if="showClienteList && filteredClientes.length === 0 && clienteSearch" class="dropdown-list">
+                            <li class="no-results">Nenhum cliente encontrado.</li>
+                        </ul>
+                    </div>
+
+                    <div class="form-group relative" ref="imovelDropdownRef">
+                        <label>Imóvel Vinculado (Opcional)</label>
+                        <div class="input-with-icon">
+                            <i class="fas fa-home"></i>
+                            <input 
+                                type="text" 
+                                v-model="imovelSearch" 
+                                class="form-control" 
+                                placeholder="Pesquisar por código, título ou endereço..."
+                                @focus="showImovelList = true"
+                                @input="onImovelInput"
+                            >
+                            <i v-if="form.imovel || imovelSearch" class="fas fa-times clear-icon" @click="clearImovel" title="Limpar"></i>
+                        </div>
+
+                        <ul v-if="showImovelList && filteredImoveis.length > 0" class="dropdown-list">
+                            <li v-for="i in filteredImoveis" :key="i.id" @click="selectImovel(i)">
+                                <div class="dd-main-text"><span class="code">#{{ i.codigo_referencia }}</span> {{ i.titulo_anuncio }}</div>
+                                <div class="dd-sub-text">{{ i.logradouro }}</div>
+                            </li>
+                        </ul>
+                        <ul v-if="showImovelList && filteredImoveis.length === 0 && imovelSearch" class="dropdown-list">
+                            <li class="no-results">Nenhum imóvel encontrado.</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+            <div class="form-section">
+                <h3 class="section-title"><i class="fas fa-tags"></i> Classificação</h3>
+                <div class="form-grid-3col">
                     <div class="form-group">
-                        <label>Categoria (DRE)</label>
-                        <div class="input-wrapper">
-                            <i class="fas fa-tag input-icon"></i>
-                            <select v-model="transacao.categoria" class="form-select has-icon">
-                                <option :value="null">Selecione...</option>
+                        <label>Categoria *</label>
+                        <div class="select-wrapper">
+                            <select v-model="form.categoria" class="form-control" required>
+                                <option :value="null" disabled>Selecione a Categoria</option>
                                 <option v-for="cat in categoriasFiltradas" :key="cat.id" :value="cat.id">
                                     {{ cat.nome }}
                                 </option>
@@ -81,392 +133,495 @@
                         </div>
                     </div>
 
-                    <div class="form-group full-width">
-                        <label>Observações</label>
-                        <textarea 
-                            v-model="transacao.observacoes" 
-                            rows="4" 
-                            class="form-textarea" 
-                            placeholder="Informações adicionais..."
-                        ></textarea>
+                    <div class="form-group">
+                        <label>Conta (Destino/Origem) *</label>
+                        <div class="select-wrapper">
+                            <select v-model="form.conta" class="form-control" required>
+                                <option :value="null" disabled>Selecione a Conta</option>
+                                <option v-for="acc in contas" :key="acc.id" :value="acc.id">
+                                    {{ acc.nome }}
+                                </option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Forma de Pagamento</label>
+                        <div class="select-wrapper">
+                            <select v-model="form.forma_pagamento" class="form-control">
+                                <option :value="null">Não definido</option>
+                                <option v-for="fp in formasPagamento" :key="fp.id" :value="fp.id">
+                                    {{ fp.nome }}
+                                </option>
+                            </select>
+                        </div>
                     </div>
                 </div>
             </div>
 
-            <div class="form-actions-footer">
-                <button type="button" @click="router.back()" class="btn-secondary">Cancelar</button>
+            <div class="form-section last-section">
+                <div class="form-grid-2col align-end">
+                    <div class="form-group">
+                        <label>Situação Atual</label>
+                        <select v-model="form.status" @change="handleStatusChange" class="form-control status-select" :class="getStatusClass(form.status)">
+                            <option value="PENDENTE">🕒 Pendente</option>
+                            <option value="PAGO">✅ {{ form.tipo === 'RECEITA' ? 'Recebido' : 'Pago' }}</option>
+                            <option value="ATRASADO">⚠️ Atrasado</option>
+                            <option value="CANCELADO">🚫 Cancelado</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group" v-if="form.status === 'PAGO'">
+                        <label>Data da Baixa (Pagamento) *</label>
+                        <input type="date" v-model="form.data_pagamento" class="form-control" required>
+                    </div>
+                </div>
+
+                <div class="form-group mt-4">
+                    <label>Observações / Anotações</label>
+                    <textarea v-model="form.observacoes" class="form-control" rows="2" placeholder="Detalhes adicionais sobre esta transação..."></textarea>
+                </div>
+            </div>
+
+            <div class="form-footer">
+                <button type="button" @click="router.push('/financeiro/transacoes')" class="btn-secondary">
+                    Cancelar
+                </button>
                 <button type="submit" class="btn-primary" :disabled="isSubmitting">
-                    <i v-if="isSubmitting" class="fas fa-spinner fa-spin"></i>
-                    <span v-else>{{ isEditing ? 'Salvar Alterações' : 'Lançar Transação' }}</span>
+                    <i class="fas" :class="isSubmitting ? 'fa-spinner fa-spin' : 'fa-save'"></i> 
+                    {{ isSubmitting ? 'Salvando...' : 'Salvar Lançamento' }}
                 </button>
             </div>
-        </div>
-      </div> 
-      
-      <div class="right-column">
-            
-            <div class="card info-card">
-                 <div class="widget-header">
-                     <h3 class="widget-title"><i class="far fa-calendar-check"></i> Prazos e Status</h3>
-                 </div>
-                 
-                 <div class="form-group">
-                    <label>Situação Atual</label>
-                    <select v-model="transacao.status" @change="handleStatusChange" class="form-select status-select" :class="getStatusClass(transacao.status)">
-                        <option value="PENDENTE">🕒 Pendente</option>
-                        <option value="PAGO">✅ Pago / Recebido</option>
-                        <option value="ATRASADO">⚠️ Atrasado</option>
-                    </select>
-                 </div>
 
-                 <div class="form-group">
-                    <label>Data de Vencimento <span class="required">*</span></label>
-                    <input type="date" v-model="transacao.data_vencimento" required class="form-input" />
-                 </div>
-
-                 <div class="form-group">
-                    <label>Data de Emissão</label>
-                    <input type="date" v-model="transacao.data_transacao" required class="form-input" />
-                 </div>
-
-                 <div v-if="transacao.status === 'PAGO'" class="payment-area fade-in">
-                    <div class="form-group">
-                        <label>Data do Pagamento <span class="required">*</span></label>
-                        <input type="date" v-model="transacao.data_pagamento" required class="form-input" />
-                    </div>
-                 </div>
-            </div>
-
-            <div class="card info-card">
-                 <div class="widget-header">
-                     <h3 class="widget-title"><i class="fas fa-wallet"></i> Movimentação</h3>
-                 </div>
-
-                 <div class="form-group">
-                    <label>Conta / Caixa</label>
-                    <select v-model="transacao.conta" class="form-select">
-                        <option :value="null">Selecione...</option>
-                        <option v-for="c in contas" :key="c.id" :value="c.id">{{ c.nome }}</option>
-                    </select>
-                 </div>
-
-                 <div class="form-group">
-                    <label>Forma de Pagamento</label>
-                    <select v-model="transacao.forma_pagamento" class="form-select">
-                        <option :value="null">Selecione...</option>
-                        <option v-for="f in formasPagamento" :key="f.id" :value="f.id">{{ f.nome }}</option>
-                    </select>
-                 </div>
-            </div>
-
-            <div class="card info-card">
-                 <div class="widget-header">
-                     <h3 class="widget-title"><i class="fas fa-link"></i> Vínculos</h3>
-                 </div>
-
-                 <div class="form-group">
-                    <label>Cliente</label>
-                    <select v-model="transacao.cliente" class="form-select">
-                        <option :value="null">-- Sem vínculo --</option>
-                        <option v-for="c in clientes" :key="c.id" :value="c.id">{{ c.nome_exibicao }}</option>
-                    </select>
-                 </div>
-
-                 <div class="form-group">
-                    <label>Imóvel</label>
-                    <select v-model="transacao.imovel" class="form-select">
-                        <option :value="null">-- Sem vínculo --</option>
-                        <option v-for="i in imoveis" :key="i.id" :value="i.id">{{ i.titulo_anuncio }}</option>
-                    </select>
-                 </div>
-            </div>
-
-      </div> 
-
-    </form>
-
+        </form>
+    </main>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, computed } from 'vue';
-import { useRoute, useRouter } from 'vue-router';
+import { ref, onMounted, computed, onBeforeUnmount } from 'vue';
+import { useRouter, useRoute } from 'vue-router';
 import apiClient from '@/services/api';
 import MoneyInput from '@/components/MoneyInput.vue';
 import { format } from 'date-fns';
 import { useToast } from 'vue-toast-notification';
 
 // --- Interfaces ---
-interface Transacao {
-  id?: number;
-  descricao: string;
-  valor: number | null;
-  data_transacao: string;
-  data_vencimento: string;
-  data_pagamento: string | null;
-  tipo: 'RECEITA' | 'DESPESA';
-  status: string;
-  categoria: number | null;
-  conta: number | null;
-  forma_pagamento: number | null;
-  cliente: number | null;
-  imovel: number | null;
-  observacoes: string;
-}
+interface Imovel { id: number; codigo_referencia: string; titulo_anuncio?: string; logradouro?: string; }
+interface Cliente { id: number; nome: string; documento?: string; }
+interface Categoria { id: number; nome: string; tipo: 'RECEITA' | 'DESPESA'; }
+interface Conta { id: number; nome: string; }
+interface FormaPagamento { id: number; nome: string; }
 
-interface DropdownItem { id: number; nome: string; }
-interface ClienteDropdown extends DropdownItem { nome_exibicao: string; }
-interface CategoriaDropdown extends DropdownItem { tipo: 'RECEITA' | 'DESPESA'; }
-interface ImovelDropdown { id: number; titulo_anuncio: string; }
-
-const route = useRoute();
+// --- Estado ---
 const router = useRouter();
+const route = useRoute();
 const toast = useToast();
 
-const isEditing = ref(!!route.params.id);
-const transacaoId = route.params.id as string;
-const initialTipo = (route.query.tipo as 'RECEITA' | 'DESPESA') || 'RECEITA';
-
-const isLoadingData = ref(false);
+const isEditing = computed(() => !!route.params.id);
+const isLoading = ref(true);
 const isSubmitting = ref(false);
 
-const transacao = ref<Transacao>({
-  descricao: '',
-  valor: null,
-  data_transacao: format(new Date(), 'yyyy-MM-dd'),
-  data_vencimento: format(new Date(), 'yyyy-MM-dd'),
-  data_pagamento: null,
-  tipo: initialTipo,
-  status: 'PENDENTE',
-  categoria: null,
-  conta: null,
-  forma_pagamento: null,
-  cliente: null,
-  imovel: null,
-  observacoes: '',
+const imoveis = ref<Imovel[]>([]);
+const clientes = ref<Cliente[]>([]);
+const categorias = ref<Categoria[]>([]);
+const contas = ref<Conta[]>([]);
+const formasPagamento = ref<FormaPagamento[]>([]);
+
+// --- Estado do Autocomplete ---
+const clienteSearch = ref('');
+const showClienteList = ref(false);
+const clienteDropdownRef = ref<HTMLElement | null>(null);
+
+const imovelSearch = ref('');
+const showImovelList = ref(false);
+const imovelDropdownRef = ref<HTMLElement | null>(null);
+
+// --- Formulário ---
+const form = ref({
+    tipo: 'RECEITA' as 'RECEITA' | 'DESPESA',
+    descricao: '',
+    valor: 0,
+    data_vencimento: format(new Date(), 'yyyy-MM-dd'),
+    data_transacao: format(new Date(), 'yyyy-MM-dd'), // Garante valor padrão
+    data_pagamento: null as string | null,
+    status: 'PENDENTE',
+    categoria: null as number | null,
+    conta: null as number | null,
+    forma_pagamento: null as number | null,
+    cliente: null as number | null,
+    imovel: null as number | null,
+    observacoes: ''
 });
 
-const categorias = ref<CategoriaDropdown[]>([]);
-const contas = ref<DropdownItem[]>([]);
-const formasPagamento = ref<DropdownItem[]>([]);
-const clientes = ref<ClienteDropdown[]>([]);
-const imoveis = ref<ImovelDropdown[]>([]);
-
+// --- Computed: Filtros ---
 const categoriasFiltradas = computed(() => {
-    return categorias.value.filter(c => c.tipo === transacao.value.tipo);
+    return categorias.value.filter(c => c.tipo === form.value.tipo);
 });
 
-const handleStatusChange = () => {
-  if (transacao.value.status === 'PAGO' && !transacao.value.data_pagamento) {
-      transacao.value.data_pagamento = format(new Date(), 'yyyy-MM-dd');
-  } else if (transacao.value.status !== 'PAGO') {
-      transacao.value.data_pagamento = null;
-  }
-};
+const filteredClientes = computed(() => {
+    if (!clienteSearch.value) return clientes.value.slice(0, 10);
+    const term = clienteSearch.value.toLowerCase();
+    return clientes.value.filter(c => 
+        c.nome.toLowerCase().includes(term) || (c.documento && c.documento.includes(term))
+    ).slice(0, 10);
+});
 
+const filteredImoveis = computed(() => {
+    if (!imovelSearch.value) return imoveis.value.slice(0, 10);
+    const term = imovelSearch.value.toLowerCase();
+    return imoveis.value.filter(i => 
+        (i.titulo_anuncio || '').toLowerCase().includes(term) ||
+        (i.logradouro || '').toLowerCase().includes(term) ||
+        (i.codigo_referencia || '').toLowerCase().includes(term)
+    ).slice(0, 10);
+});
+
+// --- Helper Visual ---
 const getStatusClass = (status: string) => {
     switch(status) {
-        case 'PAGO': return 'text-success-bold';
-        case 'ATRASADO': return 'text-danger-bold';
-        default: return 'text-warning-bold';
+        case 'PAGO': return 'status-paid';
+        case 'ATRASADO': return 'status-late';
+        case 'CANCELADO': return 'status-cancelled';
+        default: return 'status-pending';
+    }
+}
+
+// --- Actions Autocomplete ---
+const onClienteInput = () => {
+    showClienteList.value = true;
+    if (form.value.cliente) form.value.cliente = null; 
+};
+
+const selectCliente = (c: Cliente) => {
+    form.value.cliente = c.id;
+    clienteSearch.value = c.nome;
+    showClienteList.value = false;
+};
+
+const clearCliente = () => {
+    form.value.cliente = null;
+    clienteSearch.value = '';
+};
+
+const onImovelInput = () => {
+    showImovelList.value = true;
+    if (form.value.imovel) form.value.imovel = null;
+};
+
+const selectImovel = (i: Imovel) => {
+    form.value.imovel = i.id;
+    imovelSearch.value = `#${i.codigo_referencia} - ${i.titulo_anuncio || i.logradouro}`;
+    showImovelList.value = false;
+};
+
+const clearImovel = () => {
+    form.value.imovel = null;
+    imovelSearch.value = '';
+};
+
+const handleClickOutside = (event: MouseEvent) => {
+    if (clienteDropdownRef.value && !clienteDropdownRef.value.contains(event.target as Node)) {
+        showClienteList.value = false;
+    }
+    if (imovelDropdownRef.value && !imovelDropdownRef.value.contains(event.target as Node)) {
+        showImovelList.value = false;
     }
 };
 
+// Handler para mudança de status (Preenchimento Automático)
+const handleStatusChange = () => {
+    if (form.value.status === 'PAGO' && !form.value.data_pagamento) {
+        form.value.data_pagamento = format(new Date(), 'yyyy-MM-dd');
+    }
+};
+
+// --- API ---
 async function fetchDependencies() {
-  try {
-    const [cats, accs, pays, clis, props] = await Promise.all([
-      apiClient.get('/v1/financeiro/categorias/'),
-      apiClient.get('/v1/financeiro/contas/'),
-      apiClient.get('/v1/financeiro/formas-pagamento/'),
-      apiClient.get('/v1/clientes/lista-simples/'), // Endpoint otimizado se existir, senão usar o padrão
-      apiClient.get('/v1/imoveis/lista-simples/')
-    ]);
-    
-    // Tratamento genérico para lista ou results
-    const getData = (res: any) => Array.isArray(res.data) ? res.data : (res.data.results || []);
+    try {
+        const [resCat, resConta, resFP, resCli, resImob] = await Promise.all([
+            apiClient.get('/v1/financeiro/categorias/'),
+            apiClient.get('/v1/financeiro/contas/'),
+            apiClient.get('/v1/financeiro/formas-pagamento/'),
+            apiClient.get('/v1/clientes/lista-simples/'), 
+            apiClient.get('/v1/imoveis/lista-simples/')
+        ]);
 
-    categorias.value = getData(cats);
-    contas.value = getData(accs);
-    formasPagamento.value = getData(pays);
-    
-    // Mapeamento para garantir campos corretos
-    const clisData = getData(clis);
-    clientes.value = clisData.map((c: any) => ({
-        id: c.id, 
-        nome: c.nome, 
-        nome_exibicao: c.nome_display || c.nome || c.razao_social || 'Cliente'
-    }));
+        categorias.value = resCat.data.results || resCat.data;
+        contas.value = resConta.data.results || resConta.data;
+        formasPagamento.value = resFP.data.results || resFP.data;
+        
+        clientes.value = resCli.data.map((c: any) => ({
+            id: c.id,
+            nome: c.nome_display || c.nome || 'Sem Nome',
+            documento: c.documento || c.cpf_cnpj
+        }));
+        
+        imoveis.value = resImob.data;
 
-    const propsData = getData(props);
-    imoveis.value = propsData.map((i: any) => ({
-        id: i.id,
-        titulo_anuncio: i.titulo_anuncio || i.titulo || `Imóvel #${i.id}`
-    }));
+        if (!isEditing.value) {
+            if (contas.value.length > 0) form.value.conta = contas.value[0].id;
+            if (route.query.tipo && (route.query.tipo === 'RECEITA' || route.query.tipo === 'DESPESA')) {
+                form.value.tipo = route.query.tipo;
+            }
+        }
 
-  } catch (e) {
-    console.error(e);
-    toast.error("Erro ao carregar listas auxiliares.");
-  }
+    } catch (err) {
+        console.error("Erro ao carregar dependências", err);
+        toast.error("Erro ao carregar listas de seleção.");
+    }
 }
 
 async function fetchTransacao() {
-  isLoadingData.value = true;
-  try {
-    const res = await apiClient.get<Transacao>(`/v1/financeiro/transacoes/${transacaoId}/`);
-    transacao.value = { ...res.data };
-    await fetchDependencies();
-  } catch (e) {
-    toast.error("Erro ao buscar dados da transação.");
-    router.push('/financeiro');
-  } finally {
-    isLoadingData.value = false;
-  }
-}
+    try {
+        const { data } = await apiClient.get(`/v1/financeiro/transacoes/${route.params.id}/`);
+        
+        form.value = {
+            tipo: data.tipo,
+            descricao: data.descricao,
+            valor: Number(data.valor),
+            data_vencimento: data.data_vencimento,
+            data_transacao: data.data_transacao || format(new Date(), 'yyyy-MM-dd'),
+            data_pagamento: data.data_pagamento,
+            status: data.status,
+            categoria: data.categoria,
+            conta: data.conta,
+            forma_pagamento: data.forma_pagamento,
+            cliente: data.cliente,
+            imovel: data.imovel,
+            observacoes: data.observacoes
+        };
 
-async function submitForm() {
-  if (!transacao.value.descricao || !transacao.value.valor || !transacao.value.data_vencimento) {
-    toast.warning("Preencha os campos obrigatórios (Descrição, Valor, Vencimento).");
-    return;
-  }
-  
-  isSubmitting.value = true;
-  try {
-    const payload = {
-      ...transacao.value,
-      data_pagamento: transacao.value.status === 'PAGO' ? transacao.value.data_pagamento : null
-    };
+        if (data.cliente) {
+            const cli = clientes.value.find(c => c.id === data.cliente);
+            if (cli) clienteSearch.value = cli.nome;
+        }
+        if (data.imovel) {
+            const imo = imoveis.value.find(i => i.id === data.imovel);
+            if (imo) imovelSearch.value = `#${imo.codigo_referencia} - ${imo.titulo_anuncio || imo.logradouro}`;
+        }
 
-    if (isEditing.value) {
-      await apiClient.put(`/v1/financeiro/transacoes/${transacaoId}/`, payload);
-      toast.success("Lançamento atualizado!");
-    } else {
-      await apiClient.post('/v1/financeiro/transacoes/', payload);
-      toast.success("Lançamento criado com sucesso!");
+    } catch (err) {
+        console.error("Erro ao carregar transação", err);
+        toast.error("Erro ao carregar dados da transação.");
+        router.push('/financeiro/transacoes');
     }
-    router.back();
-  } catch (e: any) {
-    console.error(e);
-    toast.error("Erro ao salvar. Verifique os dados.");
-  } finally {
-    isSubmitting.value = false;
-  }
 }
 
-onMounted(() => {
-  if (isEditing.value) fetchTransacao();
-  else fetchDependencies();
+async function handleSubmit() {
+    if (!form.value.categoria || !form.value.conta) {
+        toast.warning("Categoria e Conta são obrigatórios.");
+        return;
+    }
+    
+    // Auto-preenchimento final de segurança
+    if (form.value.status === 'PAGO' && !form.value.data_pagamento) {
+        form.value.data_pagamento = format(new Date(), 'yyyy-MM-dd');
+    }
+
+    if (form.value.status === 'PAGO' && !form.value.data_pagamento) {
+        toast.warning("Para transações PAGAS, a Data da Baixa é obrigatória.");
+        return;
+    }
+
+    isSubmitting.value = true;
+
+    const payload = { ...form.value };
+
+    // Garante data_transacao
+    if (!payload.data_transacao) payload.data_transacao = format(new Date(), 'yyyy-MM-dd');
+
+    if (payload.status !== 'PAGO') payload.data_pagamento = null;
+    
+    if (!payload.cliente) payload.cliente = null;
+    if (!payload.imovel) payload.imovel = null;
+    if (!payload.forma_pagamento) payload.forma_pagamento = null;
+    if (!payload.observacoes) payload.observacoes = "";
+
+    try {
+        if (isEditing.value) {
+            await apiClient.put(`/v1/financeiro/transacoes/${route.params.id}/`, payload);
+            toast.success("Transação atualizada com sucesso!");
+        } else {
+            await apiClient.post('/v1/financeiro/transacoes/', payload);
+            toast.success("Transação criada com sucesso!");
+        }
+        // CORREÇÃO DO ERRO DE ROTA: Usando o caminho explícito
+        router.push('/financeiro/transacoes');
+    } catch (err: any) {
+        console.error("Erro API:", err);
+        if (err.response && err.response.data) {
+            const errors = err.response.data;
+            const firstKey = Object.keys(errors)[0];
+            const msg = Array.isArray(errors[firstKey]) ? errors[firstKey][0] : errors[firstKey];
+            toast.error(`Erro em ${firstKey}: ${msg}`);
+        } else {
+            toast.error("Erro ao salvar. Verifique os dados.");
+        }
+    } finally {
+        isSubmitting.value = false;
+    }
+}
+
+onMounted(async () => {
+    isLoading.value = true;
+    await fetchDependencies();
+    if (isEditing.value) {
+        await fetchTransacao();
+    }
+    isLoading.value = false;
+    document.addEventListener('click', handleClickOutside);
+});
+
+onBeforeUnmount(() => {
+    document.removeEventListener('click', handleClickOutside);
 });
 </script>
 
 <style scoped>
-/* =========================================================
-   1. GERAL & HEADER (PADRÃO)
-   ========================================================= */
+/* ESTRUTURA GERAL */
 .page-container {
   min-height: 100vh;
-  background-color: #fcfcfc;
-  font-family: 'Inter', 'Segoe UI', Roboto, sans-serif;
+  background-color: #f8fafc;
+  font-family: 'Inter', sans-serif;
   padding: 1.5rem 2.5rem;
-  display: flex; flex-direction: column;
 }
 
 .page-header { margin-bottom: 2rem; }
-.title-area h1 { font-size: 1.5rem; font-weight: 300; color: #1f2937; margin: 0; letter-spacing: -0.02em; }
-.breadcrumb { display: flex; align-items: center; gap: 6px; font-size: 0.7rem; color: #94a3b8; font-weight: 500; text-transform: uppercase; letter-spacing: 0.05em; }
-.breadcrumb a { color: #94a3b8; text-decoration: none; transition: color 0.2s; }
+.title-area h1 { font-size: 1.6rem; font-weight: 300; color: #1e293b; margin: 5px 0 0 0; }
+.breadcrumb { display: flex; align-items: center; gap: 6px; font-size: 0.8rem; color: #64748b; font-weight: 500; }
+.breadcrumb a { text-decoration: none; color: #64748b; transition: color 0.2s; }
 .breadcrumb a:hover { color: #2563eb; }
-.breadcrumb .separator { font-size: 0.5rem; color: #cbd5e1; }
-.breadcrumb .active { color: #2563eb; font-weight: 700; }
+.breadcrumb .separator { font-size: 0.6rem; color: #cbd5e1; }
+.breadcrumb .active { color: #2563eb; font-weight: 600; }
 
-.main-content-grid { 
-    display: grid; grid-template-columns: 1fr 320px; gap: 1.5rem; align-items: start; 
+.content-wrapper { max-width: 900px; margin: 0 auto; }
+
+/* FORMULÁRIO ESTILO CARD */
+.standard-form {
+    background: transparent;
+    display: flex; flex-direction: column; gap: 1.5rem;
 }
-@media (max-width: 1100px) { .main-content-grid { grid-template-columns: 1fr; } }
 
-/* =========================================================
-   2. CARDS & SEÇÕES
-   ========================================================= */
-.card {
-  background-color: #fff; border-radius: 8px; box-shadow: 0 1px 2px rgba(0,0,0,0.03); 
-  padding: 1.5rem; border: 1px solid #e5e7eb;
+.form-section {
+    background: white; border-radius: 12px; border: 1px solid #e2e8f0;
+    padding: 1.8rem; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
 }
-.form-card { min-height: 400px; display: flex; flex-direction: column; }
-.info-card { padding: 1.2rem; margin-bottom: 1rem; border-left: 3px solid #e5e7eb; }
 
-.form-section { margin-bottom: 2rem; }
+.highlight-section { border-left: 4px solid #3b82f6; } 
+
 .section-title {
-    font-size: 1rem; color: #1f2937; margin-bottom: 1.2rem; padding-bottom: 0.5rem;
-    border-bottom: 1px solid #f1f5f9; font-weight: 600; display: flex; align-items: center; gap: 0.6rem;
+    font-size: 0.95rem; font-weight: 600; color: #334155; margin: 0 0 1.2rem 0;
+    text-transform: uppercase; letter-spacing: 0.05em; border-bottom: 1px solid #f1f5f9; padding-bottom: 8px;
+    display: flex; align-items: center; gap: 8px;
 }
-.compact-section { margin-bottom: 0; }
+.section-title i { color: #94a3b8; }
 
-.form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
-.form-group { display: flex; flex-direction: column; gap: 0.4rem; }
-.full-width { grid-column: 1 / -1; }
-
-label { font-weight: 500; font-size: 0.85rem; color: #4b5563; }
-.required { color: #ef4444; }
-
-/* Inputs */
-.input-wrapper { position: relative; }
-.input-icon { position: absolute; left: 10px; top: 50%; transform: translateY(-50%); color: #9ca3af; font-size: 0.85rem; pointer-events: none; }
-.form-input, .form-select, .form-textarea {
-    width: 100%; padding: 0.6rem 0.75rem; border: 1px solid #d1d5db; border-radius: 6px;
-    font-size: 0.9rem; transition: all 0.2s; background-color: #fff; box-sizing: border-box; color: #1f2937;
-    font-family: inherit;
+/* GRIDS E LAYOUT INTERNO */
+.form-grid-top {
+    display: grid; grid-template-columns: 2fr 1.5fr 1.5fr; gap: 1.5rem; align-items: start;
 }
-.form-input.has-icon, .form-select.has-icon { padding-left: 2.2rem; }
-.form-input:focus, .form-select:focus, .form-textarea:focus { 
-    border-color: #3b82f6; outline: none; box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.1);
+.form-grid-2col { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; }
+.form-grid-3col { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1.5rem; }
+
+.form-group { display: flex; flex-direction: column; gap: 0.4rem; position: relative; }
+.form-group label { font-size: 0.75rem; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 0.03em; }
+
+/* INPUTS E CONTROLES */
+.form-control {
+    width: 100%; padding: 0.65rem 0.8rem; border: 1px solid #cbd5e1;
+    border-radius: 6px; font-size: 0.9rem; color: #1e293b;
+    transition: all 0.2s; box-sizing: border-box; background-color: #fff;
+    height: 40px;
 }
-.form-textarea { resize: vertical; min-height: 100px; }
+.form-control:focus { border-color: #3b82f6; box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1); outline: none; }
+textarea.form-control { height: auto; min-height: 80px; resize: vertical; }
 
-/* =========================================================
-   3. COMPONENTES ESPECÍFICOS (TOGGLE TIPO)
-   ========================================================= */
-.tipo-toggle-wrapper { display: flex; gap: 1rem; padding: 0.5rem; background: #f9fafb; border-radius: 8px; border: 1px solid #f3f4f6; width: fit-content; }
-.radio-label {
-    padding: 0.5rem 1rem; border-radius: 6px; cursor: pointer; color: #6b7280; font-size: 0.9rem; font-weight: 500; transition: all 0.2s; display: flex; align-items: center; gap: 0.5rem;
+.select-wrapper { position: relative; }
+.select-wrapper::after {
+    content: '\f078'; font-family: 'Font Awesome 5 Free'; font-weight: 900;
+    position: absolute; right: 12px; top: 50%; transform: translateY(-50%);
+    color: #94a3b8; font-size: 0.7rem; pointer-events: none;
 }
-.radio-label:hover { background: #e5e7eb; }
-.radio-label i { font-size: 0.8rem; }
-.radio-label input { display: none; }
+select.form-control { appearance: none; cursor: pointer; }
 
-.radio-label.active-receita { background: #dcfce7; color: #166534; border: 1px solid #bbf7d0; }
-.radio-label.active-despesa { background: #fee2e2; color: #991b1b; border: 1px solid #fecaca; }
+/* TOGGLE TIPO (RECEITA/DESPESA) */
+.toggle-type { display: flex; background: #f1f5f9; padding: 4px; border-radius: 8px; gap: 4px; height: 40px; }
+.type-option {
+    flex: 1; display: flex; align-items: center; justify-content: center; gap: 8px;
+    cursor: pointer; border-radius: 6px; font-size: 0.85rem; font-weight: 600; color: #64748b;
+    transition: all 0.2s; position: relative; overflow: hidden;
+}
+.type-option input { display: none; }
+.type-option:hover { background: #e2e8f0; color: #475569; }
 
-/* Status Styles in Select */
+.type-option.receita.active { background: #dcfce7; color: #15803d; box-shadow: 0 1px 2px rgba(0,0,0,0.05); }
+.type-option.despesa.active { background: #fee2e2; color: #b91c1c; box-shadow: 0 1px 2px rgba(0,0,0,0.05); }
+
+/* MONEY INPUT CORES */
+.money-field { font-weight: 700; }
+.text-green { color: #15803d; }
+.text-red { color: #b91c1c; }
+
+/* AUTOCOMPLETE */
+.input-with-icon { position: relative; width: 100%; }
+.input-with-icon i { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: #94a3b8; pointer-events: none; }
+.input-with-icon .clear-icon { left: auto; right: 12px; cursor: pointer; pointer-events: auto; }
+.input-with-icon .clear-icon:hover { color: #ef4444; }
+.input-with-icon input { padding-left: 2.2rem; padding-right: 2.2rem; }
+
+.dropdown-list {
+    position: absolute; top: 100%; left: 0; right: 0; z-index: 50;
+    background: white; border: 1px solid #cbd5e1; border-radius: 6px;
+    margin-top: 4px; max-height: 220px; overflow-y: auto;
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1); list-style: none; padding: 0;
+}
+.dropdown-list li {
+    padding: 0.7rem 1rem; cursor: pointer; border-bottom: 1px solid #f1f5f9;
+    transition: background 0.1s;
+}
+.dropdown-list li:last-child { border-bottom: none; }
+.dropdown-list li:hover { background-color: #f8fafc; }
+.dd-main-text { font-size: 0.9rem; color: #1e293b; font-weight: 500; }
+.dd-sub-text { font-size: 0.75rem; color: #94a3b8; margin-top: 2px; }
+.no-results { padding: 1rem; color: #94a3b8; text-align: center; font-style: italic; font-size: 0.85rem; }
+.code { font-weight: 700; color: #3b82f6; }
+
+/* STATUS STYLES */
 .status-select { font-weight: 600; }
-.text-success-bold { color: #059669; border-color: #86efac; background-color: #f0fdf4; }
-.text-warning-bold { color: #d97706; border-color: #fcd34d; background-color: #fffbeb; }
-.text-danger-bold { color: #dc2626; border-color: #fca5a5; background-color: #fef2f2; }
+.status-pending { border-left: 4px solid #cbd5e1; }
+.status-paid { border-left: 4px solid #10b981; color: #065f46; }
+.status-late { border-left: 4px solid #f59e0b; color: #92400e; }
+.status-cancelled { border-left: 4px solid #ef4444; color: #991b1b; }
 
-.payment-area { margin-top: 1rem; padding-top: 1rem; border-top: 1px dashed #e2e8f0; }
-.fade-in { animation: fadeIn 0.3s ease; }
-@keyframes fadeIn { from { opacity: 0; transform: translateY(-5px); } to { opacity: 1; transform: translateY(0); } }
-
-/* Footer Actions */
-.form-actions-footer {
-    display: flex; justify-content: flex-end; gap: 0.75rem; margin-top: auto; padding-top: 2rem; border-top: 1px solid #f1f5f9;
+/* RODAPÉ */
+.form-footer {
+    display: flex; justify-content: flex-end; gap: 1rem; margin-top: 1rem;
+    padding-top: 1rem; border-top: 1px solid #e2e8f0;
 }
-.btn-primary, .btn-secondary {
-    padding: 0.5rem 1.2rem; border-radius: 6px; border: none; font-weight: 500; cursor: pointer; font-size: 0.85rem; display: flex; align-items: center; gap: 0.5rem; transition: all 0.2s;
+.btn-primary {
+    background-color: #2563eb; color: white; border: none; padding: 0.7rem 1.8rem;
+    border-radius: 6px; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 8px;
+    transition: all 0.2s; font-size: 0.9rem;
 }
-.btn-primary { background-color: #2563eb; color: white; box-shadow: 0 1px 2px rgba(37, 99, 235, 0.1); }
-.btn-primary:hover { background-color: #1d4ed8; transform: translateY(-1px); }
-.btn-secondary { background-color: #f8fafc; color: #64748b; border: 1px solid #e2e8f0; }
-.btn-secondary:hover { background-color: #f1f5f9; border-color: #cbd5e1; color: #334155; }
+.btn-primary:hover { background-color: #1d4ed8; transform: translateY(-1px); box-shadow: 0 4px 6px rgba(37, 99, 235, 0.2); }
+.btn-primary:disabled { opacity: 0.7; cursor: not-allowed; transform: none; }
 
-/* Widgets */
-.widget-header { margin-bottom: 1rem; padding-bottom: 0.5rem; border-bottom: 1px solid #f1f5f9; }
-.widget-title { font-size: 0.9rem; font-weight: 600; margin: 0; color: #374151; }
+.btn-secondary {
+    background-color: white; color: #64748b; border: 1px solid #cbd5e1; padding: 0.7rem 1.5rem;
+    border-radius: 6px; font-weight: 500; cursor: pointer; transition: all 0.2s; font-size: 0.9rem;
+}
+.btn-secondary:hover { background-color: #f1f5f9; color: #334155; border-color: #94a3b8; }
 
-/* Loading */
-.loading-state { text-align: center; padding: 4rem; color: #64748b; }
+.loading-container { text-align: center; padding: 6rem; color: #64748b; }
 .spinner { border: 3px solid #e2e8f0; border-top: 3px solid #2563eb; border-radius: 50%; width: 32px; height: 32px; animation: spin 0.8s linear infinite; margin: 0 auto 1rem; }
 @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
 
-@media (max-width: 1024px) {
-  .page-container { padding: 1rem; }
+/* RESPONSIVIDADE */
+@media (max-width: 768px) {
+    .page-container { padding: 1rem; }
+    .form-grid-top, .form-grid-2col, .form-grid-3col { grid-template-columns: 1fr; gap: 1rem; }
+    .form-footer { flex-direction: column-reverse; }
+    .btn-primary, .btn-secondary { width: 100%; justify-content: center; }
 }
 </style>

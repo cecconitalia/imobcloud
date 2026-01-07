@@ -1,6 +1,6 @@
 # Em app_contratos/models.py
 
-import logging # <--- NOVO
+import logging
 from django.db import models
 from core.models import Imobiliaria
 from app_imoveis.models import Imovel
@@ -13,10 +13,10 @@ from django.core.validators import MinValueValidator, MaxValueValidator
 from app_financeiro.models import Transacao, Categoria, Conta 
 from dateutil.relativedelta import relativedelta
 from django.db.models import Q, UniqueConstraint
-from django.db import transaction # <--- Adicionado para consistência
+from django.db import transaction
 
 # Inicializa o logger para este módulo
-logger = logging.getLogger(__name__) # Nome do logger: 'app_contratos.models'
+logger = logging.getLogger(__name__) 
 
 
 # ==========================================================
@@ -247,23 +247,26 @@ class Contrato(models.Model):
              logger.error(f"ERRO CRÍTICO ALUGUEL: Falha ao obter/criar Categoria de Aluguel. Erro: {e}")
              return False
 
-        # Verifica e obtém a conta padrão
+        # === CORREÇÃO: Garante que exista uma conta padrão para não falhar silenciosamente ===
         conta_padrao = Conta.objects.filter(imobiliaria=imobiliaria).first()
         if not conta_padrao:
-             logger.error(f"ERRO ALUGUEL: Nenhuma Conta Financeira padrão encontrada para a Imobiliária {imobiliaria.nome}. Geração abortada.")
-             return False
+             logger.warning(f"AVISO ALUGUEL: Nenhuma Conta encontrada. Criando 'Conta Principal' automaticamente.")
+             try:
+                 conta_padrao = Conta.objects.create(imobiliaria=imobiliaria, nome='Conta Principal', saldo_inicial=0)
+             except Exception as e:
+                 logger.error(f"ERRO CRÍTICO ALUGUEL: Falha ao criar Conta Padrão. Erro: {e}")
+                 return False
         
         for i in range(duracao):
              data_parcela = data_base_vencimento + relativedelta(months=i)
              
-             # CORREÇÃO: Cálculo do Mês de Referência (mantido)
              data_referencia = data_parcela - relativedelta(months=1)
              ref_str = data_referencia.strftime('%m/%Y')
              venc_str = data_parcela.strftime('%d/%m/%Y')
              
              descricao = f"Aluguel {i+1}/{duracao} - Ref: {ref_str} (Venc: {venc_str})"
              
-             # Cria Pagamento (Modelo Antigo?)
+             # Cria Pagamento (Modelo Antigo)
              Pagamento.objects.create(
                  contrato=self,
                  data_vencimento=data_parcela,
@@ -315,11 +318,12 @@ class Contrato(models.Model):
             
         data_base = timezone.now().date()
         data_vencimento = self.data_vencimento_venda 
-        conta_padrao = Conta.objects.filter(imobiliaria=self.imobiliaria).first()
         
+        # === CORREÇÃO: Garante conta padrão ===
+        conta_padrao = Conta.objects.filter(imobiliaria=self.imobiliaria).first()
         if not conta_padrao:
-             logger.error(f"ERRO VENDA: Nenhuma Conta Financeira padrão encontrada para a Imobiliária {self.imobiliaria.nome}. Geração abortada.")
-             return False
+             logger.warning(f"AVISO VENDA: Nenhuma Conta encontrada. Criando 'Conta Principal' automaticamente.")
+             conta_padrao = Conta.objects.create(imobiliaria=self.imobiliaria, nome='Conta Principal', saldo_inicial=0)
 
         Transacao.objects.create(
             imobiliaria=self.imobiliaria,

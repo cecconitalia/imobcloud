@@ -324,4 +324,26 @@ input:focus {
     0% { transform: rotate(0deg); }
     100% { transform: rotate(360deg); }
 }
+
+/* Estilos globais forçados apenas quando esta tela carrega */
+body {
+  background-color: #f1f5f9 !important;
+}
+
+/* Força o input a ser branco mesmo se o navegador estiver em modo escuro */
+.login-card input.form-control {
+  background-color: #ffffff !important;
+  color: #000000 !important;
+  -webkit-text-fill-color: #000000 !important; /* Correção para Chrome */
+  border: 1px solid #cbd5e1 !important;
+}
+
+/* Remove fundo amarelo/azul do autocomplete do Chrome */
+.login-card input:-webkit-autofill,
+.login-card input:-webkit-autofill:hover, 
+.login-card input:-webkit-autofill:focus, 
+.login-card input:-webkit-autofill:active {
+  -webkit-box-shadow: 0 0 0 30px white inset !important;
+  -webkit-text-fill-color: black !important;
+}
 </style>

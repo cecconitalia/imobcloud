@@ -66,7 +66,7 @@
                                 <label>CEP</label>
                                 <div class="input-wrapper">
                                     <i class="fas fa-map-marker-alt input-icon"></i>
-                                    <input type="text" v-model="imovel.cep" class="form-input has-icon" placeholder="00000-000" />
+                                    <CepInput v-model="imovel.cep" class="form-input has-icon" />
                                 </div>
                             </div>
                             <div class="form-group full-width">
@@ -402,6 +402,8 @@ import ImovelImagensView from './ImovelImagensView.vue';
 import { debounce } from 'lodash'; 
 import '@fortawesome/fontawesome-free/css/all.css';
 import MoneyInput from '@/components/MoneyInput.vue';
+// Importação do novo componente
+import CepInput from '@/components/CepInput.vue';
 
 const route = useRoute();
 const router = useRouter();
@@ -512,7 +514,7 @@ const searchProprietarios = async (query: string) => {
     isSearchingProprietario.value = true;
     try {
         const response = await apiClient.get('/v1/clientes/', { params: { search: query, status: 'ativo' } });
-        proprietarioSearchResults.value = response.data; // Removido filtro de tipo para permitir qualquer cliente ser proprietário se necessário, ou manter backend filtering
+        proprietarioSearchResults.value = response.data;
     } catch (error) { console.error(error); } finally { isSearchingProprietario.value = false; }
 };
 const debouncedSearch = debounce(searchProprietarios, 300); 
@@ -577,7 +579,6 @@ async function handleSaveAndContinue() {
   if (response?.data) {
     const wasCreating = !isEditing.value;
     imovel.value.id = response.data.id;
-    // Recarregar dados para garantir consistência
     fetchImovelData(String(response.data.id));
     if (wasCreating) {
         router.replace({ name: 'imovel-editar', params: { id: response.data.id }, query: { tab: 'imagens' } });
@@ -669,7 +670,7 @@ label { font-weight: 500; font-size: 0.85rem; color: #4b5563; }
    4. INPUTS E CONTROLES
    ========================================================= */
 .input-wrapper { position: relative; }
-.input-icon { position: absolute; left: 10px; top: 50%; transform: translateY(-50%); color: #9ca3af; font-size: 0.85rem; pointer-events: none; }
+.input-icon { position: absolute; left: 10px; top: 50%; transform: translateY(-50%); color: #9ca3af; font-size: 0.85rem; pointer-events: none; z-index: 5; }
 .form-input, .form-select, .form-textarea {
     width: 100%; padding: 0.6rem 0.75rem; border: 1px solid #d1d5db; border-radius: 6px;
     font-size: 0.9rem; transition: all 0.2s; background-color: #fff; box-sizing: border-box; color: #1f2937;

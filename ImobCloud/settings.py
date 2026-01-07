@@ -109,7 +109,7 @@ DATABASES = {
         'ENGINE': 'django.db.backends.postgresql',
         'NAME': os.getenv('POSTGRES_DB', 'imobcloud_db'),
         'USER': os.getenv('POSTGRES_USER', 'imobcloud_user'),
-        'PASSWORD': os.getenv('POSTGRES_PASSWORD', 'sua_senha_local'),
+        'PASSWORD': os.getenv('POSTGRES_PASSWORD', 'D8h5..2025@'),
         'HOST': os.getenv('DB_HOST', 'db'), 
         'PORT': os.getenv('DB_PORT', '5432'),
     }
