@@ -31,40 +31,6 @@
       </div>
     </header>
 
-    <div class="kpi-grid" v-if="stats">
-      <div class="kpi-card blue" @click="applyTypeFilter('')" title="Clique para ver todas as transações">
-        <div class="kpi-content">
-          <span class="kpi-value">{{ formatarValor(stats.saldo_atual) }}</span>
-          <span class="kpi-label">Saldo em Caixa (Atual)</span>
-        </div>
-        <div class="kpi-icon"><i class="fas fa-wallet"></i></div>
-      </div>
-
-      <div class="kpi-card green" @click="applyTypeFilter('RECEITA')" title="Clique para filtrar Receitas">
-        <div class="kpi-content">
-          <span class="kpi-value">{{ formatarValor(stats.receitas_mes) }}</span>
-          <span class="kpi-label">Receitas (Período)</span>
-        </div>
-        <div class="kpi-icon"><i class="fas fa-arrow-up"></i></div>
-      </div>
-
-      <div class="kpi-card red" @click="applyTypeFilter('DESPESA')" title="Clique para filtrar Despesas">
-        <div class="kpi-content">
-          <span class="kpi-value">{{ formatarValor(stats.despesas_mes) }}</span>
-          <span class="kpi-label">Despesas (Período)</span>
-        </div>
-        <div class="kpi-icon"><i class="fas fa-arrow-down"></i></div>
-      </div>
-
-      <div class="kpi-card purple" @click="applyTypeFilter('')">
-        <div class="kpi-content">
-          <span class="kpi-value">{{ formatarValor(stats.resultado_mes) }}</span>
-          <span class="kpi-label">Resultado (Período)</span>
-        </div>
-        <div class="kpi-icon"><i class="fas fa-chart-line"></i></div>
-      </div>
-    </div>
-
     <div class="filters-summary" v-if="!isLoading">
         <div class="summary-text">
             <i class="fas fa-filter"></i>
@@ -181,12 +147,48 @@
         <table class="report-table">
           <thead>
             <tr>
-              <th width="10%">Data</th>
-              <th width="8%" class="text-center">Tipo</th>
-              <th width="25%">Descrição / Imóvel</th>
-              <th width="20%">Conta / Categoria</th>
-              <th width="15%" class="text-right">Valor</th>
-              <th width="10%" class="text-center">Status</th>
+              <th width="10%" @click="handleSort('data_vencimento')" class="sortable-header">
+                  Data
+                  <i v-if="ordering === 'data_vencimento'" class="fas fa-sort-up"></i>
+                  <i v-else-if="ordering === '-data_vencimento'" class="fas fa-sort-down"></i>
+                  <i v-else class="fas fa-sort sort-icon-muted"></i>
+              </th>
+              
+              <th width="8%" class="text-center sortable-header" @click="handleSort('tipo')">
+                  Tipo
+                  <i v-if="ordering === 'tipo'" class="fas fa-sort-up"></i>
+                  <i v-else-if="ordering === '-tipo'" class="fas fa-sort-down"></i>
+                  <i v-else class="fas fa-sort sort-icon-muted"></i>
+              </th>
+              
+              <th width="25%" @click="handleSort('descricao')" class="sortable-header">
+                  Descrição / Imóvel
+                  <i v-if="ordering === 'descricao'" class="fas fa-sort-up"></i>
+                  <i v-else-if="ordering === '-descricao'" class="fas fa-sort-down"></i>
+                  <i v-else class="fas fa-sort sort-icon-muted"></i>
+              </th>
+              
+              <th width="20%" @click="handleSort('categoria__nome')" class="sortable-header">
+                  Conta / Categoria
+                  <i v-if="ordering === 'categoria__nome'" class="fas fa-sort-up"></i>
+                  <i v-else-if="ordering === '-categoria__nome'" class="fas fa-sort-down"></i>
+                  <i v-else class="fas fa-sort sort-icon-muted"></i>
+              </th>
+              
+              <th width="15%" class="text-right sortable-header" @click="handleSort('valor')">
+                  Valor
+                  <i v-if="ordering === 'valor'" class="fas fa-sort-up"></i>
+                  <i v-else-if="ordering === '-valor'" class="fas fa-sort-down"></i>
+                  <i v-else class="fas fa-sort sort-icon-muted"></i>
+              </th>
+              
+              <th width="10%" class="text-center sortable-header" @click="handleSort('status')">
+                  Status
+                  <i v-if="ordering === 'status'" class="fas fa-sort-up"></i>
+                  <i v-else-if="ordering === '-status'" class="fas fa-sort-down"></i>
+                  <i v-else class="fas fa-sort sort-icon-muted"></i>
+              </th>
+              
               <th width="12%" class="text-right">Ações</th>
             </tr>
           </thead>
@@ -281,13 +283,6 @@ interface Transacao {
     cliente_nome?: string;
 }
 
-interface StatsFinanceiro {
-    saldo_atual: number;
-    receitas_mes: number;
-    despesas_mes: number;
-    resultado_mes: number;
-}
-
 interface Imovel {
     id: number;
     titulo_anuncio?: string;
@@ -305,11 +300,11 @@ interface Filters {
 }
 
 const transacoes = ref<Transacao[]>([]);
-const stats = ref<StatsFinanceiro | null>(null);
 const totalCount = ref(0);
 const isLoading = ref(true);
 const error = ref<string | null>(null);
 const toast = useToast();
+const ordering = ref('-data_vencimento'); 
 
 const filters = ref<Filters>({
     search: '',
@@ -365,9 +360,15 @@ const getStatusClass = (status: string): string => {
   }
 };
 
-// Função auxiliar para aplicar filtros ao clicar nos cards
-const applyTypeFilter = (tipo: string) => {
-    filters.value.tipo = tipo;
+// Lógica de Ordenação
+const handleSort = (field: string) => {
+    if (ordering.value === field) {
+        ordering.value = `-${field}`;
+    } else if (ordering.value === `-${field}`) {
+        ordering.value = field;
+    } else {
+        ordering.value = field;
+    }
     fetchData();
 };
 
@@ -393,6 +394,7 @@ const resetFilters = () => {
     filters.value.search = '';
     filters.value.tipo = '';
     filters.value.status = '';
+    ordering.value = '-data_vencimento';
     clearImovelSelection(); 
     setQuickFilter('currentMonth');
 };
@@ -440,10 +442,12 @@ const fetchData = async () => {
     isLoading.value = true;
     error.value = null;
     try {
-        const params: any = { ...filters.value };
-        const statsRes = await apiClient.get('/v1/financeiro/transacoes/stats/', { params });
-        stats.value = statsRes.data;
-
+        // CORREÇÃO: Enviamos 'ordenacao' para garantir que nossa lógica manual no backend seja usada
+        const params: any = { 
+            ...filters.value,
+            ordenacao: ordering.value 
+        };
+        
         const response = await apiClient.get('/v1/financeiro/transacoes/', { params });
         const results = response.data.results || response.data;
         transacoes.value = results;
@@ -519,30 +523,6 @@ onBeforeUnmount(() => {
 .btn-text { background: none; border: none; color: #64748b; cursor: pointer; font-weight: 500; padding: 0; }
 .btn-text:hover { color: #2563eb; text-decoration: underline; }
 .divider { color: #e2e8f0; }
-
-/* KPI GRID */
-.kpi-grid { 
-    display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); 
-    gap: 1.25rem; margin-bottom: 2rem; flex-shrink: 0;
-}
-
-.kpi-card {
-  background: white; border-radius: 8px; padding: 1.25rem 1.5rem; border: 1px solid #f0f0f0;
-  display: flex; justify-content: space-between; align-items: center;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.02); transition: all 0.2s; position: relative; overflow: hidden;
-  cursor: pointer; /* Indica interatividade */
-}
-.kpi-card:hover { transform: translateY(-2px); box-shadow: 0 6px 12px rgba(0,0,0,0.04); }
-
-.kpi-content { display: flex; flex-direction: column; }
-.kpi-value { font-size: 1.6rem; font-weight: 300; line-height: 1.1; color: #111; }
-.kpi-label { font-size: 0.7rem; font-weight: 600; text-transform: uppercase; color: #9ca3af; margin-top: 4px; letter-spacing: 0.05em; }
-.kpi-icon { font-size: 1.8rem; opacity: 0.1; position: absolute; right: 1.5rem; bottom: 1rem; }
-
-.kpi-card.blue .kpi-value, .kpi-card.blue .kpi-icon { color: #2563eb; }
-.kpi-card.green .kpi-value, .kpi-card.green .kpi-icon { color: #059669; }
-.kpi-card.red .kpi-value, .kpi-card.red .kpi-icon { color: #ef4444; }
-.kpi-card.purple .kpi-value, .kpi-card.purple .kpi-icon { color: #9333ea; }
 
 /* RESUMO DE FILTROS */
 .filters-summary { margin-bottom: 1rem; }
@@ -653,7 +633,15 @@ onBeforeUnmount(() => {
   position: sticky; top: 0; z-index: 10;
   font-size: 0.65rem; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 0.06em;
   border-bottom: 1px solid #e2e8f0; box-shadow: 0 1px 2px rgba(0,0,0,0.02);
+  user-select: none;
 }
+
+/* Header Ordenável */
+.sortable-header { cursor: pointer; transition: background-color 0.2s; }
+.sortable-header:hover { background-color: #eff6ff; color: #2563eb; }
+.sort-icon-muted { opacity: 0.3; font-size: 0.75em; margin-left: 4px; }
+.sortable-header i { margin-left: 4px; }
+
 .report-table td { padding: 0.75rem 1.2rem; border-bottom: 1px solid #f1f5f9; font-size: 0.85rem; color: #334155; vertical-align: middle; }
 .report-table tr:hover { background-color: #fcfcfc; }
 

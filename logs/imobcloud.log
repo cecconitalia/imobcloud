@@ -9289,3 +9289,36 @@ WARNING 2026-01-07 18:45:26,919 log 9 131792794741632 Not Found: /public/imoveis
 WARNING 2026-01-07 18:45:27,204 log 9 131792794741632 Not Found: /public/imobiliaria/estilomusical/
 WARNING 2026-01-07 18:48:44,741 log 7 137736241658752 Not Found: /public/imoveis/1/
 WARNING 2026-01-07 18:48:44,852 log 9 137736241658752 Not Found: /public/imobiliaria/estilomusical/
+WARNING 2026-01-07 19:02:21,203 log 10 133590624344960 Not Found: /api/v1/financeiro/formas_pagamento/
+WARNING 2026-01-08 17:55:49,792 log 8 131864345410432 Unauthorized: /api/v1/core/usuarios/me/
+WARNING 2026-01-08 17:55:54,625 log 8 131864345410432 Unauthorized: /api/v1/core/usuarios/me/
+WARNING 2026-01-08 17:55:54,663 log 9 131864345410432 Unauthorized: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2026-01-08 17:55:54,776 log 8 131864345410432 Unauthorized: /api/v1/stats/
+WARNING 2026-01-08 17:55:54,832 log 9 131864345410432 Unauthorized: /api/v1/financeiro/transacoes/stats/
+WARNING 2026-01-08 17:55:58,523 log 7 131864345410432 Unauthorized: /api/v1/alugueis/dashboard-stats/
+WARNING 2026-01-08 18:22:09,314 log 7 131864345410432 Not Found: /static/assets/index-DMRfwytP.css
+WARNING 2026-01-08 18:22:09,314 log 8 131864345410432 Not Found: /static/assets/index-BSQgcRTN.js
+WARNING 2026-01-08 18:22:13,390 log 8 131864345410432 Not Found: /static/assets/index-DMRfwytP.css
+WARNING 2026-01-08 18:22:13,415 log 9 131864345410432 Not Found: /static/assets/index-BSQgcRTN.js
+WARNING 2026-01-08 18:22:14,119 log 8 131864345410432 Not Found: /static/assets/index-BSQgcRTN.js
+WARNING 2026-01-08 18:22:14,136 log 9 131864345410432 Not Found: /static/assets/index-DMRfwytP.css
+WARNING 2026-01-08 18:22:14,833 log 7 131864345410432 Not Found: /static/assets/index-BSQgcRTN.js
+WARNING 2026-01-08 18:22:14,850 log 8 131864345410432 Not Found: /static/assets/index-DMRfwytP.css
+WARNING 2026-01-08 18:22:15,366 log 7 131864345410432 Not Found: /static/assets/index-BSQgcRTN.js
+WARNING 2026-01-08 18:22:15,388 log 9 131864345410432 Not Found: /static/assets/index-DMRfwytP.css
+WARNING 2026-01-08 18:22:15,931 log 9 131864345410432 Not Found: /static/assets/index-DMRfwytP.css
+WARNING 2026-01-08 18:22:15,934 log 7 131864345410432 Not Found: /static/assets/index-BSQgcRTN.js
+WARNING 2026-01-08 18:22:16,469 log 8 131864345410432 Not Found: /static/assets/index-DMRfwytP.css
+WARNING 2026-01-08 18:22:16,480 log 9 131864345410432 Not Found: /static/assets/index-BSQgcRTN.js
+WARNING 2026-01-08 18:22:17,005 log 9 131864345410432 Not Found: /static/assets/index-BSQgcRTN.js
+WARNING 2026-01-08 18:22:17,028 log 7 131864345410432 Not Found: /static/assets/index-DMRfwytP.css
+WARNING 2026-01-08 18:22:17,968 log 7 131864345410432 Not Found: /static/assets/index-DMRfwytP.css
+WARNING 2026-01-08 18:22:17,983 log 9 131864345410432 Not Found: /static/assets/index-BSQgcRTN.js
+WARNING 2026-01-08 18:22:19,004 log 9 131864345410432 Not Found: /static/assets/index-DMRfwytP.css
+WARNING 2026-01-08 18:22:19,006 log 8 131864345410432 Not Found: /static/assets/index-BSQgcRTN.js
+WARNING 2026-01-08 18:22:19,611 log 9 131864345410432 Not Found: /static/assets/index-BSQgcRTN.js
+WARNING 2026-01-08 18:22:19,632 log 8 131864345410432 Not Found: /static/assets/index-DMRfwytP.css
+WARNING 2026-01-08 18:22:20,444 log 9 131864345410432 Not Found: /static/assets/index-BSQgcRTN.js
+WARNING 2026-01-08 18:22:20,456 log 7 131864345410432 Not Found: /static/assets/index-DMRfwytP.css
+WARNING 2026-01-08 18:22:23,830 log 7 131864345410432 Not Found: /static/assets/index-BSQgcRTN.js
+WARNING 2026-01-08 18:22:23,852 log 9 131864345410432 Not Found: /static/assets/index-DMRfwytP.css

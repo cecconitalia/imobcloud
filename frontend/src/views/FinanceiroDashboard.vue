@@ -14,15 +14,15 @@
         </div>
         
         <div class="actions-area">
-            <router-link :to="{ name: 'dre' }" class="btn-secondary-action" title="DRE">
+            <router-link :to="{ name: 'dre' }" class="btn-white-thin" title="Demonstrativo de Resultado">
                 <i class="fas fa-file-invoice-dollar"></i> DRE
             </router-link>
 
-            <router-link :to="{ name: 'transacao-nova', query: { tipo: 'DESPESA' } }" class="btn-danger-action">
+            <router-link :to="{ name: 'transacao-nova', query: { tipo: 'DESPESA' } }" class="btn-danger-thin">
                 <i class="fas fa-minus-circle"></i> Despesa
             </router-link>
 
-            <router-link :to="{ name: 'transacao-nova', query: { tipo: 'RECEITA' } }" class="btn-primary-action">
+            <router-link :to="{ name: 'transacao-nova', query: { tipo: 'RECEITA' } }" class="btn-success-thin">
                 <i class="fas fa-plus-circle"></i> Receita
             </router-link>
 
@@ -64,11 +64,11 @@
 
         <div class="kpi-card blue">
             <div class="kpi-content">
-                <span class="kpi-value" :class="saldoCaixa >= 0 ? 'text-blue' : 'text-red'">
+                <span class="kpi-value" :class="saldoCaixa >= 0 ? 'text-blue' : 'text-red-internal'">
                     {{ formatarValor(saldoCaixa) }}
                 </span>
                 <span class="kpi-label">Saldo em Caixa</span>
-                <span class="kpi-sublabel">Realizado (Receita - Despesa)</span>
+                <span class="kpi-sublabel">Realizado</span>
             </div>
             <div class="kpi-icon"><i class="fas fa-wallet"></i></div>
         </div>
@@ -88,7 +88,7 @@
             
             <div class="chart-card">
                 <div class="chart-header">
-                    <h3><i class="fas fa-balance-scale"></i> Balanço Mensal</h3>
+                    <h3><i class="fas fa-balance-scale"></i> Balanço Mensal (Dia a Dia)</h3>
                 </div>
                 <div class="chart-body">
                     <canvas ref="barChartCanvas"></canvas>
@@ -141,11 +141,13 @@ interface StatsFinanceiro { a_receber: StatsData; a_pagar: StatsData; saldo_prev
 interface RankingItem { label: string; value: number; }
 interface EvolucaoItem { mes: string; receitas: number; despesas: number; }
 interface CategoriaItem { label: string; value: number; }
+interface DiarioItem { dia: string; receitas: number; despesas: number; }
 
 interface GeneralStats {
     ranking_imoveis: RankingItem[];
     evolucao_financeira: EvolucaoItem[];
     despesas_categoria: CategoriaItem[];
+    balanco_diario?: DiarioItem[];
 }
 
 // --- State ---
@@ -177,11 +179,9 @@ async function fetchAllData() {
   isLoading.value = true;
   error.value = null;
   try {
-    // Busca KPIs
     const statsRes = await apiClient.get<StatsFinanceiro>('/v1/financeiro/transacoes/stats/');
     stats.value = statsRes.data;
 
-    // Busca Dados dos Gráficos (Novo Endpoint)
     const generalRes = await apiClient.get<GeneralStats>('/v1/financeiro/transacoes/dashboard-general-stats/');
     generalStats.value = generalRes.data;
     
@@ -200,34 +200,72 @@ function destroyCharts() {
     charts = [];
 }
 
+const commonAnimation = {
+    duration: 2000,
+    easing: 'easeInOutQuart'
+};
+
 function renderCharts() {
   destroyCharts();
   if (!stats.value || !generalStats.value) return;
 
-  // 1. Gráfico de Balanço Mensal (Barra Vertical)
+  // 1. Gráfico de Balanço Diário (2 Linhas: Receita x Despesa)
   if (barChartCanvas.value) {
+    const dailyData = generalStats.value.balanco_diario || [];
+    
     charts.push(new Chart(barChartCanvas.value, {
-      type: 'bar',
+      type: 'line',
       data: {
-        labels: ['Receitas', 'Despesas'],
-        datasets: [{
-          label: 'Total (R$)',
-          data: [stats.value.a_receber.pago_mes_atual, stats.value.a_pagar.pago_mes_atual],
-          backgroundColor: ['rgba(16, 185, 129, 0.8)', 'rgba(239, 68, 68, 0.8)'],
-          borderRadius: 6,
-          barPercentage: 0.6
-        }]
+        labels: dailyData.map(d => d.dia), // Dias que tiveram alteração
+        datasets: [
+            {
+                label: 'Receitas',
+                data: dailyData.map(d => d.receitas),
+                borderColor: '#10b981', // Verde
+                backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                borderWidth: 2,
+                pointBackgroundColor: '#10b981',
+                pointRadius: 4,
+                pointHoverRadius: 6,
+                fill: false, // Linha separada
+                tension: 0.3
+            },
+            {
+                label: 'Despesas',
+                data: dailyData.map(d => d.despesas),
+                borderColor: '#ef4444', // Vermelho
+                backgroundColor: 'rgba(239, 68, 68, 0.1)',
+                borderWidth: 2,
+                pointBackgroundColor: '#ef4444',
+                pointRadius: 4,
+                pointHoverRadius: 6,
+                fill: false, // Linha separada
+                tension: 0.3
+            }
+        ]
       },
       options: {
         responsive: true,
         maintainAspectRatio: false,
-        plugins: { legend: { display: false } },
-        scales: { y: { beginAtZero: true, grid: { color: '#f3f4f6' } }, x: { grid: { display: false } } }
+        animation: commonAnimation as any,
+        plugins: { 
+            legend: { position: 'top', align: 'end' },
+            tooltip: { mode: 'index', intersect: false }
+        },
+        scales: { 
+            y: { 
+                beginAtZero: true, 
+                grid: { color: '#f3f4f6' } 
+            }, 
+            x: { 
+                grid: { display: false } 
+            } 
+        }
       }
     }));
   }
 
-  // 2. Evolução Financeira (Linha Suave)
+  // 2. Evolução Financeira (Linha Mensal)
   if (lineChartCanvas.value) {
     const data = generalStats.value.evolucao_financeira;
     charts.push(new Chart(lineChartCanvas.value, {
@@ -238,24 +276,27 @@ function renderCharts() {
             {
                 label: 'Receitas',
                 data: data.map(d => d.receitas),
-                borderColor: '#10b981',
-                backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                borderColor: '#3b82f6',
+                backgroundColor: 'rgba(59, 130, 246, 0.1)',
                 fill: true,
-                tension: 0.4
+                tension: 0.4,
+                pointRadius: 3
             },
             {
                 label: 'Despesas',
                 data: data.map(d => d.despesas),
-                borderColor: '#ef4444',
-                backgroundColor: 'rgba(239, 68, 68, 0.1)',
+                borderColor: '#f59e0b', 
+                backgroundColor: 'rgba(245, 158, 11, 0.1)',
                 fill: true,
-                tension: 0.4
+                tension: 0.4,
+                pointRadius: 3
             }
         ]
       },
       options: {
         responsive: true,
         maintainAspectRatio: false,
+        animation: commonAnimation as any,
         plugins: { legend: { position: 'top' } },
         interaction: { mode: 'index', intersect: false },
         scales: { y: { beginAtZero: true, grid: { color: '#f3f4f6' } }, x: { grid: { display: false } } }
@@ -282,6 +323,12 @@ function renderCharts() {
       options: {
         responsive: true,
         maintainAspectRatio: false,
+        animation: {
+            animateScale: true,
+            animateRotate: true,
+            duration: 2000,
+            easing: 'easeOutBounce'
+        },
         cutout: '65%',
         plugins: { 
             legend: { position: 'right', labels: { boxWidth: 15, font: { size: 11 } } } 
@@ -309,6 +356,7 @@ function renderCharts() {
         indexAxis: 'y',
         responsive: true,
         maintainAspectRatio: false,
+        animation: commonAnimation as any,
         plugins: { legend: { display: false } },
         scales: { x: { beginAtZero: true, grid: { color: '#f3f4f6' } }, y: { grid: { display: false } } }
       }
@@ -321,57 +369,121 @@ onMounted(() => { fetchAllData(); });
 
 <style scoped>
 /* ==========================================================================
-   LAYOUT
+   LAYOUT PADRONIZADO (BASEADO EM CLIENTESVIEW)
    ========================================================================== */
 .page-container {
   min-height: 100vh;
   background-color: #fcfcfc;
-  font-family: 'Inter', sans-serif;
+  font-family: 'Inter', 'Segoe UI', Roboto, sans-serif;
   padding: 1.5rem 2.5rem;
 }
 
+/* HEADER DA PÁGINA */
 .page-header { margin-bottom: 2rem; }
-.title-area h1 { font-size: 1.5rem; font-weight: 300; color: #1f2937; margin: 0; }
-.breadcrumb { display: flex; align-items: center; gap: 6px; font-size: 0.7rem; color: #94a3b8; font-weight: 500; text-transform: uppercase; }
+.title-area { display: flex; flex-direction: column; gap: 6px; }
+.title-area h1 { font-size: 1.5rem; font-weight: 300; color: #1f2937; margin: 0; letter-spacing: -0.02em; }
+
+.breadcrumb { display: flex; align-items: center; gap: 6px; font-size: 0.7rem; color: #94a3b8; font-weight: 500; text-transform: uppercase; letter-spacing: 0.05em; }
 .breadcrumb .separator { font-size: 0.5rem; color: #cbd5e1; }
 .breadcrumb .active { color: #2563eb; font-weight: 700; }
+
 .header-main { display: flex; justify-content: space-between; align-items: flex-end; }
 .actions-area { display: flex; gap: 0.75rem; align-items: center; }
 
-/* Botões */
-.btn-secondary-action { background: white; border: 1px solid #cbd5e1; color: #475569; height: 38px; padding: 0 16px; border-radius: 6px; font-size: 0.85rem; font-weight: 500; display: flex; align-items: center; gap: 8px; transition: all 0.2s; text-decoration: none; cursor: pointer; }
-.btn-secondary-action:hover { border-color: #2563eb; color: #2563eb; background: #f8fafc; }
-.btn-primary-action { background: #10b981; border: 1px solid #059669; color: white; height: 38px; padding: 0 16px; border-radius: 6px; font-size: 0.85rem; font-weight: 600; display: flex; align-items: center; gap: 8px; transition: all 0.2s; text-decoration: none; cursor: pointer; }
-.btn-primary-action:hover { background: #059669; transform: translateY(-1px); box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
-.btn-danger-action { background: #fff; border: 1px solid #fca5a5; color: #dc2626; height: 38px; padding: 0 16px; border-radius: 6px; font-size: 0.85rem; font-weight: 600; display: flex; align-items: center; gap: 8px; transition: all 0.2s; text-decoration: none; cursor: pointer; }
-.btn-danger-action:hover { background: #fef2f2; border-color: #ef4444; }
-.btn-icon-thin { background: white; border: 1px solid #e2e8f0; color: #64748b; width: 38px; height: 38px; border-radius: 6px; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.2s; font-size: 0.9rem; }
+/* BOTÕES PADRONIZADOS (Estilo "Thin" 34px) */
+/* Botão Base Thin */
+.btn-white-thin, .btn-danger-thin, .btn-success-thin {
+  height: 34px; padding: 0 1.2rem; border-radius: 6px; font-weight: 400; font-size: 0.85rem; cursor: pointer;
+  display: flex; align-items: center; justify-content: center; gap: 0.5rem; transition: all 0.2s; text-decoration: none;
+}
+
+/* Variante Branca (Secundária) */
+.btn-white-thin {
+  background: white; border: 1px solid #e2e8f0; color: #64748b;
+}
+.btn-white-thin:hover { border-color: #cbd5e1; color: #2563eb; background: #f8fafc; }
+
+/* Variante Ícone (Quadrada) */
+.btn-icon-thin {
+  background: white; border: 1px solid #e2e8f0; color: #64748b; width: 34px; height: 34px;
+  border-radius: 6px; cursor: pointer; display: flex; align-items: center; justify-content: center;
+  transition: all 0.2s; font-size: 0.8rem;
+}
 .btn-icon-thin:hover { border-color: #cbd5e1; color: #2563eb; background: #f8fafc; }
 
-/* KPIs */
-.kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1.25rem; margin-bottom: 2rem; }
-.kpi-card { background: white; border-radius: 8px; padding: 1.25rem 1.5rem; border: 1px solid #f0f0f0; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 2px 4px rgba(0,0,0,0.02); position: relative; overflow: hidden; transition: transform 0.2s; }
-.kpi-card:hover { transform: translateY(-2px); box-shadow: 0 6px 12px rgba(0,0,0,0.04); }
-.kpi-content { display: flex; flex-direction: column; }
-.kpi-value { font-size: 1.5rem; font-weight: 600; line-height: 1.2; color: #111; letter-spacing: -0.03em; }
-.kpi-label { font-size: 0.75rem; font-weight: 600; text-transform: uppercase; color: #64748b; margin-top: 4px; letter-spacing: 0.05em; }
-.kpi-sublabel { font-size: 0.7rem; color: #94a3b8; margin-top: 2px; }
-.kpi-icon { font-size: 1.8rem; opacity: 0.15; position: absolute; right: 1.5rem; bottom: 1rem; }
-.kpi-card.blue { border-bottom: 3px solid #3b82f6; } .kpi-card.blue .kpi-icon { color: #3b82f6; } .text-blue { color: #2563eb; } .text-red { color: #dc2626; }
-.kpi-card.green { border-bottom: 3px solid #10b981; } .kpi-card.green .kpi-value { color: #059669; } .kpi-card.green .kpi-icon { color: #10b981; }
-.kpi-card.orange { border-bottom: 3px solid #f59e0b; } .kpi-card.orange .kpi-value { color: #d97706; } .kpi-card.orange .kpi-icon { color: #f59e0b; }
-.kpi-card.purple { border-bottom: 3px solid #9333ea; } .kpi-card.purple .kpi-value { color: #9333ea; } .kpi-card.purple .kpi-icon { color: #9333ea; }
+/* Variante Sucesso (Receita) */
+.btn-success-thin {
+  background: #10b981; border: 1px solid #059669; color: white;
+  box-shadow: 0 1px 2px rgba(16, 185, 129, 0.15);
+}
+.btn-success-thin:hover { background: #059669; transform: translateY(-1px); }
 
-/* GRÁFICOS */
+/* Variante Perigo (Despesa) */
+.btn-danger-thin {
+  background: #ef4444; border: 1px solid #dc2626; color: white;
+  box-shadow: 0 1px 2px rgba(239, 68, 68, 0.15);
+}
+.btn-danger-thin:hover { background: #dc2626; transform: translateY(-1px); }
+
+
+/* KPIS (PADRONIZADO COM CLIENTESVIEW) */
+.kpi-grid { 
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); 
+    gap: 1.25rem; margin-bottom: 2rem; 
+}
+
+.kpi-card {
+  background: white; border-radius: 8px; padding: 1.25rem 1.5rem; border: 1px solid #f0f0f0;
+  display: flex; justify-content: space-between; align-items: center;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.02); cursor: default; transition: all 0.2s;
+  position: relative; overflow: hidden;
+}
+.kpi-card:hover { transform: translateY(-2px); box-shadow: 0 6px 12px rgba(0,0,0,0.04); }
+
+.kpi-content { display: flex; flex-direction: column; }
+.kpi-value { font-size: 1.6rem; font-weight: 300; line-height: 1.1; color: #111; }
+.kpi-label { font-size: 0.7rem; font-weight: 600; text-transform: uppercase; color: #9ca3af; margin-top: 4px; letter-spacing: 0.05em; }
+.kpi-sublabel { font-size: 0.7rem; color: #94a3b8; margin-top: 2px; }
+.kpi-icon { 
+    font-size: 1.8rem; opacity: 0.1; position: absolute; right: 1.5rem; bottom: 1rem; 
+}
+
+/* Cores KPI */
+.kpi-card.blue { border-left: 4px solid #3b82f6; } 
+.kpi-card.blue .kpi-value.text-blue { color: #2563eb; }
+.kpi-card.blue .kpi-value.text-red-internal { color: #dc2626; }
+
+.kpi-card.green { border-left: 4px solid #10b981; } 
+.kpi-card.green .kpi-value { color: #059669; }
+
+.kpi-card.orange { border-left: 4px solid #f59e0b; } 
+.kpi-card.orange .kpi-value { color: #d97706; }
+
+.kpi-card.purple { border-left: 4px solid #9333ea; } 
+.kpi-card.purple .kpi-value { color: #9333ea; }
+
+.kpi-card.red { border-left: 4px solid #ef4444; } 
+.kpi-card.red .kpi-value { color: #dc2626; }
+
+
+/* ÁREA DE GRÁFICOS (Substitui Tabela do ClientesView mas mantém consistência) */
 .content-wrapper { display: flex; flex-direction: column; gap: 2rem; }
 .charts-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 1.5rem; }
-.chart-card { background: white; border-radius: 8px; border: 1px solid #e5e7eb; box-shadow: 0 1px 2px rgba(0,0,0,0.02); display: flex; flex-direction: column; height: 400px; }
-.chart-header { padding: 1rem 1.5rem; border-bottom: 1px solid #f1f5f9; display: flex; align-items: center; gap: 8px; }
-.chart-header h3 { margin: 0; font-size: 0.95rem; font-weight: 600; color: #334155; display: flex; align-items: center; gap: 8px; }
-.chart-header i { color: #94a3b8; font-size: 1rem; }
+
+.chart-card { 
+    background: white; border-radius: 8px; border: 1px solid #e5e7eb; 
+    box-shadow: 0 2px 4px rgba(0,0,0,0.02); display: flex; flex-direction: column; height: 400px; 
+}
+.chart-header { 
+    padding: 0.8rem 1.2rem; border-bottom: 1px solid #f1f5f9; background: #f8fafc;
+}
+.chart-header h3 { 
+    margin: 0; font-size: 0.75rem; font-weight: 700; color: #64748b; 
+    text-transform: uppercase; letter-spacing: 0.06em; display: flex; align-items: center; gap: 8px; 
+}
 .chart-body { padding: 1.5rem; position: relative; flex: 1; min-height: 0; }
 
-/* LOADING E ERROS */
+/* ESTADOS DE CARREGAMENTO */
 .loading-state, .error-state { text-align: center; padding: 4rem; background: white; border-radius: 8px; border: 1px dashed #e2e8f0; color: #64748b; }
 .error-state { color: #dc2626; border-color: #fca5a5; background: #fef2f2; }
 .spinner { border: 3px solid #e2e8f0; border-top: 3px solid #2563eb; border-radius: 50%; width: 32px; height: 32px; animation: spin 0.8s linear infinite; margin: 0 auto 1rem; }
@@ -381,6 +493,6 @@ onMounted(() => { fetchAllData(); });
   .page-container { padding: 1rem; }
   .header-main { flex-direction: column; align-items: flex-start; gap: 1rem; }
   .actions-area { width: 100%; justify-content: flex-start; flex-wrap: wrap; }
-  .charts-grid { grid-template-columns: 1fr; } /* Em telas menores, 1 coluna */
+  .charts-grid { grid-template-columns: 1fr; }
 }
 </style>
