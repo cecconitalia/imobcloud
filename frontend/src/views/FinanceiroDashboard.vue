@@ -88,16 +88,7 @@
             
             <div class="chart-card">
                 <div class="chart-header">
-                    <h3><i class="fas fa-balance-scale"></i> Balanço Mensal (Dia a Dia)</h3>
-                </div>
-                <div class="chart-body">
-                    <canvas ref="barChartCanvas"></canvas>
-                </div>
-            </div>
-
-            <div class="chart-card">
-                <div class="chart-header">
-                    <h3><i class="fas fa-chart-area"></i> Evolução (6 Meses)</h3>
+                    <h3><i class="fas fa-chart-line"></i> Evolução Financeira Acumulada</h3>
                 </div>
                 <div class="chart-body">
                     <canvas ref="lineChartCanvas"></canvas>
@@ -130,7 +121,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, computed, nextTick } from 'vue';
+import { ref, onMounted, computed, nextTick, onUnmounted } from 'vue';
 import apiClient from '@/services/api';
 import Chart from 'chart.js/auto';
 import '@fortawesome/fontawesome-free/css/all.css';
@@ -157,7 +148,6 @@ const isLoading = ref(true);
 const error = ref<string | null>(null);
 
 // --- Canvas Refs ---
-const barChartCanvas = ref<HTMLCanvasElement | null>(null);
 const lineChartCanvas = ref<HTMLCanvasElement | null>(null);
 const doughnutChartCanvas = ref<HTMLCanvasElement | null>(null);
 const rankingChartCanvas = ref<HTMLCanvasElement | null>(null);
@@ -185,7 +175,10 @@ async function fetchAllData() {
     const generalRes = await apiClient.get<GeneralStats>('/v1/financeiro/transacoes/dashboard-general-stats/');
     generalStats.value = generalRes.data;
     
-    nextTick(() => { renderCharts(); });
+    // Pequeno delay para garantir que o DOM renderizou os canvas
+    setTimeout(() => {
+        renderCharts();
+    }, 100);
 
   } catch (err) {
     console.error("Erro ao buscar dados:", err);
@@ -201,110 +194,123 @@ function destroyCharts() {
 }
 
 const commonAnimation = {
-    duration: 2000,
-    easing: 'easeInOutQuart'
+    duration: 1500,
+    easing: 'easeOutQuart'
 };
 
 function renderCharts() {
   destroyCharts();
   if (!stats.value || !generalStats.value) return;
 
-  // 1. Gráfico de Balanço Diário (2 Linhas: Receita x Despesa)
-  if (barChartCanvas.value) {
-    const dailyData = generalStats.value.balanco_diario || [];
+  // 1. Gráfico de Evolução ACUMULADA (Line Chart)
+  if (lineChartCanvas.value) {
+    const data = generalStats.value.balanco_diario || [];
     
-    charts.push(new Chart(barChartCanvas.value, {
+    // Calcula valores ACUMULADOS para mostrar evolução crescente
+    let accReceita = 0;
+    let accDespesa = 0;
+    
+    const evolucaoReceitas = data.map(d => {
+        accReceita += Number(d.receitas || 0);
+        return accReceita;
+    });
+    
+    const evolucaoDespesas = data.map(d => {
+        accDespesa += Number(d.despesas || 0);
+        return accDespesa;
+    });
+
+    charts.push(new Chart(lineChartCanvas.value, {
       type: 'line',
       data: {
-        labels: dailyData.map(d => d.dia), // Dias que tiveram alteração
+        labels: data.map(d => d.dia),
         datasets: [
             {
-                label: 'Receitas',
-                data: dailyData.map(d => d.receitas),
+                label: 'Receitas (Acumulado)',
+                data: evolucaoReceitas,
                 borderColor: '#10b981', // Verde
-                backgroundColor: 'rgba(16, 185, 129, 0.1)',
                 borderWidth: 2,
-                pointBackgroundColor: '#10b981',
-                pointRadius: 4,
+                pointRadius: 0, 
                 pointHoverRadius: 6,
-                fill: false, // Linha separada
-                tension: 0.3
+                fill: false, // 1 LINHA (sem preenchimento)
+                tension: 0.4 
             },
             {
-                label: 'Despesas',
-                data: dailyData.map(d => d.despesas),
+                label: 'Despesas (Acumulado)',
+                data: evolucaoDespesas,
                 borderColor: '#ef4444', // Vermelho
-                backgroundColor: 'rgba(239, 68, 68, 0.1)',
                 borderWidth: 2,
-                pointBackgroundColor: '#ef4444',
-                pointRadius: 4,
+                pointRadius: 0,
                 pointHoverRadius: 6,
-                fill: false, // Linha separada
-                tension: 0.3
+                fill: false, // 1 LINHA (sem preenchimento)
+                tension: 0.4
             }
         ]
       },
       options: {
         responsive: true,
         maintainAspectRatio: false,
+        interaction: {
+            mode: 'index',
+            intersect: false,
+        },
         animation: commonAnimation as any,
         plugins: { 
-            legend: { position: 'top', align: 'end' },
-            tooltip: { mode: 'index', intersect: false }
+            legend: { 
+                position: 'top', 
+                align: 'end',
+                labels: { usePointStyle: true, boxWidth: 8, font: { size: 11 } }
+            }, 
+            tooltip: {
+                backgroundColor: '#1f2937',
+                padding: 12,
+                cornerRadius: 8,
+                callbacks: {
+                    label: function(context) {
+                        let label = context.dataset.label || '';
+                        if (label) {
+                            label += ': ';
+                        }
+                        if (context.parsed.y !== null) {
+                            label += new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(context.parsed.y);
+                        }
+                        return label;
+                    }
+                }
+            }
         },
         scales: { 
             y: { 
                 beginAtZero: true, 
-                grid: { color: '#f3f4f6' } 
+                grid: { color: '#f3f4f6', borderDash: [5, 5] },
+                ticks: { 
+                    font: { size: 10 },
+                    color: '#94a3b8',
+                    callback: function(value) {
+                        if (typeof value === 'number') {
+                            if (value >= 1000) return (value/1000).toFixed(0) + 'k';
+                        }
+                        return value;
+                    }
+                },
+                border: { display: false }
             }, 
             x: { 
-                grid: { display: false } 
+                grid: { display: false },
+                ticks: { 
+                    font: { size: 10 }, 
+                    color: '#94a3b8', 
+                    maxTicksLimit: 12,
+                    maxRotation: 0 
+                },
+                border: { display: false }
             } 
         }
       }
     }));
   }
 
-  // 2. Evolução Financeira (Linha Mensal)
-  if (lineChartCanvas.value) {
-    const data = generalStats.value.evolucao_financeira;
-    charts.push(new Chart(lineChartCanvas.value, {
-      type: 'line',
-      data: {
-        labels: data.map(d => d.mes),
-        datasets: [
-            {
-                label: 'Receitas',
-                data: data.map(d => d.receitas),
-                borderColor: '#3b82f6',
-                backgroundColor: 'rgba(59, 130, 246, 0.1)',
-                fill: true,
-                tension: 0.4,
-                pointRadius: 3
-            },
-            {
-                label: 'Despesas',
-                data: data.map(d => d.despesas),
-                borderColor: '#f59e0b', 
-                backgroundColor: 'rgba(245, 158, 11, 0.1)',
-                fill: true,
-                tension: 0.4,
-                pointRadius: 3
-            }
-        ]
-      },
-      options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        animation: commonAnimation as any,
-        plugins: { legend: { position: 'top' } },
-        interaction: { mode: 'index', intersect: false },
-        scales: { y: { beginAtZero: true, grid: { color: '#f3f4f6' } }, x: { grid: { display: false } } }
-      }
-    }));
-  }
-
-  // 3. Despesas por Categoria (Rosca)
+  // 2. Despesas por Categoria
   if (doughnutChartCanvas.value) {
     const data = generalStats.value.despesas_categoria;
     charts.push(new Chart(doughnutChartCanvas.value, {
@@ -316,40 +322,37 @@ function renderCharts() {
           backgroundColor: [
             '#3b82f6', '#8b5cf6', '#f59e0b', '#ef4444', '#10b981'
           ],
-          borderWidth: 0,
+          borderWidth: 0, 
           hoverOffset: 10
         }]
       },
       options: {
         responsive: true,
         maintainAspectRatio: false,
-        animation: {
-            animateScale: true,
-            animateRotate: true,
-            duration: 2000,
-            easing: 'easeOutBounce'
-        },
-        cutout: '65%',
+        cutout: '80%',
         plugins: { 
-            legend: { position: 'right', labels: { boxWidth: 15, font: { size: 11 } } } 
+            legend: { 
+                position: 'right', 
+                labels: { boxWidth: 8, usePointStyle: true, font: { size: 11 } } 
+            } 
         }
       }
     }));
   }
 
-  // 4. Top Imóveis (Barra Horizontal)
+  // 3. Top Imóveis
   if (rankingChartCanvas.value) {
     const data = generalStats.value.ranking_imoveis;
     charts.push(new Chart(rankingChartCanvas.value, {
       type: 'bar',
       data: {
-        labels: data.map(d => d.label.length > 20 ? d.label.substring(0, 20) + '...' : d.label),
+        labels: data.map(d => d.label.length > 15 ? d.label.substring(0, 15) + '...' : d.label),
         datasets: [{
           label: 'Despesas (R$)',
           data: data.map(d => d.value),
           backgroundColor: 'rgba(59, 130, 246, 0.8)',
           borderRadius: 4,
-          barThickness: 15
+          barThickness: 16 
         }]
       },
       options: {
@@ -358,141 +361,150 @@ function renderCharts() {
         maintainAspectRatio: false,
         animation: commonAnimation as any,
         plugins: { legend: { display: false } },
-        scales: { x: { beginAtZero: true, grid: { color: '#f3f4f6' } }, y: { grid: { display: false } } }
+        scales: { 
+            x: { display: false }, 
+            y: { 
+                grid: { display: false },
+                border: { display: false }
+            } 
+        }
       }
     }));
   }
 }
 
 onMounted(() => { fetchAllData(); });
+onUnmounted(() => { destroyCharts(); });
 </script>
 
 <style scoped>
 /* ==========================================================================
-   LAYOUT PADRONIZADO (BASEADO EM CLIENTESVIEW)
+   LAYOUT & ESTILO MODERNO
    ========================================================================== */
 .page-container {
   min-height: 100vh;
-  background-color: #fcfcfc;
+  background-color: #f8fafc;
   font-family: 'Inter', 'Segoe UI', Roboto, sans-serif;
-  padding: 1.5rem 2.5rem;
+  padding: 2rem;
 }
 
 /* HEADER DA PÁGINA */
-.page-header { margin-bottom: 2rem; }
-.title-area { display: flex; flex-direction: column; gap: 6px; }
-.title-area h1 { font-size: 1.5rem; font-weight: 300; color: #1f2937; margin: 0; letter-spacing: -0.02em; }
+.page-header { margin-bottom: 2.5rem; }
+.title-area { display: flex; flex-direction: column; gap: 8px; }
+.title-area h1 { font-size: 1.75rem; font-weight: 600; color: #0f172a; margin: 0; letter-spacing: -0.03em; }
 
-.breadcrumb { display: flex; align-items: center; gap: 6px; font-size: 0.7rem; color: #94a3b8; font-weight: 500; text-transform: uppercase; letter-spacing: 0.05em; }
-.breadcrumb .separator { font-size: 0.5rem; color: #cbd5e1; }
+.breadcrumb { display: flex; align-items: center; gap: 8px; font-size: 0.75rem; color: #64748b; font-weight: 500; text-transform: uppercase; letter-spacing: 0.05em; }
+.breadcrumb .separator { font-size: 0.6rem; color: #cbd5e1; }
 .breadcrumb .active { color: #2563eb; font-weight: 700; }
 
 .header-main { display: flex; justify-content: space-between; align-items: flex-end; }
-.actions-area { display: flex; gap: 0.75rem; align-items: center; }
+.actions-area { display: flex; gap: 1rem; align-items: center; }
 
-/* BOTÕES PADRONIZADOS (Estilo "Thin" 34px) */
-/* Botão Base Thin */
+/* BOTÕES REFINADOS */
 .btn-white-thin, .btn-danger-thin, .btn-success-thin {
-  height: 34px; padding: 0 1.2rem; border-radius: 6px; font-weight: 400; font-size: 0.85rem; cursor: pointer;
-  display: flex; align-items: center; justify-content: center; gap: 0.5rem; transition: all 0.2s; text-decoration: none;
+  height: 38px; padding: 0 1.2rem; border-radius: 8px; font-weight: 500; font-size: 0.85rem; cursor: pointer;
+  display: flex; align-items: center; justify-content: center; gap: 0.6rem; transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1); text-decoration: none;
+  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
 }
 
-/* Variante Branca (Secundária) */
-.btn-white-thin {
-  background: white; border: 1px solid #e2e8f0; color: #64748b;
-}
-.btn-white-thin:hover { border-color: #cbd5e1; color: #2563eb; background: #f8fafc; }
+.btn-white-thin { background: white; border: 1px solid #e2e8f0; color: #475569; }
+.btn-white-thin:hover { border-color: #cbd5e1; color: #1e293b; background: #f8fafc; transform: translateY(-1px); }
 
-/* Variante Ícone (Quadrada) */
 .btn-icon-thin {
-  background: white; border: 1px solid #e2e8f0; color: #64748b; width: 34px; height: 34px;
-  border-radius: 6px; cursor: pointer; display: flex; align-items: center; justify-content: center;
-  transition: all 0.2s; font-size: 0.8rem;
+  background: white; border: 1px solid #e2e8f0; color: #64748b; width: 38px; height: 38px;
+  border-radius: 8px; cursor: pointer; display: flex; align-items: center; justify-content: center;
+  transition: all 0.2s; font-size: 0.9rem;
 }
-.btn-icon-thin:hover { border-color: #cbd5e1; color: #2563eb; background: #f8fafc; }
+.btn-icon-thin:hover { color: #2563eb; border-color: #bfdbfe; background: #eff6ff; }
 
-/* Variante Sucesso (Receita) */
-.btn-success-thin {
-  background: #10b981; border: 1px solid #059669; color: white;
-  box-shadow: 0 1px 2px rgba(16, 185, 129, 0.15);
-}
-.btn-success-thin:hover { background: #059669; transform: translateY(-1px); }
+.btn-success-thin { background: #10b981; border: 1px solid transparent; color: white; }
+.btn-success-thin:hover { background: #059669; transform: translateY(-1px); box-shadow: 0 4px 6px -1px rgba(16, 185, 129, 0.2); }
 
-/* Variante Perigo (Despesa) */
-.btn-danger-thin {
-  background: #ef4444; border: 1px solid #dc2626; color: white;
-  box-shadow: 0 1px 2px rgba(239, 68, 68, 0.15);
-}
-.btn-danger-thin:hover { background: #dc2626; transform: translateY(-1px); }
+.btn-danger-thin { background: #ef4444; border: 1px solid transparent; color: white; }
+.btn-danger-thin:hover { background: #dc2626; transform: translateY(-1px); box-shadow: 0 4px 6px -1px rgba(239, 68, 68, 0.2); }
 
 
-/* KPIS (PADRONIZADO COM CLIENTESVIEW) */
+/* KPIS MODERNOS (Cards Flutuantes) */
 .kpi-grid { 
-    display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); 
-    gap: 1.25rem; margin-bottom: 2rem; 
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); 
+    gap: 1.5rem; margin-bottom: 2.5rem; 
 }
 
 .kpi-card {
-  background: white; border-radius: 8px; padding: 1.25rem 1.5rem; border: 1px solid #f0f0f0;
-  display: flex; justify-content: space-between; align-items: center;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.02); cursor: default; transition: all 0.2s;
-  position: relative; overflow: hidden;
+  background: white; border-radius: 12px; padding: 1.5rem; border: 1px solid transparent;
+  display: flex; justify-content: space-between; align-items: flex-start;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.02), 0 2px 4px -1px rgba(0, 0, 0, 0.02); 
+  transition: transform 0.2s, box-shadow 0.2s; position: relative; overflow: hidden;
 }
-.kpi-card:hover { transform: translateY(-2px); box-shadow: 0 6px 12px rgba(0,0,0,0.04); }
+.kpi-card:hover { transform: translateY(-4px); box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.05); }
 
-.kpi-content { display: flex; flex-direction: column; }
-.kpi-value { font-size: 1.6rem; font-weight: 300; line-height: 1.1; color: #111; }
-.kpi-label { font-size: 0.7rem; font-weight: 600; text-transform: uppercase; color: #9ca3af; margin-top: 4px; letter-spacing: 0.05em; }
-.kpi-sublabel { font-size: 0.7rem; color: #94a3b8; margin-top: 2px; }
+.kpi-content { display: flex; flex-direction: column; z-index: 2; }
+.kpi-value { font-size: 1.75rem; font-weight: 700; line-height: 1.1; color: #0f172a; margin-bottom: 0.25rem; letter-spacing: -0.02em; }
+.kpi-label { font-size: 0.75rem; font-weight: 600; text-transform: uppercase; color: #64748b; letter-spacing: 0.05em; }
+.kpi-sublabel { font-size: 0.75rem; color: #94a3b8; margin-top: 6px; display: flex; align-items: center; gap: 4px; }
+
 .kpi-icon { 
-    font-size: 1.8rem; opacity: 0.1; position: absolute; right: 1.5rem; bottom: 1rem; 
+    width: 48px; height: 48px; border-radius: 10px; display: flex; align-items: center; justify-content: center;
+    font-size: 1.25rem;
 }
 
-/* Cores KPI */
-.kpi-card.blue { border-left: 4px solid #3b82f6; } 
-.kpi-card.blue .kpi-value.text-blue { color: #2563eb; }
-.kpi-card.blue .kpi-value.text-red-internal { color: #dc2626; }
-
-.kpi-card.green { border-left: 4px solid #10b981; } 
+/* Cores KPI Refinadas */
+.kpi-card.green .kpi-icon { background: #ecfdf5; color: #10b981; }
 .kpi-card.green .kpi-value { color: #059669; }
 
-.kpi-card.orange { border-left: 4px solid #f59e0b; } 
-.kpi-card.orange .kpi-value { color: #d97706; }
+.kpi-card.orange .kpi-icon { background: #fff7ed; color: #f97316; }
+.kpi-card.orange .kpi-value { color: #ea580c; }
 
-.kpi-card.purple { border-left: 4px solid #9333ea; } 
+.kpi-card.blue .kpi-icon { background: #eff6ff; color: #3b82f6; }
+.kpi-card.blue .kpi-value.text-blue { color: #2563eb; }
+.kpi-card.blue .kpi-value.text-red-internal { color: #ef4444; }
+
+.kpi-card.purple .kpi-icon { background: #faf5ff; color: #a855f7; }
 .kpi-card.purple .kpi-value { color: #9333ea; }
 
-.kpi-card.red { border-left: 4px solid #ef4444; } 
-.kpi-card.red .kpi-value { color: #dc2626; }
 
-
-/* ÁREA DE GRÁFICOS (Substitui Tabela do ClientesView mas mantém consistência) */
+/* ÁREA DE GRÁFICOS (Cards Brancos Limpos) */
 .content-wrapper { display: flex; flex-direction: column; gap: 2rem; }
-.charts-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 1.5rem; }
+
+/* GRID CONFIGURADO PARA 3 COLUNAS */
+.charts-grid { 
+    display: grid; 
+    grid-template-columns: repeat(3, 1fr); /* 3 Gráficos na mesma linha */
+    gap: 1.5rem; 
+}
 
 .chart-card { 
-    background: white; border-radius: 8px; border: 1px solid #e5e7eb; 
-    box-shadow: 0 2px 4px rgba(0,0,0,0.02); display: flex; flex-direction: column; height: 400px; 
+    background: white; border-radius: 12px; border: 1px solid #f1f5f9; 
+    box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.02); display: flex; flex-direction: column; height: 400px; 
+    overflow: hidden;
 }
 .chart-header { 
-    padding: 0.8rem 1.2rem; border-bottom: 1px solid #f1f5f9; background: #f8fafc;
+    padding: 1.2rem 1.5rem; border-bottom: 1px solid #f8fafc; background: white;
+    display: flex; align-items: center; justify-content: space-between;
 }
 .chart-header h3 { 
-    margin: 0; font-size: 0.75rem; font-weight: 700; color: #64748b; 
-    text-transform: uppercase; letter-spacing: 0.06em; display: flex; align-items: center; gap: 8px; 
+    margin: 0; font-size: 0.9rem; font-weight: 600; color: #334155; 
+    display: flex; align-items: center; gap: 10px; 
 }
+.chart-header h3 i { color: #94a3b8; }
+
 .chart-body { padding: 1.5rem; position: relative; flex: 1; min-height: 0; }
 
-/* ESTADOS DE CARREGAMENTO */
-.loading-state, .error-state { text-align: center; padding: 4rem; background: white; border-radius: 8px; border: 1px dashed #e2e8f0; color: #64748b; }
-.error-state { color: #dc2626; border-color: #fca5a5; background: #fef2f2; }
-.spinner { border: 3px solid #e2e8f0; border-top: 3px solid #2563eb; border-radius: 50%; width: 32px; height: 32px; animation: spin 0.8s linear infinite; margin: 0 auto 1rem; }
-@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+/* LOADING STATE */
+.loading-state { padding: 4rem; text-align: center; color: #94a3b8; }
+.spinner { border: 3px solid #e2e8f0; border-top-color: #3b82f6; border-radius: 50%; width: 24px; height: 24px; animation: spin 1s linear infinite; margin: 0 auto 1rem; }
+@keyframes spin { 100% { transform: rotate(360deg); } }
 
-@media (max-width: 1024px) {
+/* RESPONSIVIDADE */
+@media (max-width: 1280px) {
+  .charts-grid { grid-template-columns: repeat(2, 1fr); } /* 2 Colunas em telas médias */
+}
+
+@media (max-width: 768px) {
   .page-container { padding: 1rem; }
   .header-main { flex-direction: column; align-items: flex-start; gap: 1rem; }
   .actions-area { width: 100%; justify-content: flex-start; flex-wrap: wrap; }
-  .charts-grid { grid-template-columns: 1fr; }
+  .charts-grid { grid-template-columns: 1fr; } /* 1 Coluna em mobile */
+  .kpi-grid { grid-template-columns: 1fr; }
 }
 </style>

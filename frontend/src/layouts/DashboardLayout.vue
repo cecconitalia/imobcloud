@@ -96,9 +96,7 @@
               <li><router-link to="/financeiro/contas-a-receber" active-class="active">A Receber</router-link></li>
               <li><router-link to="/financeiro/contas-a-pagar" active-class="active">A Pagar</router-link></li>
               <li><router-link to="/financeiro/transacoes" active-class="active">Transações</router-link></li>
-              <li><router-link to="/financeiro/remessa-retorno" active-class="active">Remessa/Retorno</router-link></li>
-              <li><router-link to="/financeiro/dre" active-class="active">Relatório DRE</router-link></li>
-            </ul>
+              </ul>
           </li>
 
           <li class="nav-item">

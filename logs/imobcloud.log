@@ -9322,3 +9322,42 @@ WARNING 2026-01-08 18:22:20,444 log 9 131864345410432 Not Found: /static/assets/
 WARNING 2026-01-08 18:22:20,456 log 7 131864345410432 Not Found: /static/assets/index-DMRfwytP.css
 WARNING 2026-01-08 18:22:23,830 log 7 131864345410432 Not Found: /static/assets/index-BSQgcRTN.js
 WARNING 2026-01-08 18:22:23,852 log 9 131864345410432 Not Found: /static/assets/index-DMRfwytP.css
+WARNING 2026-01-10 17:14:26,010 log 9 140538684787584 Unauthorized: /api/v1/core/usuarios/me/
+WARNING 2026-01-10 17:14:26,665 log 9 140538684787584 Unauthorized: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2026-01-10 17:14:26,733 log 8 140538684787584 Unauthorized: /api/v1/financeiro/transacoes/stats/
+WARNING 2026-01-10 17:14:26,853 log 9 140538684787584 Unauthorized: /api/v1/alugueis/dashboard-stats/
+WARNING 2026-01-10 17:14:26,884 log 8 140538684787584 Unauthorized: /api/v1/stats/
+WARNING 2026-01-10 17:14:29,409 log 7 140538684787584 Unauthorized: /api/v1/core/usuarios/me/
+WARNING 2026-01-10 17:15:05,265 log 8 140538684787584 Not Found: /api/v1/financeiro/transacoes/a-receber/
+WARNING 2026-01-10 17:56:36,113 log 10 136959708281728 Not Found: /api/v1/financeiro/transacoes/a-receber/
+WARNING 2026-01-10 17:56:42,273 log 10 136959708281728 Not Found: /api/v1/financeiro/transacoes/a-receber/
+WARNING 2026-01-10 17:56:44,092 log 9 136959708281728 Not Found: /api/v1/financeiro/transacoes/a-receber/
+WARNING 2026-01-10 17:58:09,718 log 8 138254281071488 Not Found: /api/v1/financeiro/transacoes/a-receber/
+WARNING 2026-01-10 17:59:48,833 log 10 124412191636352 Not Found: /api/v1/financeiro/transacoes/a-receber/
+WARNING 2026-01-10 17:59:50,653 log 10 124412191636352 Not Found: /api/v1/financeiro/transacoes/a-pagar/
+WARNING 2026-01-10 18:03:58,209 log 9 139667598138240 Not Found: /api/v1/financeiro/transacoes/a-receber/
+WARNING 2026-01-10 18:04:00,146 log 8 139667598138240 Not Found: /api/v1/financeiro/transacoes/a-receber/
+WARNING 2026-01-10 18:04:02,210 log 9 139667598138240 Not Found: /api/v1/financeiro/transacoes/a-receber/
+WARNING 2026-01-10 18:04:03,369 log 9 139667598138240 Not Found: /api/v1/financeiro/transacoes/a-receber/
+WARNING 2026-01-10 18:04:04,528 log 8 139667598138240 Not Found: /api/v1/financeiro/transacoes/a-receber/
+WARNING 2026-01-10 18:04:05,518 log 9 139667598138240 Not Found: /api/v1/financeiro/transacoes/a-receber/
+WARNING 2026-01-10 18:04:27,983 log 7 139667598138240 Not Found: /api/v1/financeiro/transacoes/a-pagar/
+WARNING 2026-01-10 18:06:00,170 log 7 139667598138240 Not Found: /api/v1/publicacoes/status-conexoes/
+WARNING 2026-01-10 18:07:39,580 log 8 135444889111424 Not Found: /api/v1/financeiro/transacoes/a-receber/
+WARNING 2026-01-10 18:07:42,729 log 9 135444889111424 Not Found: /api/v1/financeiro/transacoes/a-receber/
+WARNING 2026-01-10 18:07:44,459 log 8 135444889111424 Not Found: /api/v1/financeiro/transacoes/a-receber/
+WARNING 2026-01-10 18:07:48,965 log 9 135444889111424 Not Found: /api/v1/financeiro/transacoes/a-receber/
+WARNING 2026-01-10 18:07:58,873 log 8 135444889111424 Not Found: /api/v1/financeiro/transacoes/a-receber/
+WARNING 2026-01-10 18:07:59,561 log 7 135444889111424 Not Found: /favicon.ico
+WARNING 2026-01-10 18:09:45,073 log 7 135444889111424 Not Found: /api/v1/financeiro/transacoes/a-receber/
+WARNING 2026-01-10 18:13:56,584 log 7 125599543892864 Not Found: /api/v1/financeiro/transacoes/a-receber/
+WARNING 2026-01-10 18:14:00,237 log 8 125599543892864 Not Found: /api/v1/financeiro/transacoes/a-receber/
+WARNING 2026-01-10 18:14:19,122 log 9 125599543892864 Not Found: /api/v1/financeiro/transacoes/a-receber/
+WARNING 2026-01-10 18:14:24,730 log 7 125599543892864 Not Found: /api/v1/financeiro/transacoes/a-receber/
+WARNING 2026-01-10 18:14:44,011 log 8 125599543892864 Not Found: /api/v1/financeiro/transacoes/a-receber/
+WARNING 2026-01-10 18:14:44,660 log 7 125599543892864 Not Found: /favicon.ico
+WARNING 2026-01-10 18:17:17,664 log 7 123525681179520 Not Found: /api/v1/financeiro/transacoes/a-receber/
+WARNING 2026-01-10 18:17:21,993 log 8 123525681179520 Not Found: /api/v1/financeiro/transacoes/a-receber/
+WARNING 2026-01-10 18:17:33,558 log 8 123525681179520 Not Found: /api/v1/financeiro/transacoes/a-pagar/
+WARNING 2026-01-10 18:18:01,383 log 8 123525681179520 Not Found: /api/v1/financeiro/transacoes/a-receber/
+WARNING 2026-01-10 18:18:09,215 log 8 123525681179520 Not Found: /api/v1/financeiro/transacoes/a-pagar/

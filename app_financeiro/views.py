@@ -19,7 +19,7 @@ from django.utils import timezone
 from django.utils.dateparse import parse_date
 from rest_framework.views import APIView
 from decimal import Decimal 
-from datetime import timedelta, date 
+from datetime import timedelta, date, datetime
 import math
 
 from app_clientes.models import Cliente
@@ -33,12 +33,15 @@ except ImportError:
         return ''.join(filter(str.isdigit, str(text)))
 
 def safe_float_conversion(value):
-    """Converte valores Decimal ou None para float."""
+    """Converte valores Decimal ou None para float de forma segura."""
     if value is None:
         return 0.0
     if isinstance(value, Decimal):
         return float(value)
-    return value
+    try:
+        return float(value)
+    except (ValueError, TypeError):
+        return 0.0
 
 class StandardResultsSetPagination(PageNumberPagination):
     page_size = 20
@@ -254,6 +257,32 @@ class TransacaoViewSet(viewsets.ModelViewSet):
             observacoes=f"Repasse automático. Comissão {taxa}% retida."
         )
 
+    # --- ACTIONS PARA CORRIGIR ERRO 404 ---
+    @action(detail=False, methods=['get'], url_path='a-receber')
+    def a_receber(self, request):
+        queryset = self.filter_queryset(self.get_queryset()).filter(tipo='RECEITA')
+        
+        page = self.paginate_queryset(queryset)
+        if page is not None:
+            serializer = self.get_serializer(page, many=True)
+            return self.get_paginated_response(serializer.data)
+
+        serializer = self.get_serializer(queryset, many=True)
+        return Response(serializer.data)
+
+    @action(detail=False, methods=['get'], url_path='a-pagar')
+    def a_pagar(self, request):
+        queryset = self.filter_queryset(self.get_queryset()).filter(tipo='DESPESA')
+        
+        page = self.paginate_queryset(queryset)
+        if page is not None:
+            serializer = self.get_serializer(page, many=True)
+            return self.get_paginated_response(serializer.data)
+
+        serializer = self.get_serializer(queryset, many=True)
+        return Response(serializer.data)
+    # --------------------------------------
+
     @action(detail=False, methods=['get'])
     def stats(self, request):
         tenant = self._get_tenant()
@@ -367,13 +396,13 @@ class TransacaoViewSet(viewsets.ModelViewSet):
                     'despesas': safe_float_conversion(item['despesas'])
                 })
 
-        # 4. Balanço Diário (Mês Atual) - CONFIGURAÇÃO PARA AS DUAS LINHAS DO GRÁFICO
+        # 4. Balanço Diário (Blindado)
         hoje = timezone.now().date()
         inicio_mes = hoje.replace(day=1)
         proximo_mes = (inicio_mes + timedelta(days=32)).replace(day=1)
         fim_mes = proximo_mes - timedelta(days=1)
 
-        diario = Transacao.objects.filter(
+        diario_qs = Transacao.objects.filter(
             imobiliaria=tenant,
             data_pagamento__range=[inicio_mes, fim_mes],
             status='PAGO'
@@ -384,14 +413,30 @@ class TransacaoViewSet(viewsets.ModelViewSet):
             despesas=Sum(Case(When(tipo='DESPESA', then='valor'), default=0, output_field=DecimalField(max_digits=19, decimal_places=2)))
         ).order_by('dia')
 
-        balanco_diario_data = []
-        for item in diario:
+        # Dicionário com chave String
+        dados_existentes = {}
+        for item in diario_qs:
             if item['dia']:
-                balanco_diario_data.append({
-                    'dia': item['dia'].strftime('%d/%m'),
-                    'receitas': safe_float_conversion(item['receitas']),
-                    'despesas': safe_float_conversion(item['despesas'])
-                })
+                chave = item['dia'].strftime('%Y-%m-%d') if hasattr(item['dia'], 'strftime') else str(item['dia'])[:10]
+                dados_existentes[chave] = item
+
+        balanco_diario_data = []
+        data_atual = inicio_mes
+
+        while data_atual <= fim_mes:
+            chave_atual = data_atual.strftime('%Y-%m-%d')
+            dados = dados_existentes.get(chave_atual)
+            
+            receita_val = safe_float_conversion(dados['receitas']) if dados else 0.0
+            despesa_val = safe_float_conversion(dados['despesas']) if dados else 0.0
+
+            balanco_diario_data.append({
+                'dia': data_atual.strftime('%d/%m'),
+                'receitas': receita_val,
+                'despesas': despesa_val
+            })
+            
+            data_atual += timedelta(days=1)
 
         return Response({
             'ranking_imoveis': ranking_data,

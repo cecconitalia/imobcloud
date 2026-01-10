@@ -128,11 +128,21 @@
         <table class="report-table">
           <thead>
             <tr>
-              <th width="12%">Vencimento</th>
-              <th width="25%">Cliente</th>
-              <th width="25%">Descrição</th>
-              <th width="15%" class="text-right">Valor</th>
-              <th width="10%" class="text-center">Status</th>
+              <th width="12%" @click="ordenar('data_vencimento')" class="sortable">
+                  Vencimento <i class="fas" :class="getIconeOrdenacao('data_vencimento')"></i>
+              </th>
+              <th width="25%" @click="ordenar('cliente__nome')" class="sortable">
+                  Cliente <i class="fas" :class="getIconeOrdenacao('cliente__nome')"></i>
+              </th>
+              <th width="25%" @click="ordenar('descricao')" class="sortable">
+                  Descrição <i class="fas" :class="getIconeOrdenacao('descricao')"></i>
+              </th>
+              <th width="15%" @click="ordenar('valor')" class="sortable text-right">
+                  Valor <i class="fas" :class="getIconeOrdenacao('valor')"></i>
+              </th>
+              <th width="10%" @click="ordenar('status')" class="sortable text-center">
+                  Status <i class="fas" :class="getIconeOrdenacao('status')"></i>
+              </th>
               <th width="13%" class="text-right">Ações</th>
             </tr>
           </thead>
@@ -334,6 +344,9 @@ const filters = ref<Filters>({
     cliente_id: null,
 });
 
+// --- Ordenação (Novo) ---
+const ordenacao = ref('-data_vencimento'); 
+
 // --- Formatters ---
 const formatarValor = (valor: number | null | undefined): string => {
     if (valor === null || valor === undefined) return 'R$ 0,00';
@@ -357,6 +370,24 @@ const getStatusClass = (status: string): string => {
     default: return 'status-gray';
   }
 };
+
+// --- Lógica de Ordenação ---
+function ordenar(campo: string) {
+  if (ordenacao.value === campo) {
+    ordenacao.value = `-${campo}`; 
+  } else if (ordenacao.value === `-${campo}`) {
+    ordenacao.value = campo; 
+  } else {
+    ordenacao.value = campo; 
+  }
+  fetchData(true);
+}
+
+function getIconeOrdenacao(campo: string) {
+  if (ordenacao.value === campo) return 'fa-sort-up text-blue-600';
+  if (ordenacao.value === `-${campo}`) return 'fa-sort-down text-blue-600';
+  return 'fa-sort text-slate-300 hover:text-slate-500';
+}
 
 // --- Ações do Modal ---
 const abrirModalPagamento = (transacao: TransacaoReceber) => {
@@ -466,6 +497,7 @@ async function fetchData(isFilterChange: boolean = false) {
     else if (filters.value.cliente_id) params.cliente_id = filters.value.cliente_id;
     
     params.page_size = 50;
+    params.ordenacao = ordenacao.value; // Envia a ordenação
 
     const transacoesResponse = await apiClient.get<PaginatedResponse<TransacaoReceber>>(
       '/v1/financeiro/transacoes/a-receber/', 
@@ -629,7 +661,12 @@ onMounted(() => {
   position: sticky; top: 0; z-index: 10;
   font-size: 0.65rem; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 0.06em;
   border-bottom: 1px solid #e2e8f0; box-shadow: 0 1px 2px rgba(0,0,0,0.02);
+  cursor: pointer;
+  user-select: none;
 }
+.report-table th:hover { background: #f1f5f9; color: #1e293b; }
+.report-table th i { margin-left: 6px; }
+
 .report-table td {
   padding: 0.75rem 1.2rem; border-bottom: 1px solid #f1f5f9;
   font-size: 0.85rem; color: #334155; vertical-align: middle;
