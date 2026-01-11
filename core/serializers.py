@@ -3,7 +3,7 @@
 from rest_framework import serializers
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 from django.contrib.auth import get_user_model
-from core.models import PerfilUsuario, Notificacao, Imobiliaria
+from core.models import PerfilUsuario, Notificacao, Imobiliaria, ConfiguracaoGlobal
 from django.db import transaction
 
 # Obtém o modelo de usuário ativo (PerfilUsuario)
@@ -203,3 +203,8 @@ class ImobiliariaPublicSerializer(serializers.ModelSerializer):
     class Meta:
         model = Imobiliaria
         fields = ['nome', 'cor_primaria']
+
+class ConfiguracaoGlobalSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ConfiguracaoGlobal
+        fields = '__all__'

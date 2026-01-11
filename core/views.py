@@ -4,7 +4,7 @@ from rest_framework_simplejwt.views import TokenObtainPairView
 from rest_framework import viewsets
 from rest_framework.views import APIView
 from rest_framework.response import Response
-from rest_framework.permissions import IsAuthenticated, AllowAny
+from rest_framework.permissions import IsAuthenticated, AllowAny, IsAdminUser
 from rest_framework import status, permissions 
 from django.utils import timezone
 from datetime import timedelta
@@ -27,13 +27,14 @@ from app_imoveis.models import Imovel
 from app_clientes.models import Cliente
 from app_contratos.models import Contrato, Pagamento
 
-from .models import PerfilUsuario, Imobiliaria, Notificacao
+from .models import PerfilUsuario, Imobiliaria, Notificacao, ConfiguracaoGlobal
 from .serializers import (
     MyTokenObtainPairSerializer, 
     CorretorRegistrationSerializer, 
     CorretorDisplaySerializer,
     NotificacaoSerializer,
-    ImobiliariaIntegracaoSerializer
+    ImobiliariaIntegracaoSerializer,
+    ConfiguracaoGlobalSerializer
 )
 from rest_framework.decorators import action
 from .permissions import IsAdminOrSuperUser, IsCorretorOrReadOnly
@@ -374,3 +375,32 @@ class PublicRegisterView(APIView):
         except Exception as e:
             traceback.print_exc()
             return Response({"error": f"Erro interno: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+class ConfiguracaoGlobalView(APIView):
+    """
+    Gerencia as configurações globais do sistema (Singleton).
+    Apenas Superusuários devem ter acesso de escrita.
+    """
+    permission_classes = [IsAdminUser] # Apenas Staff/Superuser
+
+    def get(self, request):
+        if not request.user.is_superuser:
+            return Response({"detail": "Acesso restrito."}, status=status.HTTP_403_FORBIDDEN)
+
+        # Garante que existe 1 configuração (Get or Create)
+        config, created = ConfiguracaoGlobal.objects.get_or_create(pk=1)
+        serializer = ConfiguracaoGlobalSerializer(config)
+        return Response(serializer.data)
+
+    def put(self, request):
+        if not request.user.is_superuser:
+            return Response({"detail": "Acesso restrito."}, status=status.HTTP_403_FORBIDDEN)
+
+        config, created = ConfiguracaoGlobal.objects.get_or_create(pk=1)
+        serializer = ConfiguracaoGlobalSerializer(config, data=request.data, partial=True)
+        
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data)
+        
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)

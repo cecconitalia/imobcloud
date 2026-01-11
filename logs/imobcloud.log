@@ -10412,3 +10412,83 @@ Traceback (most recent call last):
     raise FieldError(
 django.core.exceptions.FieldError: Cannot resolve keyword 'descricao' into field. Choices are: academia, aceita_permuta, aceita_pet, alugueis, andar, ano_construcao, aquecimento, ar_condicionado, area_construida, area_servico, area_terreno, area_total, area_util, bairro, banheiros, bicicletario, cep, churrasqueira_condominio, churrasqueira_privativa, cidade, closet, codigo_referencia, comissao_percentual, complemento, configuracao_publica, contatos, contrato, copa, cozinha, data_atualizacao, data_cadastro, data_captacao, data_fim_autorizacao, descricao_completa, despensa, dimensao_direita, dimensao_esquerda, dimensao_frente, dimensao_fundos, disponibilidade, documentacao_ok, documento_autorizacao, elevador, escritorio, espaco_gourmet, espaco_pet, estado, finalidade, financiavel, gas_central, hidrometro_individual, historico_publicacoes, id, imagens, imobiliaria, imobiliaria_id, informacoes_adicionais_autorizacao, lavabo, localizacao_condominio, logradouro, mobiliado, moveis_planejados, numero, numero_matricula, numero_pavimentos, oportunidades, outras_caracteristicas, pe_direito, piscina_condominio, piscina_privativa, piso, playground, ponto_referencia, portao_eletronico, portaria_24h, posicao_chave, posicao_solar, possui_exclusividade, posts_agendados, proprietario, proprietario_id, publicacoes_sociais, publicado_no_site, quadra_esportiva, quartos, quitado, sala_estar, sala_jantar, sala_tv, salao_festas, sauna, situacao, status, suites, tipo, tipo_construcao, titulo_anuncio, transacao, unidades_por_andar, vaga_coberta, vaga_privativa, vagas_garagem, vagas_visitantes, valor_aluguel, valor_condominio, valor_iptu, valor_venda, varanda, visitas, vista
 WARNING 2026-01-11 16:10:15,065 log 8 138048620129152 Not Found: /favicon.ico
+WARNING 2026-01-11 16:24:17,524 log 7 139022947646336 Unauthorized: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2026-01-11 16:40:57,180 log 7 139022947646336 Not Found: /favicon.ico
+WARNING 2026-01-11 16:47:12,988 utils 9 137306925788032 Could not reverse url from auth.user
+WARNING 2026-01-11 16:47:45,296 utils 9 137306925788032 Could not reverse url from auth.user
+WARNING 2026-01-11 16:47:45,306 utils 9 137306925788032 Could not reverse url from auth.user
+WARNING 2026-01-11 16:47:45,315 utils 9 137306925788032 Could not reverse url from auth.user
+WARNING 2026-01-11 16:47:45,320 utils 9 137306925788032 Could not reverse url from auth.user
+WARNING 2026-01-11 16:47:45,326 utils 9 137306925788032 Could not reverse url from auth.user
+WARNING 2026-01-11 16:47:50,244 utils 7 137306925788032 Could not reverse url from auth.user
+WARNING 2026-01-11 16:47:50,251 utils 7 137306925788032 Could not reverse url from auth.user
+WARNING 2026-01-11 16:47:50,260 utils 7 137306925788032 Could not reverse url from auth.user
+WARNING 2026-01-11 16:47:50,262 utils 7 137306925788032 Could not reverse url from auth.user
+WARNING 2026-01-11 16:47:52,266 utils 8 137306925788032 Could not reverse url from auth.user
+WARNING 2026-01-11 16:47:52,274 utils 8 137306925788032 Could not reverse url from auth.user
+WARNING 2026-01-11 16:47:52,282 utils 8 137306925788032 Could not reverse url from auth.user
+WARNING 2026-01-11 16:47:52,284 utils 8 137306925788032 Could not reverse url from auth.user
+WARNING 2026-01-11 16:47:52,291 utils 8 137306925788032 Could not reverse url from auth.user
+WARNING 2026-01-11 16:48:26,231 utils 9 137306925788032 Could not reverse url from auth.user
+WARNING 2026-01-11 16:48:26,236 utils 9 137306925788032 Could not reverse url from auth.user
+WARNING 2026-01-11 16:48:26,246 utils 9 137306925788032 Could not reverse url from auth.user
+WARNING 2026-01-11 16:48:26,248 utils 9 137306925788032 Could not reverse url from auth.user
+WARNING 2026-01-11 16:48:26,254 utils 9 137306925788032 Could not reverse url from auth.user
+WARNING 2026-01-11 16:48:59,318 utils 9 137306925788032 Could not reverse url from auth.user
+WARNING 2026-01-11 16:48:59,322 utils 9 137306925788032 Could not reverse url from auth.user
+WARNING 2026-01-11 16:48:59,333 utils 9 137306925788032 Could not reverse url from auth.user
+WARNING 2026-01-11 16:48:59,337 utils 9 137306925788032 Could not reverse url from auth.user
+WARNING 2026-01-11 16:49:01,243 utils 8 137306925788032 Could not reverse url from auth.user
+WARNING 2026-01-11 16:49:01,246 utils 8 137306925788032 Could not reverse url from auth.user
+WARNING 2026-01-11 16:49:01,254 utils 8 137306925788032 Could not reverse url from auth.user
+WARNING 2026-01-11 16:49:01,259 utils 8 137306925788032 Could not reverse url from auth.user
+WARNING 2026-01-11 16:49:01,270 utils 8 137306925788032 Could not reverse url from auth.user
+WARNING 2026-01-11 16:49:07,720 utils 8 137306925788032 Could not reverse url from auth.user
+WARNING 2026-01-11 16:49:07,723 utils 8 137306925788032 Could not reverse url from auth.user
+WARNING 2026-01-11 16:49:07,732 utils 8 137306925788032 Could not reverse url from auth.user
+WARNING 2026-01-11 16:49:07,737 utils 8 137306925788032 Could not reverse url from auth.user
+WARNING 2026-01-11 16:49:22,433 utils 9 137306925788032 Could not reverse url from auth.user
+WARNING 2026-01-11 16:49:22,438 utils 9 137306925788032 Could not reverse url from auth.user
+WARNING 2026-01-11 16:49:22,444 utils 9 137306925788032 Could not reverse url from auth.user
+WARNING 2026-01-11 16:49:22,446 utils 9 137306925788032 Could not reverse url from auth.user
+WARNING 2026-01-11 16:49:22,454 utils 9 137306925788032 Could not reverse url from auth.user
+WARNING 2026-01-11 16:49:26,102 utils 7 137306925788032 Could not reverse url from auth.user
+WARNING 2026-01-11 16:49:26,105 utils 7 137306925788032 Could not reverse url from auth.user
+WARNING 2026-01-11 16:49:26,111 utils 7 137306925788032 Could not reverse url from auth.user
+WARNING 2026-01-11 16:49:26,115 utils 7 137306925788032 Could not reverse url from auth.user
+WARNING 2026-01-11 16:49:27,772 utils 9 137306925788032 Could not reverse url from auth.user
+WARNING 2026-01-11 16:49:27,777 utils 9 137306925788032 Could not reverse url from auth.user
+WARNING 2026-01-11 16:49:27,785 utils 9 137306925788032 Could not reverse url from auth.user
+WARNING 2026-01-11 16:49:27,787 utils 9 137306925788032 Could not reverse url from auth.user
+WARNING 2026-01-11 16:49:27,793 utils 9 137306925788032 Could not reverse url from auth.user
+ERROR 2026-01-11 17:03:39,520 log 8 128253609008000 Internal Server Error: /public/imoveis/busca-ia/
+Traceback (most recent call last):
+  File "/usr/local/lib/python3.12/site-packages/django/core/handlers/exception.py", line 55, in inner
+    response = get_response(request)
+               ^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/django/core/handlers/base.py", line 197, in _get_response
+    response = wrapped_callback(request, *callback_args, **callback_kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/django/views/decorators/csrf.py", line 65, in _view_wrapper
+    return view_func(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/django/views/generic/base.py", line 104, in view
+    return self.dispatch(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/rest_framework/views.py", line 509, in dispatch
+    response = self.handle_exception(exc)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/rest_framework/views.py", line 469, in handle_exception
+    self.raise_uncaught_exception(exc)
+  File "/usr/local/lib/python3.12/site-packages/rest_framework/views.py", line 480, in raise_uncaught_exception
+    raise exc
+  File "/usr/local/lib/python3.12/site-packages/rest_framework/views.py", line 506, in dispatch
+    response = handler(request, *args, **kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/app/app_imoveis/views.py", line 351, in post
+    return self._processar_busca_ia(request)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/app/app_imoveis/views.py", line 307, in _processar_busca_ia
+    if tipo_upper in Imovel.Tipo.values:
+                     ^^^^^^^^^^^
+AttributeError: type object 'Imovel' has no attribute 'Tipo'. Did you mean: 'tipo'?

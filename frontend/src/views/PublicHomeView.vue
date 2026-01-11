@@ -11,7 +11,7 @@
         <p class="agency-subtitle">Descreva o que você procura e nossa IA encontra para você.</p>
         
         <div class="search-wrapper">
-          <div class="search-box glass-effect" :class="{ 'ai-active': useAI }">
+          <div v-if="useAI" class="search-box glass-effect" :class="{ 'ai-active': useAI }">
             <div class="input-icon">
                 <i class="fas" :class="useAI ? 'fa-robot' : 'fa-search'"></i>
             </div>
@@ -181,7 +181,7 @@ const route = useRoute();
 const isScrolled = ref(false);
 const imoveis = ref([]);
 const loading = ref(false);
-const useAI = ref(false);
+const useAI = ref(false); // Inicia desativado por padrão
 const aiMessage = ref('');
 
 // Filtros
@@ -232,7 +232,6 @@ async function fetchImoveis() {
 
     // ROTA A: Busca com IA
     if (useAI.value && filters.value.search.trim().length > 0) {
-        // CORREÇÃO CRÍTICA: Barra '/' no final
         const response = await publicApiClient.post('/public/imoveis/busca-ia/', {
             query: filters.value.search
         }, { 
@@ -247,6 +246,8 @@ async function fetchImoveis() {
     // ROTA B: Busca Padrão
     } else {
         const params: any = { subdomain: subdomain, publicado: true };
+        // Removemos o envio de 'search' se a caixa estiver escondida/vazia no modo tradicional,
+        // mas mantemos caso o usuário tenha digitado algo antes.
         if (filters.value.search) params.search = filters.value.search; 
         if (filters.value.tipo) params.tipo = filters.value.tipo;
         if (filters.value.status) params.status = filters.value.status;
@@ -266,7 +267,7 @@ async function fetchImoveis() {
     } else {
         aiMessage.value = "Não conseguimos conectar com a busca inteligente agora.";
     }
-    // Em caso de erro na IA, tenta mostrar todos os imóveis ou limpa a lista
+    // Em caso de erro na IA, limpa a lista
     if(useAI.value) imoveis.value = [];
   } finally {
     loading.value = false;

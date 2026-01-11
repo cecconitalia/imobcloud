@@ -63,6 +63,10 @@ import RemessaRetornoView from '@/views/financeiro/RemessaRetornoView.vue'
 // Views Públicas
 import PublicHomeView from '@/views/PublicHomeView.vue'
 import PublicImovelDetailView from '@/views/PublicImovelDetailView.vue'
+
+// View de Configuração Global (NOVA)
+import ConfiguracaoSistemaView from '@/views/ConfiguracaoSistemaView.vue'
+
 // ==========================================================
 
 // Adicionar um tipo para a meta das rotas
@@ -491,6 +495,13 @@ const router = createRouter({
                     name: 'remessa-retorno',
                     component: RemessaRetornoView,
                     meta: { title: 'Remessa e Retorno', isAdmin: true }
+                },
+                // === CONFIGURAÇÃO GLOBAL (NOVA) ===
+                {
+                    path: 'configuracoes/sistema',
+                    name: 'configuracao-sistema',
+                    component: ConfiguracaoSistemaView,
+                    meta: { title: 'Configurações do Sistema', isAdmin: true }
                 },
             ]
         },

@@ -7,7 +7,47 @@ from app_config_ia.models import OpcaoVozDaMarca
 from django.utils import timezone
 from datetime import timedelta
 
-# --- NOVO MODELO: PLANO ---
+# --- NOVO MODELO: CONFIGURAÇÃO GLOBAL (Substitui parte do .env) ---
+class ConfiguracaoGlobal(models.Model):
+    """
+    Armazena configurações do sistema que antes ficavam no .env.
+    Padrão Singleton: Só deve haver uma linha nesta tabela.
+    """
+    # GERAL
+    site_url = models.CharField(max_length=255, default="https://imobhome.com.br", verbose_name="URL do Sistema")
+    base_public_url = models.CharField(max_length=255, default="https://imobhome.com.br", verbose_name="URL Pública Base")
+    
+    # EMAIL (SMTP)
+    email_host = models.CharField(max_length=255, default="smtp.gmail.com", verbose_name="Host SMTP")
+    email_port = models.IntegerField(default=587, verbose_name="Porta SMTP")
+    email_host_user = models.CharField(max_length=255, verbose_name="Usuário SMTP (Email)")
+    email_host_password = models.CharField(max_length=255, verbose_name="Senha SMTP (App Password)")
+    default_from_email = models.CharField(max_length=255, default="ImobHome <noreply@imobhome.com.br>", verbose_name="Remetente Padrão")
+
+    # INTEGRAÇÕES GOOGLE
+    google_api_key = models.CharField(max_length=255, blank=True, null=True, verbose_name="Google API Key (Maps/Gemini Global)")
+
+    # CLOUDINARY
+    cloudinary_cloud_name = models.CharField(max_length=255, blank=True, null=True, verbose_name="Cloudinary Cloud Name")
+    cloudinary_api_key = models.CharField(max_length=255, blank=True, null=True, verbose_name="Cloudinary API Key")
+    cloudinary_api_secret = models.CharField(max_length=255, blank=True, null=True, verbose_name="Cloudinary API Secret")
+
+    # MANUTENÇÃO
+    modo_manutencao = models.BooleanField(default=False, verbose_name="Modo Manutenção")
+
+    class Meta:
+        verbose_name = "Configuração do Sistema"
+        verbose_name_plural = "Configurações do Sistema"
+
+    def save(self, *args, **kwargs):
+        # Garante que só exista ID 1
+        self.pk = 1
+        super(ConfiguracaoGlobal, self).save(*args, **kwargs)
+
+    def __str__(self):
+        return "Configuração Global do Sistema"
+
+# --- MODELO EXISTENTE: PLANO ---
 class Plano(models.Model):
     nome = models.CharField(max_length=100, help_text="Ex: Mensal Básico, Anual Pro")
     valor = models.DecimalField(max_digits=10, decimal_places=2, verbose_name="Valor do Plano")

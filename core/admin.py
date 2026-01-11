@@ -2,7 +2,36 @@
 
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin
-from .models import Imobiliaria, PerfilUsuario, Notificacao, Plano
+from .models import Imobiliaria, PerfilUsuario, Notificacao, Plano, ConfiguracaoGlobal
+
+# --- NOVA CONFIGURAÇÃO GLOBAL (Substitui .env) ---
+@admin.register(ConfiguracaoGlobal)
+class ConfiguracaoGlobalAdmin(admin.ModelAdmin):
+    list_display = ('__str__', 'site_url', 'modo_manutencao')
+    
+    fieldsets = (
+        ('Geral', {
+            'fields': ('site_url', 'base_public_url', 'modo_manutencao')
+        }),
+        ('Configurações de E-mail (SMTP)', {
+            'fields': ('email_host', 'email_port', 'email_host_user', 'email_host_password', 'default_from_email'),
+            'description': 'Credenciais para envio de e-mails do sistema.'
+        }),
+        ('Integrações e APIs', {
+            'fields': ('google_api_key', 'cloudinary_cloud_name', 'cloudinary_api_key', 'cloudinary_api_secret')
+        }),
+    )
+
+    def has_add_permission(self, request):
+        # Impede criar mais de uma configuração (Singleton)
+        # Se já existe 1 registro, não deixa adicionar outro.
+        if self.model.objects.exists():
+            return False
+        return super().has_add_permission(request)
+
+    def has_delete_permission(self, request, obj=None):
+        # Evita deletar a configuração global acidentalmente
+        return False
 
 # --- ADMINISTRAÇÃO DE PLANOS ---
 @admin.register(Plano)

@@ -17,7 +17,11 @@ from datetime import date, timedelta
 from io import BytesIO
 from xhtml2pdf import pisa
 import locale
-from num2words import num2words
+try:
+    from num2words import num2words
+except ImportError:
+    num2words = None
+
 from decimal import Decimal, InvalidOperation
 import json
 import requests
@@ -26,6 +30,7 @@ from google.api_core import exceptions as google_exceptions
 import os
 from django.conf import settings
 from django.core.mail import send_mail
+import traceback
 
 from .models import Imovel, ImagemImovel, ContatoImovel
 from .serializers import (
@@ -143,46 +148,46 @@ class ImovelIAView(APIView):
     permission_classes = [permissions.AllowAny]
 
     def _processar_busca_ia(self, request):
-        # Tenta pegar 'query' do POST (data) ou do GET (query_params)
-        user_query = request.data.get('query') or request.query_params.get('query')
-        subdomain_param = request.query_params.get('subdomain', None)
-
-        if not user_query:
-            return Response({
-                "mensagem": "Por favor, descreva o imóvel que você procura.",
-                "imoveis": []
-            }, status=status.HTTP_200_OK)
-
-        imobiliaria_obj = None
-        if getattr(self.request, 'tenant', None):
-             imobiliaria_obj = self.request.tenant
-        elif subdomain_param:
-            try:
-                imobiliaria_obj = Imobiliaria.objects.get(subdominio__iexact=subdomain_param)
-            except Imobiliaria.DoesNotExist:
-                return Response({
-                    "mensagem": "Imobiliária não encontrada.",
-                    "imoveis": []
-                }, status=status.HTTP_404_NOT_FOUND)
-
-        if not imobiliaria_obj:
-             return Response({
-                "mensagem": "Subdomínio não fornecido.",
-                "imoveis": []
-             }, status=status.HTTP_400_BAD_REQUEST)
-
-        # 1. Obter Chave
-        chave_banco = getattr(imobiliaria_obj, 'google_api_key', None)
-        chave_env = os.getenv("GOOGLE_API_KEY")
-        api_key = str(chave_banco).strip() if chave_banco else chave_env
-
-        if not api_key:
-            return Response(
-                {"error": "Chave de API não configurada no Admin."},
-                status=status.HTTP_503_SERVICE_UNAVAILABLE
-            )
-        
         try:
+            # Tenta pegar 'query' do POST (data) ou do GET (query_params)
+            user_query = request.data.get('query') or request.query_params.get('query')
+            subdomain_param = request.query_params.get('subdomain', None)
+
+            if not user_query:
+                return Response({
+                    "mensagem": "Por favor, descreva o imóvel que você procura.",
+                    "imoveis": []
+                }, status=status.HTTP_200_OK)
+
+            imobiliaria_obj = None
+            if getattr(self.request, 'tenant', None):
+                 imobiliaria_obj = self.request.tenant
+            elif subdomain_param:
+                try:
+                    imobiliaria_obj = Imobiliaria.objects.get(subdominio__iexact=subdomain_param)
+                except Imobiliaria.DoesNotExist:
+                    return Response({
+                        "mensagem": "Imobiliária não encontrada.",
+                        "imoveis": []
+                    }, status=status.HTTP_404_NOT_FOUND)
+
+            if not imobiliaria_obj:
+                 return Response({
+                    "mensagem": "Subdomínio não fornecido.",
+                    "imoveis": []
+                 }, status=status.HTTP_400_BAD_REQUEST)
+
+            # 1. Obter Chave
+            chave_banco = getattr(imobiliaria_obj, 'google_api_key', None)
+            chave_env = os.getenv("GOOGLE_API_KEY")
+            api_key = str(chave_banco).strip() if chave_banco else chave_env
+
+            if not api_key:
+                return Response(
+                    {"error": "Chave de API não configurada no Admin."},
+                    status=status.HTTP_503_SERVICE_UNAVAILABLE
+                )
+            
             genai.configure(api_key=api_key)
             
             # 2. Definir Prompt
@@ -194,158 +199,162 @@ class ImovelIAView(APIView):
             except (ModeloDePrompt.DoesNotExist, OperationalError):
                 template_prompt = "Você é um assistente de busca de imóveis. O usuário quer: {{user_query}}"
                 preferred_model = None
-        
-        except Exception as e:
-            return Response({"error": f"Config: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-        
-        json_instructions = """
-        RETORNE APENAS JSON:
-        {
-            "busca_valida": true,
-            "status": "A_VENDA" | "PARA_ALUGAR" | null,
-            "tipo": "CASA" | "APARTAMENTO" | "TERRENO" | "SALA_COMERCIAL" | null,
-            "cidade": "Nome" | null,
-            "bairro": "Nome" | null,
-            "valor_min": number | null,
-            "valor_max": number | null,
-            "quartos_min": number | null,
-            "vagas_min": number | null,
-            "mensagem_resposta": "Texto curto"
-        }
-        """
-        prompt_final = template_prompt.replace('{{user_query}}', user_query)
-        prompt_final = prompt_final.replace('{{imovel_data}}', '') 
-        prompt_final += json_instructions
-
-        search_params = {}
-        last_error = ""
-
-        # 3. Lista de Modelos para Tentar (Fallback em cascata)
-        # Tenta com e sem prefixo 'models/' para máxima compatibilidade
-        models_to_try = []
-        if preferred_model:
-            models_to_try.append(preferred_model)
-            if not preferred_model.startswith('models/'):
-                models_to_try.append(f"models/{preferred_model}")
-        
-        # Adiciona modelos padrão conhecidos por funcionar
-        defaults = ['models/gemini-2.0-flash', 'gemini-2.0-flash', 'models/gemini-1.5-flash', 'gemini-1.5-flash', 'models/gemini-pro']
-        for m in defaults:
-            if m not in models_to_try:
-                models_to_try.append(m)
-
-        def try_generate(model_tag):
-            print(f"DEBUG IA: Tentando {model_tag}...")
-            model = genai.GenerativeModel(model_tag)
-            # Tenta forçar JSON mode se suportado
-            try:
-                response = model.generate_content(prompt_final, generation_config={"response_mime_type": "application/json"})
-            except:
-                # Se falhar (ex: modelo antigo não suporta json mode), tenta normal
-                response = model.generate_content(prompt_final)
-                
-            if not response.parts: raise ValueError("Resposta vazia")
-            return response.parts[0].text
-
-        json_text_raw = None
-        
-        # Loop de Tentativas
-        for model_name in models_to_try:
-            try:
-                json_text_raw = try_generate(model_name)
-                print(f"SUCESSO com modelo: {model_name}")
-                break # Se funcionar, para o loop
-            except Exception as e:
-                last_error = str(e)
-                print(f"FALHA com {model_name}: {e}")
-                continue
-
-        if not json_text_raw:
-             # Retorna o erro detalhado da última tentativa para debug no frontend
-             return Response(
-                 {"error": f"Falha na IA. Último erro: {last_error}"}, 
-                 status=status.HTTP_503_SERVICE_UNAVAILABLE
-             )
-
-        try:
-            json_text = json_text_raw.strip()
-            # Limpeza manual de markdown
-            if "```json" in json_text:
-                json_text = json_text.split("```json")[1].split("```")[0].strip()
-            elif "```" in json_text:
-                json_text = json_text.split("```")[1].split("```")[0].strip()
             
-            search_params = json.loads(json_text)
+            json_instructions = """
+            RETORNE APENAS JSON:
+            {
+                "busca_valida": true,
+                "status": "A_VENDA" | "PARA_ALUGAR" | null,
+                "tipo": "CASA" | "APARTAMENTO" | "TERRENO" | "SALA_COMERCIAL" | null,
+                "cidade": "Nome" | null,
+                "bairro": "Nome" | null,
+                "valor_min": number | null,
+                "valor_max": number | null,
+                "quartos_min": number | null,
+                "vagas_min": number | null,
+                "mensagem_resposta": "Texto curto"
+            }
+            """
+            prompt_final = template_prompt.replace('{{user_query}}', user_query)
+            prompt_final = prompt_final.replace('{{imovel_data}}', '') 
+            prompt_final += json_instructions
 
-        except json.JSONDecodeError:
-             return Response({
-                 "mensagem": "Não consegui entender. Tente simplificar.",
-                 "imoveis": []
-             }, status=status.HTTP_200_OK)
+            search_params = {}
+            last_error = ""
 
-        # === FILTRAGEM SQL ===
-        base_queryset = Imovel.objects.filter(
-            imobiliaria=imobiliaria_obj,
-            publicado_no_site=True
-        ).exclude(status=Imovel.Status.DESATIVADO)
+            # 3. Lista de Modelos para Tentar (Fallback em cascata)
+            # Tenta com e sem prefixo 'models/' para máxima compatibilidade
+            models_to_try = []
+            if preferred_model:
+                models_to_try.append(preferred_model)
+                if not preferred_model.startswith('models/'):
+                    models_to_try.append(f"models/{preferred_model}")
+            
+            # Adiciona modelos padrão conhecidos por funcionar
+            defaults = ['models/gemini-2.0-flash', 'gemini-2.0-flash', 'models/gemini-1.5-flash', 'gemini-1.5-flash', 'models/gemini-pro']
+            for m in defaults:
+                if m not in models_to_try:
+                    models_to_try.append(m)
 
-        if search_params.get('busca_valida') is False:
-            return Response({
-                 "mensagem": search_params.get('mensagem_resposta', "Não entendi sua busca."),
-                 "imoveis": []
-            }, status=status.HTTP_200_OK)
-        
-        status_ia = search_params.get('status')
-        if status_ia:
-             status_map = { 'A_VENDA': 'A_VENDA', 'VENDA': 'A_VENDA', 'PARA_ALUGAR': 'PARA_ALUGAR', 'ALUGUEL': 'PARA_ALUGAR' }
-             db_status = status_map.get(status_ia.upper())
-             if db_status: base_queryset = base_queryset.filter(status=db_status)
+            def try_generate(model_tag):
+                print(f"DEBUG IA: Tentando {model_tag}...")
+                model = genai.GenerativeModel(model_tag)
+                # Tenta forçar JSON mode se suportado
+                try:
+                    response = model.generate_content(prompt_final, generation_config={"response_mime_type": "application/json"})
+                except:
+                    # Se falhar (ex: modelo antigo não suporta json mode), tenta normal
+                    response = model.generate_content(prompt_final)
+                    
+                if not response.parts: raise ValueError("Resposta vazia")
+                return response.parts[0].text
 
-        tipo_ia = search_params.get('tipo')
-        if tipo_ia:
-            tipo_upper = tipo_ia.upper().replace(' ', '_')
-            if tipo_upper in Imovel.Tipo.values:
+            json_text_raw = None
+            
+            # Loop de Tentativas
+            for model_name in models_to_try:
+                try:
+                    json_text_raw = try_generate(model_name)
+                    print(f"SUCESSO com modelo: {model_name}")
+                    break # Se funcionar, para o loop
+                except Exception as e:
+                    last_error = str(e)
+                    print(f"FALHA com {model_name}: {e}")
+                    continue
+
+            if not json_text_raw:
+                 # Retorna o erro detalhado da última tentativa para debug no frontend
+                 return Response(
+                     {"error": f"Falha na IA. Último erro: {last_error}"}, 
+                     status=status.HTTP_503_SERVICE_UNAVAILABLE
+                 )
+
+            try:
+                json_text = json_text_raw.strip()
+                # Limpeza manual de markdown
+                if "```json" in json_text:
+                    json_text = json_text.split("```json")[1].split("```")[0].strip()
+                elif "```" in json_text:
+                    json_text = json_text.split("```")[1].split("```")[0].strip()
+                
+                search_params = json.loads(json_text)
+
+            except json.JSONDecodeError:
+                 return Response({
+                     "mensagem": "Não consegui entender. Tente simplificar.",
+                     "imoveis": []
+                 }, status=status.HTTP_200_OK)
+
+            # === FILTRAGEM SQL ===
+            # CORREÇÃO CRÍTICA: Alterado de Imovel.Status.DESATIVADO para string 'DESATIVADO'
+            # para evitar AttributeError caso a classe Status não seja acessível desta forma.
+            base_queryset = Imovel.objects.filter(
+                imobiliaria=imobiliaria_obj,
+                publicado_no_site=True
+            ).exclude(status='DESATIVADO')
+
+            if search_params.get('busca_valida') is False:
+                return Response({
+                     "mensagem": search_params.get('mensagem_resposta', "Não entendi sua busca."),
+                     "imoveis": []
+                }, status=status.HTTP_200_OK)
+            
+            status_ia = search_params.get('status')
+            if status_ia:
+                 status_map = { 'A_VENDA': 'A_VENDA', 'VENDA': 'A_VENDA', 'PARA_ALUGAR': 'PARA_ALUGAR', 'ALUGUEL': 'PARA_ALUGAR' }
+                 db_status = status_map.get(status_ia.upper())
+                 if db_status: base_queryset = base_queryset.filter(status=db_status)
+
+            tipo_ia = search_params.get('tipo')
+            if tipo_ia:
+                tipo_upper = tipo_ia.upper().replace(' ', '_')
                 base_queryset = base_queryset.filter(tipo=tipo_upper)
 
-        cidade_ia = search_params.get('cidade')
-        if cidade_ia: base_queryset = base_queryset.filter(cidade__icontains=cidade_ia)
+            cidade_ia = search_params.get('cidade')
+            if cidade_ia: base_queryset = base_queryset.filter(cidade__icontains=cidade_ia)
 
-        bairro_ia = search_params.get('bairro')
-        if bairro_ia: base_queryset = base_queryset.filter(bairro__icontains=bairro_ia)
+            bairro_ia = search_params.get('bairro')
+            if bairro_ia: base_queryset = base_queryset.filter(bairro__icontains=bairro_ia)
 
-        valor_min = search_params.get('valor_min')
-        valor_max = search_params.get('valor_max')
-        
-        if valor_min or valor_max:
-            qs_venda = Q()
-            qs_aluguel = Q()
-            if valor_min:
-                qs_venda &= Q(valor_venda__gte=valor_min)
-                qs_aluguel &= Q(valor_aluguel__gte=valor_min)
-            if valor_max:
-                qs_venda &= Q(valor_venda__lte=valor_max)
-                qs_aluguel &= Q(valor_aluguel__lte=valor_max)
+            valor_min = search_params.get('valor_min')
+            valor_max = search_params.get('valor_max')
+            
+            if valor_min or valor_max:
+                qs_venda = Q()
+                qs_aluguel = Q()
+                if valor_min:
+                    qs_venda &= Q(valor_venda__gte=valor_min)
+                    qs_aluguel &= Q(valor_aluguel__gte=valor_min)
+                if valor_max:
+                    qs_venda &= Q(valor_venda__lte=valor_max)
+                    qs_aluguel &= Q(valor_aluguel__lte=valor_max)
 
-            if status_ia == 'A_VENDA': base_queryset = base_queryset.filter(qs_venda)
-            elif status_ia == 'PARA_ALUGAR': base_queryset = base_queryset.filter(qs_aluguel)
-            else: base_queryset = base_queryset.filter(qs_venda | qs_aluguel)
+                if status_ia == 'A_VENDA': base_queryset = base_queryset.filter(qs_venda)
+                elif status_ia == 'PARA_ALUGAR': base_queryset = base_queryset.filter(qs_aluguel)
+                else: base_queryset = base_queryset.filter(qs_venda | qs_aluguel)
 
-        if search_params.get('quartos_min'): base_queryset = base_queryset.filter(quartos__gte=search_params['quartos_min'])
-        if search_params.get('vagas_min'): base_queryset = base_queryset.filter(vagas_garagem__gte=search_params['vagas_min'])
-        if search_params.get('piscina'): base_queryset = base_queryset.filter(Q(piscina_privativa=True) | Q(piscina_condominio=True))
-        if search_params.get('aceita_pet'): base_queryset = base_queryset.filter(aceita_pet=True)
-        if search_params.get('mobiliado'): base_queryset = base_queryset.filter(mobiliado=True)
+            if search_params.get('quartos_min'): base_queryset = base_queryset.filter(quartos__gte=search_params['quartos_min'])
+            if search_params.get('vagas_min'): base_queryset = base_queryset.filter(vagas_garagem__gte=search_params['vagas_min'])
+            if search_params.get('piscina'): base_queryset = base_queryset.filter(Q(piscina_privativa=True) | Q(piscina_condominio=True))
+            if search_params.get('aceita_pet'): base_queryset = base_queryset.filter(aceita_pet=True)
+            if search_params.get('mobiliado'): base_queryset = base_queryset.filter(mobiliado=True)
 
-        serializer = ImovelPublicSerializer(base_queryset, many=True)
-        
-        mensagem_resposta = search_params.get('mensagem_resposta', "Resultados da busca:")
-        if not base_queryset.exists():
-            mensagem_resposta += f" (Nenhum imóvel encontrado. Filtros: {cidade_ia or 'Qualquer cidade'}, {status_ia or 'Qualquer status'})"
+            serializer = ImovelPublicSerializer(base_queryset, many=True)
+            
+            mensagem_resposta = search_params.get('mensagem_resposta', "Resultados da busca:")
+            if not base_queryset.exists():
+                mensagem_resposta += f" (Nenhum imóvel encontrado. Filtros: {cidade_ia or 'Qualquer cidade'}, {status_ia or 'Qualquer status'})"
 
-        return Response({
-            "mensagem": mensagem_resposta,
-            "imoveis": serializer.data
-        }, status=status.HTTP_200_OK)
+            return Response({
+                "mensagem": mensagem_resposta,
+                "imoveis": serializer.data
+            }, status=status.HTTP_200_OK)
+            
+        except Exception as e:
+            # Captura qualquer erro (incluindo AttributeError ou falha na API) e retorna JSON válido
+            print(f"ERRO CRÍTICO BUSCA IA: {str(e)}")
+            traceback.print_exc()
+            return Response({"error": f"Erro interno ao processar IA: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
     def post(self, request, *args, **kwargs):
         return self._processar_busca_ia(request)
@@ -392,10 +401,12 @@ class ImovelViewSet(viewsets.ModelViewSet):
 
         status_param = self.request.query_params.get('status', None)
         if status_param:
+             # Correção aqui também: usar string literal se possível ou verificar existência
              if status_param in Imovel.Status.values:
                 base_queryset = base_queryset.filter(status=status_param)
         elif self.action in ['list', 'lista_simples']: 
-             base_queryset = base_queryset.exclude(status=Imovel.Status.DESATIVADO)
+             # Correção para segurança:
+             base_queryset = base_queryset.exclude(status='DESATIVADO')
 
         finalidade = self.request.query_params.get('finalidade', None) 
         tipo = self.request.query_params.get('tipo', None)
@@ -461,7 +472,7 @@ class ImovelViewSet(viewsets.ModelViewSet):
         tenant = getattr(self.request, 'tenant', None) or getattr(self.request.user, 'imobiliaria', None)
         
         if self.request.user.is_superuser or (tenant and instance.imobiliaria == tenant):
-             instance.status = Imovel.Status.DESATIVADO
+             instance.status = 'DESATIVADO' # String segura
              instance.publicado_no_site = False
              instance.save()
              return Response(status=status.HTTP_200_OK)
@@ -481,9 +492,13 @@ class ImovelViewSet(viewsets.ModelViewSet):
         contexto.append(f"Status: {imovel.get_status_display()}")
         contexto.append(f"Localização: Bairro {imovel.bairro}, {imovel.cidade} - {imovel.estado}")
         
-        if imovel.valor_venda and imovel.status == Imovel.Status.A_VENDA:
+        # Correção segura para Status
+        STATUS_A_VENDA = 'A_VENDA'
+        STATUS_PARA_ALUGAR = 'PARA_ALUGAR'
+        
+        if imovel.valor_venda and imovel.status == STATUS_A_VENDA:
             contexto.append(f"Valor de Venda: R$ {imovel.valor_venda:,.2f}".replace(",", "X").replace(".", ",").replace("X", "."))
-        if imovel.valor_aluguel and imovel.status == Imovel.Status.PARA_ALUGAR:
+        if imovel.valor_aluguel and imovel.status == STATUS_PARA_ALUGAR:
             contexto.append(f"Valor de Aluguel: R$ {imovel.valor_aluguel:,.2f}".replace(",", "X").replace(".", ",").replace("X", "."))
         if imovel.valor_condominio:
             contexto.append(f"Condomínio: R$ {imovel.valor_condominio:,.2f}".replace(",", "X").replace(".", ",").replace("X", "."))
@@ -548,10 +563,7 @@ class ImovelViewSet(viewsets.ModelViewSet):
                     model_name = prompt_config.modelo_api.replace("models/", "")
             except Exception:
                 # Se não tem prompt configurado, usa padrão (mas não quebra)
-                return Response(
-                    {"error": "Nenhum modelo de prompt para 'Geração de Descrição' está ativo."},
-                    status=status.HTTP_500_INTERNAL_SERVER_ERROR
-                )
+                template_prompt = "Escreva uma descrição imobiliária com voz {{voz_da_marca}} para: {{imovel_data}}"
         
             voz_da_marca_obj = imovel.imobiliaria.voz_da_marca_preferida
             voz_da_marca = str(voz_da_marca_obj) if voz_da_marca_obj else "um tom profissional e convidativo"
@@ -930,20 +942,26 @@ class GerarAutorizacaoPDFView(APIView):
 
         hoje = date.today()
         finalidade_texto = imovel.get_finalidade_display() 
-        valor = imovel.valor_venda if imovel.status == Imovel.Status.A_VENDA else imovel.valor_aluguel
+        valor = imovel.valor_venda if imovel.status == 'A_VENDA' else imovel.valor_aluguel
         valor = valor or Decimal(0)
         reais = int(valor)
         centavos = int((valor - reais) * 100)
         
         try:
-            valor_por_extenso = num2words(reais, lang='pt_BR') + " reais"
-            if centavos > 0:
-                 valor_por_extenso += " e " + num2words(centavos, lang='pt_BR') + " centavos"
+            if num2words:
+                valor_por_extenso = num2words(reais, lang='pt_BR') + " reais"
+                if centavos > 0:
+                     valor_por_extenso += " e " + num2words(centavos, lang='pt_BR') + " centavos"
+            else:
+                valor_por_extenso = f"{valor:,.2f}"
         except NotImplementedError:
              valor_por_extenso = f"{valor:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
              
         try:
-            comissao_por_extenso = num2words(float(comissao), lang='pt_BR') + " por cento"
+            if num2words:
+                comissao_por_extenso = num2words(float(comissao), lang='pt_BR') + " por cento"
+            else:
+                comissao_por_extenso = f"{comissao}%"
         except NotImplementedError:
              comissao_por_extenso = f"{comissao}%"
 
@@ -1061,7 +1079,8 @@ class AutorizacaoStatusView(APIView):
         limite_30_dias = hoje + timedelta(days=30)
         limite_passado_30_dias = hoje - timedelta(days=30)
 
-        base_queryset = Imovel.objects.filter(imobiliaria=tenant).exclude(status=Imovel.Status.DESATIVADO)
+        # Correção segura
+        base_queryset = Imovel.objects.filter(imobiliaria=tenant).exclude(status='DESATIVADO')
 
         sumario = base_queryset.aggregate(
             expirando_em_30_dias=Count('id', filter=Q(data_fim_autorizacao__gte=hoje, data_fim_autorizacao__lte=limite_30_dias)),
@@ -1131,9 +1150,10 @@ def _get_autorizacao_queryset(tenant, query_params):
     """
     Helper para relatório completo em Paisagem.
     """
+    # Correção segura
     queryset = Imovel.objects.filter(
         imobiliaria=tenant
-    ).exclude(status=Imovel.Status.DESATIVADO).select_related('proprietario')
+    ).exclude(status='DESATIVADO').select_related('proprietario')
     
     today = date.today()
     trinta_dias = today + timedelta(days=30)
@@ -1218,8 +1238,8 @@ def _get_autorizacao_queryset(tenant, query_params):
             email_proprietario = p.email or '-'
 
         # Status Display
-        finalidade_display = "Venda" if imovel.status == Imovel.Status.A_VENDA else "Aluguel"
-        if imovel.status not in [Imovel.Status.A_VENDA, Imovel.Status.PARA_ALUGAR]:
+        finalidade_display = "Venda" if imovel.status == 'A_VENDA' else "Aluguel"
+        if imovel.status not in ['A_VENDA', 'PARA_ALUGAR']:
              finalidade_display = imovel.get_status_display()
 
         data_list.append({

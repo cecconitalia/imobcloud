@@ -1,164 +1,100 @@
 <template>
-  <div class="ai-chat-search">
-    <form @submit.prevent="submitSearch" class="search-form">
-      <input
-        type="text"
-        v-model="searchQuery"
-        placeholder="Descreva o imóvel que procura..."
-        class="search-input"
-        :disabled="isLoading"
-      />
-      <button type="submit" class="search-button" :disabled="isLoading">
-        <span v-if="!isLoading">Buscar</span>
-        <span v-else class="spinner"></span>
+  <div class="w-full max-w-4xl mx-auto font-sans">
+    
+    <div class="relative group z-20">
+      <div 
+        class="absolute -inset-1 bg-gradient-to-r from-blue-600 via-purple-600 to-indigo-600 rounded-2xl blur opacity-20 group-hover:opacity-40 transition duration-1000 group-focus-within:opacity-100 group-focus-within:duration-200">
+      </div>
+      
+      <div class="relative bg-white dark:bg-slate-900 rounded-2xl shadow-xl flex items-center p-2 border border-slate-100 dark:border-slate-700 transition-all">
+        
+        <div class="pl-4 pr-3 text-purple-600 dark:text-purple-400">
+          <Sparkles v-if="!loading" class="w-6 h-6 animate-pulse" />
+          <Loader2 v-else class="w-6 h-6 animate-spin text-blue-500" />
+        </div>
+
+        <input 
+          ref="inputRef"
+          v-model="query"
+          type="text" 
+          :placeholder="placeholderText" 
+          class="w-full bg-transparent border-none outline-none text-slate-700 dark:text-slate-100 text-lg placeholder-slate-400 h-12"
+          @keyup.enter="handleSearch"
+          :disabled="loading"
+        />
+
+        <button 
+          @click="handleSearch"
+          :disabled="!query.trim() || loading"
+          class="ml-2 p-3 rounded-xl bg-slate-100 text-slate-400 hover:bg-purple-600 hover:text-white dark:bg-slate-800 dark:text-slate-500 dark:hover:bg-purple-600 dark:hover:text-white transition-all disabled:opacity-50 disabled:cursor-not-allowed transform active:scale-95"
+        >
+          <ArrowRight class="w-5 h-5" />
+        </button>
+      </div>
+    </div>
+
+    <div v-if="!loading" class="mt-6 flex flex-wrap justify-center gap-2 animate-fade-in-up">
+      <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider w-full text-center mb-1">Experimente perguntar:</span>
+      
+      <button 
+        v-for="(sugestao, index) in sugestoes" 
+        :key="index"
+        @click="aplicarSugestao(sugestao)"
+        class="px-4 py-2 bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm border border-slate-200 dark:border-slate-700 rounded-full text-sm text-slate-600 dark:text-slate-300 hover:border-purple-400 hover:text-purple-600 hover:shadow-md transition-all cursor-pointer flex items-center gap-2"
+      >
+        <component :is="sugestao.icon" class="w-3.5 h-3.5 opacity-70" />
+        {{ sugestao.texto }}
       </button>
-    </form>
-    <p v-if="errorMessage" class="error-message">{{ errorMessage }}</p>
+    </div>
+
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, defineEmits } from 'vue';
-import publicApiClient from '@/services/publicApiClient'; // Usa o cliente público
+import { ref, computed } from 'vue';
+import { Sparkles, ArrowRight, Loader2, Home, Building2, Wallet } from 'lucide-vue-next';
 
-const searchQuery = ref('');
-const isLoading = ref(false);
-const errorMessage = ref<string | null>(null);
+const props = defineProps({
+  loading: { type: Boolean, default: false }
+});
 
-// Define os eventos que este componente pode emitir
-const emit = defineEmits(['search-results', 'search-error']);
+const emit = defineEmits(['search']);
 
-async function submitSearch() {
-  if (!searchQuery.value.trim()) {
-    errorMessage.value = 'Por favor, descreva o imóvel que procura.';
-    return;
+const query = ref('');
+const inputRef = ref<HTMLInputElement | null>(null);
+
+const placeholderText = computed(() => {
+  return props.loading 
+    ? "A Inteligência Artificial está analisando seu pedido..." 
+    : "Descreva o imóvel dos sonhos (ex: Casa de 3 quartos no centro até 500 mil)";
+});
+
+const sugestoes = [
+  { texto: "Apartamento com 2 quartos no centro", icon: Building2 },
+  { texto: "Casa com piscina e churrasqueira", icon: Home },
+  { texto: "Aluguel até R$ 2.000,00", icon: Wallet },
+  { texto: "Terreno para investimento", icon: Sparkles },
+];
+
+function handleSearch() {
+  if (query.value.trim()) {
+    emit('search', query.value);
   }
+}
 
-  isLoading.value = true;
-  errorMessage.value = null;
-
-  try {
-    // 1. Obter o subdomínio (mesma lógica usada em PublicHomeView e PublicLayout)
-    const hostname = window.location.hostname;
-    const parts = hostname.split('.');
-    let subdomain = null;
-    if (parts.length > 1 && parts[0] !== 'www') {
-      subdomain = parts[0];
-    }
-    if (subdomain === 'localhost' || !subdomain) {
-        subdomain = 'estilomusical'; // Fallback para desenvolvimento
-    }
-
-    if (!subdomain) {
-        throw new Error("Não foi possível identificar a imobiliária (subdomínio).");
-    }
-
-    // 2. Montar os parâmetros da query string
-    const params = { subdomain };
-
-    // 3. Fazer a requisição POST para a URL CORRETA
-    // CORREÇÃO: Removido o prefixo '/v1/' da URL.
-    // O publicApiClient já tem a baseURL 'http://localhost:8000'.
-    const response = await publicApiClient.post(
-        '/public/imoveis/busca-ia/', // URL CORRETA, sem /v1/
-        { query: searchQuery.value }, // Corpo da requisição (payload)
-        { params } // Query parameters (para o subdomínio)
-    );
-
-    // 4. Emitir o evento com os resultados
-    emit('search-results', response.data); // Emite { mensagem: '...', imoveis: [...] }
-
-  } catch (err: any) {
-    console.error("Erro na busca por IA:", err);
-    let errorMsg = 'Ocorreu um erro ao processar a sua busca. Tente novamente.';
-    if (err.response && err.response.data && err.response.data.error) {
-        errorMsg = err.response.data.error; // Mostra a mensagem de erro específica da API (Gemini ou validação)
-    } else if (err.message) {
-        errorMsg = err.message;
-    }
-    errorMessage.value = errorMsg;
-    emit('search-error', errorMsg); // Emite evento de erro
-  } finally {
-    isLoading.value = false;
-  }
+function aplicarSugestao(sugestao: any) {
+  query.value = sugestao.texto;
+  handleSearch();
 }
 </script>
 
 <style scoped>
-.ai-chat-search {
-  margin: 1.5rem 0; /* Adicionado margem superior/inferior */
-  padding: 1.5rem;
-  background-color: #fff;
-  border-radius: 8px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
-  border: 1px solid #e9ecef;
+.animate-fade-in-up {
+  animation: fadeInUp 0.5s ease-out forwards;
 }
 
-.search-form {
-  display: flex;
-  gap: 0.5rem; /* Reduzido o espaço */
-  align-items: center; /* Alinha verticalmente */
-}
-
-.search-input {
-  flex-grow: 1;
-  padding: 0.8rem 1rem; /* Aumentado o padding */
-  border: 1px solid #ced4da;
-  border-radius: 4px;
-  font-size: 1rem;
-  transition: border-color 0.2s ease, box-shadow 0.2s ease;
-}
-
-.search-input:focus {
-  border-color: var(--primary-color, #007bff);
-  box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
-  outline: none;
-}
-
-.search-button {
-  padding: 0.8rem 1.5rem; /* Aumentado o padding */
-  background-color: var(--primary-color, #007bff);
-  color: white;
-  border: none;
-  border-radius: 4px;
-  cursor: pointer;
-  font-size: 1rem;
-  font-weight: 500;
-  transition: background-color 0.2s ease, opacity 0.2s ease;
-  display: flex; /* Para centralizar o spinner */
-  align-items: center;
-  justify-content: center;
-  min-width: 80px; /* Largura mínima para evitar encolhimento com spinner */
-  height: 44px; /* Altura fixa igual ao input */
-}
-
-.search-button:hover:not(:disabled) {
-  background-color: #0056b3; /* Cor um pouco mais escura no hover */
-}
-
-.search-button:disabled {
-  opacity: 0.65;
-  cursor: not-allowed;
-}
-
-.error-message {
-  color: #dc3545;
-  margin-top: 0.75rem;
-  font-size: 0.9rem;
-  text-align: center;
-}
-
-/* Spinner animation */
-.spinner {
-  border: 3px solid rgba(255, 255, 255, 0.3);
-  border-left-color: #fff;
-  border-radius: 50%;
-  width: 20px;
-  height: 20px;
-  animation: spin 1s linear infinite;
-}
-
-@keyframes spin {
-  to { transform: rotate(360deg); }
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 </style>

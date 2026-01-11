@@ -8,7 +8,8 @@ from .views import (
     IntegracaoRedesSociaisView,
     PublicRegisterView,
     MarcarNotificacaoLidaView,
-    MinhasNotificacoesView
+    MinhasNotificacoesView,
+    ConfiguracaoGlobalView
 )
 
 # Configuração do Router
@@ -24,9 +25,12 @@ urlpatterns = [
     # Rota auxiliar de estatísticas (caso o frontend chame via core)
     path('stats/', DashboardStatsView.as_view(), name='dashboard_stats_core'),
     
-    # Integrações
+    # Integrações por Tenant
     path('integracoes/redes-sociais/', IntegracaoRedesSociaisView.as_view(), name='integracoes-redes-sociais'),
     
+    # Configuração Global (Substituição .env)
+    path('configuracao-global/', ConfiguracaoGlobalView.as_view(), name='configuracao-global'),
+
     # Cadastro Público
     path('public-register/', PublicRegisterView.as_view(), name='public-register'),
     
