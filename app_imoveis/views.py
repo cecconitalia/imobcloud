@@ -3,12 +3,11 @@
 from rest_framework import viewsets, status, permissions
 from rest_framework.response import Response
 from rest_framework import filters
-from django.core.mail import send_mail
 from rest_framework.decorators import action
 from rest_framework.exceptions import PermissionDenied, ValidationError
 from rest_framework.views import APIView
 from rest_framework.generics import ListAPIView, RetrieveAPIView
-from django.db import models, transaction
+from django.db import models, transaction, OperationalError
 from django.shortcuts import get_object_or_404
 from django.http import HttpResponse, QueryDict, Http404 
 from django.template.loader import render_to_string
@@ -23,13 +22,10 @@ from decimal import Decimal, InvalidOperation
 import json
 import requests
 import google.generativeai as genai
+from google.api_core import exceptions as google_exceptions
 import os
 from django.conf import settings
-from django.db.models.fields import DecimalField, IntegerField, CharField, BooleanField
-
-from rest_framework.request import Request as DRFRequest
-from django.test import RequestFactory
-
+from django.core.mail import send_mail
 
 from .models import Imovel, ImagemImovel, ContatoImovel
 from .serializers import (
@@ -51,7 +47,6 @@ from core.serializers import ImobiliariaPublicSerializer
 class ImovelPublicListView(ListAPIView):
     serializer_class = ImovelPublicSerializer
     permission_classes = [permissions.AllowAny]
-    # Mantém a correção da paginação para o site
     pagination_class = None
 
     def get_queryset(self):
@@ -67,6 +62,7 @@ class ImovelPublicListView(ListAPIView):
         aceita_pet = self.request.query_params.get('aceita_pet', None)
         mobiliado = self.request.query_params.get('mobiliado', None)
         piscina = self.request.query_params.get('piscina', None)
+        search = self.request.query_params.get('search', None) 
 
         imobiliaria_obj = None
 
@@ -95,23 +91,31 @@ class ImovelPublicListView(ListAPIView):
              else:
                  base_queryset = base_queryset.filter(status=status_param)
 
+        # Filtros
+        if search:
+            base_queryset = base_queryset.filter(
+                Q(titulo_anuncio__icontains=search) |
+                Q(descricao__icontains=search) |
+                Q(cidade__icontains=search) |
+                Q(bairro__icontains=search) |
+                Q(codigo_referencia__icontains=search)
+            )
+
         if finalidade: base_queryset = base_queryset.filter(finalidade=finalidade)
         if tipo: base_queryset = base_queryset.filter(tipo=tipo)
         if cidade: base_queryset = base_queryset.filter(cidade__icontains=cidade)
         if valor_min:
-            q_filter = Q(valor_venda__gte=valor_min) if finalidade == 'A_VENDA' else Q(valor_aluguel__gte=valor_min)
+            q_filter = Q(valor_venda__gte=valor_min) if status_param == 'A_VENDA' else Q(valor_aluguel__gte=valor_min)
             base_queryset = base_queryset.filter(q_filter)
         if valor_max:
-            q_filter = Q(valor_venda__lte=valor_max) if finalidade == 'A_VENDA' else Q(valor_aluguel__lte=valor_max)
+            q_filter = Q(valor_venda__lte=valor_max) if status_param == 'A_VENDA' else Q(valor_aluguel__lte=valor_max)
             base_queryset = base_queryset.filter(q_filter)
         if quartos_min: base_queryset = base_queryset.filter(quartos__gte=quartos_min)
         if vagas_min: base_queryset = base_queryset.filter(vagas_garagem__gte=vagas_min)
         if aceita_pet: base_queryset = base_queryset.filter(aceita_pet=True)
         if mobiliado: base_queryset = base_queryset.filter(mobiliado=True)
         if piscina: base_queryset = base_queryset.filter(Q(piscina_privativa=True) | Q(piscina_condominio=True))
-        if status_param:
-             base_queryset = base_queryset.filter(status=status_param)
-
+        
         return base_queryset
 
 
@@ -138,12 +142,16 @@ class ImovelPublicDetailView(RetrieveAPIView):
 class ImovelIAView(APIView):
     permission_classes = [permissions.AllowAny]
 
-    def post(self, request, *args, **kwargs):
-        user_query = request.data.get('query')
+    def _processar_busca_ia(self, request):
+        # Tenta pegar 'query' do POST (data) ou do GET (query_params)
+        user_query = request.data.get('query') or request.query_params.get('query')
         subdomain_param = request.query_params.get('subdomain', None)
 
         if not user_query:
-            return Response({"error": "O campo 'query' é obrigatório."}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({
+                "mensagem": "Por favor, descreva o imóvel que você procura.",
+                "imoveis": []
+            }, status=status.HTTP_200_OK)
 
         imobiliaria_obj = None
         if getattr(self.request, 'tenant', None):
@@ -159,175 +167,191 @@ class ImovelIAView(APIView):
 
         if not imobiliaria_obj:
              return Response({
-                "mensagem": "Subdomínio da imobiliária não fornecido.",
+                "mensagem": "Subdomínio não fornecido.",
                 "imoveis": []
              }, status=status.HTTP_400_BAD_REQUEST)
 
-        try:
-            api_key = getattr(imobiliaria_obj, 'google_api_key', None) 
-            if not api_key:
-                api_key = os.getenv("GOOGLE_API_KEY")
+        # 1. Obter Chave
+        chave_banco = getattr(imobiliaria_obj, 'google_api_key', None)
+        chave_env = os.getenv("GOOGLE_API_KEY")
+        api_key = str(chave_banco).strip() if chave_banco else chave_env
 
-            if not api_key:
-                return Response(
-                    {"error": "Chave de API não encontrada."},
-                    status=status.HTTP_500_INTERNAL_SERVER_ERROR
-                )
-            
-            genai.configure(api_key=api_key)
-            
-            prompt_config = ModeloDePrompt.objects.get(em_uso_busca=True)
-            template_prompt = prompt_config.template_do_prompt
-        except ModeloDePrompt.DoesNotExist:
+        if not api_key:
             return Response(
-                {"error": "Nenhum modelo de prompt para busca por IA está ativo."},
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+                {"error": "Chave de API não configurada no Admin."},
+                status=status.HTTP_503_SERVICE_UNAVAILABLE
             )
         
-        prompt_final = template_prompt.replace('{{user_query}}', user_query)
-
         try:
-            model_name = 'models/gemini-flash-latest' 
-            model = genai.GenerativeModel(model_name)
-            response = model.generate_content(prompt_final)
+            genai.configure(api_key=api_key)
+            
+            # 2. Definir Prompt
+            try:
+                prompt_config = ModeloDePrompt.objects.get(em_uso_busca=True)
+                template_prompt = prompt_config.template_do_prompt
+                # Pega o modelo do banco se existir
+                preferred_model = prompt_config.modelo_api if hasattr(prompt_config, 'modelo_api') else None
+            except (ModeloDePrompt.DoesNotExist, OperationalError):
+                template_prompt = "Você é um assistente de busca de imóveis. O usuário quer: {{user_query}}"
+                preferred_model = None
+        
+        except Exception as e:
+            return Response({"error": f"Config: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        
+        json_instructions = """
+        RETORNE APENAS JSON:
+        {
+            "busca_valida": true,
+            "status": "A_VENDA" | "PARA_ALUGAR" | null,
+            "tipo": "CASA" | "APARTAMENTO" | "TERRENO" | "SALA_COMERCIAL" | null,
+            "cidade": "Nome" | null,
+            "bairro": "Nome" | null,
+            "valor_min": number | null,
+            "valor_max": number | null,
+            "quartos_min": number | null,
+            "vagas_min": number | null,
+            "mensagem_resposta": "Texto curto"
+        }
+        """
+        prompt_final = template_prompt.replace('{{user_query}}', user_query)
+        prompt_final = prompt_final.replace('{{imovel_data}}', '') 
+        prompt_final += json_instructions
 
-            if not response.parts:
-                 raise ValueError("Resposta inesperada da IA.")
+        search_params = {}
+        last_error = ""
 
-            json_text_raw = response.parts[0].text
-            json_text = json_text_raw.strip().lstrip('```json').rstrip('```').strip()
-            search_params = json.loads(json_text)
+        # 3. Lista de Modelos para Tentar (Fallback em cascata)
+        # Tenta com e sem prefixo 'models/' para máxima compatibilidade
+        models_to_try = []
+        if preferred_model:
+            models_to_try.append(preferred_model)
+            if not preferred_model.startswith('models/'):
+                models_to_try.append(f"models/{preferred_model}")
+        
+        # Adiciona modelos padrão conhecidos por funcionar
+        defaults = ['models/gemini-2.0-flash', 'gemini-2.0-flash', 'models/gemini-1.5-flash', 'gemini-1.5-flash', 'models/gemini-pro']
+        for m in defaults:
+            if m not in models_to_try:
+                models_to_try.append(m)
 
-        except json.JSONDecodeError as json_err:
+        def try_generate(model_tag):
+            print(f"DEBUG IA: Tentando {model_tag}...")
+            model = genai.GenerativeModel(model_tag)
+            # Tenta forçar JSON mode se suportado
+            try:
+                response = model.generate_content(prompt_final, generation_config={"response_mime_type": "application/json"})
+            except:
+                # Se falhar (ex: modelo antigo não suporta json mode), tenta normal
+                response = model.generate_content(prompt_final)
+                
+            if not response.parts: raise ValueError("Resposta vazia")
+            return response.parts[0].text
+
+        json_text_raw = None
+        
+        # Loop de Tentativas
+        for model_name in models_to_try:
+            try:
+                json_text_raw = try_generate(model_name)
+                print(f"SUCESSO com modelo: {model_name}")
+                break # Se funcionar, para o loop
+            except Exception as e:
+                last_error = str(e)
+                print(f"FALHA com {model_name}: {e}")
+                continue
+
+        if not json_text_raw:
+             # Retorna o erro detalhado da última tentativa para debug no frontend
              return Response(
-                 {"error": f"A IA retornou uma resposta em formato inválido. Tente novamente."},
+                 {"error": f"Falha na IA. Último erro: {last_error}"}, 
                  status=status.HTTP_503_SERVICE_UNAVAILABLE
              )
-        except Exception as e:
-            if "is not found" in str(e) or "is not supported" in str(e):
-                 error_message = f"O modelo de IA '{model_name}' não está disponível. Tente outro modelo ou verifique sua API Key. ({e})"
-            else:
-                 error_message = f"Não consegui interpretar a sua pesquisa. Tente ser mais específico. ({e})"
-            return Response({"error": error_message}, status=status.HTTP_503_SERVICE_UNAVAILABLE)
 
+        try:
+            json_text = json_text_raw.strip()
+            # Limpeza manual de markdown
+            if "```json" in json_text:
+                json_text = json_text.split("```json")[1].split("```")[0].strip()
+            elif "```" in json_text:
+                json_text = json_text.split("```")[1].split("```")[0].strip()
+            
+            search_params = json.loads(json_text)
+
+        except json.JSONDecodeError:
+             return Response({
+                 "mensagem": "Não consegui entender. Tente simplificar.",
+                 "imoveis": []
+             }, status=status.HTTP_200_OK)
+
+        # === FILTRAGEM SQL ===
         base_queryset = Imovel.objects.filter(
             imobiliaria=imobiliaria_obj,
             publicado_no_site=True
         ).exclude(status=Imovel.Status.DESATIVADO)
 
-        if search_params.get('busca_valida') == False:
-            mensagem_vaga = search_params.get('mensagem_resposta', "Não consegui identificar parâmetros de busca válidos.")
+        if search_params.get('busca_valida') is False:
             return Response({
-                 "mensagem": mensagem_vaga,
+                 "mensagem": search_params.get('mensagem_resposta', "Não entendi sua busca."),
                  "imoveis": []
             }, status=status.HTTP_200_OK)
         
-        status_filtro_ia = search_params.get('status')
-        if status_filtro_ia and status_filtro_ia in Imovel.Status.values:
-             base_queryset = base_queryset.filter(status=status_filtro_ia)
+        status_ia = search_params.get('status')
+        if status_ia:
+             status_map = { 'A_VENDA': 'A_VENDA', 'VENDA': 'A_VENDA', 'PARA_ALUGAR': 'PARA_ALUGAR', 'ALUGUEL': 'PARA_ALUGAR' }
+             db_status = status_map.get(status_ia.upper())
+             if db_status: base_queryset = base_queryset.filter(status=db_status)
 
-        finalidade_param = search_params.get('finalidade')
-        if finalidade_param and finalidade_param in Imovel.Finalidade.values:
-            base_queryset = base_queryset.filter(finalidade=finalidade_param)
+        tipo_ia = search_params.get('tipo')
+        if tipo_ia:
+            tipo_upper = tipo_ia.upper().replace(' ', '_')
+            if tipo_upper in Imovel.Tipo.values:
+                base_queryset = base_queryset.filter(tipo=tipo_upper)
 
-        tipo_param = search_params.get('tipo')
-        if tipo_param:
-            tipo_param = tipo_param.upper()
-            if hasattr(Imovel.TipoImovel, tipo_param):
-                base_queryset = base_queryset.filter(tipo=tipo_param)
+        cidade_ia = search_params.get('cidade')
+        if cidade_ia: base_queryset = base_queryset.filter(cidade__icontains=cidade_ia)
 
-        cidade_param = search_params.get('cidade')
-        if cidade_param and isinstance(cidade_param, str):
-            base_queryset = base_queryset.filter(cidade__icontains=cidade_param)
+        bairro_ia = search_params.get('bairro')
+        if bairro_ia: base_queryset = base_queryset.filter(bairro__icontains=bairro_ia)
 
-        bairro_param = search_params.get('bairro')
-        if bairro_param and isinstance(bairro_param, str):
-            base_queryset = base_queryset.filter(bairro__icontains=bairro_param)
-
-        if 'valor_min' in search_params and search_params['valor_min'] is not None:
-            try:
-                valor_min_decimal = Decimal(str(search_params['valor_min']))
-                q_filter_min = Q(valor_venda__gte=valor_min_decimal) if status_filtro_ia == Imovel.Status.A_VENDA else Q(valor_aluguel__gte=valor_min_decimal)
-                if not status_filtro_ia: 
-                    q_filter_min = Q(valor_venda__gte=valor_min_decimal) | Q(valor_aluguel__gte=valor_min_decimal)
-                base_queryset = base_queryset.filter(q_filter_min)
-            except (ValueError, TypeError, InvalidOperation):
-                 pass 
-
-        if 'valor_max' in search_params and search_params['valor_max'] is not None:
-            try:
-                 valor_max_decimal = Decimal(str(search_params['valor_max']))
-                 q_filter_max = Q(valor_venda__lte=valor_max_decimal) if status_filtro_ia == Imovel.Status.A_VENDA else Q(valor_aluguel__lte=valor_max_decimal)
-                 if not status_filtro_ia:
-                      q_filter_max = Q(valor_venda__lte=valor_max_decimal) | Q(valor_aluguel__lte=valor_max_decimal)
-                 base_queryset = base_queryset.filter(q_filter_max)
-            except (ValueError, TypeError, InvalidOperation):
-                 pass 
-
-        def apply_int_filter(param_name, field_name):
-            val = search_params.get(param_name)
-            if val is not None:
-                try:
-                    val_int = int(val)
-                    if val_int >= 0:
-                        kwargs = {f"{field_name}__gte": val_int}
-                        return Q(**kwargs)
-                except (ValueError, TypeError):
-                    pass
-            return None
-
-        q_quartos = apply_int_filter('quartos_min', 'quartos')
-        if q_quartos: base_queryset = base_queryset.filter(q_quartos)
-
-        q_vagas = apply_int_filter('vagas_min', 'vagas_garagem')
-        if q_vagas: base_queryset = base_queryset.filter(q_vagas)
+        valor_min = search_params.get('valor_min')
+        valor_max = search_params.get('valor_max')
         
-        q_banheiros = apply_int_filter('banheiros_min', 'banheiros')
-        if q_banheiros: base_queryset = base_queryset.filter(q_banheiros)
-        
-        q_suites = apply_int_filter('suites_min', 'suites')
-        if q_suites: base_queryset = base_queryset.filter(q_suites)
+        if valor_min or valor_max:
+            qs_venda = Q()
+            qs_aluguel = Q()
+            if valor_min:
+                qs_venda &= Q(valor_venda__gte=valor_min)
+                qs_aluguel &= Q(valor_aluguel__gte=valor_min)
+            if valor_max:
+                qs_venda &= Q(valor_venda__lte=valor_max)
+                qs_aluguel &= Q(valor_aluguel__lte=valor_max)
 
-        q_andar = apply_int_filter('andar_min', 'andar')
-        if q_andar: base_queryset = base_queryset.filter(q_andar)
+            if status_ia == 'A_VENDA': base_queryset = base_queryset.filter(qs_venda)
+            elif status_ia == 'PARA_ALUGAR': base_queryset = base_queryset.filter(qs_aluguel)
+            else: base_queryset = base_queryset.filter(qs_venda | qs_aluguel)
 
-        area_min_ia = search_params.get('area_min')
-        if area_min_ia is not None:
-            try:
-                 area_val = Decimal(str(area_min_ia))
-                 if area_val > 0:
-                      base_queryset = base_queryset.filter(
-                           Q(area_util__gte=area_val) | 
-                           Q(area_construida__gte=area_val)
-                      )
-            except (ValueError, TypeError, InvalidOperation):
-                 pass
-
-        features_map = {
-            'aceita_pet': 'aceita_pet',
-            'mobiliado': 'mobiliado',
-            'piscina': None,
-            'ar_condicionado': 'ar_condicionado',
-            'salao_festas': 'salao_festas',
-            'elevador': 'elevador'
-        }
-
-        for json_key, model_field in features_map.items():
-            if search_params.get(json_key) is True:
-                if json_key == 'piscina':
-                    base_queryset = base_queryset.filter(Q(piscina_privativa=True) | Q(piscina_condominio=True))
-                elif model_field:
-                    base_queryset = base_queryset.filter(**{model_field: True})
+        if search_params.get('quartos_min'): base_queryset = base_queryset.filter(quartos__gte=search_params['quartos_min'])
+        if search_params.get('vagas_min'): base_queryset = base_queryset.filter(vagas_garagem__gte=search_params['vagas_min'])
+        if search_params.get('piscina'): base_queryset = base_queryset.filter(Q(piscina_privativa=True) | Q(piscina_condominio=True))
+        if search_params.get('aceita_pet'): base_queryset = base_queryset.filter(aceita_pet=True)
+        if search_params.get('mobiliado'): base_queryset = base_queryset.filter(mobiliado=True)
 
         serializer = ImovelPublicSerializer(base_queryset, many=True)
-        mensagem_resposta = search_params.get('mensagem_resposta', "Resultados da sua pesquisa com IA.")
+        
+        mensagem_resposta = search_params.get('mensagem_resposta', "Resultados da busca:")
         if not base_queryset.exists():
-            mensagem_resposta = "Não encontrei nenhum imóvel que corresponda exatamente à sua procura. Tente simplificar a pesquisa."
+            mensagem_resposta += f" (Nenhum imóvel encontrado. Filtros: {cidade_ia or 'Qualquer cidade'}, {status_ia or 'Qualquer status'})"
 
         return Response({
             "mensagem": mensagem_resposta,
             "imoveis": serializer.data
         }, status=status.HTTP_200_OK)
+
+    def post(self, request, *args, **kwargs):
+        return self._processar_busca_ia(request)
+
+    def get(self, request, *args, **kwargs):
+        return self._processar_busca_ia(request)
 
 
 # ===================================================================
@@ -350,7 +374,6 @@ class ImovelViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         user = self.request.user
         
-        # Lógica de fallback para Tenant
         tenant = getattr(self.request, 'tenant', None)
         if not tenant and hasattr(user, 'imobiliaria'):
             tenant = user.imobiliaria
@@ -493,7 +516,8 @@ class ImovelViewSet(viewsets.ModelViewSet):
 
         return "\n".join(contexto)
 
-    @action(detail=True, methods=['post'], url_path='gerar-descricao-ia')
+    # CORREÇÃO: Função renomeada para snake_case
+    @action(detail=True, methods=['post', 'get'], url_path='gerar-descricao-ia')
     def gerar_descricao_ia(self, request, pk=None):
         try:
             imovel = self.get_object()
@@ -501,12 +525,8 @@ class ImovelViewSet(viewsets.ModelViewSet):
              return Response({"error": f"Imóvel não encontrado: {e}"}, status=status.HTTP_404_NOT_FOUND)
 
         try:
-            # Tenta pegar a chave do campo 'google_api_key' da imobiliária do imóvel
-            # Se o nome do campo for diferente no seu modelo, ajuste 'google_api_key' aqui
             api_key = getattr(imovel.imobiliaria, 'google_api_key', None)
-
             if not api_key:
-                # Fallback: Tenta pegar das variáveis de ambiente
                 api_key = os.getenv("GOOGLE_API_KEY")
 
             if not api_key:
@@ -517,35 +537,48 @@ class ImovelViewSet(viewsets.ModelViewSet):
             
             genai.configure(api_key=api_key)
 
-            prompt_config = ModeloDePrompt.objects.get(em_uso_descricao=True)
-            template_prompt = prompt_config.template_do_prompt
-        except ModeloDePrompt.DoesNotExist:
-            return Response(
-                {"error": "Nenhum modelo de prompt para 'Geração de Descrição' está ativo no sistema."},
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR
-            )
+            # Modelo Padrão: Gemini 2.0 Flash
+            model_name = 'gemini-2.0-flash'
+            
+            try:
+                prompt_config = ModeloDePrompt.objects.get(em_uso_descricao=True)
+                template_prompt = prompt_config.template_do_prompt
+                
+                if hasattr(prompt_config, 'modelo_api') and prompt_config.modelo_api:
+                    model_name = prompt_config.modelo_api.replace("models/", "")
+            except Exception:
+                # Se não tem prompt configurado, usa padrão (mas não quebra)
+                return Response(
+                    {"error": "Nenhum modelo de prompt para 'Geração de Descrição' está ativo."},
+                    status=status.HTTP_500_INTERNAL_SERVER_ERROR
+                )
         
-        voz_da_marca_obj = imovel.imobiliaria.voz_da_marca_preferida
-        if voz_da_marca_obj:
-            voz_da_marca = str(voz_da_marca_obj)
-        else:
-            voz_da_marca = "um tom profissional e convidativo"
-        
-        imovel_data = self._get_imovel_contexto_para_ia(imovel)
-        
-        prompt_final = template_prompt.replace('{{imovel_data}}', imovel_data)
-        prompt_final = prompt_final.replace('{{voz_da_marca}}', voz_da_marca)
+            voz_da_marca_obj = imovel.imobiliaria.voz_da_marca_preferida
+            voz_da_marca = str(voz_da_marca_obj) if voz_da_marca_obj else "um tom profissional e convidativo"
+            
+            imovel_data = self._get_imovel_contexto_para_ia(imovel)
+            
+            prompt_final = template_prompt.replace('{{imovel_data}}', imovel_data)
+            prompt_final = prompt_final.replace('{{voz_da_marca}}', voz_da_marca)
 
-        try:
-            model_name = 'models/gemini-flash-latest'
-            model = genai.GenerativeModel(model_name)
-            generation_config = genai.types.GenerationConfig(temperature=0.7)
-            response = model.generate_content(prompt_final, generation_config=generation_config)
+            # Lógica de Retry com fallback de modelos
+            generated_text = None
+            models_to_try = [model_name, 'gemini-2.0-flash', 'gemini-1.5-flash']
+            
+            for m_tag in models_to_try:
+                try:
+                    model = genai.GenerativeModel(m_tag)
+                    response = model.generate_content(prompt_final)
+                    if response.parts:
+                        generated_text = response.parts[0].text
+                        break
+                except Exception as e:
+                    print(f"Erro ao gerar descrição com {m_tag}: {e}")
+                    continue
 
-            if not response.parts:
-                 raise ValueError("Resposta inesperada da IA.")
+            if not generated_text:
+                 raise ValueError("Todos os modelos falharam ao gerar a descrição.")
 
-            generated_text = response.parts[0].text
             generated_text = generated_text.strip().lstrip('```markdown').lstrip('```').rstrip('```').strip()
             
             prefixo = 'título sugerido:'
@@ -559,7 +592,6 @@ class ImovelViewSet(viewsets.ModelViewSet):
             return Response({'descricao': generated_text}, status=status.HTTP_200_OK)
 
         except Exception as e:
-            print(f"DEBUG: Erro na API do Google Gemini durante a geração de descrição: {e}")
             return Response({"error": f"Erro ao comunicar com a IA: {e}"}, status=status.HTTP_503_SERVICE_UNAVAILABLE)
 
 

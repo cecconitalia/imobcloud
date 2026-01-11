@@ -28,7 +28,24 @@ class OpcaoVozDaMarca(models.Model):
 
 
 class ModeloDePrompt(models.Model):
+    # Definição das opções de modelo para aparecer no Admin
+    MODELO_CHOICES = [
+        ('gemini-1.5-flash', 'Rápido (Gemini 1.5 Flash)'),
+        ('gemini-1.5-pro', 'Pro (Gemini 1.5 Pro)'),
+        ('gemini-2.0-flash-thinking-exp-01-21', 'Raciocínio (Gemini 2.0 Flash Thinking)'),
+    ]
+
     nome_do_modelo = models.CharField(max_length=100, unique=True, verbose_name="Nome de Identificação")
+    
+    # Campo novo para selecionar o modelo
+    modelo_api = models.CharField(
+        max_length=50, 
+        choices=MODELO_CHOICES, 
+        default='gemini-1.5-flash',
+        verbose_name="Modelo de IA",
+        help_text="Selecione a inteligência por trás deste prompt."
+    )
+
     template_do_prompt = models.TextField(
         help_text="O texto do prompt. Use {{user_query}} para busca ou {{imovel_data}} para descrição."
     )
@@ -47,7 +64,8 @@ class ModeloDePrompt(models.Model):
     data_atualizacao = models.DateTimeField(auto_now=True)
 
     def __str__(self):
-        return self.nome_do_modelo
+        # Mostra o nome do modelo junto com o nome do prompt na lista
+        return f"{self.nome_do_modelo} ({self.get_modelo_api_display()})"
 
     class Meta:
         verbose_name = "Modelo de Prompt de IA"

@@ -234,7 +234,8 @@ const fetchClientes = async () => {
         telefone: item.telefone || item.celular || '',
         perfil_cliente: item.perfil_cliente || [],
         ativo: item.ativo,
-        data_criacao: item.data_criacao || item.created_at || item.date_joined || item.criado_em || null
+        // CORREÇÃO: Adicionado item.data_cadastro na lista de prioridades
+        data_criacao: item.data_cadastro || item.data_criacao || item.created_at || item.date_joined || item.criado_em || null
     }));
     filterList();
   } catch (error) {

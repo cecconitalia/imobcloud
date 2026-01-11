@@ -336,16 +336,17 @@ const formPagamento = reactive({
     conta: null as number | null
 });
 
+// ALTERAÇÃO: Inicializando com Status PENDENTE
 const filters = ref<Filters>({
-    status: '',
+    status: 'PENDENTE', 
     data_vencimento_inicio: '',
     data_vencimento_fim: '',
     cliente_search: '',
     cliente_id: null,
 });
 
-// --- Ordenação (Novo) ---
-const ordenacao = ref('-data_vencimento'); 
+// --- Ordenação (Padrão Crescente) ---
+const ordenacao = ref('data_vencimento'); 
 
 // --- Formatters ---
 const formatarValor = (valor: number | null | undefined): string => {
@@ -462,16 +463,17 @@ const setQuickFilter = (period: 'currentMonth' | 'next30Days') => {
         endDate = addDays(today, 30);
     }
 
-    filters.value.status = '';
+    filters.value.status = 'PENDENTE'; // Mantém o foco em pendentes no filtro rápido
     filters.value.data_vencimento_inicio = format(startDate, apiDateFormat);
     filters.value.data_vencimento_fim = format(endDate, apiDateFormat);
 
     fetchData(true);
 };
 
+// ALTERAÇÃO: ResetFilters volta para PENDENTE
 const resetFilters = () => {
     filters.value = {
-        status: '',
+        status: 'PENDENTE', 
         data_vencimento_inicio: '',
         data_vencimento_fim: '',
         cliente_search: '',
@@ -528,7 +530,8 @@ async function fetchAuxiliaryData() {
 }
 
 onMounted(() => {
-  resetFilters();
+  // Chamamos fetchData diretamente no onMounted, que usará o estado inicial (PENDENTE)
+  fetchData(false);
   fetchAuxiliaryData();
 });
 </script>

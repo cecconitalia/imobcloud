@@ -75,13 +75,9 @@ declare module 'vue-router' {
 }
 
 const router = createRouter({
-    // CORREÇÃO CRÍTICA AQUI:
-    // Usamos '/' explicitamente para garantir que a navegação ocorra na raiz,
-    // ignorando o base '/static/' configurado no vite.config.ts (que serve apenas para carregar arquivos).
     history: createWebHistory('/'),
     routes: [
-        // --- 1. ROTA RAIZ (HOME PÚBLICA) ---
-        // IMPORTANTE: Definida primeiro. Se a URL for exatamente "/", carrega isso.
+        // --- 1. ROTA RAIZ (HOME PÚBLICA / SAAS) ---
         {
             path: '/',
             name: 'public-home',
@@ -89,6 +85,21 @@ const router = createRouter({
             meta: { 
                 title: 'Início - ImobHome',
                 requiresAuth: false
+            },
+            beforeEnter: (to, from, next) => {
+                // Se estiver num subdomínio (ex: teste.imobhome.com.br), redireciona para /site
+                // para carregar o layout da agência corretamente.
+                const hostname = window.location.hostname;
+                const isSubdomain = hostname.split('.').length > 1 && !hostname.startsWith('www') && !hostname.startsWith('localhost');
+                
+                // Exceção especial para teste.localhost
+                const isLocalhostTest = hostname === 'teste.localhost';
+
+                if (isSubdomain || isLocalhostTest) {
+                    next('/site');
+                } else {
+                    next();
+                }
             }
         },
 
@@ -133,8 +144,6 @@ const router = createRouter({
         },
 
         // --- 4. PAINEL DE GESTÃO (SEM PREFIXO /PAINEL) ---
-        // Também usa path: '/', mas só será ativado se corresponder a uma das rotas filhas.
-        // Ex: /dashboard, /imoveis, etc.
         {
             path: '/', 
             component: DashboardLayout,
@@ -142,7 +151,7 @@ const router = createRouter({
             children: [
                 {
                     path: '', 
-                    redirect: '/dashboard' // Se cair no vazio (após login), joga pro dashboard
+                    redirect: '/dashboard'
                 },
                 {
                     path: 'dashboard',
@@ -489,7 +498,7 @@ const router = createRouter({
         // Rota de fallback
         {
             path: '/:pathMatch(.*)*',
-            redirect: '/' // Redireciona para a Home Pública
+            redirect: '/'
         }
     ]
 })
@@ -531,13 +540,10 @@ router.beforeEach((to, from, next) => {
 
     // --- LÓGICA DE PROTEÇÃO DE ROTAS ---
     if (requiresAuth && !isAuthenticated) {
-        // Se tenta acessar rota protegida (ex: /dashboard) sem login -> Login
         next({ name: 'login' });
     } else if (to.name === 'login' && isAuthenticated) {
-        // Se já está logado e tenta ir para Login -> Dashboard
         next({ name: 'dashboard' });
     } else if (isAuthenticated && to.meta.isAdmin) {
-        // Proteção de rotas Admin
         if (currentCargo === 'ADMIN' || currentCargo === 'SUPERADMIN') {
             next();
         } else {
@@ -545,7 +551,6 @@ router.beforeEach((to, from, next) => {
             next({ name: 'dashboard' });
         }
     } else {
-        // Rotas públicas (como /, /login, /site) passam direto
         next();
     }
 });

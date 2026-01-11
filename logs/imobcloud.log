@@ -9361,3 +9361,747 @@ WARNING 2026-01-10 18:17:21,993 log 8 123525681179520 Not Found: /api/v1/finance
 WARNING 2026-01-10 18:17:33,558 log 8 123525681179520 Not Found: /api/v1/financeiro/transacoes/a-pagar/
 WARNING 2026-01-10 18:18:01,383 log 8 123525681179520 Not Found: /api/v1/financeiro/transacoes/a-receber/
 WARNING 2026-01-10 18:18:09,215 log 8 123525681179520 Not Found: /api/v1/financeiro/transacoes/a-pagar/
+WARNING 2026-01-11 08:12:55,718 log 9 125045410360192 Unauthorized: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2026-01-11 08:12:56,086 log 9 125045410360192 Unauthorized: /api/v1/stats/
+WARNING 2026-01-11 08:12:56,329 log 9 125045410360192 Unauthorized: /api/v1/financeiro/transacoes/stats/
+WARNING 2026-01-11 08:13:02,879 log 7 125045410360192 Unauthorized: /api/v1/core/usuarios/me/
+WARNING 2026-01-11 08:13:03,039 log 9 125045410360192 Unauthorized: /api/v1/core/usuarios/me/
+WARNING 2026-01-11 08:13:08,402 log 8 125045410360192 Unauthorized: /api/v1/alugueis/dashboard-stats/
+WARNING 2026-01-11 12:18:29,102 log 7 125045410360192 Unauthorized: /api/v1/core/usuarios/me/
+WARNING 2026-01-11 12:18:31,271 log 7 125045410360192 Unauthorized: /api/v1/financeiro/transacoes/stats/
+WARNING 2026-01-11 12:18:31,403 log 7 125045410360192 Unauthorized: /api/v1/alugueis/dashboard-stats/
+WARNING 2026-01-11 12:18:31,528 log 7 125045410360192 Unauthorized: /api/v1/core/usuarios/me/
+WARNING 2026-01-11 12:18:31,615 log 9 125045410360192 Unauthorized: /api/v1/stats/
+WARNING 2026-01-11 12:18:31,689 log 8 125045410360192 Unauthorized: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2026-01-11 12:37:28,929 log 7 133514403851136 Bad Request: /api/v1/vistorias/fotos/
+WARNING 2026-01-11 12:38:49,723 util 7 133514403851136 getSize: Not a float '33%'
+WARNING 2026-01-11 12:40:13,951 util 8 133514403851136 getSize: Not a float '33%'
+WARNING 2026-01-11 12:55:00,921 utils 9 127356902538112 Could not reverse url from auth.user
+WARNING 2026-01-11 12:55:00,932 utils 9 127356902538112 Could not reverse url from auth.user
+WARNING 2026-01-11 12:55:00,991 utils 9 127356902538112 Could not reverse url from auth.user
+WARNING 2026-01-11 12:55:00,993 utils 9 127356902538112 Could not reverse url from auth.user
+WARNING 2026-01-11 12:55:00,999 utils 9 127356902538112 Could not reverse url from auth.user
+WARNING 2026-01-11 12:55:06,925 utils 7 123859298016128 Could not reverse url from auth.user
+WARNING 2026-01-11 12:55:06,949 utils 7 123859298016128 Could not reverse url from auth.user
+WARNING 2026-01-11 12:55:06,959 utils 7 123859298016128 Could not reverse url from auth.user
+WARNING 2026-01-11 12:55:06,961 utils 7 123859298016128 Could not reverse url from auth.user
+WARNING 2026-01-11 12:55:06,967 utils 7 123859298016128 Could not reverse url from auth.user
+WARNING 2026-01-11 12:55:09,926 utils 7 123859298016128 Could not reverse url from auth.user
+WARNING 2026-01-11 12:55:09,930 utils 7 123859298016128 Could not reverse url from auth.user
+WARNING 2026-01-11 12:55:09,938 utils 7 123859298016128 Could not reverse url from auth.user
+WARNING 2026-01-11 12:55:09,941 utils 7 123859298016128 Could not reverse url from auth.user
+WARNING 2026-01-11 12:55:14,211 utils 8 123859298016128 Could not reverse url from auth.user
+WARNING 2026-01-11 12:55:14,215 utils 8 123859298016128 Could not reverse url from auth.user
+WARNING 2026-01-11 12:55:14,223 utils 8 123859298016128 Could not reverse url from auth.user
+WARNING 2026-01-11 12:55:14,226 utils 8 123859298016128 Could not reverse url from auth.user
+WARNING 2026-01-11 12:55:14,233 utils 8 123859298016128 Could not reverse url from auth.user
+WARNING 2026-01-11 12:55:24,886 utils 7 123859298016128 Could not reverse url from auth.user
+WARNING 2026-01-11 12:55:24,897 utils 7 123859298016128 Could not reverse url from auth.user
+WARNING 2026-01-11 12:55:24,905 utils 7 123859298016128 Could not reverse url from auth.user
+WARNING 2026-01-11 12:55:24,908 utils 7 123859298016128 Could not reverse url from auth.user
+ERROR 2026-01-11 12:59:32,039 log 8 136928923900800 Internal Server Error: /public/imoveis/busca-ia/
+ERROR 2026-01-11 12:59:36,419 log 6 136928923900800 Internal Server Error: /public/imoveis/busca-ia/
+WARNING 2026-01-11 13:00:10,675 utils 6 136928923900800 Could not reverse url from auth.user
+WARNING 2026-01-11 13:00:10,684 utils 6 136928923900800 Could not reverse url from auth.user
+WARNING 2026-01-11 13:00:10,691 utils 6 136928923900800 Could not reverse url from auth.user
+WARNING 2026-01-11 13:00:10,694 utils 6 136928923900800 Could not reverse url from auth.user
+WARNING 2026-01-11 13:00:12,950 utils 6 136928923900800 Could not reverse url from auth.user
+WARNING 2026-01-11 13:00:12,952 utils 6 136928923900800 Could not reverse url from auth.user
+WARNING 2026-01-11 13:00:12,960 utils 6 136928923900800 Could not reverse url from auth.user
+WARNING 2026-01-11 13:00:12,962 utils 6 136928923900800 Could not reverse url from auth.user
+WARNING 2026-01-11 13:00:12,968 utils 6 136928923900800 Could not reverse url from auth.user
+WARNING 2026-01-11 13:02:20,334 utils 7 136928923900800 Could not reverse url from auth.user
+WARNING 2026-01-11 13:02:20,340 utils 7 136928923900800 Could not reverse url from auth.user
+WARNING 2026-01-11 13:02:20,353 utils 7 136928923900800 Could not reverse url from auth.user
+WARNING 2026-01-11 13:02:20,357 utils 7 136928923900800 Could not reverse url from auth.user
+WARNING 2026-01-11 13:02:20,372 utils 7 136928923900800 Could not reverse url from auth.user
+WARNING 2026-01-11 13:02:29,722 utils 8 136928923900800 Could not reverse url from auth.user
+WARNING 2026-01-11 13:02:29,726 utils 8 136928923900800 Could not reverse url from auth.user
+WARNING 2026-01-11 13:02:29,735 utils 8 136928923900800 Could not reverse url from auth.user
+WARNING 2026-01-11 13:02:29,738 utils 8 136928923900800 Could not reverse url from auth.user
+WARNING 2026-01-11 13:02:29,745 utils 8 136928923900800 Could not reverse url from auth.user
+WARNING 2026-01-11 13:03:32,731 utils 6 136928923900800 Could not reverse url from auth.user
+WARNING 2026-01-11 13:03:32,736 utils 6 136928923900800 Could not reverse url from auth.user
+WARNING 2026-01-11 13:03:32,746 utils 6 136928923900800 Could not reverse url from auth.user
+WARNING 2026-01-11 13:03:32,749 utils 6 136928923900800 Could not reverse url from auth.user
+WARNING 2026-01-11 13:03:35,834 utils 8 136928923900800 Could not reverse url from auth.user
+WARNING 2026-01-11 13:03:35,840 utils 8 136928923900800 Could not reverse url from auth.user
+WARNING 2026-01-11 13:03:35,856 utils 8 136928923900800 Could not reverse url from auth.user
+WARNING 2026-01-11 13:03:35,862 utils 8 136928923900800 Could not reverse url from auth.user
+WARNING 2026-01-11 13:03:35,877 utils 8 136928923900800 Could not reverse url from auth.user
+WARNING 2026-01-11 13:03:51,205 utils 8 136928923900800 Could not reverse url from auth.user
+WARNING 2026-01-11 13:03:51,210 utils 8 136928923900800 Could not reverse url from auth.user
+WARNING 2026-01-11 13:03:51,220 utils 8 136928923900800 Could not reverse url from auth.user
+WARNING 2026-01-11 13:03:51,222 utils 8 136928923900800 Could not reverse url from auth.user
+WARNING 2026-01-11 13:03:51,230 utils 8 136928923900800 Could not reverse url from auth.user
+WARNING 2026-01-11 13:03:56,515 utils 7 136928923900800 Could not reverse url from auth.user
+WARNING 2026-01-11 13:03:56,519 utils 7 136928923900800 Could not reverse url from auth.user
+WARNING 2026-01-11 13:03:56,527 utils 7 136928923900800 Could not reverse url from auth.user
+WARNING 2026-01-11 13:03:56,528 utils 7 136928923900800 Could not reverse url from auth.user
+ERROR 2026-01-11 13:04:34,972 log 8 139017044216704 Service Unavailable: /public/imoveis/busca-ia/
+WARNING 2026-01-11 13:05:55,284 utils 10 139017044216704 Could not reverse url from auth.user
+WARNING 2026-01-11 13:05:55,293 utils 10 139017044216704 Could not reverse url from auth.user
+WARNING 2026-01-11 13:05:55,299 utils 10 139017044216704 Could not reverse url from auth.user
+WARNING 2026-01-11 13:05:55,301 utils 10 139017044216704 Could not reverse url from auth.user
+WARNING 2026-01-11 13:05:55,308 utils 10 139017044216704 Could not reverse url from auth.user
+WARNING 2026-01-11 13:20:20,916 log 9 133122431437696 Unauthorized: /api/v1/core/usuarios/minhas-notificacoes/
+ERROR 2026-01-11 13:21:45,379 log 9 140266700749696 Service Unavailable: /public/imoveis/busca-ia/
+ERROR 2026-01-11 13:22:13,310 log 8 140266700749696 Service Unavailable: /public/imoveis/busca-ia/
+WARNING 2026-01-11 13:22:51,595 utils 7 140266700749696 Could not reverse url from auth.user
+WARNING 2026-01-11 13:22:51,606 utils 7 140266700749696 Could not reverse url from auth.user
+WARNING 2026-01-11 13:22:51,616 utils 7 140266700749696 Could not reverse url from auth.user
+WARNING 2026-01-11 13:22:51,618 utils 7 140266700749696 Could not reverse url from auth.user
+WARNING 2026-01-11 13:22:55,181 utils 8 140266700749696 Could not reverse url from auth.user
+WARNING 2026-01-11 13:22:55,186 utils 8 140266700749696 Could not reverse url from auth.user
+WARNING 2026-01-11 13:22:55,194 utils 8 140266700749696 Could not reverse url from auth.user
+WARNING 2026-01-11 13:22:55,196 utils 8 140266700749696 Could not reverse url from auth.user
+WARNING 2026-01-11 13:22:55,202 utils 8 140266700749696 Could not reverse url from auth.user
+ERROR 2026-01-11 13:28:18,438 log 9 126719270812544 Service Unavailable: /public/imoveis/busca-ia/
+ERROR 2026-01-11 13:28:25,502 log 9 126719270812544 Service Unavailable: /public/imoveis/busca-ia/
+ERROR 2026-01-11 13:28:27,431 log 7 126719270812544 Service Unavailable: /public/imoveis/busca-ia/
+ERROR 2026-01-11 13:28:43,409 log 8 126719270812544 Service Unavailable: /public/imoveis/busca-ia/
+ERROR 2026-01-11 13:35:49,815 log 8 140268270046080 Service Unavailable: /public/imoveis/busca-ia/
+WARNING 2026-01-11 13:41:01,040 utils 8 133089961036672 Could not reverse url from auth.user
+WARNING 2026-01-11 13:41:01,058 utils 8 133089961036672 Could not reverse url from auth.user
+WARNING 2026-01-11 13:41:01,069 utils 8 133089961036672 Could not reverse url from auth.user
+WARNING 2026-01-11 13:41:01,072 utils 8 133089961036672 Could not reverse url from auth.user
+WARNING 2026-01-11 13:41:05,960 utils 7 133089961036672 Could not reverse url from auth.user
+WARNING 2026-01-11 13:41:05,969 utils 7 133089961036672 Could not reverse url from auth.user
+WARNING 2026-01-11 13:41:05,980 utils 7 133089961036672 Could not reverse url from auth.user
+WARNING 2026-01-11 13:41:05,983 utils 7 133089961036672 Could not reverse url from auth.user
+WARNING 2026-01-11 13:41:05,992 utils 7 133089961036672 Could not reverse url from auth.user
+WARNING 2026-01-11 13:41:23,366 utils 8 133089961036672 Could not reverse url from auth.user
+WARNING 2026-01-11 13:41:23,370 utils 8 133089961036672 Could not reverse url from auth.user
+WARNING 2026-01-11 13:41:23,378 utils 8 133089961036672 Could not reverse url from auth.user
+WARNING 2026-01-11 13:41:23,380 utils 8 133089961036672 Could not reverse url from auth.user
+WARNING 2026-01-11 13:41:33,841 utils 7 133089961036672 Could not reverse url from auth.user
+WARNING 2026-01-11 13:41:33,843 utils 7 133089961036672 Could not reverse url from auth.user
+WARNING 2026-01-11 13:41:33,851 utils 7 133089961036672 Could not reverse url from auth.user
+WARNING 2026-01-11 13:41:33,853 utils 7 133089961036672 Could not reverse url from auth.user
+WARNING 2026-01-11 13:41:33,857 utils 7 133089961036672 Could not reverse url from auth.user
+WARNING 2026-01-11 13:41:39,343 utils 7 133089961036672 Could not reverse url from auth.user
+WARNING 2026-01-11 13:41:39,346 utils 7 133089961036672 Could not reverse url from auth.user
+WARNING 2026-01-11 13:41:39,352 utils 7 133089961036672 Could not reverse url from auth.user
+WARNING 2026-01-11 13:41:39,354 utils 7 133089961036672 Could not reverse url from auth.user
+WARNING 2026-01-11 13:41:45,288 utils 9 133089961036672 Could not reverse url from auth.user
+WARNING 2026-01-11 13:41:45,293 utils 9 133089961036672 Could not reverse url from auth.user
+WARNING 2026-01-11 13:41:45,311 utils 9 133089961036672 Could not reverse url from auth.user
+WARNING 2026-01-11 13:41:45,314 utils 9 133089961036672 Could not reverse url from auth.user
+WARNING 2026-01-11 13:41:45,327 utils 9 133089961036672 Could not reverse url from auth.user
+WARNING 2026-01-11 13:41:48,791 utils 7 133089961036672 Could not reverse url from auth.user
+WARNING 2026-01-11 13:41:48,794 utils 7 133089961036672 Could not reverse url from auth.user
+WARNING 2026-01-11 13:41:48,802 utils 7 133089961036672 Could not reverse url from auth.user
+WARNING 2026-01-11 13:41:48,804 utils 7 133089961036672 Could not reverse url from auth.user
+WARNING 2026-01-11 13:41:50,755 utils 8 133089961036672 Could not reverse url from auth.user
+WARNING 2026-01-11 13:41:50,758 utils 8 133089961036672 Could not reverse url from auth.user
+WARNING 2026-01-11 13:41:50,767 utils 8 133089961036672 Could not reverse url from auth.user
+WARNING 2026-01-11 13:41:50,769 utils 8 133089961036672 Could not reverse url from auth.user
+WARNING 2026-01-11 13:41:50,775 utils 8 133089961036672 Could not reverse url from auth.user
+WARNING 2026-01-11 13:42:02,219 utils 9 133089961036672 Could not reverse url from auth.user
+WARNING 2026-01-11 13:42:02,222 utils 9 133089961036672 Could not reverse url from auth.user
+WARNING 2026-01-11 13:42:02,228 utils 9 133089961036672 Could not reverse url from auth.user
+WARNING 2026-01-11 13:42:02,230 utils 9 133089961036672 Could not reverse url from auth.user
+WARNING 2026-01-11 13:42:02,238 utils 9 133089961036672 Could not reverse url from auth.user
+WARNING 2026-01-11 13:42:29,340 utils 7 133089961036672 Could not reverse url from auth.user
+WARNING 2026-01-11 13:42:29,343 utils 7 133089961036672 Could not reverse url from auth.user
+WARNING 2026-01-11 13:42:29,349 utils 7 133089961036672 Could not reverse url from auth.user
+WARNING 2026-01-11 13:42:29,351 utils 7 133089961036672 Could not reverse url from auth.user
+WARNING 2026-01-11 13:42:30,889 utils 9 133089961036672 Could not reverse url from auth.user
+WARNING 2026-01-11 13:42:30,894 utils 9 133089961036672 Could not reverse url from auth.user
+WARNING 2026-01-11 13:42:30,900 utils 9 133089961036672 Could not reverse url from auth.user
+WARNING 2026-01-11 13:42:30,902 utils 9 133089961036672 Could not reverse url from auth.user
+WARNING 2026-01-11 13:42:30,908 utils 9 133089961036672 Could not reverse url from auth.user
+ERROR 2026-01-11 13:43:05,184 log 7 133089961036672 Service Unavailable: /public/imoveis/busca-ia/
+ERROR 2026-01-11 13:43:28,314 log 7 133089961036672 Service Unavailable: /public/imoveis/busca-ia/
+WARNING 2026-01-11 13:43:32,850 log 9 133089961036672 Method Not Allowed: /public/imoveis/busca-ia/
+WARNING 2026-01-11 13:43:33,662 log 8 133089961036672 Not Found: /favicon.ico
+WARNING 2026-01-11 13:44:19,765 utils 9 133089961036672 Could not reverse url from auth.user
+WARNING 2026-01-11 13:44:19,770 utils 9 133089961036672 Could not reverse url from auth.user
+WARNING 2026-01-11 13:44:19,777 utils 9 133089961036672 Could not reverse url from auth.user
+WARNING 2026-01-11 13:44:19,779 utils 9 133089961036672 Could not reverse url from auth.user
+WARNING 2026-01-11 13:44:19,787 utils 9 133089961036672 Could not reverse url from auth.user
+WARNING 2026-01-11 13:44:24,284 utils 7 133089961036672 Could not reverse url from auth.user
+WARNING 2026-01-11 13:44:24,287 utils 7 133089961036672 Could not reverse url from auth.user
+WARNING 2026-01-11 13:44:24,292 utils 7 133089961036672 Could not reverse url from auth.user
+WARNING 2026-01-11 13:44:24,296 utils 7 133089961036672 Could not reverse url from auth.user
+WARNING 2026-01-11 13:44:27,921 utils 7 133089961036672 Could not reverse url from auth.user
+WARNING 2026-01-11 13:44:27,928 utils 7 133089961036672 Could not reverse url from auth.user
+WARNING 2026-01-11 13:44:27,938 utils 7 133089961036672 Could not reverse url from auth.user
+WARNING 2026-01-11 13:44:27,942 utils 7 133089961036672 Could not reverse url from auth.user
+WARNING 2026-01-11 13:44:29,925 utils 7 133089961036672 Could not reverse url from auth.user
+WARNING 2026-01-11 13:44:29,928 utils 7 133089961036672 Could not reverse url from auth.user
+WARNING 2026-01-11 13:44:29,935 utils 7 133089961036672 Could not reverse url from auth.user
+WARNING 2026-01-11 13:44:29,939 utils 7 133089961036672 Could not reverse url from auth.user
+WARNING 2026-01-11 13:44:29,948 utils 7 133089961036672 Could not reverse url from auth.user
+WARNING 2026-01-11 13:44:40,236 utils 7 133089961036672 Could not reverse url from auth.user
+WARNING 2026-01-11 13:44:40,241 utils 7 133089961036672 Could not reverse url from auth.user
+WARNING 2026-01-11 13:45:09,322 utils 7 133089961036672 Could not reverse url from auth.user
+WARNING 2026-01-11 13:45:09,327 utils 7 133089961036672 Could not reverse url from auth.user
+WARNING 2026-01-11 13:45:09,338 utils 7 133089961036672 Could not reverse url from auth.user
+WARNING 2026-01-11 13:45:09,340 utils 7 133089961036672 Could not reverse url from auth.user
+WARNING 2026-01-11 13:45:11,010 utils 9 133089961036672 Could not reverse url from auth.user
+WARNING 2026-01-11 13:45:11,014 utils 9 133089961036672 Could not reverse url from auth.user
+WARNING 2026-01-11 13:45:11,022 utils 9 133089961036672 Could not reverse url from auth.user
+WARNING 2026-01-11 13:45:11,025 utils 9 133089961036672 Could not reverse url from auth.user
+WARNING 2026-01-11 13:45:15,301 utils 9 133089961036672 Could not reverse url from auth.user
+WARNING 2026-01-11 13:45:15,307 utils 9 133089961036672 Could not reverse url from auth.user
+WARNING 2026-01-11 13:45:15,318 utils 9 133089961036672 Could not reverse url from auth.user
+WARNING 2026-01-11 13:45:15,321 utils 9 133089961036672 Could not reverse url from auth.user
+WARNING 2026-01-11 13:45:15,339 utils 9 133089961036672 Could not reverse url from auth.user
+WARNING 2026-01-11 13:45:25,491 utils 7 133089961036672 Could not reverse url from auth.user
+WARNING 2026-01-11 13:45:25,495 utils 7 133089961036672 Could not reverse url from auth.user
+WARNING 2026-01-11 13:45:25,509 utils 7 133089961036672 Could not reverse url from auth.user
+WARNING 2026-01-11 13:45:25,511 utils 7 133089961036672 Could not reverse url from auth.user
+WARNING 2026-01-11 13:45:38,951 utils 8 133089961036672 Could not reverse url from auth.user
+WARNING 2026-01-11 13:45:38,956 utils 8 133089961036672 Could not reverse url from auth.user
+WARNING 2026-01-11 13:45:38,965 utils 8 133089961036672 Could not reverse url from auth.user
+WARNING 2026-01-11 13:45:38,968 utils 8 133089961036672 Could not reverse url from auth.user
+WARNING 2026-01-11 13:45:47,058 utils 8 133089961036672 Could not reverse url from auth.user
+WARNING 2026-01-11 13:45:47,062 utils 8 133089961036672 Could not reverse url from auth.user
+WARNING 2026-01-11 13:45:47,069 utils 8 133089961036672 Could not reverse url from auth.user
+WARNING 2026-01-11 13:45:47,071 utils 8 133089961036672 Could not reverse url from auth.user
+WARNING 2026-01-11 13:45:47,076 utils 8 133089961036672 Could not reverse url from auth.user
+WARNING 2026-01-11 13:51:55,274 utils 7 132894438710144 Could not reverse url from auth.user
+WARNING 2026-01-11 13:51:55,287 utils 7 132894438710144 Could not reverse url from auth.user
+WARNING 2026-01-11 13:51:55,295 utils 7 132894438710144 Could not reverse url from auth.user
+WARNING 2026-01-11 13:51:55,297 utils 7 132894438710144 Could not reverse url from auth.user
+WARNING 2026-01-11 13:51:55,303 utils 7 132894438710144 Could not reverse url from auth.user
+WARNING 2026-01-11 13:52:03,078 utils 7 132894438710144 Could not reverse url from auth.user
+WARNING 2026-01-11 13:52:03,083 utils 7 132894438710144 Could not reverse url from auth.user
+WARNING 2026-01-11 13:52:03,092 utils 7 132894438710144 Could not reverse url from auth.user
+WARNING 2026-01-11 13:52:03,094 utils 7 132894438710144 Could not reverse url from auth.user
+WARNING 2026-01-11 13:52:09,842 utils 9 132894438710144 Could not reverse url from auth.user
+WARNING 2026-01-11 13:52:09,846 utils 9 132894438710144 Could not reverse url from auth.user
+WARNING 2026-01-11 13:52:09,854 utils 9 132894438710144 Could not reverse url from auth.user
+WARNING 2026-01-11 13:52:09,858 utils 9 132894438710144 Could not reverse url from auth.user
+WARNING 2026-01-11 13:52:13,927 base 7 132894438710144 Method Not Allowed (GET): /admin/logout/
+WARNING 2026-01-11 13:52:13,928 log 7 132894438710144 Method Not Allowed: /admin/logout/
+WARNING 2026-01-11 13:52:16,209 base 8 132894438710144 Method Not Allowed (GET): /admin/logout/
+WARNING 2026-01-11 13:52:16,210 log 8 132894438710144 Method Not Allowed: /admin/logout/
+WARNING 2026-01-11 13:52:18,609 utils 8 132894438710144 Could not reverse url from auth.user
+WARNING 2026-01-11 13:52:18,612 utils 8 132894438710144 Could not reverse url from auth.user
+WARNING 2026-01-11 13:52:18,620 utils 8 132894438710144 Could not reverse url from auth.user
+WARNING 2026-01-11 13:52:18,623 utils 8 132894438710144 Could not reverse url from auth.user
+WARNING 2026-01-11 13:52:18,630 utils 8 132894438710144 Could not reverse url from auth.user
+WARNING 2026-01-11 13:52:20,925 utils 7 132894438710144 Could not reverse url from auth.user
+WARNING 2026-01-11 13:52:20,929 utils 7 132894438710144 Could not reverse url from auth.user
+WARNING 2026-01-11 13:52:20,936 utils 7 132894438710144 Could not reverse url from auth.user
+WARNING 2026-01-11 13:52:20,938 utils 7 132894438710144 Could not reverse url from auth.user
+WARNING 2026-01-11 13:52:20,942 utils 7 132894438710144 Could not reverse url from auth.user
+WARNING 2026-01-11 13:52:22,431 utils 9 132894438710144 Could not reverse url from auth.user
+WARNING 2026-01-11 13:52:22,435 utils 9 132894438710144 Could not reverse url from auth.user
+WARNING 2026-01-11 13:52:22,448 utils 9 132894438710144 Could not reverse url from auth.user
+WARNING 2026-01-11 13:52:22,451 utils 9 132894438710144 Could not reverse url from auth.user
+WARNING 2026-01-11 13:52:22,467 utils 9 132894438710144 Could not reverse url from auth.user
+WARNING 2026-01-11 13:52:22,849 utils 7 132894438710144 Could not reverse url from auth.user
+WARNING 2026-01-11 13:52:22,852 utils 7 132894438710144 Could not reverse url from auth.user
+WARNING 2026-01-11 13:52:22,864 utils 7 132894438710144 Could not reverse url from auth.user
+WARNING 2026-01-11 13:52:22,867 utils 7 132894438710144 Could not reverse url from auth.user
+WARNING 2026-01-11 13:52:22,879 utils 7 132894438710144 Could not reverse url from auth.user
+WARNING 2026-01-11 13:52:26,643 base 9 132894438710144 Method Not Allowed (GET): /admin/logout/
+WARNING 2026-01-11 13:52:26,644 log 9 132894438710144 Method Not Allowed: /admin/logout/
+WARNING 2026-01-11 13:52:30,531 utils 8 132894438710144 Could not reverse url from auth.user
+WARNING 2026-01-11 13:52:30,547 utils 8 132894438710144 Could not reverse url from auth.user
+WARNING 2026-01-11 13:52:30,569 utils 8 132894438710144 Could not reverse url from auth.user
+WARNING 2026-01-11 13:52:30,572 utils 8 132894438710144 Could not reverse url from auth.user
+WARNING 2026-01-11 13:52:30,585 utils 8 132894438710144 Could not reverse url from auth.user
+WARNING 2026-01-11 13:52:37,919 utils 7 132894438710144 Could not reverse url from auth.user
+WARNING 2026-01-11 13:52:37,927 utils 7 132894438710144 Could not reverse url from auth.user
+WARNING 2026-01-11 13:52:37,936 utils 7 132894438710144 Could not reverse url from auth.user
+WARNING 2026-01-11 13:52:37,938 utils 7 132894438710144 Could not reverse url from auth.user
+WARNING 2026-01-11 13:52:49,594 utils 9 132894438710144 Could not reverse url from auth.user
+WARNING 2026-01-11 13:52:49,597 utils 9 132894438710144 Could not reverse url from auth.user
+WARNING 2026-01-11 13:52:49,606 utils 9 132894438710144 Could not reverse url from auth.user
+WARNING 2026-01-11 13:52:49,609 utils 9 132894438710144 Could not reverse url from auth.user
+WARNING 2026-01-11 13:52:51,044 utils 7 132894438710144 Could not reverse url from auth.user
+WARNING 2026-01-11 13:52:51,047 utils 7 132894438710144 Could not reverse url from auth.user
+WARNING 2026-01-11 13:52:51,057 utils 7 132894438710144 Could not reverse url from auth.user
+WARNING 2026-01-11 13:52:51,059 utils 7 132894438710144 Could not reverse url from auth.user
+WARNING 2026-01-11 13:53:16,915 utils 7 132894438710144 Could not reverse url from auth.user
+WARNING 2026-01-11 13:53:16,919 utils 7 132894438710144 Could not reverse url from auth.user
+WARNING 2026-01-11 13:53:16,930 utils 7 132894438710144 Could not reverse url from auth.user
+WARNING 2026-01-11 13:53:16,932 utils 7 132894438710144 Could not reverse url from auth.user
+WARNING 2026-01-11 13:53:16,938 utils 7 132894438710144 Could not reverse url from auth.user
+WARNING 2026-01-11 13:53:27,922 utils 9 132894438710144 Could not reverse url from auth.user
+WARNING 2026-01-11 13:53:27,927 utils 9 132894438710144 Could not reverse url from auth.user
+WARNING 2026-01-11 13:53:27,939 utils 9 132894438710144 Could not reverse url from auth.user
+WARNING 2026-01-11 13:53:27,943 utils 9 132894438710144 Could not reverse url from auth.user
+WARNING 2026-01-11 13:53:27,953 utils 9 132894438710144 Could not reverse url from auth.user
+WARNING 2026-01-11 13:54:14,066 utils 7 132894438710144 Could not reverse url from auth.user
+WARNING 2026-01-11 13:54:14,070 utils 7 132894438710144 Could not reverse url from auth.user
+WARNING 2026-01-11 13:54:14,079 utils 7 132894438710144 Could not reverse url from auth.user
+WARNING 2026-01-11 13:54:14,082 utils 7 132894438710144 Could not reverse url from auth.user
+WARNING 2026-01-11 13:54:14,091 utils 7 132894438710144 Could not reverse url from auth.user
+WARNING 2026-01-11 13:54:23,782 utils 7 132894438710144 Could not reverse url from auth.user
+WARNING 2026-01-11 13:54:23,786 utils 7 132894438710144 Could not reverse url from auth.user
+WARNING 2026-01-11 13:54:23,796 utils 7 132894438710144 Could not reverse url from auth.user
+WARNING 2026-01-11 13:54:23,798 utils 7 132894438710144 Could not reverse url from auth.user
+WARNING 2026-01-11 13:54:23,805 utils 7 132894438710144 Could not reverse url from auth.user
+ERROR 2026-01-11 13:55:47,581 log 7 133136134163328 Service Unavailable: /public/imoveis/busca-ia/
+WARNING 2026-01-11 13:55:56,113 log 8 133136134163328 Method Not Allowed: /public/imoveis/busca-ia/
+WARNING 2026-01-11 13:55:57,027 log 7 133136134163328 Not Found: /favicon.ico
+WARNING 2026-01-11 13:59:24,639 utils 9 129542770846592 Could not reverse url from auth.user
+WARNING 2026-01-11 13:59:24,663 utils 9 129542770846592 Could not reverse url from auth.user
+WARNING 2026-01-11 13:59:24,680 utils 9 129542770846592 Could not reverse url from auth.user
+WARNING 2026-01-11 13:59:24,691 utils 9 129542770846592 Could not reverse url from auth.user
+WARNING 2026-01-11 13:59:24,703 utils 9 129542770846592 Could not reverse url from auth.user
+WARNING 2026-01-11 13:59:57,386 utils 9 129367183829888 Could not reverse url from auth.user
+WARNING 2026-01-11 13:59:57,397 utils 9 129367183829888 Could not reverse url from auth.user
+WARNING 2026-01-11 13:59:57,408 utils 9 129367183829888 Could not reverse url from auth.user
+WARNING 2026-01-11 13:59:57,410 utils 9 129367183829888 Could not reverse url from auth.user
+WARNING 2026-01-11 13:59:57,420 utils 9 129367183829888 Could not reverse url from auth.user
+WARNING 2026-01-11 14:00:13,430 utils 8 129367183829888 Could not reverse url from auth.user
+WARNING 2026-01-11 14:00:13,438 utils 8 129367183829888 Could not reverse url from auth.user
+WARNING 2026-01-11 14:00:13,449 utils 8 129367183829888 Could not reverse url from auth.user
+WARNING 2026-01-11 14:00:13,453 utils 8 129367183829888 Could not reverse url from auth.user
+WARNING 2026-01-11 14:00:13,462 utils 8 129367183829888 Could not reverse url from auth.user
+WARNING 2026-01-11 14:00:25,469 utils 7 129367183829888 Could not reverse url from auth.user
+WARNING 2026-01-11 14:00:25,475 utils 7 129367183829888 Could not reverse url from auth.user
+WARNING 2026-01-11 14:00:25,483 utils 7 129367183829888 Could not reverse url from auth.user
+WARNING 2026-01-11 14:00:25,486 utils 7 129367183829888 Could not reverse url from auth.user
+WARNING 2026-01-11 14:00:34,107 utils 9 129367183829888 Could not reverse url from auth.user
+WARNING 2026-01-11 14:00:34,111 utils 9 129367183829888 Could not reverse url from auth.user
+WARNING 2026-01-11 14:00:34,121 utils 9 129367183829888 Could not reverse url from auth.user
+WARNING 2026-01-11 14:00:34,124 utils 9 129367183829888 Could not reverse url from auth.user
+WARNING 2026-01-11 14:00:34,136 utils 9 129367183829888 Could not reverse url from auth.user
+WARNING 2026-01-11 14:00:56,553 base 7 129367183829888 Method Not Allowed (GET): /admin/logout/
+WARNING 2026-01-11 14:00:56,555 log 7 129367183829888 Method Not Allowed: /admin/logout/
+WARNING 2026-01-11 14:00:58,659 base 8 129367183829888 Method Not Allowed (GET): /admin/logout/
+WARNING 2026-01-11 14:00:58,661 log 8 129367183829888 Method Not Allowed: /admin/logout/
+WARNING 2026-01-11 14:01:02,620 utils 8 129367183829888 Could not reverse url from auth.user
+WARNING 2026-01-11 14:01:02,624 utils 8 129367183829888 Could not reverse url from auth.user
+WARNING 2026-01-11 14:01:02,643 utils 8 129367183829888 Could not reverse url from auth.user
+WARNING 2026-01-11 14:01:02,647 utils 8 129367183829888 Could not reverse url from auth.user
+WARNING 2026-01-11 14:01:02,666 utils 8 129367183829888 Could not reverse url from auth.user
+WARNING 2026-01-11 14:01:03,169 utils 8 129367183829888 Could not reverse url from auth.user
+WARNING 2026-01-11 14:01:03,173 utils 8 129367183829888 Could not reverse url from auth.user
+WARNING 2026-01-11 14:01:03,185 utils 8 129367183829888 Could not reverse url from auth.user
+WARNING 2026-01-11 14:01:03,188 utils 8 129367183829888 Could not reverse url from auth.user
+WARNING 2026-01-11 14:01:03,205 utils 8 129367183829888 Could not reverse url from auth.user
+ERROR 2026-01-11 14:01:39,139 log 7 129367183829888 Service Unavailable: /public/imoveis/busca-ia/
+WARNING 2026-01-11 14:04:44,815 log 8 136766468008832 Method Not Allowed: /public/imoveis/busca-ia/
+WARNING 2026-01-11 14:04:45,442 log 8 136766468008832 Not Found: /favicon.ico
+WARNING 2026-01-11 14:04:48,179 utils 9 136766468008832 Could not reverse url from auth.user
+WARNING 2026-01-11 14:04:48,191 utils 9 136766468008832 Could not reverse url from auth.user
+WARNING 2026-01-11 14:04:48,201 utils 9 136766468008832 Could not reverse url from auth.user
+WARNING 2026-01-11 14:04:48,203 utils 9 136766468008832 Could not reverse url from auth.user
+WARNING 2026-01-11 14:04:48,207 utils 9 136766468008832 Could not reverse url from auth.user
+WARNING 2026-01-11 14:04:51,286 utils 9 136766468008832 Could not reverse url from auth.user
+WARNING 2026-01-11 14:05:03,110 utils 8 136766468008832 Could not reverse url from auth.user
+WARNING 2026-01-11 14:05:03,112 utils 8 136766468008832 Could not reverse url from auth.user
+WARNING 2026-01-11 14:05:03,121 utils 8 136766468008832 Could not reverse url from auth.user
+WARNING 2026-01-11 14:05:03,123 utils 8 136766468008832 Could not reverse url from auth.user
+WARNING 2026-01-11 14:05:03,129 utils 8 136766468008832 Could not reverse url from auth.user
+WARNING 2026-01-11 14:05:11,147 utils 7 136766468008832 Could not reverse url from auth.user
+WARNING 2026-01-11 14:05:11,154 utils 7 136766468008832 Could not reverse url from auth.user
+WARNING 2026-01-11 14:05:11,164 utils 7 136766468008832 Could not reverse url from auth.user
+WARNING 2026-01-11 14:05:11,166 utils 7 136766468008832 Could not reverse url from auth.user
+WARNING 2026-01-11 14:05:13,565 utils 7 136766468008832 Could not reverse url from auth.user
+WARNING 2026-01-11 14:05:13,567 utils 7 136766468008832 Could not reverse url from auth.user
+WARNING 2026-01-11 14:05:13,574 utils 7 136766468008832 Could not reverse url from auth.user
+WARNING 2026-01-11 14:05:13,577 utils 7 136766468008832 Could not reverse url from auth.user
+WARNING 2026-01-11 14:05:13,582 utils 7 136766468008832 Could not reverse url from auth.user
+WARNING 2026-01-11 14:05:35,271 utils 8 136766468008832 Could not reverse url from auth.user
+WARNING 2026-01-11 14:05:35,276 utils 8 136766468008832 Could not reverse url from auth.user
+WARNING 2026-01-11 14:05:35,288 utils 8 136766468008832 Could not reverse url from auth.user
+WARNING 2026-01-11 14:05:35,291 utils 8 136766468008832 Could not reverse url from auth.user
+WARNING 2026-01-11 14:05:35,301 utils 8 136766468008832 Could not reverse url from auth.user
+ERROR 2026-01-11 14:06:51,199 log 8 136766468008832 Service Unavailable: /public/imoveis/busca-ia/
+WARNING 2026-01-11 14:10:00,476 utils 8 135308745902976 Could not reverse url from auth.user
+WARNING 2026-01-11 14:10:00,489 utils 8 135308745902976 Could not reverse url from auth.user
+WARNING 2026-01-11 14:10:00,496 utils 8 135308745902976 Could not reverse url from auth.user
+WARNING 2026-01-11 14:10:00,498 utils 8 135308745902976 Could not reverse url from auth.user
+WARNING 2026-01-11 14:10:00,506 utils 8 135308745902976 Could not reverse url from auth.user
+WARNING 2026-01-11 14:10:13,508 utils 9 135308745902976 Could not reverse url from auth.user
+WARNING 2026-01-11 14:10:13,514 utils 9 135308745902976 Could not reverse url from auth.user
+WARNING 2026-01-11 14:10:13,522 utils 9 135308745902976 Could not reverse url from auth.user
+WARNING 2026-01-11 14:10:13,524 utils 9 135308745902976 Could not reverse url from auth.user
+ERROR 2026-01-11 14:11:19,478 log 9 130335221164928 Service Unavailable: /public/imoveis/busca-ia/
+WARNING 2026-01-11 14:12:17,036 utils 7 130335221164928 Could not reverse url from auth.user
+WARNING 2026-01-11 14:12:17,068 utils 7 130335221164928 Could not reverse url from auth.user
+WARNING 2026-01-11 14:12:17,082 utils 7 130335221164928 Could not reverse url from auth.user
+WARNING 2026-01-11 14:12:17,086 utils 7 130335221164928 Could not reverse url from auth.user
+WARNING 2026-01-11 14:12:17,103 utils 7 130335221164928 Could not reverse url from auth.user
+WARNING 2026-01-11 14:12:27,525 utils 9 130335221164928 Could not reverse url from auth.user
+WARNING 2026-01-11 14:12:27,536 utils 9 130335221164928 Could not reverse url from auth.user
+WARNING 2026-01-11 14:12:27,543 utils 9 130335221164928 Could not reverse url from auth.user
+WARNING 2026-01-11 14:12:27,546 utils 9 130335221164928 Could not reverse url from auth.user
+WARNING 2026-01-11 14:12:30,833 utils 7 130335221164928 Could not reverse url from auth.user
+WARNING 2026-01-11 14:12:30,835 utils 7 130335221164928 Could not reverse url from auth.user
+WARNING 2026-01-11 14:12:30,843 utils 7 130335221164928 Could not reverse url from auth.user
+WARNING 2026-01-11 14:12:30,845 utils 7 130335221164928 Could not reverse url from auth.user
+WARNING 2026-01-11 14:12:30,850 utils 7 130335221164928 Could not reverse url from auth.user
+WARNING 2026-01-11 14:12:33,585 utils 7 130335221164928 Could not reverse url from auth.user
+WARNING 2026-01-11 14:12:33,593 utils 7 130335221164928 Could not reverse url from auth.user
+WARNING 2026-01-11 14:12:33,603 utils 7 130335221164928 Could not reverse url from auth.user
+WARNING 2026-01-11 14:12:33,611 utils 7 130335221164928 Could not reverse url from auth.user
+WARNING 2026-01-11 14:18:25,387 utils 7 130335221164928 Could not reverse url from auth.user
+WARNING 2026-01-11 14:18:25,393 utils 7 130335221164928 Could not reverse url from auth.user
+WARNING 2026-01-11 14:18:25,404 utils 7 130335221164928 Could not reverse url from auth.user
+WARNING 2026-01-11 14:18:25,405 utils 7 130335221164928 Could not reverse url from auth.user
+WARNING 2026-01-11 14:18:25,411 utils 7 130335221164928 Could not reverse url from auth.user
+ERROR 2026-01-11 14:18:51,542 log 9 130335221164928 Service Unavailable: /api/v1/imoveis/1/gerar-descricao-ia/
+WARNING 2026-01-11 14:20:02,534 utils 8 130335221164928 Could not reverse url from auth.user
+WARNING 2026-01-11 14:20:02,537 utils 8 130335221164928 Could not reverse url from auth.user
+WARNING 2026-01-11 14:20:02,544 utils 8 130335221164928 Could not reverse url from auth.user
+WARNING 2026-01-11 14:20:02,546 utils 8 130335221164928 Could not reverse url from auth.user
+WARNING 2026-01-11 14:20:02,552 utils 8 130335221164928 Could not reverse url from auth.user
+WARNING 2026-01-11 14:20:05,127 utils 8 130335221164928 Could not reverse url from auth.user
+WARNING 2026-01-11 14:20:05,131 utils 8 130335221164928 Could not reverse url from auth.user
+WARNING 2026-01-11 14:20:05,144 utils 8 130335221164928 Could not reverse url from auth.user
+WARNING 2026-01-11 14:20:05,147 utils 8 130335221164928 Could not reverse url from auth.user
+WARNING 2026-01-11 14:20:05,771 utils 9 130335221164928 Could not reverse url from auth.user
+WARNING 2026-01-11 14:20:05,774 utils 9 130335221164928 Could not reverse url from auth.user
+WARNING 2026-01-11 14:20:05,782 utils 9 130335221164928 Could not reverse url from auth.user
+WARNING 2026-01-11 14:20:05,786 utils 9 130335221164928 Could not reverse url from auth.user
+WARNING 2026-01-11 14:20:08,145 utils 7 130335221164928 Could not reverse url from auth.user
+WARNING 2026-01-11 14:20:08,150 utils 7 130335221164928 Could not reverse url from auth.user
+WARNING 2026-01-11 14:20:08,156 utils 7 130335221164928 Could not reverse url from auth.user
+WARNING 2026-01-11 14:20:08,159 utils 7 130335221164928 Could not reverse url from auth.user
+WARNING 2026-01-11 14:20:08,168 utils 7 130335221164928 Could not reverse url from auth.user
+WARNING 2026-01-11 14:20:18,639 utils 9 130335221164928 Could not reverse url from auth.user
+WARNING 2026-01-11 14:20:18,642 utils 9 130335221164928 Could not reverse url from auth.user
+WARNING 2026-01-11 14:20:18,649 utils 9 130335221164928 Could not reverse url from auth.user
+WARNING 2026-01-11 14:20:18,652 utils 9 130335221164928 Could not reverse url from auth.user
+ERROR 2026-01-11 14:20:26,508 log 9 130335221164928 Service Unavailable: /api/v1/imoveis/1/gerar-descricao-ia/
+WARNING 2026-01-11 14:21:28,664 utils 9 130335221164928 Could not reverse url from auth.user
+WARNING 2026-01-11 14:21:28,667 utils 9 130335221164928 Could not reverse url from auth.user
+WARNING 2026-01-11 14:21:28,674 utils 9 130335221164928 Could not reverse url from auth.user
+WARNING 2026-01-11 14:21:28,676 utils 9 130335221164928 Could not reverse url from auth.user
+WARNING 2026-01-11 14:21:28,682 utils 9 130335221164928 Could not reverse url from auth.user
+WARNING 2026-01-11 14:21:35,342 utils 7 130335221164928 Could not reverse url from auth.user
+WARNING 2026-01-11 14:21:35,347 utils 7 130335221164928 Could not reverse url from auth.user
+WARNING 2026-01-11 14:21:35,354 utils 7 130335221164928 Could not reverse url from auth.user
+WARNING 2026-01-11 14:21:35,356 utils 7 130335221164928 Could not reverse url from auth.user
+WARNING 2026-01-11 14:21:35,636 log 7 130335221164928 Unauthorized: /api/v1/core/usuarios/minhas-notificacoes/
+ERROR 2026-01-11 14:21:50,515 log 8 130335221164928 Service Unavailable: /api/v1/imoveis/1/gerar-descricao-ia/
+ERROR 2026-01-11 14:22:05,297 log 7 130335221164928 Service Unavailable: /api/v1/imoveis/1/gerar-descricao-ia/
+ERROR 2026-01-11 14:22:45,005 log 8 130335221164928 Service Unavailable: /public/imoveis/busca-ia/
+WARNING 2026-01-11 14:29:25,517 utils 9 130335221164928 Could not reverse url from auth.user
+WARNING 2026-01-11 14:29:25,524 utils 9 130335221164928 Could not reverse url from auth.user
+WARNING 2026-01-11 14:29:25,532 utils 9 130335221164928 Could not reverse url from auth.user
+WARNING 2026-01-11 14:29:25,535 utils 9 130335221164928 Could not reverse url from auth.user
+WARNING 2026-01-11 14:29:25,548 utils 9 130335221164928 Could not reverse url from auth.user
+WARNING 2026-01-11 14:29:31,026 utils 7 130335221164928 Could not reverse url from auth.user
+WARNING 2026-01-11 14:29:31,031 utils 7 130335221164928 Could not reverse url from auth.user
+WARNING 2026-01-11 14:29:31,042 utils 7 130335221164928 Could not reverse url from auth.user
+WARNING 2026-01-11 14:29:31,049 utils 7 130335221164928 Could not reverse url from auth.user
+ERROR 2026-01-11 14:29:34,586 log 9 130335221164928 Service Unavailable: /api/v1/imoveis/1/gerar-descricao-ia/
+ERROR 2026-01-11 14:29:45,606 log 7 130335221164928 Service Unavailable: /api/v1/imoveis/1/gerar-descricao-ia/
+WARNING 2026-01-11 14:29:54,429 utils 8 130335221164928 Could not reverse url from auth.user
+WARNING 2026-01-11 14:29:54,432 utils 8 130335221164928 Could not reverse url from auth.user
+WARNING 2026-01-11 14:29:54,440 utils 8 130335221164928 Could not reverse url from auth.user
+WARNING 2026-01-11 14:29:54,443 utils 8 130335221164928 Could not reverse url from auth.user
+WARNING 2026-01-11 14:29:54,449 utils 8 130335221164928 Could not reverse url from auth.user
+WARNING 2026-01-11 14:30:03,043 utils 9 130335221164928 Could not reverse url from auth.user
+WARNING 2026-01-11 14:30:03,053 utils 9 130335221164928 Could not reverse url from auth.user
+WARNING 2026-01-11 14:30:29,315 utils 8 130335221164928 Could not reverse url from auth.user
+WARNING 2026-01-11 14:30:29,319 utils 8 130335221164928 Could not reverse url from auth.user
+WARNING 2026-01-11 14:32:28,148 utils 9 130335221164928 Could not reverse url from auth.user
+WARNING 2026-01-11 14:32:28,154 utils 9 130335221164928 Could not reverse url from auth.user
+WARNING 2026-01-11 14:32:28,166 utils 9 130335221164928 Could not reverse url from auth.user
+WARNING 2026-01-11 14:32:28,169 utils 9 130335221164928 Could not reverse url from auth.user
+ERROR 2026-01-11 14:32:32,312 log 8 130335221164928 Service Unavailable: /api/v1/imoveis/1/gerar-descricao-ia/
+WARNING 2026-01-11 14:32:46,596 utils 7 130335221164928 Could not reverse url from auth.user
+WARNING 2026-01-11 14:32:46,600 utils 7 130335221164928 Could not reverse url from auth.user
+WARNING 2026-01-11 14:32:46,610 utils 7 130335221164928 Could not reverse url from auth.user
+WARNING 2026-01-11 14:32:46,613 utils 7 130335221164928 Could not reverse url from auth.user
+WARNING 2026-01-11 14:32:46,619 utils 7 130335221164928 Could not reverse url from auth.user
+ERROR 2026-01-11 14:41:25,249 log 9 129414731275136 Service Unavailable: /api/v1/imoveis/1/gerar-descricao-ia/
+ERROR 2026-01-11 14:43:50,263 log 8 140321993644928 Service Unavailable: /api/v1/imoveis/1/gerar-descricao-ia/
+ERROR 2026-01-11 14:44:00,791 log 8 140321993644928 Service Unavailable: /api/v1/imoveis/1/gerar-descricao-ia/
+WARNING 2026-01-11 14:44:13,735 log 8 140321993644928 Method Not Allowed: /api/v1/imoveis/1/gerar-descricao-ia/
+WARNING 2026-01-11 14:44:14,607 log 9 140321993644928 Not Found: /favicon.ico
+ERROR 2026-01-11 14:50:41,234 log 7 132857692654464 Service Unavailable: /api/v1/imoveis/1/gerar-descricao-ia/
+ERROR 2026-01-11 14:50:57,217 log 9 132857692654464 Service Unavailable: /api/v1/imoveis/1/gerar-descricao-ia/
+WARNING 2026-01-11 14:50:57,964 log 7 132857692654464 Not Found: /favicon.ico
+ERROR 2026-01-11 14:52:30,898 log 9 132857692654464 Service Unavailable: /api/v1/imoveis/1/gerar-descricao-ia/
+ERROR 2026-01-11 14:53:05,827 log 8 135979930274688 Service Unavailable: /public/imoveis/busca-ia/
+WARNING 2026-01-11 14:53:26,783 utils 8 135979930274688 Could not reverse url from auth.user
+WARNING 2026-01-11 14:53:26,806 utils 8 135979930274688 Could not reverse url from auth.user
+WARNING 2026-01-11 14:53:26,824 utils 8 135979930274688 Could not reverse url from auth.user
+WARNING 2026-01-11 14:53:26,828 utils 8 135979930274688 Could not reverse url from auth.user
+ERROR 2026-01-11 14:53:31,775 log 9 135979930274688 Service Unavailable: /public/imoveis/busca-ia/
+ERROR 2026-01-11 14:53:33,889 log 8 135979930274688 Service Unavailable: /public/imoveis/busca-ia/
+ERROR 2026-01-11 14:54:10,420 log 7 135979930274688 Service Unavailable: /api/v1/imoveis/1/gerar-descricao-ia/
+ERROR 2026-01-11 14:54:22,623 log 8 135979930274688 Service Unavailable: /api/v1/imoveis/1/gerar-descricao-ia/
+ERROR 2026-01-11 14:54:27,544 log 8 135979930274688 Service Unavailable: /api/v1/imoveis/1/gerar-descricao-ia/
+WARNING 2026-01-11 14:54:28,237 log 9 135979930274688 Not Found: /favicon.ico
+ERROR 2026-01-11 14:56:45,416 log 8 135979930274688 Service Unavailable: /public/imoveis/busca-ia/
+ERROR 2026-01-11 14:56:55,071 log 8 135979930274688 Service Unavailable: /public/imoveis/busca-ia/
+ERROR 2026-01-11 14:56:56,813 log 7 135979930274688 Service Unavailable: /public/imoveis/busca-ia/
+ERROR 2026-01-11 14:56:58,926 log 7 135979930274688 Service Unavailable: /public/imoveis/busca-ia/
+ERROR 2026-01-11 15:02:27,681 log 8 128729863232384 Internal Server Error: /public/imoveis/busca-ia/
+Traceback (most recent call last):
+  File "/usr/local/lib/python3.12/site-packages/django/core/handlers/exception.py", line 55, in inner
+    response = get_response(request)
+               ^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/django/core/handlers/base.py", line 197, in _get_response
+    response = wrapped_callback(request, *callback_args, **callback_kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/django/views/decorators/csrf.py", line 65, in _view_wrapper
+    return view_func(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/django/views/generic/base.py", line 104, in view
+    return self.dispatch(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/rest_framework/views.py", line 509, in dispatch
+    response = self.handle_exception(exc)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/rest_framework/views.py", line 469, in handle_exception
+    self.raise_uncaught_exception(exc)
+  File "/usr/local/lib/python3.12/site-packages/rest_framework/views.py", line 480, in raise_uncaught_exception
+    raise exc
+  File "/usr/local/lib/python3.12/site-packages/rest_framework/views.py", line 506, in dispatch
+    response = handler(request, *args, **kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/app/app_imoveis/views.py", line 178, in post
+    print(f"🔍 DEBUG CHAVE IA PARA: {imobiliaria_obj.nome_fantasia} ({subdomain_param})")
+                                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AttributeError: 'Imobiliaria' object has no attribute 'nome_fantasia'
+WARNING 2026-01-11 15:02:42,695 log 8 128729863232384 Method Not Allowed: /public/imoveis/busca-ia/
+WARNING 2026-01-11 15:02:43,287 log 7 128729863232384 Not Found: /favicon.ico
+ERROR 2026-01-11 15:03:37,991 log 7 128729863232384 Internal Server Error: /public/imoveis/busca-ia/
+Traceback (most recent call last):
+  File "/usr/local/lib/python3.12/site-packages/django/core/handlers/exception.py", line 55, in inner
+    response = get_response(request)
+               ^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/django/core/handlers/base.py", line 197, in _get_response
+    response = wrapped_callback(request, *callback_args, **callback_kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/django/views/decorators/csrf.py", line 65, in _view_wrapper
+    return view_func(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/django/views/generic/base.py", line 104, in view
+    return self.dispatch(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/rest_framework/views.py", line 509, in dispatch
+    response = self.handle_exception(exc)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/rest_framework/views.py", line 469, in handle_exception
+    self.raise_uncaught_exception(exc)
+  File "/usr/local/lib/python3.12/site-packages/rest_framework/views.py", line 480, in raise_uncaught_exception
+    raise exc
+  File "/usr/local/lib/python3.12/site-packages/rest_framework/views.py", line 506, in dispatch
+    response = handler(request, *args, **kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/app/app_imoveis/views.py", line 178, in post
+    print(f"🔍 DEBUG CHAVE IA PARA: {imobiliaria_obj.nome_fantasia} ({subdomain_param})")
+                                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AttributeError: 'Imobiliaria' object has no attribute 'nome_fantasia'
+ERROR 2026-01-11 15:03:59,891 log 9 128729863232384 Service Unavailable: /api/v1/imoveis/1/gerar-descricao-ia/
+ERROR 2026-01-11 15:06:46,055 log 8 133207901379456 Internal Server Error: /public/imoveis/busca-ia/
+Traceback (most recent call last):
+  File "/usr/local/lib/python3.12/site-packages/django/core/handlers/exception.py", line 55, in inner
+    response = get_response(request)
+               ^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/django/core/handlers/base.py", line 197, in _get_response
+    response = wrapped_callback(request, *callback_args, **callback_kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/django/views/decorators/csrf.py", line 65, in _view_wrapper
+    return view_func(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/django/views/generic/base.py", line 104, in view
+    return self.dispatch(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/rest_framework/views.py", line 509, in dispatch
+    response = self.handle_exception(exc)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/rest_framework/views.py", line 469, in handle_exception
+    self.raise_uncaught_exception(exc)
+  File "/usr/local/lib/python3.12/site-packages/rest_framework/views.py", line 480, in raise_uncaught_exception
+    raise exc
+  File "/usr/local/lib/python3.12/site-packages/rest_framework/views.py", line 506, in dispatch
+    response = handler(request, *args, **kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/app/app_imoveis/views.py", line 178, in post
+    print(f"🔍 DEBUG CHAVE IA PARA: {imobiliaria_obj.nome_fantasia} ({subdomain_param})")
+                                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AttributeError: 'Imobiliaria' object has no attribute 'nome_fantasia'
+ERROR 2026-01-11 15:06:53,265 log 9 133207901379456 Internal Server Error: /public/imoveis/busca-ia/
+Traceback (most recent call last):
+  File "/usr/local/lib/python3.12/site-packages/django/core/handlers/exception.py", line 55, in inner
+    response = get_response(request)
+               ^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/django/core/handlers/base.py", line 197, in _get_response
+    response = wrapped_callback(request, *callback_args, **callback_kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/django/views/decorators/csrf.py", line 65, in _view_wrapper
+    return view_func(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/django/views/generic/base.py", line 104, in view
+    return self.dispatch(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/rest_framework/views.py", line 509, in dispatch
+    response = self.handle_exception(exc)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/rest_framework/views.py", line 469, in handle_exception
+    self.raise_uncaught_exception(exc)
+  File "/usr/local/lib/python3.12/site-packages/rest_framework/views.py", line 480, in raise_uncaught_exception
+    raise exc
+  File "/usr/local/lib/python3.12/site-packages/rest_framework/views.py", line 506, in dispatch
+    response = handler(request, *args, **kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/app/app_imoveis/views.py", line 178, in post
+    print(f"🔍 DEBUG CHAVE IA PARA: {imobiliaria_obj.nome_fantasia} ({subdomain_param})")
+                                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AttributeError: 'Imobiliaria' object has no attribute 'nome_fantasia'
+ERROR 2026-01-11 15:06:59,524 log 9 133207901379456 Service Unavailable: /api/v1/imoveis/1/gerar-descricao-ia/
+ERROR 2026-01-11 15:07:11,578 log 7 133207901379456 Internal Server Error: /public/imoveis/busca-ia/
+Traceback (most recent call last):
+  File "/usr/local/lib/python3.12/site-packages/django/core/handlers/exception.py", line 55, in inner
+    response = get_response(request)
+               ^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/django/core/handlers/base.py", line 197, in _get_response
+    response = wrapped_callback(request, *callback_args, **callback_kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/django/views/decorators/csrf.py", line 65, in _view_wrapper
+    return view_func(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/django/views/generic/base.py", line 104, in view
+    return self.dispatch(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/rest_framework/views.py", line 509, in dispatch
+    response = self.handle_exception(exc)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/rest_framework/views.py", line 469, in handle_exception
+    self.raise_uncaught_exception(exc)
+  File "/usr/local/lib/python3.12/site-packages/rest_framework/views.py", line 480, in raise_uncaught_exception
+    raise exc
+  File "/usr/local/lib/python3.12/site-packages/rest_framework/views.py", line 506, in dispatch
+    response = handler(request, *args, **kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/app/app_imoveis/views.py", line 178, in post
+    print(f"🔍 DEBUG CHAVE IA PARA: {imobiliaria_obj.nome_fantasia} ({subdomain_param})")
+                                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AttributeError: 'Imobiliaria' object has no attribute 'nome_fantasia'
+WARNING 2026-01-11 15:07:18,751 log 8 133207901379456 Method Not Allowed: /public/imoveis/busca-ia/
+WARNING 2026-01-11 15:07:19,418 log 9 133207901379456 Not Found: /favicon.ico
+WARNING 2026-01-11 15:08:44,158 log 9 137239385729920 Bad Request: /public/imoveis/busca-ia/
+ERROR 2026-01-11 15:09:11,327 log 8 137239385729920 Service Unavailable: /public/imoveis/busca-ia/
+ERROR 2026-01-11 15:14:31,799 log 9 132017987636096 Service Unavailable: /api/v1/imoveis/1/gerar-descricao-ia/
+ERROR 2026-01-11 15:14:49,152 log 8 132017987636096 Service Unavailable: /public/imoveis/busca-ia/
+WARNING 2026-01-11 15:15:00,093 log 8 132017987636096 Not Found: /favicon.ico
+ERROR 2026-01-11 15:15:13,522 log 9 132017987636096 Service Unavailable: /public/imoveis/busca-ia/
+ERROR 2026-01-11 15:18:32,685 log 10 132017987636096 Service Unavailable: /public/imoveis/busca-ia/
+ERROR 2026-01-11 15:20:31,550 log 10 126853075549056 Service Unavailable: /public/imoveis/busca-ia/
+WARNING 2026-01-11 15:22:16,755 utils 9 126853075549056 Could not reverse url from auth.user
+WARNING 2026-01-11 15:22:16,767 utils 9 126853075549056 Could not reverse url from auth.user
+WARNING 2026-01-11 15:22:16,788 utils 9 126853075549056 Could not reverse url from auth.user
+WARNING 2026-01-11 15:22:16,791 utils 9 126853075549056 Could not reverse url from auth.user
+WARNING 2026-01-11 15:22:16,805 utils 9 126853075549056 Could not reverse url from auth.user
+WARNING 2026-01-11 15:22:17,888 log 9 126853075549056 Unauthorized: /api/v1/core/usuarios/minhas-notificacoes/
+ERROR 2026-01-11 15:24:00,129 log 9 126853075549056 Service Unavailable: /api/v1/imoveis/1/gerar-descricao-ia/
+ERROR 2026-01-11 15:25:15,820 log 9 126853075549056 Service Unavailable: /public/imoveis/busca-ia/
+ERROR 2026-01-11 15:25:19,135 log 9 126853075549056 Service Unavailable: /api/v1/imoveis/1/gerar-descricao-ia/
+ERROR 2026-01-11 15:27:12,302 log 9 124504142007168 Service Unavailable: /public/imoveis/busca-ia/
+ERROR 2026-01-11 15:29:34,225 log 9 127231097969536 Service Unavailable: /public/imoveis/busca-ia/
+ERROR 2026-01-11 15:31:50,946 log 7 139999440677760 Internal Server Error: /public/imoveis/busca-ia/
+Traceback (most recent call last):
+  File "/usr/local/lib/python3.12/site-packages/django/core/handlers/exception.py", line 55, in inner
+    response = get_response(request)
+               ^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/django/core/handlers/base.py", line 197, in _get_response
+    response = wrapped_callback(request, *callback_args, **callback_kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/django/views/decorators/csrf.py", line 65, in _view_wrapper
+    return view_func(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/django/views/generic/base.py", line 104, in view
+    return self.dispatch(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/rest_framework/views.py", line 509, in dispatch
+    response = self.handle_exception(exc)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/rest_framework/views.py", line 469, in handle_exception
+    self.raise_uncaught_exception(exc)
+  File "/usr/local/lib/python3.12/site-packages/rest_framework/views.py", line 480, in raise_uncaught_exception
+    raise exc
+  File "/usr/local/lib/python3.12/site-packages/rest_framework/views.py", line 506, in dispatch
+    response = handler(request, *args, **kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/app/app_imoveis/views.py", line 378, in post
+    return self._processar_busca_ia(request)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/app/app_imoveis/views.py", line 325, in _processar_busca_ia
+    if tipo_upper in Imovel.Tipo.values:
+                     ^^^^^^^^^^^
+AttributeError: type object 'Imovel' has no attribute 'Tipo'. Did you mean: 'tipo'?
+WARNING 2026-01-11 15:32:03,413 log 8 139999440677760 Not Found: /favicon.ico
+ERROR 2026-01-11 15:32:24,030 log 7 139999440677760 Internal Server Error: /public/imoveis/busca-ia/
+Traceback (most recent call last):
+  File "/usr/local/lib/python3.12/site-packages/django/core/handlers/exception.py", line 55, in inner
+    response = get_response(request)
+               ^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/django/core/handlers/base.py", line 197, in _get_response
+    response = wrapped_callback(request, *callback_args, **callback_kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/django/views/decorators/csrf.py", line 65, in _view_wrapper
+    return view_func(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/django/views/generic/base.py", line 104, in view
+    return self.dispatch(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/rest_framework/views.py", line 509, in dispatch
+    response = self.handle_exception(exc)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/rest_framework/views.py", line 469, in handle_exception
+    self.raise_uncaught_exception(exc)
+  File "/usr/local/lib/python3.12/site-packages/rest_framework/views.py", line 480, in raise_uncaught_exception
+    raise exc
+  File "/usr/local/lib/python3.12/site-packages/rest_framework/views.py", line 506, in dispatch
+    response = handler(request, *args, **kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/app/app_imoveis/views.py", line 378, in post
+    return self._processar_busca_ia(request)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/app/app_imoveis/views.py", line 325, in _processar_busca_ia
+    if tipo_upper in Imovel.Tipo.values:
+                     ^^^^^^^^^^^
+AttributeError: type object 'Imovel' has no attribute 'Tipo'. Did you mean: 'tipo'?
+ERROR 2026-01-11 15:38:12,724 log 8 137374273739648 Service Unavailable: /public/imoveis/busca-ia/
+ERROR 2026-01-11 15:38:21,953 log 9 137374273739648 Service Unavailable: /public/imoveis/busca-ia/
+ERROR 2026-01-11 15:38:33,179 log 8 137374273739648 Service Unavailable: /public/imoveis/busca-ia/
+WARNING 2026-01-11 15:38:41,325 log 9 137374273739648 Not Found: /favicon.ico
+ERROR 2026-01-11 15:38:54,018 log 7 137374273739648 Service Unavailable: /public/imoveis/busca-ia/
+WARNING 2026-01-11 15:40:07,350 utils 7 137374273739648 Could not reverse url from auth.user
+WARNING 2026-01-11 15:40:07,355 utils 7 137374273739648 Could not reverse url from auth.user
+WARNING 2026-01-11 15:40:07,366 utils 7 137374273739648 Could not reverse url from auth.user
+WARNING 2026-01-11 15:40:07,369 utils 7 137374273739648 Could not reverse url from auth.user
+WARNING 2026-01-11 15:40:12,048 utils 7 137374273739648 Could not reverse url from auth.user
+WARNING 2026-01-11 15:40:12,052 utils 7 137374273739648 Could not reverse url from auth.user
+WARNING 2026-01-11 15:40:12,063 utils 7 137374273739648 Could not reverse url from auth.user
+WARNING 2026-01-11 15:40:12,065 utils 7 137374273739648 Could not reverse url from auth.user
+WARNING 2026-01-11 15:40:12,074 utils 7 137374273739648 Could not reverse url from auth.user
+WARNING 2026-01-11 15:40:25,722 utils 8 137374273739648 Could not reverse url from auth.user
+WARNING 2026-01-11 15:40:25,729 utils 8 137374273739648 Could not reverse url from auth.user
+WARNING 2026-01-11 15:40:25,741 utils 8 137374273739648 Could not reverse url from auth.user
+WARNING 2026-01-11 15:40:25,745 utils 8 137374273739648 Could not reverse url from auth.user
+ERROR 2026-01-11 15:40:36,006 log 7 137374273739648 Service Unavailable: /public/imoveis/busca-ia/
+ERROR 2026-01-11 15:40:49,726 log 9 137374273739648 Service Unavailable: /public/imoveis/busca-ia/
+WARNING 2026-01-11 15:40:55,985 utils 8 137374273739648 Could not reverse url from auth.user
+WARNING 2026-01-11 15:40:55,989 utils 8 137374273739648 Could not reverse url from auth.user
+WARNING 2026-01-11 15:40:55,998 utils 8 137374273739648 Could not reverse url from auth.user
+WARNING 2026-01-11 15:40:56,001 utils 8 137374273739648 Could not reverse url from auth.user
+ERROR 2026-01-11 15:41:00,199 log 8 137374273739648 Service Unavailable: /public/imoveis/busca-ia/
+ERROR 2026-01-11 15:41:01,495 log 9 137374273739648 Service Unavailable: /public/imoveis/busca-ia/
+ERROR 2026-01-11 15:41:07,429 log 8 137374273739648 Service Unavailable: /public/imoveis/busca-ia/
+WARNING 2026-01-11 15:41:10,072 log 9 137374273739648 Not Found: /favicon.ico
+WARNING 2026-01-11 15:42:57,528 utils 8 137374273739648 Could not reverse url from auth.user
+WARNING 2026-01-11 15:42:57,534 utils 8 137374273739648 Could not reverse url from auth.user
+WARNING 2026-01-11 15:42:57,546 utils 8 137374273739648 Could not reverse url from auth.user
+WARNING 2026-01-11 15:42:57,550 utils 8 137374273739648 Could not reverse url from auth.user
+WARNING 2026-01-11 15:42:57,561 utils 8 137374273739648 Could not reverse url from auth.user
+WARNING 2026-01-11 15:43:02,366 utils 8 137374273739648 Could not reverse url from auth.user
+WARNING 2026-01-11 15:43:02,372 utils 8 137374273739648 Could not reverse url from auth.user
+WARNING 2026-01-11 15:43:02,384 utils 8 137374273739648 Could not reverse url from auth.user
+WARNING 2026-01-11 15:43:02,399 utils 8 137374273739648 Could not reverse url from auth.user
+ERROR 2026-01-11 15:44:25,372 log 9 129145989507968 Service Unavailable: /public/imoveis/busca-ia/
+ERROR 2026-01-11 15:44:48,059 log 8 129145989507968 Service Unavailable: /public/imoveis/busca-ia/
+WARNING 2026-01-11 15:44:55,729 utils 8 129145989507968 Could not reverse url from auth.user
+WARNING 2026-01-11 15:44:55,740 utils 8 129145989507968 Could not reverse url from auth.user
+WARNING 2026-01-11 15:44:55,748 utils 8 129145989507968 Could not reverse url from auth.user
+WARNING 2026-01-11 15:44:55,753 utils 8 129145989507968 Could not reverse url from auth.user
+ERROR 2026-01-11 15:45:06,254 log 7 129145989507968 Service Unavailable: /public/imoveis/busca-ia/
+ERROR 2026-01-11 15:45:09,514 log 7 129145989507968 Service Unavailable: /public/imoveis/busca-ia/
+WARNING 2026-01-11 15:45:29,714 log 8 129145989507968 Not Found: /favicon.ico

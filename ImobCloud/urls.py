@@ -3,8 +3,9 @@ from django.contrib import admin
 from django.urls import path, include, re_path
 from django.conf import settings
 from django.conf.urls.static import static
-from django.shortcuts import render
+from django.shortcuts import render, redirect
 from django.views.decorators.csrf import ensure_csrf_cookie
+from django.contrib.auth import logout
 
 # Views de Autenticação e API
 from rest_framework_simplejwt.views import TokenRefreshView
@@ -29,7 +30,21 @@ def index_view(request):
     """
     return render(request, 'index.html')
 
+def custom_admin_logout(request):
+    """
+    Força o logout do admin via GET para corrigir compatibilidade 
+    entre Django 5+ e temas como Jazzmin.
+    """
+    logout(request)
+    return redirect('/admin/login/')
+
 urlpatterns = [
+    # =========================================================
+    # CORREÇÃO DE LOGOUT DO ADMIN
+    # =========================================================
+    # Esta rota deve vir ANTES de admin.site.urls para sobrescrever o padrão
+    path('admin/logout/', custom_admin_logout, name='admin_logout_fix'),
+
     # =========================================================
     # ADMIN
     # =========================================================

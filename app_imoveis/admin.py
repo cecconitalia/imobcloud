@@ -1,5 +1,3 @@
-# app_imoveis/admin.py
-
 from django.contrib import admin
 from .models import Imovel, ImagemImovel, ContatoImovel
 
@@ -47,9 +45,9 @@ class ImovelAdmin(admin.ModelAdmin):
         ('🛏️ Divisões Internas', {
             # Agrupando campos booleanos na mesma linha
             'fields': (('quartos', 'suites', 'banheiros', 'lavabo'), 
-                         ('sala_estar', 'sala_jantar', 'sala_tv'), 
-                         ('cozinha', 'copa', 'area_servico'), 
-                         ('escritorio', 'despensa', 'closet', 'varanda'))
+                       ('sala_estar', 'sala_jantar', 'sala_tv'), 
+                       ('cozinha', 'copa', 'area_servico'), 
+                       ('escritorio', 'despensa', 'closet', 'varanda'))
         }),
         ('🚗 Vagas e Garagem', {
             'fields': ('vagas_garagem', 'vaga_coberta', 'vaga_privativa', 'portao_eletronico')

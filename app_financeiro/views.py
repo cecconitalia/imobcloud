@@ -176,7 +176,8 @@ class TransacaoViewSet(viewsets.ModelViewSet):
         if ordenacao:
             queryset = queryset.order_by(ordenacao)
         else:
-            queryset = queryset.order_by('-data_vencimento', '-id')
+            # Padrão alterado para crescente (data_vencimento)
+            queryset = queryset.order_by('data_vencimento', 'id')
 
         return queryset
 
