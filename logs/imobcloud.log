@@ -10492,3 +10492,237 @@ Traceback (most recent call last):
     if tipo_upper in Imovel.Tipo.values:
                      ^^^^^^^^^^^
 AttributeError: type object 'Imovel' has no attribute 'Tipo'. Did you mean: 'tipo'?
+WARNING 2026-01-14 10:57:39,412 log 7 125967458663296 Unauthorized: /api/v1/core/usuarios/me/
+WARNING 2026-01-14 10:57:41,020 log 7 125967458663296 Unauthorized: /api/v1/core/usuarios/me/
+WARNING 2026-01-14 10:57:41,205 log 7 125967458663296 Unauthorized: /api/v1/financeiro/transacoes/stats/
+WARNING 2026-01-14 10:57:41,339 log 7 125967458663296 Unauthorized: /api/v1/alugueis/dashboard-stats/
+WARNING 2026-01-14 10:57:45,816 log 8 125967458663296 Unauthorized: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2026-01-14 10:57:46,007 log 9 125967458663296 Unauthorized: /api/v1/stats/
+WARNING 2026-01-14 10:59:09,143 log 8 125967458663296 Not Found: /api/v1/oportunidades/
+WARNING 2026-01-14 10:59:12,842 log 8 125967458663296 Not Found: /api/v1/oportunidades/
+WARNING 2026-01-14 10:59:40,788 log 9 125967458663296 Not Found: /api/v1/oportunidades/
+WARNING 2026-01-14 10:59:58,057 log 7 125967458663296 Not Found: /api/v1/oportunidades/
+WARNING 2026-01-14 11:01:26,726 log 7 125967458663296 Not Found: /api/v1/core/usuarios/lista_corretores_simples/
+WARNING 2026-01-14 11:02:05,563 log 9 125967458663296 Not Found: /api/v1/core/usuarios/lista_corretores_simples/
+WARNING 2026-01-14 11:02:08,943 log 9 125967458663296 Not Found: /api/v1/oportunidades/
+WARNING 2026-01-14 11:04:01,215 log 9 137150111812480 Not Found: /api/v1/oportunidades/
+WARNING 2026-01-14 11:04:01,903 log 10 137150111812480 Not Found: /api/v1/oportunidades/
+ERROR 2026-01-14 11:41:46,348 log 9 134307317840768 Internal Server Error: /clientes
+Traceback (most recent call last):
+  File "/usr/local/lib/python3.12/site-packages/django/core/handlers/exception.py", line 55, in inner
+    response = get_response(request)
+               ^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/django/core/handlers/base.py", line 197, in _get_response
+    response = wrapped_callback(request, *callback_args, **callback_kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/django/utils/decorators.py", line 188, in _view_wrapper
+    result = _process_exception(request, e)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/django/utils/decorators.py", line 186, in _view_wrapper
+    response = view_func(request, *args, **kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/app/ImobCloud/urls.py", line 31, in index_view
+    return render(request, 'index.html')
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/django/shortcuts.py", line 24, in render
+    content = loader.render_to_string(template_name, context, request, using=using)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/django/template/loader.py", line 61, in render_to_string
+    template = get_template(template_name, using=using)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/django/template/loader.py", line 19, in get_template
+    raise TemplateDoesNotExist(template_name, chain=chain)
+django.template.exceptions.TemplateDoesNotExist: index.html
+ERROR 2026-01-14 11:41:46,734 log 9 134307317840768 Internal Server Error: /.well-known/appspecific/com.chrome.devtools.json
+Traceback (most recent call last):
+  File "/usr/local/lib/python3.12/site-packages/django/core/handlers/exception.py", line 55, in inner
+    response = get_response(request)
+               ^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/django/core/handlers/base.py", line 197, in _get_response
+    response = wrapped_callback(request, *callback_args, **callback_kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/django/utils/decorators.py", line 188, in _view_wrapper
+    result = _process_exception(request, e)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/django/utils/decorators.py", line 186, in _view_wrapper
+    response = view_func(request, *args, **kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/app/ImobCloud/urls.py", line 31, in index_view
+    return render(request, 'index.html')
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/django/shortcuts.py", line 24, in render
+    content = loader.render_to_string(template_name, context, request, using=using)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/django/template/loader.py", line 61, in render_to_string
+    template = get_template(template_name, using=using)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/django/template/loader.py", line 19, in get_template
+    raise TemplateDoesNotExist(template_name, chain=chain)
+django.template.exceptions.TemplateDoesNotExist: index.html
+WARNING 2026-01-14 11:41:47,416 log 9 134307317840768 Not Found: /favicon.ico
+ERROR 2026-01-14 11:41:58,779 log 9 134307317840768 Internal Server Error: /dashboard
+Traceback (most recent call last):
+  File "/usr/local/lib/python3.12/site-packages/django/core/handlers/exception.py", line 55, in inner
+    response = get_response(request)
+               ^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/django/core/handlers/base.py", line 197, in _get_response
+    response = wrapped_callback(request, *callback_args, **callback_kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/django/utils/decorators.py", line 188, in _view_wrapper
+    result = _process_exception(request, e)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/django/utils/decorators.py", line 186, in _view_wrapper
+    response = view_func(request, *args, **kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/app/ImobCloud/urls.py", line 31, in index_view
+    return render(request, 'index.html')
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/django/shortcuts.py", line 24, in render
+    content = loader.render_to_string(template_name, context, request, using=using)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/django/template/loader.py", line 61, in render_to_string
+    template = get_template(template_name, using=using)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/django/template/loader.py", line 19, in get_template
+    raise TemplateDoesNotExist(template_name, chain=chain)
+django.template.exceptions.TemplateDoesNotExist: index.html
+WARNING 2026-01-14 11:41:59,210 log 7 134307317840768 Not Found: /favicon.ico
+WARNING 2026-01-14 11:42:15,642 log 9 134307317840768 Not Found: /api/tarefas/
+ERROR 2026-01-14 11:42:17,190 log 9 134307317840768 Internal Server Error: /tarefas-board
+Traceback (most recent call last):
+  File "/usr/local/lib/python3.12/site-packages/django/core/handlers/exception.py", line 55, in inner
+    response = get_response(request)
+               ^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/django/core/handlers/base.py", line 197, in _get_response
+    response = wrapped_callback(request, *callback_args, **callback_kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/django/utils/decorators.py", line 188, in _view_wrapper
+    result = _process_exception(request, e)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/django/utils/decorators.py", line 186, in _view_wrapper
+    response = view_func(request, *args, **kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/app/ImobCloud/urls.py", line 31, in index_view
+    return render(request, 'index.html')
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/django/shortcuts.py", line 24, in render
+    content = loader.render_to_string(template_name, context, request, using=using)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/django/template/loader.py", line 61, in render_to_string
+    template = get_template(template_name, using=using)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/django/template/loader.py", line 19, in get_template
+    raise TemplateDoesNotExist(template_name, chain=chain)
+django.template.exceptions.TemplateDoesNotExist: index.html
+WARNING 2026-01-14 11:42:17,469 log 7 134307317840768 Not Found: /favicon.ico
+WARNING 2026-01-14 11:42:18,746 log 7 134307317840768 Not Found: /api/tarefas/
+WARNING 2026-01-14 11:42:20,289 log 7 134307317840768 Not Found: /api/tarefas/
+WARNING 2026-01-14 11:42:21,523 log 9 134307317840768 Not Found: /api/tarefas/
+ERROR 2026-01-14 11:42:21,953 log 9 134307317840768 Internal Server Error: /tarefas-board
+Traceback (most recent call last):
+  File "/usr/local/lib/python3.12/site-packages/django/core/handlers/exception.py", line 55, in inner
+    response = get_response(request)
+               ^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/django/core/handlers/base.py", line 197, in _get_response
+    response = wrapped_callback(request, *callback_args, **callback_kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/django/utils/decorators.py", line 188, in _view_wrapper
+    result = _process_exception(request, e)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/django/utils/decorators.py", line 186, in _view_wrapper
+    response = view_func(request, *args, **kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/app/ImobCloud/urls.py", line 31, in index_view
+    return render(request, 'index.html')
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/django/shortcuts.py", line 24, in render
+    content = loader.render_to_string(template_name, context, request, using=using)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/django/template/loader.py", line 61, in render_to_string
+    template = get_template(template_name, using=using)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/django/template/loader.py", line 19, in get_template
+    raise TemplateDoesNotExist(template_name, chain=chain)
+django.template.exceptions.TemplateDoesNotExist: index.html
+WARNING 2026-01-14 11:42:22,193 log 8 134307317840768 Not Found: /favicon.ico
+ERROR 2026-01-14 11:42:36,337 log 9 134307317840768 Internal Server Error: /clientes
+Traceback (most recent call last):
+  File "/usr/local/lib/python3.12/site-packages/django/core/handlers/exception.py", line 55, in inner
+    response = get_response(request)
+               ^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/django/core/handlers/base.py", line 197, in _get_response
+    response = wrapped_callback(request, *callback_args, **callback_kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/django/utils/decorators.py", line 188, in _view_wrapper
+    result = _process_exception(request, e)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/django/utils/decorators.py", line 186, in _view_wrapper
+    response = view_func(request, *args, **kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/app/ImobCloud/urls.py", line 31, in index_view
+    return render(request, 'index.html')
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/django/shortcuts.py", line 24, in render
+    content = loader.render_to_string(template_name, context, request, using=using)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/django/template/loader.py", line 61, in render_to_string
+    template = get_template(template_name, using=using)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/django/template/loader.py", line 19, in get_template
+    raise TemplateDoesNotExist(template_name, chain=chain)
+django.template.exceptions.TemplateDoesNotExist: index.html
+WARNING 2026-01-14 11:42:36,556 log 8 134307317840768 Not Found: /favicon.ico
+WARNING 2026-01-14 11:42:55,953 log 7 137039555095424 Not Found: /api/tarefas/
+WARNING 2026-01-14 11:42:57,604 log 7 137039555095424 Not Found: /api/tarefas/
+WARNING 2026-01-14 11:42:58,474 log 7 137039555095424 Not Found: /api/tarefas/
+WARNING 2026-01-14 11:42:59,234 log 9 137039555095424 Not Found: /api/tarefas/
+WARNING 2026-01-14 11:42:59,816 log 9 137039555095424 Not Found: /api/tarefas/
+WARNING 2026-01-14 11:43:00,615 log 9 137039555095424 Not Found: /api/tarefas/
+WARNING 2026-01-14 11:43:01,533 log 9 137039555095424 Not Found: /api/tarefas/
+WARNING 2026-01-14 11:43:02,053 log 7 137039555095424 Not Found: /api/tarefas/
+WARNING 2026-01-14 11:43:02,734 log 9 137039555095424 Not Found: /api/tarefas/
+WARNING 2026-01-14 11:43:20,484 log 8 137039555095424 Not Found: /api/tarefas/
+WARNING 2026-01-14 11:46:39,573 log 9 123636593081216 Not Found: /api/tarefas/
+WARNING 2026-01-14 11:53:09,671 log 9 138147073985408 Not Found: /api/tarefas/
+WARNING 2026-01-14 11:53:22,942 log 7 138147073985408 Not Found: /api/tarefas/
+WARNING 2026-01-14 11:58:28,829 log 8 126351042489216 Unauthorized: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2026-01-14 11:58:39,224 log 7 136197038398336 Not Found: /api/tarefas/
+WARNING 2026-01-14 11:58:39,904 log 8 136197038398336 Not Found: /api/tarefas/
+WARNING 2026-01-14 11:58:49,923 log 9 136197038398336 Not Found: /api/tarefas/
+WARNING 2026-01-14 11:58:52,532 log 7 136197038398336 Not Found: /api/tarefas/
+WARNING 2026-01-14 12:04:29,563 log 9 136528744774528 Not Found: /api/tarefas/kanban/
+WARNING 2026-01-14 12:05:12,221 log 9 136528744774528 Not Found: /api/tarefas/kanban/
+WARNING 2026-01-14 12:08:13,272 log 9 136528744774528 Not Found: /api/tarefas/kanban/
+WARNING 2026-01-14 12:08:40,283 log 7 126067791448960 Not Found: /api/tarefas/kanban/
+WARNING 2026-01-14 12:09:37,016 log 7 127629991398272 Not Found: /api/tarefas/kanban/
+WARNING 2026-01-14 12:09:49,668 log 9 127629991398272 Not Found: /api/tarefas/
+WARNING 2026-01-14 12:26:34,795 log 8 136974321027968 Not Found: /api/tarefas/kanban/
+WARNING 2026-01-14 12:26:46,749 log 9 136974321027968 Not Found: /api/tarefas/
+WARNING 2026-01-14 12:27:04,199 log 7 136974321027968 Not Found: /api/tarefas/kanban/
+WARNING 2026-01-14 12:32:05,627 log 7 136974321027968 Not Found: /api/tarefas/
+WARNING 2026-01-14 12:32:06,355 log 9 136974321027968 Not Found: /favicon.ico
+WARNING 2026-01-14 12:37:34,868 log 9 137096636222336 Not Found: /api/v1/v1/core/usuarios/me/
+WARNING 2026-01-14 12:37:35,445 log 9 137096636222336 Not Found: /api/v1/v1/core/usuarios/minhas-notificacoes/
+WARNING 2026-01-14 12:37:38,030 log 7 137096636222336 Not Found: /api/v1/v1/core/usuarios/me/
+WARNING 2026-01-14 12:37:45,671 log 8 137096636222336 Not Found: /api/v1/v1/core/usuarios/me/
+WARNING 2026-01-14 12:37:45,729 log 7 137096636222336 Not Found: /api/v1/v1/core/usuarios/me/
+WARNING 2026-01-14 12:37:45,748 log 9 137096636222336 Not Found: /api/v1/v1/core/usuarios/minhas-notificacoes/
+WARNING 2026-01-14 12:37:53,912 log 7 137096636222336 Not Found: /api/v1/v1/clientes/
+WARNING 2026-01-14 12:38:45,720 log 7 137096636222336 Not Found: /api/v1/v1/core/usuarios/minhas-notificacoes/
+WARNING 2026-01-14 12:39:45,732 log 7 137096636222336 Not Found: /api/v1/v1/core/usuarios/minhas-notificacoes/
+WARNING 2026-01-14 12:40:45,763 log 8 137096636222336 Not Found: /api/v1/v1/core/usuarios/minhas-notificacoes/
+WARNING 2026-01-14 12:41:45,780 log 8 137096636222336 Not Found: /api/v1/v1/core/usuarios/minhas-notificacoes/
+WARNING 2026-01-14 12:42:45,752 log 8 137096636222336 Not Found: /api/v1/v1/core/usuarios/minhas-notificacoes/
+WARNING 2026-01-14 12:43:45,762 log 7 137096636222336 Not Found: /api/v1/v1/core/usuarios/minhas-notificacoes/
+WARNING 2026-01-14 12:46:02,138 log 10 133156415716224 Not Found: /api/v1/contratos/dashboard-stats/
+WARNING 2026-01-14 12:46:07,224 log 9 133156415716224 Not Found: /api/v1/contratos/dashboard-stats/
+WARNING 2026-01-14 12:46:08,909 log 9 133156415716224 Not Found: /api/v1/contratos/dashboard-stats/
+WARNING 2026-01-14 12:46:16,550 log 8 133156415716224 Not Found: /api/v1/contratos/dashboard-stats/
+WARNING 2026-01-14 12:46:18,391 log 8 133156415716224 Not Found: /api/v1/contratos/dashboard-stats/
+WARNING 2026-01-14 12:46:34,600 log 8 133156415716224 Not Found: /api/v1/clientes/oportunidades/
+WARNING 2026-01-14 12:46:43,894 log 8 133156415716224 Not Found: /api/v1/clientes/oportunidades/
+WARNING 2026-01-14 12:57:02,909 log 9 127523513817984 Not Found: /api/v1/clientes/oportunidades/
+WARNING 2026-01-14 12:57:38,724 log 7 127523513817984 Not Found: /favicon.ico
+WARNING 2026-01-14 12:57:50,286 log 8 127523513817984 Not Found: /api/v1/clientes/oportunidades/
+WARNING 2026-01-14 12:59:14,027 log 7 127523513817984 Unauthorized: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2026-01-14 12:59:21,457 log 9 127523513817984 Not Found: /api/v1/clientes/oportunidades/

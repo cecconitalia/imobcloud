@@ -105,6 +105,13 @@
               <span class="nav-label">Agenda</span>
             </router-link>
           </li>
+          
+          <li class="nav-item">
+            <router-link to="/tarefas-board" class="nav-link" active-class="active">
+              <i class="fas fa-columns nav-icon"></i>
+              <span class="nav-label">Quadro de Tarefas</span>
+            </router-link>
+          </li>
 
           <li class="nav-section">SISTEMA</li>
           <li class="divider" v-show="isCollapsed && !isHovered"></li>

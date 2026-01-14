@@ -183,10 +183,37 @@ class Oportunidade(models.Model):
     }
 
 class Tarefa(models.Model):
+    STATUS_CHOICES = [
+        ('pendente', 'Pendente'),
+        ('em_andamento', 'Em Andamento'),
+        ('concluida', 'Concluída'),
+    ]
+    
+    PRIORIDADE_CHOICES = [
+        ('BAIXA', 'Baixa'),
+        ('MEDIA', 'Média'),
+        ('ALTA', 'Alta'),
+    ]
+
+    imobiliaria = models.ForeignKey(
+        'core.Imobiliaria', 
+        on_delete=models.CASCADE, 
+        related_name='tarefas',
+        null=True, # Temporário para migração, ideal ser obrigatório depois
+        blank=True
+    )
+    
     titulo = models.CharField(max_length=255)
     descricao = models.TextField(blank=True, null=True)
     data_vencimento = models.DateTimeField()
+    
+    # Novo campo de Status para o Kanban
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pendente', verbose_name="Status")
+    prioridade = models.CharField(max_length=20, choices=PRIORIDADE_CHOICES, default='MEDIA', verbose_name="Prioridade")
+    
+    # Mantido para compatibilidade (será atualizado via save)
     concluida = models.BooleanField(default=False)
+    
     oportunidade = models.ForeignKey(
         Oportunidade, 
         on_delete=models.CASCADE, 
@@ -207,13 +234,20 @@ class Tarefa(models.Model):
         return f"Tarefa: {self.titulo}"
 
     def save(self, *args, **kwargs):
+        # Sincroniza concluida <-> status
+        if self.concluida and self.status != 'concluida':
+            self.status = 'concluida'
+        elif self.status == 'concluida' and not self.concluida:
+            self.concluida = True
+        elif not self.concluida and self.status == 'concluida':
+            self.status = 'pendente'
+            
         super().save(*args, **kwargs)
 
 class Visita(models.Model):
     imobiliaria = models.ForeignKey('core.Imobiliaria', on_delete=models.CASCADE)
     cliente = models.ForeignKey(Cliente, on_delete=models.CASCADE)
     
-    # ADICIONADO: Campo para saber qual corretor é o responsável pela visita
     corretor = models.ForeignKey(
         settings.AUTH_USER_MODEL, 
         on_delete=models.SET_NULL, 
@@ -223,7 +257,6 @@ class Visita(models.Model):
         verbose_name="Corretor Responsável"
     )
     
-    # ManyToManyField para múltiplos imóveis
     imoveis = models.ManyToManyField('app_imoveis.Imovel', related_name='visitas', verbose_name="Imóveis Visitados")
     
     data_visita = models.DateTimeField()

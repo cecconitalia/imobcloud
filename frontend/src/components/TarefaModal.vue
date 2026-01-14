@@ -1,367 +1,276 @@
 <template>
-  <div class="modal-overlay" @click.self="closeModal">
-    <div class="modal-container">
-      <div class="modal-header">
-        <h3>{{ tituloModal }}</h3>
-        <button @click="closeModal" class="close-btn">&times;</button>
-      </div>
-
-      <form @submit.prevent="submitForm" class="modal-form">
+  <Teleport to="body">
+    <div v-if="show" class="fixed inset-0 z-[9999] flex items-center justify-center bg-gray-900 bg-opacity-60 backdrop-blur-sm p-4 transition-all">
+      
+      <div class="bg-white rounded-xl shadow-2xl w-full max-w-lg transform transition-all flex flex-col max-h-[90vh] border border-gray-100 animate-scale-in">
         
-        <div class="form-group">
-          <label for="titulo">Título da Tarefa</label>
-          <input 
-            id="titulo"
-            v-model="tarefa.titulo" 
-            type="text" 
-            placeholder="Ex: Ligar para o cliente" 
-            required 
-          />
+        <div class="px-6 py-5 border-b border-gray-100 flex justify-between items-center bg-gray-50 rounded-t-xl">
+          <div class="flex items-center gap-3">
+            <div class="h-10 w-10 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center shadow-sm">
+              <i :class="tarefa?.id ? 'fas fa-edit' : 'fas fa-plus'"></i>
+            </div>
+            <div>
+              <h3 class="text-lg font-bold text-gray-800 leading-tight">
+                {{ tarefa?.id ? 'Editar Tarefa' : 'Nova Tarefa' }}
+              </h3>
+              <p class="text-xs text-gray-500">Preencha os detalhes abaixo</p>
+            </div>
+          </div>
+          <button @click="$emit('close')" class="text-gray-400 hover:text-red-500 transition-colors h-8 w-8 flex items-center justify-center rounded-full hover:bg-white hover:shadow-sm">
+            <i class="fas fa-times text-lg"></i>
+          </button>
         </div>
 
-        <div class="form-group">
-          <label for="descricao">Descrição</label>
-          <textarea 
-            id="descricao"
-            v-model="tarefa.descricao" 
-            placeholder="Adicionar mais detalhes..."
-            rows="3"
-          ></textarea>
+        <div class="p-6 space-y-6 overflow-y-auto custom-scrollbar bg-white">
+          
+          <div>
+            <label class="block text-sm font-bold text-gray-700 mb-1.5">Título da Tarefa <span class="text-red-500">*</span></label>
+            <input 
+              v-model="form.titulo" 
+              type="text" 
+              ref="tituloInput"
+              :class="{'border-red-300 ring-red-100': errors.titulo, 'border-gray-300 focus:border-blue-500 focus:ring-blue-100': !errors.titulo}"
+              class="w-full px-4 py-3 border rounded-lg focus:ring-4 outline-none transition-all text-gray-800 placeholder-gray-400 text-sm font-medium"
+              placeholder="Ex: Reunião com cliente..."
+              @input="errors.titulo = false"
+            >
+            <p v-if="errors.titulo" class="text-xs text-red-500 mt-1 font-medium">Este campo é obrigatório.</p>
+          </div>
+
+          <div>
+            <label class="block text-sm font-bold text-gray-700 mb-1.5">Descrição</label>
+            <textarea 
+              v-model="form.descricao" 
+              rows="3" 
+              class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-4 focus:ring-blue-100 focus:border-blue-500 outline-none transition-all resize-none text-gray-700 placeholder-gray-400 text-sm"
+              placeholder="Detalhes adicionais..."
+            ></textarea>
+          </div>
+
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+            <div>
+              <label class="block text-sm font-bold text-gray-700 mb-1.5">Data Vencimento</label>
+              <input 
+                v-model="form.data_vencimento" 
+                type="datetime-local" 
+                class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-4 focus:ring-blue-100 focus:border-blue-500 outline-none text-sm text-gray-700 font-medium"
+              >
+            </div>
+            
+            <div>
+              <label class="block text-sm font-bold text-gray-700 mb-1.5">Prioridade</label>
+              <div class="flex gap-2 h-[42px]">
+                <button 
+                  v-for="prio in prioridadeOptions"
+                  :key="prio.value"
+                  type="button"
+                  @click="form.prioridade = prio.value"
+                  class="flex-1 rounded-lg text-xs font-bold border transition-all flex items-center justify-center gap-1.5"
+                  :class="form.prioridade === prio.value ? prio.activeClass : 'bg-white border-gray-200 text-gray-500 hover:bg-gray-50 hover:border-gray-300'"
+                >
+                  <i :class="prio.icon"></i> {{ prio.label }}
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <div>
+            <label class="block text-sm font-bold text-gray-700 mb-2">Status</label>
+            <div class="grid grid-cols-3 gap-3">
+              <button 
+                v-for="st in statusOptions" 
+                :key="st.value"
+                type="button"
+                @click="form.status = st.value"
+                class="py-3 px-2 text-xs font-bold rounded-lg border transition-all flex flex-col items-center justify-center gap-1 relative overflow-hidden"
+                :class="form.status === st.value ? st.activeClass : 'bg-white border-gray-200 text-gray-500 hover:bg-gray-50 hover:border-gray-300'"
+              >
+                <div v-if="form.status === st.value" class="absolute top-0 right-0 w-3 h-3 bg-current opacity-20 rounded-bl-lg"></div>
+                <i :class="st.icon" class="text-sm mb-1"></i> 
+                <span>{{ st.label }}</span>
+              </button>
+            </div>
+          </div>
+
+          <div v-if="tarefa?.cliente_nome" class="bg-blue-50 border border-blue-100 rounded-lg p-3 flex items-center gap-3">
+             <div class="bg-blue-100 text-blue-600 rounded-full h-8 w-8 flex items-center justify-center flex-shrink-0 text-sm">
+               <i class="fas fa-user"></i>
+             </div>
+             <div class="overflow-hidden">
+               <p class="text-xs text-blue-600 font-bold uppercase tracking-wide">Vinculado ao Cliente</p>
+               <p class="text-sm font-medium text-gray-800 truncate">
+                 {{ tarefa.cliente_nome }}
+               </p>
+             </div>
+          </div>
+
         </div>
 
-        <div class="form-group">
-          <label for="data_vencimento">Prazo Final</label>
-          <input 
-            id="data_vencimento"
-            v-model="tarefa.data_vencimento" 
-            type="datetime-local" 
-            required 
-          />
-        </div>
-
-        <div class="form-group">
-          <label for="oportunidade">Associar à Oportunidade</label>
-          <v-select
-            id="oportunidade"
-            label="formatted_title"
-            :options="oportunidades"
-            :reduce="oportunidade => oportunidade.id"
-            v-model="tarefa.oportunidade"
-            placeholder="Nenhuma oportunidade associada"
+        <div class="px-6 py-4 bg-gray-50 border-t border-gray-100 flex justify-end gap-3 rounded-b-xl">
+          <button 
+            @click="$emit('close')" 
+            class="px-5 py-2.5 text-gray-600 bg-white border border-gray-300 rounded-lg hover:bg-gray-100 font-medium text-sm transition-all shadow-sm"
           >
-            <template #option="option">
-              <strong>{{ option.titulo }}</strong><br>
-              <small>{{ option.cliente?.nome_completo || 'Cliente não informado' }}</small>
-            </template>
-            <template #no-options>
-              Nenhuma oportunidade encontrada.
-            </template>
-          </v-select>
+            Cancelar
+          </button>
+          <button 
+            @click="salvar" 
+            :disabled="loading"
+            class="px-6 py-2.5 text-white bg-blue-600 hover:bg-blue-700 rounded-lg font-medium text-sm shadow-md hover:shadow-lg flex items-center gap-2 transition-all disabled:opacity-70 disabled:cursor-not-allowed transform active:scale-95"
+          >
+            <i v-if="loading" class="fas fa-circle-notch fa-spin"></i>
+            <span v-else><i class="fas fa-save mr-1"></i></span>
+            {{ loading ? 'Salvando...' : 'Salvar' }}
+          </button>
         </div>
 
-        <div class="modal-actions">
-          <button v-if="isEditing" type="button" @click="handleDelete" class="btn-danger">
-            Eliminar
-          </button>
-          <button type="submit" class="btn-primary" :disabled="isSubmitting">
-            {{ submitButtonText }}
-          </button>
-        </div>
-      </form>
+      </div>
     </div>
-  </div>
+  </Teleport>
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, onMounted, defineProps, defineEmits, watch } from 'vue';
-import apiClient from '@/services/api';
-import vSelect from 'vue-select';
-import 'vue-select/dist/vue-select.css';
+import { ref, watch, reactive, nextTick } from 'vue';
+import api from '../services/api';
 
-// --- PROPS E EMITS ---
+// Definição de Tipos
+interface Tarefa {
+  id?: number;
+  titulo: string;
+  descricao?: string;
+  data_vencimento?: string;
+  prioridade?: 'BAIXA' | 'MEDIA' | 'ALTA';
+  status?: 'pendente' | 'em_andamento' | 'concluida';
+  oportunidade?: number | null;
+  concluida?: boolean;
+  cliente_nome?: string;
+}
+
 const props = defineProps<{
-  tarefaParaEditar?: any | null;
-  oportunidadeInicial?: any | null;
+  show: boolean;
+  tarefa?: Tarefa | null;
 }>();
 
 const emit = defineEmits(['close', 'saved']);
 
-// --- ESTADO DO COMPONENTE ---
-const isSubmitting = ref(false);
-const oportunidades = ref<any[]>([]);
+const loading = ref(false);
+const tituloInput = ref<HTMLInputElement | null>(null);
+const errors = reactive({
+  titulo: false
+});
 
-const tarefa = reactive({
-  id: null as number | null,
+const form = ref<Tarefa>({
   titulo: '',
   descricao: '',
   data_vencimento: '',
-  oportunidade: null as number | null,
+  prioridade: 'MEDIA',
+  status: 'pendente',
+  oportunidade: null
 });
 
-// --- DADOS COMPUTADOS ---
-const isEditing = computed(() => !!tarefa.id);
-const tituloModal = computed(() => isEditing.value ? 'Editar Tarefa' : 'Adicionar Nova Tarefa');
-const submitButtonText = computed(() => {
-  if (isSubmitting.value) {
-    return isEditing.value ? 'A atualizar...' : 'A criar...';
-  }
-  return isEditing.value ? 'Atualizar Tarefa' : 'Criar Tarefa';
-});
-
-// --- MÉTODOS ---
-const closeModal = () => {
-  emit('close');
+// Helper Nativo para data (YYYY-MM-DDTHH:MM)
+const formatarDataInput = (isoDate?: string) => {
+    if (!isoDate) return '';
+    try {
+        const date = new Date(isoDate);
+        if (isNaN(date.getTime())) return '';
+        // Ajuste fuso horário local
+        const offset = date.getTimezoneOffset() * 60000;
+        return (new Date(date.getTime() - offset)).toISOString().slice(0, 16);
+    } catch {
+        return '';
+    }
 };
 
-const fetchOportunidades = async () => {
-  try {
-    const response = await apiClient.get('/v1/oportunidades/');
-    // CORREÇÃO: Mapeia os dados para incluir uma propriedade formatada para o v-select
-    oportunidades.value = response.data.map((op: any) => ({
-      ...op,
-      formatted_title: `${op.titulo} - ${op.cliente?.nome_completo || 'Cliente não informado'}`
-    }));
-  } catch (error) {
-    console.error("Erro ao carregar oportunidades:", error);
-  }
-};
+const statusOptions = [
+  { value: 'pendente', label: 'Pendente', icon: 'far fa-clock', activeClass: 'bg-orange-50 border-orange-500 text-orange-700 ring-1 ring-orange-500' },
+  { value: 'em_andamento', label: 'Em Andamento', icon: 'fas fa-spinner fa-spin-pulse', activeClass: 'bg-blue-50 border-blue-500 text-blue-700 ring-1 ring-blue-500' },
+  { value: 'concluida', label: 'Concluída', icon: 'fas fa-check-circle', activeClass: 'bg-green-50 border-green-500 text-green-700 ring-1 ring-green-500' }
+];
 
-const submitForm = async () => {
-  isSubmitting.value = true;
-  try {
-    // CORREÇÃO: Cria uma oportunidade padrão se nenhuma for selecionada
-    if (!tarefa.oportunidade) {
-      let clientePadraoId = null;
-      try {
-        const clienteResponse = await apiClient.get('/v1/clientes/', { params: { search: 'Cliente Padrão' } });
-        if (clienteResponse.data.length > 0) {
-          clientePadraoId = clienteResponse.data[0].id;
+const prioridadeOptions = [
+  { value: 'BAIXA', label: 'Baixa', icon: 'fas fa-arrow-down', activeClass: 'bg-green-100 border-green-300 text-green-800' },
+  { value: 'MEDIA', label: 'Média', icon: 'fas fa-minus', activeClass: 'bg-yellow-100 border-yellow-300 text-yellow-800' },
+  { value: 'ALTA', label: 'Alta', icon: 'fas fa-exclamation', activeClass: 'bg-red-100 border-red-300 text-red-800' },
+];
+
+watch(() => props.show, (newVal) => {
+    if (newVal) {
+        errors.titulo = false;
+        // Popula formulário
+        if (props.tarefa) {
+            form.value = {
+                titulo: props.tarefa.titulo || '',
+                descricao: props.tarefa.descricao || '',
+                data_vencimento: formatarDataInput(props.tarefa.data_vencimento),
+                prioridade: props.tarefa.prioridade || 'MEDIA',
+                status: props.tarefa.status || (props.tarefa.concluida ? 'concluida' : 'pendente'),
+                oportunidade: props.tarefa.oportunidade
+            };
         } else {
-          const novoClienteResponse = await apiClient.post('/v1/clientes/', { nome_completo: 'Cliente Padrão', tipo_cliente: 'PESSOA_FISICA' });
-          clientePadraoId = novoClienteResponse.data.id;
+            // Nova tarefa
+            const now = new Date();
+            form.value = {
+                titulo: '',
+                descricao: '',
+                data_vencimento: formatarDataInput(now.toISOString()),
+                prioridade: 'MEDIA',
+                status: 'pendente',
+                oportunidade: null
+            };
         }
-      } catch (error) {
-        console.error("Erro ao encontrar ou criar cliente padrão:", error);
-        alert('Ocorreu um erro ao preparar o cliente padrão.');
-        return;
-      }
-
-      const novaOportunidadePayload = {
-        titulo: `Oportunidade gerada automaticamente para a tarefa '${tarefa.titulo}'`,
-        fase: 'LEAD',
-        probabilidade: 10,
-        valor_estimado: 0,
-        cliente: clientePadraoId, // Adiciona o cliente padrão
-      };
-      const response = await apiClient.post('/v1/oportunidades/', novaOportunidadePayload);
-      tarefa.oportunidade = response.data.id;
+        
+        // Foco automático no título
+        nextTick(() => {
+            if (tituloInput.value) tituloInput.value.focus();
+        });
     }
+}, { immediate: true });
 
-    const payload = {
-      titulo: tarefa.titulo,
-      descricao: tarefa.descricao,
-      data_vencimento: tarefa.data_vencimento,
-      oportunidade: tarefa.oportunidade,
-    };
-
-    if (isEditing.value) {
-      await apiClient.patch(`/v1/tarefas/${tarefa.id}/`, payload);
-    } else {
-      await apiClient.post('/v1/tarefas/', payload);
-    }
-    
-    emit('saved');
-
-  } catch (error) {
-    console.error("Erro ao salvar a tarefa:", error);
-    alert('Ocorreu um erro ao salvar a tarefa. Verifique a consola para mais detalhes.');
-  } finally {
-    isSubmitting.value = false;
-  }
-};
-
-const handleDelete = async () => {
-  if (!window.confirm('Tem a certeza de que deseja eliminar esta tarefa?')) {
+const salvar = async () => {
+  if (!form.value.titulo || form.value.titulo.trim() === '') {
+    errors.titulo = true;
+    if(tituloInput.value) tituloInput.value.focus();
     return;
   }
-  isSubmitting.value = true;
+
+  loading.value = true;
   try {
-    await apiClient.delete(`/v1/tarefas/${tarefa.id}/`);
+    const payload = {
+        ...form.value,
+        concluida: form.value.status === 'concluida'
+    };
+
+    // CORREÇÃO: Usando /v1/ explicitamente
+    if (props.tarefa?.id) {
+      await api.patch(`/v1/tarefas/${props.tarefa.id}/`, payload);
+    } else {
+      await api.post('/v1/tarefas/', payload);
+    }
     
     emit('saved');
-
+    emit('close');
   } catch (error) {
-    console.error("Erro ao eliminar a tarefa:", error);
-    alert('Ocorreu um erro ao eliminar a tarefa.');
+    console.error('Erro ao salvar:', error);
+    alert('Erro ao salvar. Verifique se o servidor está rodando.');
   } finally {
-    isSubmitting.value = false;
+    loading.value = false;
   }
 };
-
-const preencherFormularioParaEdicao = (tarefaParaEditar: any) => {
-    tarefa.id = tarefaParaEditar.id;
-    tarefa.titulo = tarefaParaEditar.titulo;
-    tarefa.descricao = tarefaParaEditar.descricao;
-    tarefa.data_vencimento = tarefaParaEditar.data_vencimento 
-      ? new Date(tarefaParaEditar.data_vencimento).toISOString().slice(0, 16) 
-      : '';
-    tarefa.oportunidade = tarefaParaEditar.oportunidade;
-};
-
-// --- CICLO DE VIDA ---
-onMounted(() => {
-  fetchOportunidades();
-  if (props.tarefaParaEditar) {
-    preencherFormularioParaEdicao(props.tarefaParaEditar);
-  }
-  else if (props.oportunidadeInicial) {
-    tarefa.oportunidade = props.oportunidadeInicial.id;
-  }
-});
-
-watch(() => props.oportunidadeInicial, (novaOportunidade) => {
-  if (novaOportunidade) {
-    tarefa.oportunidade = novaOportunidade.id;
-  } else {
-    tarefa.oportunidade = null;
-  }
-});
 </script>
 
 <style scoped>
-/* Estilos modernos e limpos para o modal */
-.modal-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(0, 0, 0, 0.6);
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  z-index: 1000;
-  backdrop-filter: blur(5px);
-}
-.modal-container {
-  background: white;
-  padding: 2rem;
-  border-radius: 12px;
-  width: 100%;
-  max-width: 550px;
-  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
-  transform: scale(0.95);
-  animation: scaleIn 0.3s forwards;
-}
+.custom-scrollbar::-webkit-scrollbar { width: 6px; }
+.custom-scrollbar::-webkit-scrollbar-track { background: #f9fafb; }
+.custom-scrollbar::-webkit-scrollbar-thumb { background-color: #d1d5db; border-radius: 4px; }
+.custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #9ca3af; }
 
+/* Animação de entrada */
 @keyframes scaleIn {
-  to {
-    transform: scale(1);
-  }
+  from { opacity: 0; transform: scale(0.95); }
+  to { opacity: 1; transform: scale(1); }
 }
-
-.modal-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 1.5rem;
-  border-bottom: 1px solid #e5e7eb;
-  padding-bottom: 1rem;
-}
-.modal-header h3 {
-  margin: 0;
-  font-size: 1.5rem;
-  color: #111827;
-}
-.close-btn {
-  background: #f3f4f6;
-  border: none;
-  font-size: 1.5rem;
-  cursor: pointer;
-  line-height: 1;
-  width: 32px;
-  height: 32px;
-  border-radius: 50%;
-  color: #6b7280;
-  transition: background-color 0.2s, color 0.2s;
-}
-.close-btn:hover {
-    background-color: #e5e7eb;
-    color: #111827;
-}
-
-.modal-form {
-    display: flex;
-    flex-direction: column;
-    gap: 1.25rem;
-}
-
-.form-group {
-    display: flex;
-    flex-direction: column;
-}
-.form-group label {
-    font-weight: 600;
-    margin-bottom: 0.5rem;
-    color: #374151;
-    font-size: 0.9rem;
-}
-.form-group input,
-.form-group textarea {
-    width: 100%;
-    padding: 12px;
-    border: 1px solid #d1d5db;
-    border-radius: 8px;
-    font-size: 1rem;
-    box-sizing: border-box;
-    transition: border-color 0.2s, box-shadow 0.2s;
-}
-.form-group input:focus,
-.form-group textarea:focus {
-    outline: none;
-    border-color: #3b82f6;
-    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
-}
-textarea {
-    resize: vertical;
-}
-
-.modal-actions {
-  margin-top: 1.5rem;
-  display: flex;
-  justify-content: flex-end;
-  gap: 1rem;
-  border-top: 1px solid #e5e7eb;
-  padding-top: 1.5rem;
-}
-.btn-primary, .btn-danger {
-  padding: 12px 24px;
-  border: none;
-  border-radius: 8px;
-  cursor: pointer;
-  font-weight: bold;
-  font-size: 1rem;
-  transition: background-color 0.2s, transform 0.1s;
-}
-.btn-primary { background-color: #2563eb; color: white; }
-.btn-primary:hover { background-color: #1d4ed8; }
-.btn-primary:disabled { background-color: #9ca3af; cursor: not-allowed; }
-
-.btn-danger { background-color: #dc2626; color: white; }
-.btn-danger:hover { background-color: #b91c1c; }
-
-.btn-primary:active, .btn-danger:active {
-    transform: scale(0.98);
-}
-
-/* Estilos para o v-select */
-:deep(.vs__dropdown-toggle) {
-    padding: 8px;
-    border-radius: 8px;
-    border: 1px solid #d1d5db;
-}
-:deep(.vs--open .vs__dropdown-toggle) {
-    border-color: #3b82f6;
-    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
+.animate-scale-in {
+  animation: scaleIn 0.2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 </style>

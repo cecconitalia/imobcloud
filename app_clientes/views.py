@@ -47,16 +47,11 @@ User = get_user_model()
 # HELPER PARA VERIFICAR PERMISSÕES
 # ====================================================================
 def is_admin_or_corretor(user):
-    """
-    Verifica se o usuário é Admin ou Corretor de forma segura,
-    evitando erros se o atributo Cargo não existir como Enum.
-    """
     is_admin_bool = getattr(user, 'is_admin', False)
     is_corretor_bool = getattr(user, 'is_corretor', False)
     
     cargo = getattr(user, 'cargo', None)
     
-    # CORREÇÃO: Comparação por string para evitar AttributeError
     is_admin_cargo = (str(cargo).upper() == 'ADMIN')
     is_corretor_cargo = (str(cargo).upper() == 'CORRETOR')
     
@@ -526,9 +521,17 @@ class TarefaViewSet(viewsets.ModelViewSet):
         if user.is_superuser:
             if not tenant:
                 return Tarefa.objects.all()
-            return Tarefa.objects.filter(oportunidade__imobiliaria=tenant)
+            return Tarefa.objects.filter(
+                Q(imobiliaria=tenant) | Q(oportunidade__imobiliaria=tenant)
+            ).distinct()
 
-        queryset = Tarefa.objects.filter(oportunidade__imobiliaria=tenant)
+        # Usuários normais veem tarefas da sua imobiliária
+        # CORREÇÃO: Inclui fallback para tarefas onde imobiliaria é NULL mas o responsável é da imobiliária (legacy data)
+        queryset = Tarefa.objects.filter(
+            Q(imobiliaria=tenant) | 
+            Q(oportunidade__imobiliaria=tenant) |
+            (Q(imobiliaria__isnull=True) & Q(responsavel__imobiliaria=tenant))
+        ).distinct()
         
         oportunidade_id = self.request.query_params.get('oportunidade')
         if oportunidade_id:
@@ -536,18 +539,34 @@ class TarefaViewSet(viewsets.ModelViewSet):
             
         return queryset
 
+    # NOVA AÇÃO: Endpoint específico para o Kanban (sem paginação)
+    @action(detail=False, methods=['get'], url_path='kanban')
+    def kanban(self, request):
+        queryset = self.filter_queryset(self.get_queryset())
+        # Desativa paginação manual para este endpoint se o global estiver ativo
+        # Retorna lista direta
+        serializer = self.get_serializer(queryset, many=True)
+        return Response(serializer.data)
+
     def perform_create(self, serializer):
         oportunidade_id = self.request.data.get('oportunidade')
         oportunidade = None
         
         tenant = getattr(self.request, 'tenant', None) or getattr(self.request.user, 'imobiliaria', None)
 
+        if not tenant and self.request.user.is_superuser:
+             tenant = Imobiliaria.objects.first()
+
         if oportunidade_id:
             oportunidade = get_object_or_404(Oportunidade, pk=oportunidade_id)
             if not (self.request.user.is_superuser or oportunidade.imobiliaria == tenant):
                 raise PermissionDenied("Você não tem permissão para adicionar tarefas a esta oportunidade.")
         
-        tarefa = serializer.save(oportunidade=oportunidade, responsavel=self.request.user)
+        tarefa = serializer.save(
+            oportunidade=oportunidade, 
+            responsavel=self.request.user,
+            imobiliaria=tenant
+        )
 
         if tarefa.responsavel and getattr(tarefa.responsavel, 'google_calendar_token', None):
             try:
@@ -559,7 +578,16 @@ class TarefaViewSet(viewsets.ModelViewSet):
         instance = self.get_object()
         tenant = getattr(self.request, 'tenant', None) or getattr(self.request.user, 'imobiliaria', None)
 
-        if not (self.request.user.is_superuser or (instance.oportunidade.imobiliaria == tenant)):
+        eh_do_tenant = False
+        if instance.imobiliaria == tenant:
+            eh_do_tenant = True
+        elif instance.oportunidade and instance.oportunidade.imobiliaria == tenant:
+            eh_do_tenant = True
+        # Permite edição se for do responsável que pertence ao tenant (legacy)
+        elif instance.imobiliaria is None and instance.responsavel.imobiliaria == tenant:
+            eh_do_tenant = True
+
+        if not (self.request.user.is_superuser or eh_do_tenant):
             raise PermissionDenied("Você não tem permissão para atualizar esta tarefa.")
             
         tarefa = serializer.save()

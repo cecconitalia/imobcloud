@@ -47,6 +47,7 @@ import OportunidadeFormView from '@/views/OportunidadeFormView.vue'
 import PublicacoesView from '@/views/PublicacoesView.vue'
 import RegisterView from '@/views/RegisterView.vue'
 import RelatoriosView from '@/views/RelatoriosView.vue'
+import TarefasKanbanView from '@/views/TarefasKanbanView.vue' // <--- IMPORTADO AQUI
 import TransacaoFormView from '@/views/TransacaoForm.vue'
 import VisitaFormView from '@/views/VisitaFormView.vue'
 import VisitasView from '@/views/VisitasView.vue'
@@ -334,6 +335,14 @@ const router = createRouter({
                     component: CalendarioTarefas,
                     meta: { title: 'Meu Calendário' }
                 },
+                // --- NOVA ROTA KANBAN ---
+                {
+                    path: 'tarefas-board',
+                    name: 'tarefas-board',
+                    component: TarefasKanbanView,
+                    meta: { title: 'Quadro de Tarefas' }
+                },
+                // ------------------------
                 {
                     path: 'publicacoes',
                     name: 'publicacoes',

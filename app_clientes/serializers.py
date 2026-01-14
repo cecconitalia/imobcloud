@@ -71,14 +71,30 @@ class AtividadeSerializer(serializers.ModelSerializer):
         read_only_fields = ['registrado_por']
 
 class TarefaSerializer(serializers.ModelSerializer):
+    # Campos calculados para o Frontend (Kanban)
+    cliente_nome = serializers.SerializerMethodField()
+    responsavel_nome = serializers.SerializerMethodField()
+
     class Meta:
         model = Tarefa
         fields = [
             'id', 'titulo', 'descricao', 'data_vencimento', 'concluida', 
+            'status', 'prioridade', # Novos campos
             'oportunidade', 'responsavel', 'google_calendar_event_id',
-            'observacoes_finalizacao'
+            'observacoes_finalizacao',
+            'cliente_nome', 'responsavel_nome' # Campos extras de leitura
         ]
-        read_only_fields = ['responsavel']
+        read_only_fields = ['responsavel', 'imobiliaria']
+
+    def get_cliente_nome(self, obj):
+        if obj.oportunidade and obj.oportunidade.cliente:
+            return obj.oportunidade.cliente.nome
+        return None
+
+    def get_responsavel_nome(self, obj):
+        if obj.responsavel:
+            return f"{obj.responsavel.first_name} {obj.responsavel.last_name}".strip() or obj.responsavel.username
+        return None
 
 class OportunidadeSerializer(serializers.ModelSerializer):
     PROBABILIDADE_POR_FASE = {
