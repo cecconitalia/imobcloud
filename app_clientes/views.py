@@ -1,13 +1,12 @@
 # C:\wamp64\www\imobcloud\app_clientes\views.py
 
-from rest_framework import viewsets, permissions, status
+from rest_framework import viewsets, permissions, status, filters
 from rest_framework.response import Response
 from rest_framework.decorators import action
 from rest_framework.exceptions import PermissionDenied
-from rest_framework import filters
 from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
 from django.db.models import Count, Q, Sum
-from django.utils.timezone import localdate
+from django.utils.timezone import localdate, timedelta
 from django.utils import timezone
 from django.db.models.functions import TruncMonth
 from django.shortcuts import get_object_or_404
@@ -36,8 +35,9 @@ from .serializers import (
     VisitaSerializer,
     AtividadeSerializer,
     FunilEtapaSerializer,
+    UsuarioSimplesSerializer,
+    ClienteSimplesSerializer
 )
-from app_contratos.serializers import ClienteSimplificadoSerializer
 from ImobCloud.utils.google_calendar_api import agendar_tarefa_no_calendario
 from app_imoveis.models import Imovel
 
@@ -196,11 +196,12 @@ class ClienteViewSet(viewsets.ModelViewSet):
                     if first_tenant:
                         serializer.save(imobiliaria=first_tenant)
                     else:
-                        raise PermissionDenied("Nenhuma imobiliária disponível para associar.")
+                        serializer.save() 
         else:
             if not tenant:
-                raise PermissionDenied("Não foi possível associar o cliente a uma imobiliária. Tenant não identificado.")
-            serializer.save(imobiliaria=tenant)
+                serializer.save()
+            else:
+                serializer.save(imobiliaria=tenant)
             
     def perform_update(self, serializer):
         user = self.request.user
@@ -225,8 +226,8 @@ class ClienteViewSet(viewsets.ModelViewSet):
 
     @action(detail=False, methods=['get'], url_path='lista-simples')
     def lista_simples(self, request):
-        queryset = self.get_queryset() 
-        serializer = ClienteSimplificadoSerializer(queryset, many=True)
+        queryset = self.filter_queryset(self.get_queryset())
+        serializer = ClienteSimplesSerializer(queryset, many=True)
         return Response(serializer.data)
 
     @action(detail=False, methods=['get'], url_path='lista-proprietarios')
@@ -242,7 +243,7 @@ class ClienteViewSet(viewsets.ModelViewSet):
             imoveis_propriedade__status=finalidade 
         ).distinct() 
         
-        serializer = ClienteSimplificadoSerializer(queryset, many=True)
+        serializer = ClienteSimplesSerializer(queryset, many=True)
         return Response(serializer.data)
 
     @action(detail=True, methods=['get'])
@@ -414,7 +415,12 @@ class OportunidadeViewSet(viewsets.ModelViewSet):
         if not tenant:
             raise PermissionDenied("Apenas utilizadores associados a uma imobiliária podem criar oportunidades.")
         
-        serializer.save(imobiliaria=tenant, responsavel=self.request.user)
+        # Se 'responsavel' não foi enviado no payload, usa o request.user
+        save_kwargs = {'imobiliaria': tenant}
+        if not serializer.validated_data.get('responsavel'):
+            save_kwargs['responsavel'] = self.request.user
+            
+        serializer.save(**save_kwargs)
     
     def perform_update(self, serializer):
         oportunidade = self.get_object()
@@ -513,43 +519,81 @@ class FunilEtapaViewSet(viewsets.ModelViewSet):
 class TarefaViewSet(viewsets.ModelViewSet):
     serializer_class = TarefaSerializer
     permission_classes = [permissions.IsAuthenticated]
+    filter_backends = [filters.SearchFilter]
+    search_fields = ['titulo', 'descricao', 'oportunidade__cliente__nome']
 
     def get_queryset(self):
         user = self.request.user
         tenant = getattr(self.request, 'tenant', None) or getattr(user, 'imobiliaria', None)
 
+        # Base filter logic
         if user.is_superuser:
             if not tenant:
-                return Tarefa.objects.all()
-            return Tarefa.objects.filter(
-                Q(imobiliaria=tenant) | Q(oportunidade__imobiliaria=tenant)
+                queryset = Tarefa.objects.all()
+            else:
+                queryset = Tarefa.objects.filter(
+                    Q(imobiliaria=tenant) | Q(oportunidade__imobiliaria=tenant)
+                ).distinct()
+        else:
+            # Usuários normais veem tarefas da sua imobiliária
+            queryset = Tarefa.objects.filter(
+                Q(imobiliaria=tenant) | 
+                Q(oportunidade__imobiliaria=tenant) |
+                (Q(imobiliaria__isnull=True) & Q(responsavel__imobiliaria=tenant))
             ).distinct()
-
-        # Usuários normais veem tarefas da sua imobiliária
-        # CORREÇÃO: Inclui fallback para tarefas onde imobiliaria é NULL mas o responsável é da imobiliária (legacy data)
-        queryset = Tarefa.objects.filter(
-            Q(imobiliaria=tenant) | 
-            Q(oportunidade__imobiliaria=tenant) |
-            (Q(imobiliaria__isnull=True) & Q(responsavel__imobiliaria=tenant))
-        ).distinct()
         
+        # --- Filters ---
+        # 1. Por oportunidade
         oportunidade_id = self.request.query_params.get('oportunidade')
         if oportunidade_id:
             queryset = queryset.filter(oportunidade_id=oportunidade_id)
             
-        return queryset
+        # 2. Por responsável (novo)
+        responsavel_id = self.request.query_params.get('responsavel')
+        if responsavel_id:
+            queryset = queryset.filter(responsavel_id=responsavel_id)
 
-    # NOVA AÇÃO: Endpoint específico para o Kanban (sem paginação)
+        # 3. Intervalo de Datas (opcional, usado pelo calendário/kanban)
+        start_date = self.request.query_params.get('start')
+        end_date = self.request.query_params.get('end')
+        if start_date and end_date:
+            queryset = queryset.filter(data_vencimento__range=[start_date, end_date])
+            
+        return queryset.order_by('data_vencimento')
+
+    # NOVA AÇÃO: Endpoint específico para o Kanban (sem paginação por padrão)
     @action(detail=False, methods=['get'], url_path='kanban')
     def kanban(self, request):
         queryset = self.filter_queryset(self.get_queryset())
-        # Desativa paginação manual para este endpoint se o global estiver ativo
-        # Retorna lista direta
+        
+        # OTIMIZAÇÃO: Não carregar tarefas concluídas muito antigas no quadro geral
+        if not request.query_params.get('start'):
+            trinta_dias_atras = timezone.now() - timedelta(days=30)
+            queryset = queryset.filter(
+                Q(status__in=['pendente', 'em_andamento']) |
+                (Q(status='concluida') & Q(data_vencimento__gte=trinta_dias_atras))
+            )
+
+        # Retorna lista completa para o frontend gerenciar colunas
         serializer = self.get_serializer(queryset, many=True)
         return Response(serializer.data)
 
+    # NOVA AÇÃO: Endpoint para listar usuários para o combo de responsáveis
+    @action(detail=False, methods=['get'], url_path='listar-responsaveis')
+    def listar_responsaveis(self, request):
+        user = request.user
+        tenant = getattr(request, 'tenant', None) or getattr(user, 'imobiliaria', None)
+        
+        if tenant:
+            users = User.objects.filter(imobiliaria=tenant, is_active=True)
+        else:
+            users = User.objects.filter(is_active=True)
+            
+        serializer = UsuarioSimplesSerializer(users, many=True)
+        return Response(serializer.data)
+
     def perform_create(self, serializer):
-        oportunidade_id = self.request.data.get('oportunidade')
+        oportunidade_id = self.request.data.get('oportunidade_id') or self.request.data.get('oportunidade')
         oportunidade = None
         
         tenant = getattr(self.request, 'tenant', None) or getattr(self.request.user, 'imobiliaria', None)
@@ -562,12 +606,21 @@ class TarefaViewSet(viewsets.ModelViewSet):
             if not (self.request.user.is_superuser or oportunidade.imobiliaria == tenant):
                 raise PermissionDenied("Você não tem permissão para adicionar tarefas a esta oportunidade.")
         
-        tarefa = serializer.save(
-            oportunidade=oportunidade, 
-            responsavel=self.request.user,
-            imobiliaria=tenant
-        )
+        # Prepara argumentos para salvar
+        save_kwargs = {
+            'oportunidade': oportunidade,
+            'imobiliaria': tenant
+        }
 
+        # CORREÇÃO PARA ERRO 500:
+        # Se 'responsavel' (que vem do 'responsavel_id' no serializer) não está presente no validated_data,
+        # significa que o frontend não enviou ou enviou null.
+        # Nesse caso, forçamos o usuário atual ANTES de salvar para evitar erro de integridade do banco.
+        if not serializer.validated_data.get('responsavel'):
+            save_kwargs['responsavel'] = self.request.user
+
+        tarefa = serializer.save(**save_kwargs)
+        
         if tarefa.responsavel and getattr(tarefa.responsavel, 'google_calendar_token', None):
             try:
                 agendar_tarefa_no_calendario(tarefa)
@@ -583,7 +636,6 @@ class TarefaViewSet(viewsets.ModelViewSet):
             eh_do_tenant = True
         elif instance.oportunidade and instance.oportunidade.imobiliaria == tenant:
             eh_do_tenant = True
-        # Permite edição se for do responsável que pertence ao tenant (legacy)
         elif instance.imobiliaria is None and instance.responsavel.imobiliaria == tenant:
             eh_do_tenant = True
 

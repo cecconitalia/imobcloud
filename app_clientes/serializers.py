@@ -18,12 +18,18 @@ class ResponsavelSimplificadoSerializer(serializers.ModelSerializer):
         fields = ['id', 'first_name', 'username']
 
 class UsuarioSimplesSerializer(serializers.ModelSerializer):
+    """Usado para preencher comboboxes de usuários"""
+    nome_completo = serializers.SerializerMethodField()
+
     class Meta:
         model = User
-        fields = ['id', 'first_name', 'username']
+        fields = ['id', 'first_name', 'last_name', 'username', 'email', 'nome_completo']
+
+    def get_nome_completo(self, obj):
+        return f"{obj.first_name} {obj.last_name}".strip() or obj.username
 
 class ClienteSimplesSerializer(serializers.ModelSerializer):
-    """Para exibir dados básicos do cliente na visita"""
+    """Para exibir dados básicos do cliente em listagens e selects"""
     class Meta:
         model = Cliente
         fields = ['id', 'nome', 'razao_social', 'telefone', 'email']
@@ -51,40 +57,72 @@ class VisitaSerializer(serializers.ModelSerializer):
     
     # Leitura: Objetos completos aninhados
     cliente_obj = ClienteSimplesSerializer(source='cliente', read_only=True)
-    # Retorna uma lista de objetos de imóvel
+    # Retorna uma lista de objetos de imóvel na leitura
     imoveis_obj = ImovelSimplesSerializer(source='imoveis', many=True, read_only=True)
+    
+    corretor_nome = serializers.SerializerMethodField()
 
     class Meta:
         model = Visita
-        fields = '__all__'
-        read_only_fields = ['imobiliaria']
+        fields = [
+            'id', 'imobiliaria', 'cliente', 'cliente_obj', 
+            'corretor', 'corretor_nome',
+            'imoveis', 'imoveis_obj',
+            'data_visita', 'status', 'observacoes', 
+            'assinatura_cliente', 'data_assinatura', 'assinatura_corretor',
+            # 'criado_em', 'atualizado_em' -> Removidos pois não existem no Model Visita padrão
+        ]
+        read_only_fields = ['imobiliaria', 'assinatura_cliente', 'data_assinatura', 'assinatura_corretor']
+
+    def get_corretor_nome(self, obj):
+        if obj.corretor:
+            return obj.corretor.get_full_name() or obj.corretor.username
+        return "N/A"
 
 class AtividadeSerializer(serializers.ModelSerializer):
     registrado_por_obj = UsuarioSimplesSerializer(source='registrado_por', read_only=True)
+    registrado_por_nome = serializers.SerializerMethodField()
 
     class Meta:
         model = Atividade
         fields = [
             'id', 'tipo', 'descricao', 'data_criacao', 
-            'registrado_por', 'registrado_por_obj', 'cliente'
+            'registrado_por', 'registrado_por_obj', 'registrado_por_nome', 
+            'cliente'
         ]
-        read_only_fields = ['registrado_por']
+        read_only_fields = ['registrado_por', 'data_criacao']
+
+    def get_registrado_por_nome(self, obj):
+        return obj.registrado_por.get_full_name() if obj.registrado_por else 'Sistema'
 
 class TarefaSerializer(serializers.ModelSerializer):
-    # Campos calculados para o Frontend (Kanban)
+    # Campos de Leitura (Display)
+    cliente = ClienteSimplesSerializer(source='oportunidade.cliente', read_only=True)
     cliente_nome = serializers.SerializerMethodField()
     responsavel_nome = serializers.SerializerMethodField()
+    
+    # Campos de Escrita (Inputs via ID)
+    responsavel_id = serializers.PrimaryKeyRelatedField(
+        queryset=User.objects.all(), source='responsavel', write_only=True, required=False, allow_null=True
+    )
+    oportunidade_id = serializers.PrimaryKeyRelatedField(
+        queryset=Oportunidade.objects.all(), source='oportunidade', write_only=True, required=False, allow_null=True
+    )
+    # Campo auxiliar se quiser ligar cliente diretamente no futuro (sem oportunidade)
+    cliente_id_input = serializers.IntegerField(write_only=True, required=False, allow_null=True)
 
     class Meta:
         model = Tarefa
         fields = [
             'id', 'titulo', 'descricao', 'data_vencimento', 'concluida', 
-            'status', 'prioridade', # Novos campos
-            'oportunidade', 'responsavel', 'google_calendar_event_id',
-            'observacoes_finalizacao',
-            'cliente_nome', 'responsavel_nome' # Campos extras de leitura
+            'status', 'prioridade', # Novos campos do Kanban
+            'oportunidade', 'oportunidade_id',
+            'responsavel', 'responsavel_id', 'responsavel_nome',
+            'cliente', 'cliente_nome', 'cliente_id_input',
+            'google_calendar_event_id', 'observacoes_finalizacao',
+            'data_criacao' # Corrigido: usa data_criacao em vez de criado_em
         ]
-        read_only_fields = ['responsavel', 'imobiliaria']
+        read_only_fields = ['data_criacao', 'imobiliaria', 'responsavel', 'oportunidade']
 
     def get_cliente_nome(self, obj):
         if obj.oportunidade and obj.oportunidade.cliente:
@@ -94,7 +132,7 @@ class TarefaSerializer(serializers.ModelSerializer):
     def get_responsavel_nome(self, obj):
         if obj.responsavel:
             return f"{obj.responsavel.first_name} {obj.responsavel.last_name}".strip() or obj.responsavel.username
-        return None
+        return "Sem responsável"
 
 class OportunidadeSerializer(serializers.ModelSerializer):
     PROBABILIDADE_POR_FASE = {
@@ -106,36 +144,40 @@ class OportunidadeSerializer(serializers.ModelSerializer):
     imovel = serializers.PrimaryKeyRelatedField(queryset=Imovel.objects.all(), required=False, allow_null=True)
     responsavel = ResponsavelSimplificadoSerializer(read_only=True)
     tarefas = TarefaSerializer(many=True, read_only=True)
+    
+    responsavel_nome = serializers.SerializerMethodField()
+    imovel_titulo = serializers.SerializerMethodField()
 
     class Meta:
         model = Oportunidade
         fields = [
             'id', 'titulo', 'valor_estimado', 'fase', 'probabilidade',
             'motivo_perda', 'data_criacao', 'fonte',
-            'cliente', 'imovel', 'responsavel', 'tarefas',
+            'cliente', 'imovel', 'imovel_titulo', 'responsavel', 'responsavel_nome', 'tarefas',
             'informacoes_adicionais'
         ]
-        read_only_fields = ('data_criacao', 'probabilidade')
+        read_only_fields = ('data_criacao', 'probabilidade', 'imobiliaria')
 
     def validate_fase(self, value):
         self.initial_data['probabilidade'] = self.PROBABILIDADE_POR_FASE.get(value, 0)
         return value
 
+    def get_responsavel_nome(self, obj):
+        return obj.responsavel.get_full_name() if obj.responsavel else 'Não atribuído'
+
+    def get_imovel_titulo(self, obj):
+        return str(obj.imovel) if obj.imovel else None
+
     def to_representation(self, instance):
         representation = super().to_representation(instance)
+        # Injeta dados ricos do cliente para listagem
         cliente_instance = instance.cliente
-        representation['cliente'] = {
+        representation['cliente_detalhe'] = {
             'id': cliente_instance.id,
-            'nome_completo': getattr(cliente_instance, 'nome_completo', cliente_instance.nome),
+            'nome': cliente_instance.nome,
+            'telefone': cliente_instance.telefone,
+            'email': cliente_instance.email
         }
-        if instance.imovel:
-            imovel_instance = instance.imovel
-            endereco_completo = f"{imovel_instance.logradouro}, {imovel_instance.bairro}, {imovel_instance.cidade} - {imovel_instance.estado}"
-            representation['imovel'] = {
-                'id': imovel_instance.id,
-                'endereco': endereco_completo,
-                'imovel_titulo': imovel_instance.titulo_anuncio,
-            }
         return representation
 
 class ClienteSerializer(serializers.ModelSerializer):
@@ -162,21 +204,27 @@ class ClienteSerializer(serializers.ModelSerializer):
         return obj.nome if obj.nome else "Nome não disponível"
 
     def validate_documento(self, value):
-        return apenas_numeros(value)
+        if value:
+            return apenas_numeros(value)
+        return value
 
     def validate(self, data):
         tipo_pessoa = data.get('tipo_pessoa', getattr(self.instance, 'tipo_pessoa', None))
         documento = data.get('documento')
+        razao_social = data.get('razao_social')
 
+        # Validações básicas de documento (CPF/CNPJ)
         if tipo_pessoa == 'FISICA':
             if documento and len(apenas_numeros(documento)) != 11:
-                raise serializers.ValidationError({"documento": "CPF inválido. Deve conter 11 dígitos."})
+                # Opcional: raise serializers.ValidationError({"documento": "CPF inválido."})
+                pass
         elif tipo_pessoa == 'JURIDICA':
             if documento and len(apenas_numeros(documento)) != 14:
-                raise serializers.ValidationError({"documento": "CNPJ inválido. Deve conter 14 dígitos."})
-            razao_social = data.get('razao_social', getattr(self.instance, 'razao_social', None))
-            if not razao_social:
+                # Opcional: raise serializers.ValidationError({"documento": "CNPJ inválido."})
+                pass
+            if not razao_social and not self.instance: # Exige razao social no cadastro PJ
                 raise serializers.ValidationError({"razao_social": "Razão Social é obrigatória para Pessoa Jurídica."})
+        
         return data
 
 class FunilEtapaSerializer(serializers.ModelSerializer):
@@ -185,7 +233,10 @@ class FunilEtapaSerializer(serializers.ModelSerializer):
         fields = ['id', 'titulo', 'ordem', 'probabilidade_fechamento', 'ativa', 'imobiliaria']
         read_only_fields = ['imobiliaria']
 
+# ===================================================================
 # Serializers de Relatórios
+# ===================================================================
+
 class FunilVendasSerializer(serializers.Serializer):
     status = serializers.CharField(source='get_status_display')
     total = serializers.IntegerField()

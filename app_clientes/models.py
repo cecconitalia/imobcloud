@@ -1,4 +1,4 @@
-# C:\wamp64\www\ImobCloud\app_clientes\models.py
+# app_clientes/models.py
 
 from django.db import models
 from django.conf import settings
@@ -199,7 +199,7 @@ class Tarefa(models.Model):
         'core.Imobiliaria', 
         on_delete=models.CASCADE, 
         related_name='tarefas',
-        null=True, # Temporário para migração, ideal ser obrigatório depois
+        null=True,
         blank=True
     )
     
@@ -207,11 +207,12 @@ class Tarefa(models.Model):
     descricao = models.TextField(blank=True, null=True)
     data_vencimento = models.DateTimeField()
     
-    # Novo campo de Status para o Kanban
+    # Campo adicionado para corrigir o erro e padronizar
+    data_criacao = models.DateTimeField(auto_now_add=True, verbose_name="Data de Criação")
+    
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pendente', verbose_name="Status")
     prioridade = models.CharField(max_length=20, choices=PRIORIDADE_CHOICES, default='MEDIA', verbose_name="Prioridade")
     
-    # Mantido para compatibilidade (será atualizado via save)
     concluida = models.BooleanField(default=False)
     
     oportunidade = models.ForeignKey(
@@ -234,7 +235,6 @@ class Tarefa(models.Model):
         return f"Tarefa: {self.titulo}"
 
     def save(self, *args, **kwargs):
-        # Sincroniza concluida <-> status
         if self.concluida and self.status != 'concluida':
             self.status = 'concluida'
         elif self.status == 'concluida' and not self.concluida:
@@ -266,14 +266,11 @@ class Visita(models.Model):
     realizada = models.BooleanField(default=False, verbose_name="Visita Realizada")
     localizacao_assinatura = models.CharField(max_length=255, blank=True, null=True, help_text="Lat/Long ou endereço GPS no momento da assinatura")
     
-    # Assinatura Cliente
     assinatura_cliente = models.ImageField(upload_to='assinaturas_visitas/', blank=True, null=True, verbose_name="Assinatura do Cliente")
     data_assinatura = models.DateTimeField(blank=True, null=True, verbose_name="Data da Assinatura Cliente")
 
-    # Assinatura Corretor (NOVO)
     assinatura_corretor = models.ImageField(upload_to='assinaturas_visitas/', blank=True, null=True, verbose_name="Assinatura do Corretor")
     data_assinatura_corretor = models.DateTimeField(blank=True, null=True, verbose_name="Data da Assinatura Corretor")
-    # -------------------
 
     def __str__(self):
         return f"Visita de {self.cliente} em {self.data_visita}"

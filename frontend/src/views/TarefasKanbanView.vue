@@ -1,190 +1,162 @@
 <template>
-  <div class="page-container">
+  <div class="flex flex-col h-screen bg-gray-50 font-sans overflow-hidden text-gray-700">
     
-    <header class="page-header">
-      <div class="header-main">
-        <div class="title-area">
-           <nav class="breadcrumb">
-              <span>Comercial</span> 
-              <i class="fas fa-chevron-right separator"></i> 
-              <span class="active">Quadro de Tarefas</span>
-           </nav>
-           <h1>Gerenciar Tarefas</h1>
-        </div>
+    <header class="flex-none bg-white border-b border-gray-200 px-6 py-5 shadow-sm z-20">
+      <div class="max-w-7xl mx-auto w-full">
         
-        <div class="actions-area">
-            <button class="btn-icon-thin" @click="carregarTarefas" title="Recarregar">
-              <i class="fas fa-sync-alt" :class="{ 'fa-spin': isLoading }"></i>
+        <div class="flex flex-col md:flex-row justify-between items-start md:items-end gap-4 mb-6">
+          <div>
+            <nav class="flex items-center gap-2 text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">
+              <span>Comercial</span> 
+              <i class="fas fa-chevron-right text-[10px]"></i> 
+              <span class="text-blue-600">Mural</span>
+            </nav>
+            <h1 class="text-2xl font-bold text-gray-800 tracking-tight">Minhas Anotações</h1>
+            <p class="text-sm text-gray-500 mt-1 flex items-center gap-2">
+              <i class="fas" :class="exibirConcluidas ? 'fa-history text-purple-500' : 'fa-sort-amount-down text-blue-500'"></i>
+              {{ exibirConcluidas ? 'Visualizando histórico de tarefas finalizadas' : 'Organizado por data de vencimento' }}
+            </p>
+          </div>
+
+          <div class="flex items-center gap-3">
+            <button 
+              class="flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium transition-all duration-200 border active:scale-95"
+              :class="exibirConcluidas 
+                ? 'bg-purple-50 border-purple-200 text-purple-700 hover:bg-purple-100' 
+                : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50 hover:border-gray-300'"
+              @click="exibirConcluidas = !exibirConcluidas"
+            >
+              <i class="fas" :class="exibirConcluidas ? 'fa-arrow-left' : 'fa-check-double'"></i>
+              {{ exibirConcluidas ? 'Voltar para Pendentes' : 'Ver Concluídas' }}
             </button>
-            <button class="btn-primary-thin" @click="abrirModalNovaTarefa">
-              <i class="fas fa-plus"></i> Nova Tarefa
+
+            <button 
+              class="w-9 h-9 rounded-full flex items-center justify-center border border-gray-200 text-gray-500 hover:text-blue-600 hover:border-blue-200 hover:bg-blue-50 transition-all active:scale-95 bg-white" 
+              @click="carregarTarefas" 
+              title="Recarregar"
+            >
+              <i class="fas fa-sync-alt" :class="{ 'animate-spin': isLoading }"></i>
             </button>
+            
+            <button 
+              v-if="!exibirConcluidas"
+              class="flex items-center gap-2 px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-full text-sm font-semibold shadow-md hover:shadow-lg hover:-translate-y-0.5 transition-all duration-200 active:scale-95" 
+              @click="abrirModalNovaTarefa"
+            >
+              <i class="fas fa-plus"></i> Nova Nota
+            </button>
+          </div>
+        </div>
+
+        <div class="relative max-w-md">
+          <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+            <i class="fas fa-search text-gray-400"></i>
+          </div>
+          <input 
+            type="text" 
+            v-model="termoBusca" 
+            class="block w-full pl-10 pr-3 py-2.5 border border-gray-200 rounded-xl leading-5 bg-gray-50 text-gray-900 placeholder-gray-400 focus:outline-none focus:bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-colors text-sm"
+            placeholder="Filtrar por título, descrição ou cliente..." 
+          >
         </div>
       </div>
     </header>
 
-    <div class="kpi-grid">
-      <div class="kpi-card blue" :class="{ active: filters.status === '' }" @click="setQuickFilter('')">
-        <div class="kpi-content">
-          <span class="kpi-value">{{ kpis.total }}</span>
-          <span class="kpi-label">Total</span>
-        </div>
-        <div class="kpi-icon"><i class="fas fa-tasks"></i></div>
-      </div>
-      
-      <div class="kpi-card orange" :class="{ active: filters.status === 'pendente' }" @click="setQuickFilter('pendente')">
-        <div class="kpi-content">
-          <span class="kpi-value">{{ kpis.pendentes }}</span>
-          <span class="kpi-label">Pendentes</span>
-        </div>
-        <div class="kpi-icon"><i class="far fa-clock"></i></div>
-      </div>
-      
-      <div class="kpi-card purple" :class="{ active: filters.status === 'em_andamento' }" @click="setQuickFilter('em_andamento')">
-        <div class="kpi-content">
-          <span class="kpi-value">{{ kpis.emAndamento }}</span>
-          <span class="kpi-label">Em Andamento</span>
-        </div>
-        <div class="kpi-icon"><i class="fas fa-spinner"></i></div>
-      </div>
-      
-      <div class="kpi-card green" :class="{ active: filters.status === 'concluida' }" @click="setQuickFilter('concluida')">
-        <div class="kpi-content">
-          <span class="kpi-value">{{ kpis.concluidas }}</span>
-          <span class="kpi-label">Concluídas</span>
-        </div>
-        <div class="kpi-icon"><i class="fas fa-check-circle"></i></div>
-      </div>
-    </div>
-
-    <div class="toolbar-row">
-        <div class="filter-group search-group">
-          <label>Buscar</label>
-          <div class="input-with-icon">
-            <i class="fas fa-search"></i>
-            <input 
-              type="text" 
-              v-model="filters.search" 
-              placeholder="Título, cliente ou responsável..." 
-              class="form-control"
-              @input="distribuirTarefas"
-            >
-          </div>
-        </div>
-        <div class="filter-group small-btn">
-            <label>&nbsp;</label>
-            <button @click="clearFilters" class="btn-clear" title="Limpar Filtros">
-                <i class="fas fa-eraser"></i>
-            </button>
-        </div>
-    </div>
-
-    <div class="kanban-wrapper">
-      <div class="flex flex-col md:flex-row gap-6 h-full overflow-x-auto pb-4">
+    <div class="flex-1 overflow-y-auto p-6 scroll-smooth custom-scrollbar bg-[#f0f2f5]">
+      <div class="max-w-7xl mx-auto h-full">
         
-        <div class="kanban-column" v-if="shouldShowColumn('pendente')">
-          <div class="column-header bg-orange-50 border-orange-200">
-            <h3 class="text-orange-800 font-bold">Pendente</h3>
-            <span class="counter bg-orange-200 text-orange-800">{{ colunas.pendente.length }}</span>
-          </div>
-          <div class="column-body custom-scrollbar">
-            <draggable 
-              v-model="colunas.pendente" 
-              group="tarefas" 
-              item-key="id"
-              @change="(e) => aoMoverCard(e, 'pendente')"
-              class="drag-area"
-              ghost-class="ghost-card"
-            >
-              <template #item="{ element }">
-                <div @click="editarTarefa(element)" class="task-card border-l-4 border-orange-400 bg-white hover:bg-orange-50">
-                  <div class="card-meta">
-                    <span>{{ formatarData(element.data_vencimento) }}</span>
-                    <span v-if="element.prioridade === 'ALTA'" class="text-red-600 font-bold text-xs flex items-center gap-1">
-                        <i class="fas fa-exclamation-circle"></i> Alta
-                    </span>
-                  </div>
-                  <p class="card-title">{{ element.titulo }}</p>
-                  <div class="card-footer">
-                    <span class="client-badge" v-if="element.cliente_nome">
-                      {{ element.cliente_nome }}
-                    </span>
-                    <span v-else class="client-badge opacity-50">Geral</span>
-                    <div class="avatar-mini bg-gray-400 text-white" :title="element.responsavel_nome">
-                      {{ pegarIniciais(element.responsavel_nome) }}
-                    </div>
-                  </div>
-                </div>
-              </template>
-            </draggable>
-          </div>
+        <div v-if="isLoading" class="flex flex-col items-center justify-center h-64 text-gray-400 animate-pulse">
+          <i class="fas fa-circle-notch fa-spin text-3xl mb-3"></i>
+          <span class="text-sm font-medium">Carregando suas anotações...</span>
         </div>
 
-        <div class="kanban-column" v-if="shouldShowColumn('em_andamento')">
-          <div class="column-header bg-purple-50 border-purple-200">
-            <h3 class="text-purple-800 font-bold">Em Andamento</h3>
-            <span class="counter bg-purple-200 text-purple-800">{{ colunas.em_andamento.length }}</span>
+        <div v-else-if="tarefasFiltradas.length === 0" class="flex flex-col items-center justify-center h-[70vh] text-center">
+          <div class="w-24 h-24 bg-gray-100 rounded-full flex items-center justify-center mb-6 text-gray-300 text-4xl">
+            <i class="far" :class="exibirConcluidas ? 'fa-folder-open' : 'fa-sticky-note'"></i>
           </div>
-          <div class="column-body custom-scrollbar">
-            <draggable 
-              v-model="colunas.em_andamento" 
-              group="tarefas" 
-              item-key="id"
-              @change="(e) => aoMoverCard(e, 'em_andamento')"
-              class="drag-area"
-              ghost-class="ghost-card"
-            >
-              <template #item="{ element }">
-                <div @click="editarTarefa(element)" class="task-card border-l-4 border-purple-400 bg-white hover:bg-purple-50">
-                  <div class="card-meta">
-                    <span>{{ formatarData(element.data_vencimento) }}</span>
-                  </div>
-                  <p class="card-title">{{ element.titulo }}</p>
-                  <div class="card-footer">
-                    <span class="client-badge" v-if="element.cliente_nome">
-                      {{ element.cliente_nome }}
-                    </span>
-                    <span v-else class="client-badge opacity-50">Geral</span>
-                    <div class="avatar-mini bg-purple-500 text-white" :title="element.responsavel_nome">
-                      {{ pegarIniciais(element.responsavel_nome) }}
-                    </div>
-                  </div>
-                </div>
-              </template>
-            </draggable>
-          </div>
+          <h3 class="text-xl font-bold text-gray-800 mb-2">
+            {{ exibirConcluidas ? 'Histórico limpo' : 'Tudo em dia por aqui!' }}
+          </h3>
+          <p class="text-gray-500 max-w-xs mx-auto mb-8 leading-relaxed">
+            {{ exibirConcluidas 
+              ? 'Nenhuma tarefa finalizada foi encontrada com os filtros atuais.' 
+              : 'Não há pendências no momento. Aproveite para descansar ou planejar o futuro.' }}
+          </p>
+          <button 
+            v-if="!exibirConcluidas" 
+            class="px-6 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-medium shadow-lg hover:shadow-blue-500/30 transition-all"
+            @click="abrirModalNovaTarefa"
+          >
+            Criar Primeira Tarefa
+          </button>
         </div>
 
-        <div class="kanban-column" v-if="shouldShowColumn('concluida')">
-          <div class="column-header bg-green-50 border-green-200">
-            <h3 class="text-green-800 font-bold">Concluída</h3>
-            <span class="counter bg-green-200 text-green-800">{{ colunas.concluida.length }}</span>
-          </div>
-          <div class="column-body custom-scrollbar">
-            <draggable 
-              v-model="colunas.concluida" 
-              group="tarefas" 
-              item-key="id"
-              @change="(e) => aoMoverCard(e, 'concluida')"
-              class="drag-area"
-              ghost-class="ghost-card"
-            >
-              <template #item="{ element }">
-                <div @click="editarTarefa(element)" class="task-card border-l-4 border-green-400 bg-white hover:bg-green-50 opacity-80 hover:opacity-100">
-                  <div class="card-meta text-green-600">
-                    <span class="line-through">{{ formatarData(element.data_vencimento) }}</span>
-                    <i class="fas fa-check"></i>
-                  </div>
-                  <p class="card-title line-through text-gray-500">{{ element.titulo }}</p>
-                  <div class="card-footer">
-                    <span class="client-badge opacity-70" v-if="element.cliente_nome">
-                      {{ element.cliente_nome }}
-                    </span>
-                    <span v-else class="client-badge opacity-50">Geral</span>
-                  </div>
+        <div v-else class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 pb-12 items-start">
+          <div 
+            v-for="tarefa in tarefasFiltradas" 
+            :key="tarefa.id"
+            @click="editarTarefa(tarefa)"
+            class="group relative bg-white rounded-xl p-5 border border-gray-200 shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300 cursor-pointer flex flex-col min-h-[180px] border-t-4"
+            :class="[
+              getPriorityBorderClass(tarefa.prioridade),
+              { 'opacity-60 bg-gray-50 hover:opacity-100 grayscale-[0.5] hover:grayscale-0': tarefa.status === 'concluida' },
+              { 'bg-red-50 border-red-200': isAtrasada(tarefa.data_vencimento) && tarefa.status !== 'concluida' }
+            ]"
+          >
+            <div class="flex justify-between items-center mb-4">
+              <span 
+                class="px-2.5 py-1 rounded-md text-[11px] font-bold uppercase tracking-wide flex items-center gap-1.5 border"
+                :class="getDataBadgeClass(tarefa.data_vencimento, tarefa.status)"
+              >
+                <i class="far fa-clock"></i> {{ formatarData(tarefa.data_vencimento) }}
+              </span>
+              
+              <div class="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                <button 
+                  @click.stop="alternarConclusaoRapida(tarefa)"
+                  class="w-7 h-7 flex items-center justify-center rounded-full border transition-all duration-200 shadow-sm hover:scale-110 focus:outline-none"
+                  :class="tarefa.status === 'concluida' 
+                    ? 'border-gray-300 text-gray-400 hover:text-blue-600 hover:border-blue-400 bg-white' 
+                    : 'border-gray-200 text-gray-300 hover:text-green-600 hover:border-green-400 hover:bg-green-50'"
+                  :title="tarefa.status === 'concluida' ? 'Reabrir' : 'Concluir'"
+                >
+                  <i class="fas" :class="tarefa.status === 'concluida' ? 'fa-undo text-xs' : 'fa-check'"></i>
+                </button>
+              </div>
+            </div>
+
+            <div class="flex-1 mb-4">
+              <h4 
+                class="text-base font-bold text-gray-800 mb-2 leading-snug group-hover:text-blue-700 transition-colors line-clamp-2"
+                :class="{'line-through text-gray-400 decoration-2 decoration-gray-300': tarefa.status === 'concluida'}"
+              >
+                {{ tarefa.titulo }}
+              </h4>
+              <p class="text-sm text-gray-600 line-clamp-4 leading-relaxed whitespace-pre-line">
+                {{ tarefa.descricao || 'Sem descrição.' }}
+              </p>
+              
+              <div v-if="tarefa.observacoes_finalizacao && tarefa.status === 'concluida'" class="mt-3 p-2 bg-green-50 border border-green-100 rounded-lg">
+                <p class="text-xs text-green-800 italic flex items-start gap-1.5">
+                  <i class="fas fa-pen-fancy text-[10px] mt-0.5"></i> 
+                  <span>{{ tarefa.observacoes_finalizacao }}</span>
+                </p>
+              </div>
+            </div>
+
+            <div class="pt-3 border-t border-gray-100 border-dashed flex items-center justify-between mt-auto">
+              <div class="flex items-center gap-1.5 text-gray-500 max-w-[75%]" v-if="tarefa.cliente_nome">
+                <div class="bg-gray-50 border border-gray-100 px-2 py-0.5 rounded text-[10px] font-medium truncate flex items-center gap-1">
+                  <i class="fas fa-user-circle text-gray-400"></i> {{ tarefa.cliente_nome }}
                 </div>
-              </template>
-            </draggable>
+              </div>
+              <div v-else></div> <div 
+                class="w-7 h-7 rounded-full bg-blue-50 border border-blue-100 text-blue-600 text-[10px] font-bold flex items-center justify-center shadow-sm"
+                :title="tarefa.responsavel_nome"
+              >
+                {{ pegarIniciais(tarefa.responsavel_nome) }}
+              </div>
+            </div>
           </div>
         </div>
 
@@ -202,8 +174,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, reactive, computed } from 'vue';
-import draggable from 'vuedraggable';
+import { ref, onMounted, computed } from 'vue';
 import api from '../services/api';
 import TarefaModal from '../components/TarefaModal.vue';
 
@@ -216,296 +187,160 @@ interface Tarefa {
   prioridade?: string;
   cliente_nome?: string;
   responsavel_nome?: string;
+  observacoes_finalizacao?: string;
 }
 
+// State
 const rawTarefas = ref<Tarefa[]>([]);
-const colunas = reactive({
-  pendente: [] as Tarefa[],
-  em_andamento: [] as Tarefa[],
-  concluida: [] as Tarefa[]
-});
 const isLoading = ref(false);
 const mostrarModal = ref(false);
 const tarefaSelecionada = ref<Tarefa | null>(null);
-const filters = ref({ search: '', status: '' });
+const termoBusca = ref('');
+const exibirConcluidas = ref(false);
 
-const kpis = computed(() => {
-  const total = rawTarefas.value.length;
-  let pendentes = 0;
-  let emAndamento = 0;
-  let concluidas = 0;
+// --- Computed ---
+const tarefasFiltradas = computed(() => {
+  let lista = rawTarefas.value;
 
-  rawTarefas.value.forEach(t => {
-    const s = t.status?.toLowerCase() || 'pendente';
-    if (s === 'concluida' || s === 'concluída') concluidas++;
-    else if (s === 'em_andamento' || s === 'em andamento') emAndamento++;
-    else pendentes++;
+  if (exibirConcluidas.value) {
+    lista = lista.filter(t => t.status === 'concluida');
+  } else {
+    lista = lista.filter(t => t.status !== 'concluida');
+  }
+
+  if (termoBusca.value) {
+    const termo = termoBusca.value.toLowerCase();
+    lista = lista.filter(t => 
+      t.titulo.toLowerCase().includes(termo) ||
+      (t.descricao && t.descricao.toLowerCase().includes(termo)) ||
+      (t.cliente_nome && t.cliente_nome.toLowerCase().includes(termo))
+    );
+  }
+
+  return lista.sort((a, b) => {
+    if (exibirConcluidas.value) return b.id - a.id; 
+    const dataA = a.data_vencimento ? new Date(a.data_vencimento).getTime() : Infinity;
+    const dataB = b.data_vencimento ? new Date(b.data_vencimento).getTime() : Infinity;
+    return dataA - dataB;
   });
-
-  return { total, pendentes, emAndamento, concluidas };
 });
 
+// --- Methods ---
 const carregarTarefas = async () => {
   isLoading.value = true;
   try {
-    // CORREÇÃO: /v1/
     const response = await api.get('/v1/tarefas/kanban/');
-    rawTarefas.value = response.data.results || response.data;
-    distribuirTarefas();
+    rawTarefas.value = Array.isArray(response.data) ? response.data : (response.data.results || []);
   } catch (error) {
-    console.error('Erro ao carregar tarefas:', error);
+    console.error('Erro ao carregar:', error);
   } finally {
     isLoading.value = false;
   }
 };
 
-const distribuirTarefas = () => {
-  colunas.pendente = [];
-  colunas.em_andamento = [];
-  colunas.concluida = [];
+const alternarConclusaoRapida = async (tarefa: Tarefa) => {
+  const estaConcluida = tarefa.status === 'concluida';
+  let novoStatus = '';
+  let observacao = '';
 
-  const termo = filters.value.search.toLowerCase();
+  if (estaConcluida) {
+    if (!confirm('Reabrir esta tarefa para pendente?')) return;
+    novoStatus = 'pendente';
+  } else {
+    const input = window.prompt('Observação ao finalizar? (Opcional)');
+    if (input === null) return;
+    observacao = input.trim();
+    novoStatus = 'concluida';
+  }
 
-  const tarefasFiltradas = rawTarefas.value.filter(t => {
-    const matchTexto = 
-      !termo || 
-      t.titulo.toLowerCase().includes(termo) || 
-      (t.cliente_nome && t.cliente_nome.toLowerCase().includes(termo)) ||
-      (t.responsavel_nome && t.responsavel_nome.toLowerCase().includes(termo));
-    return matchTexto;
-  });
+  const bkp = { ...tarefa };
+  tarefa.status = novoStatus;
+  tarefa.observacoes_finalizacao = observacao;
 
-  tarefasFiltradas.forEach(tarefa => {
-    const status = tarefa.status?.toLowerCase() || 'pendente';
-    if (status === 'concluida' || status === 'concluída') {
-      colunas.concluida.push(tarefa);
-    } else if (status === 'em_andamento' || status === 'em andamento') {
-      colunas.em_andamento.push(tarefa);
-    } else {
-      colunas.pendente.push(tarefa);
-    }
-  });
-};
-
-const setQuickFilter = (status: string) => {
-  filters.value.status = filters.value.status === status ? '' : status;
-};
-
-const shouldShowColumn = (coluna: string) => {
-  if (!filters.value.status) return true;
-  return filters.value.status === coluna;
-};
-
-const clearFilters = () => {
-  filters.value.search = '';
-  filters.value.status = '';
-  distribuirTarefas();
-};
-
-const aoMoverCard = async (evt: any, novoStatus: string) => {
-  if (evt.added) {
-    const tarefa = evt.added.element;
-    const statusApi = converterStatusParaApi(novoStatus);
-    try {
-      // CORREÇÃO: /v1/
-      await api.patch(`/v1/tarefas/${tarefa.id}/`, { status: statusApi });
-      tarefa.status = statusApi;
-      const index = rawTarefas.value.findIndex(t => t.id === tarefa.id);
-      if (index !== -1) rawTarefas.value[index].status = statusApi;
-    } catch (error) {
-      console.error('Erro ao atualizar status:', error);
-      alert('Erro ao mover. Revertendo...');
-      carregarTarefas();
-    }
+  try {
+    await api.patch(`/v1/tarefas/${tarefa.id}/`, {
+      status: novoStatus,
+      observacoes_finalizacao: observacao,
+      concluida: novoStatus === 'concluida'
+    });
+  } catch (error) {
+    console.error("Erro API:", error);
+    Object.assign(tarefa, bkp);
+    alert("Erro ao sincronizar. Tente novamente.");
   }
 };
 
-const converterStatusParaApi = (statusColuna: string) => {
-  switch(statusColuna) {
-    case 'pendente': return 'pendente';
-    case 'em_andamento': return 'em_andamento';
-    case 'concluida': return 'concluida';
-    default: return 'pendente';
-  }
+const isAtrasada = (data?: string) => {
+  if (!data) return false;
+  const hoje = new Date();
+  hoje.setHours(0,0,0,0);
+  const venc = new Date(data.split('T')[0] + 'T00:00:00');
+  return venc < hoje;
 };
 
-const abrirModalNovaTarefa = () => {
-  tarefaSelecionada.value = null;
-  mostrarModal.value = true;
+// --- Helpers de Estilo ---
+const getPriorityBorderClass = (prioridade?: string) => {
+  const p = prioridade?.toUpperCase() || 'MEDIA';
+  if (p === 'ALTA') return 'border-t-red-500';
+  if (p === 'BAIXA') return 'border-t-green-500';
+  return 'border-t-blue-500'; // Média
 };
 
-const editarTarefa = (tarefa: Tarefa) => {
-  // Clona o objeto para evitar reatividade indesejada
-  tarefaSelecionada.value = { ...tarefa };
-  mostrarModal.value = true;
-};
-
-const fecharModal = () => {
-  mostrarModal.value = false;
-  tarefaSelecionada.value = null;
+const getDataBadgeClass = (data?: string, status?: string) => {
+  if (!data || status === 'concluida') return 'bg-gray-100 text-gray-500 border-gray-200';
+  if (isAtrasada(data)) return 'bg-red-100 text-red-700 border-red-200';
+  
+  const hoje = new Date();
+  hoje.setHours(0,0,0,0);
+  const venc = new Date(data.split('T')[0] + 'T00:00:00');
+  
+  if (venc.getTime() === hoje.getTime()) return 'bg-orange-100 text-orange-700 border-orange-200';
+  return 'bg-blue-50 text-blue-600 border-blue-100';
 };
 
 const formatarData = (data?: string) => {
-  if (!data) return '';
-  const d = new Date(data);
-  return isNaN(d.getTime()) ? data : d.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' });
+  if (!data) return 'S/ Data';
+  const d = new Date(data.split('T')[0] + 'T00:00:00');
+  const hoje = new Date();
+  hoje.setHours(0,0,0,0);
+  const amanha = new Date(hoje);
+  amanha.setDate(amanha.getDate() + 1);
+
+  if (d.getTime() === hoje.getTime()) return 'Hoje';
+  if (d.getTime() === amanha.getTime()) return 'Amanhã';
+  return d.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' });
 };
 
 const pegarIniciais = (nome?: string) => {
   if (!nome) return '?';
-  const partes = nome.split(' ');
+  const partes = nome.trim().split(' ');
   if (partes.length === 1) return partes[0].substring(0, 2).toUpperCase();
   return (partes[0][0] + partes[1][0]).toUpperCase();
 };
 
-onMounted(() => {
-  carregarTarefas();
-});
+// Modal Handlers
+const abrirModalNovaTarefa = () => { tarefaSelecionada.value = null; mostrarModal.value = true; };
+const editarTarefa = (tarefa: Tarefa) => { tarefaSelecionada.value = { ...tarefa }; mostrarModal.value = true; };
+const fecharModal = () => { mostrarModal.value = false; tarefaSelecionada.value = null; };
+
+onMounted(() => carregarTarefas());
 </script>
 
 <style scoped>
-.page-container {
-  min-height: 100vh;
-  background-color: #fcfcfc;
-  font-family: 'Inter', 'Segoe UI', Roboto, sans-serif;
-  padding: 1.5rem 2.5rem;
+/* Estilização minimalista da barra de rolagem */
+.custom-scrollbar::-webkit-scrollbar {
+  width: 8px;
 }
-
-/* HEADER */
-.page-header { margin-bottom: 2rem; }
-.title-area h1 { font-size: 1.5rem; font-weight: 300; color: #1f2937; margin: 0; letter-spacing: -0.02em; }
-.breadcrumb { display: flex; align-items: center; gap: 6px; font-size: 0.7rem; color: #94a3b8; font-weight: 500; text-transform: uppercase; letter-spacing: 0.05em; }
-.breadcrumb .separator { font-size: 0.5rem; color: #cbd5e1; }
-.breadcrumb .active { color: #2563eb; font-weight: 700; }
-.header-main { display: flex; justify-content: space-between; align-items: flex-end; }
-.actions-area { display: flex; gap: 0.75rem; }
-
-/* Botões */
-.btn-primary-thin {
-  background: #2563eb; color: white; border: none; padding: 0.5rem 1.2rem;
-  border-radius: 6px; font-weight: 400; font-size: 0.85rem; cursor: pointer;
-  display: flex; align-items: center; gap: 0.5rem; transition: all 0.2s;
-  box-shadow: 0 1px 2px rgba(37, 99, 235, 0.15);
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
 }
-.btn-primary-thin:hover { background: #1d4ed8; transform: translateY(-1px); }
-
-.btn-icon-thin {
-  background: white; border: 1px solid #e2e8f0; color: #64748b; width: 34px; height: 34px;
-  border-radius: 6px; cursor: pointer; display: flex; align-items: center; justify-content: center;
-  transition: all 0.2s; font-size: 0.8rem;
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background-color: #cbd5e1;
+  border-radius: 20px;
+  border: 3px solid transparent;
+  background-clip: content-box;
 }
-.btn-icon-thin:hover { border-color: #cbd5e1; color: #2563eb; background: #f8fafc; }
-
-/* KPI */
-.kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1.25rem; margin-bottom: 2rem; }
-.kpi-card {
-  background: white; border-radius: 8px; padding: 1.25rem 1.5rem; border: 1px solid #f0f0f0;
-  display: flex; justify-content: space-between; align-items: center;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.02); cursor: pointer; transition: all 0.2s;
-  position: relative; overflow: hidden;
-}
-.kpi-card:hover { transform: translateY(-2px); box-shadow: 0 6px 12px rgba(0,0,0,0.04); }
-.kpi-card.active { border: 1px solid; }
-
-.kpi-content { display: flex; flex-direction: column; }
-.kpi-value { font-size: 1.6rem; font-weight: 300; line-height: 1.1; color: #111; }
-.kpi-label { font-size: 0.7rem; font-weight: 600; text-transform: uppercase; color: #9ca3af; margin-top: 4px; letter-spacing: 0.05em; }
-.kpi-icon { font-size: 1.8rem; opacity: 0.1; position: absolute; right: 1.5rem; bottom: 1rem; }
-
-.kpi-card.blue.active { background-color: #f8fbff; border-color: #3b82f6; }
-.kpi-card.blue .kpi-value { color: #2563eb; }
-.kpi-card.orange.active { background-color: #fffdf5; border-color: #f59e0b; }
-.kpi-card.orange .kpi-value { color: #d97706; }
-.kpi-card.purple.active { background-color: #f3e8ff; border-color: #7e22ce; }
-.kpi-card.purple .kpi-value { color: #7e22ce; }
-.kpi-card.green.active { background-color: #f3fdf8; border-color: #10b981; }
-.kpi-card.green .kpi-value { color: #059669; }
-
-/* Filtros */
-.toolbar-row {
-  background-color: #ffffff; border-radius: 8px; border: 1px solid #e5e7eb; padding: 1rem;
-  box-shadow: 0 1px 2px rgba(0,0,0,0.02); display: flex; flex-wrap: wrap; gap: 1rem; align-items: flex-end; margin-bottom: 1.5rem;
-}
-.filter-group { flex: 1; display: flex; flex-direction: column; gap: 0.3rem; min-width: 160px; }
-.search-group { flex: 2; min-width: 260px; }
-.small-btn { flex: 0 0 auto; min-width: auto; }
-.filter-group label { font-size: 0.65rem; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 0.04em; }
-.input-with-icon { position: relative; width: 100%; }
-.input-with-icon i { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: #94a3b8; font-size: 0.9rem; }
-.form-control {
-  width: 100%; padding: 0.5rem 0.8rem 0.5rem 2.2rem; font-size: 0.85rem;
-  border: 1px solid #cbd5e1; border-radius: 6px; background-color: #fff; color: #334155;
-  outline: none; height: 38px; box-sizing: border-box; transition: all 0.2s;
-}
-.form-control:focus { border-color: #3b82f6; box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.1); }
-.btn-clear {
-    width: 38px; height: 38px; border: 1px solid #cbd5e1; background: #f8fafc;
-    border-radius: 6px; color: #64748b; cursor: pointer;
-    display: flex; align-items: center; justify-content: center; transition: all 0.2s;
-}
-.btn-clear:hover { background: #fee2e2; color: #ef4444; border-color: #fca5a5; }
-
-/* Kanban Layout */
-.kanban-wrapper {
-  flex: 1; 
-  height: calc(100vh - 350px);
-  min-height: 400px;
-}
-
-.kanban-column {
-  flex: 1; min-width: 300px; max-width: 400px;
-  background-color: #f8fafc; border-radius: 8px;
-  border: 1px solid #e2e8f0;
-  display: flex; flex-direction: column;
-  height: 100%;
-}
-
-.column-header {
-  padding: 1rem; border-bottom: 1px solid;
-  border-top-left-radius: 8px; border-top-right-radius: 8px;
-  display: flex; justify-content: space-between; align-items: center;
-}
-.column-header h3 { font-size: 0.9rem; font-weight: 700; margin: 0; }
-.column-header .counter {
-  padding: 2px 8px; border-radius: 12px; font-size: 0.75rem; font-weight: 600;
-}
-
-.column-body { flex: 1; padding: 1rem; overflow-y: auto; }
-.drag-area { min-height: 100px; display: flex; flex-direction: column; gap: 0.75rem; }
-
-/* Cards */
-.task-card {
-  background: white; padding: 1rem; border-radius: 6px;
-  box-shadow: 0 1px 2px rgba(0,0,0,0.05); cursor: pointer;
-  transition: all 0.2s ease; border: 1px solid #e2e8f0;
-  border-left-width: 4px;
-}
-.task-card:hover { transform: translateY(-2px); box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
-
-.card-meta { display: flex; justify-content: space-between; font-size: 0.7rem; color: #64748b; margin-bottom: 0.5rem; }
-.card-title { font-size: 0.9rem; font-weight: 600; color: #334155; margin-bottom: 0.75rem; line-height: 1.4; }
-.card-footer { display: flex; justify-content: space-between; align-items: center; margin-top: auto; }
-
-.client-badge {
-  font-size: 0.7rem; background: #f1f5f9; color: #475569; padding: 2px 6px; border-radius: 4px;
-  max-width: 150px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-}
-
-.avatar-mini {
-  width: 24px; height: 24px; border-radius: 50%; 
-  display: flex; align-items: center; justify-content: center; font-size: 0.65rem; font-weight: 600;
-}
-
-.custom-scrollbar::-webkit-scrollbar { width: 6px; }
-.custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
-.custom-scrollbar::-webkit-scrollbar-thumb { background-color: #cbd5e1; border-radius: 20px; }
-.ghost-card { opacity: 0.5; background: #e2e8f0; border: 2px dashed #94a3b8; }
-
-@media (max-width: 1024px) {
-  .page-container { padding: 1rem; }
-  .header-main { flex-direction: column; align-items: flex-start; gap: 1rem; }
-  .actions-area { width: 100%; justify-content: flex-start; }
-  .toolbar-row { flex-direction: column; align-items: stretch; }
-  .kanban-wrapper { height: auto; overflow-x: auto; }
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background-color: #94a3b8;
 }
 </style>
