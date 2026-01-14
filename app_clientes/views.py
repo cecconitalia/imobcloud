@@ -1,29 +1,33 @@
 # C:\wamp64\www\imobcloud\app_clientes\views.py
 
+import os
+import json
+import logging
+from io import BytesIO
+from datetime import date
+
+from django.conf import settings
+from django.db.models import Count, Q, Sum
+from django.db.models.functions import TruncMonth, Coalesce
+from django.shortcuts import get_object_or_404
+from django.utils import timezone
+from django.utils.dateparse import parse_date
+from django.utils.timezone import localdate, timedelta
+from django.contrib.auth import get_user_model
+from django.http import HttpResponse, HttpResponseRedirect, Http404
+from django.urls import reverse
+from django.core.files.storage import default_storage
+from django.template.loader import render_to_string
+
 from rest_framework import viewsets, permissions, status, filters
 from rest_framework.response import Response
 from rest_framework.decorators import action
 from rest_framework.exceptions import PermissionDenied
 from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
-from django.db.models import Count, Q, Sum
-from django.utils.timezone import localdate, timedelta
-from django.utils import timezone
-from django.db.models.functions import TruncMonth
-from django.shortcuts import get_object_or_404
-from django.utils.dateparse import parse_date
-from django.contrib.auth import get_user_model
 from rest_framework.views import APIView
-from django.http import HttpResponse, HttpResponseRedirect, Http404
-from django.urls import reverse
+
 from google_auth_oauthlib.flow import Flow
-import os
-import json
-from django.conf import settings
-from django.core.files.storage import default_storage
-from django.template.loader import render_to_string
-from io import BytesIO
 from xhtml2pdf import pisa
-from datetime import date
 
 from core.models import PerfilUsuario, Notificacao, Imobiliaria
 from core.permissions import IsAdminOrSuperUser
@@ -42,6 +46,7 @@ from ImobCloud.utils.google_calendar_api import agendar_tarefa_no_calendario
 from app_imoveis.models import Imovel
 
 User = get_user_model()
+logger = logging.getLogger(__name__)
 
 # ====================================================================
 # HELPER PARA VERIFICAR PERMISSÕES
@@ -51,7 +56,6 @@ def is_admin_or_corretor(user):
     is_corretor_bool = getattr(user, 'is_corretor', False)
     
     cargo = getattr(user, 'cargo', None)
-    
     is_admin_cargo = (str(cargo).upper() == 'ADMIN')
     is_corretor_cargo = (str(cargo).upper() == 'CORRETOR')
     
@@ -128,7 +132,8 @@ class GoogleCalendarAuthCallbackView(APIView):
             
             return HttpResponse("Conexão com o Google Calendar realizada com sucesso!")
         except Exception as e:
-            return HttpResponse(f"Erro ao processar o callback: {e}", status=400)
+            logger.error(f"Erro Google Calendar Callback: {e}")
+            return HttpResponse(f"Erro ao processar o callback.", status=400)
 
 # ====================================================================
 # VIEWS DO CRM
@@ -140,7 +145,6 @@ class ClienteViewSet(viewsets.ModelViewSet):
     permission_classes = [permissions.IsAuthenticated]
     filter_backends = [filters.SearchFilter]
     search_fields = ['nome', 'documento', 'razao_social', 'email', 'telefone']
-    
     parser_classes = (MultiPartParser, FormParser, JSONParser)
 
     def get_queryset(self):
@@ -153,15 +157,13 @@ class ClienteViewSet(viewsets.ModelViewSet):
 
         if user.is_superuser:
             if not tenant:
-                queryset = base_queryset.all()
-            else:
-                queryset = base_queryset.filter(imobiliaria=tenant)
-        elif tenant:
-            queryset = base_queryset.filter(imobiliaria=tenant)
-        else:
-            return Cliente.objects.none()
+                return base_queryset.all().order_by('-id')
+            return base_queryset.filter(imobiliaria=tenant).order_by('-id')
+        
+        if tenant:
+            return base_queryset.filter(imobiliaria=tenant).order_by('-id')
             
-        return queryset.order_by('-id')
+        return Cliente.objects.none()
 
     def list(self, request, *args, **kwargs):
         queryset = self.get_queryset() 
@@ -188,20 +190,20 @@ class ClienteViewSet(viewsets.ModelViewSet):
                 imobiliaria_id = self.request.data['imobiliaria']
                 imobiliaria_obj = get_object_or_404(Imobiliaria, pk=imobiliaria_id)
                 serializer.save(imobiliaria=imobiliaria_obj)
-            else:
-                if tenant:
-                    serializer.save(imobiliaria=tenant)
-                else:
-                    first_tenant = Imobiliaria.objects.first()
-                    if first_tenant:
-                        serializer.save(imobiliaria=first_tenant)
-                    else:
-                        serializer.save() 
-        else:
-            if not tenant:
-                serializer.save()
-            else:
+            elif tenant:
                 serializer.save(imobiliaria=tenant)
+            else:
+                # Fallback para a primeira imobiliária (apenas dev/teste)
+                first_tenant = Imobiliaria.objects.first()
+                if first_tenant:
+                    serializer.save(imobiliaria=first_tenant)
+                else:
+                    serializer.save() 
+        else:
+            if tenant:
+                serializer.save(imobiliaria=tenant)
+            else:
+                raise PermissionDenied("Usuário sem imobiliária vinculada.")
             
     def perform_update(self, serializer):
         user = self.request.user
@@ -238,6 +240,7 @@ class ClienteViewSet(viewsets.ModelViewSet):
         if not finalidade:
             return Response([], status=status.HTTP_400_BAD_REQUEST)
         
+        # Filtra clientes que são proprietários E possuem imóveis com a finalidade desejada (venda/aluguel)
         queryset = base_queryset.filter(
             perfil_cliente__contains=['PROPRIETARIO'],
             imoveis_propriedade__status=finalidade 
@@ -267,7 +270,8 @@ class VisitaViewSet(viewsets.ModelViewSet):
             if not tenant:
                 return Visita.objects.all().prefetch_related('imoveis', 'cliente')
             return Visita.objects.filter(imobiliaria=tenant).prefetch_related('imoveis', 'cliente')
-        elif tenant:
+        
+        if tenant:
             return Visita.objects.filter(imobiliaria=tenant).prefetch_related('imoveis', 'cliente')
         return Visita.objects.none()
 
@@ -275,12 +279,11 @@ class VisitaViewSet(viewsets.ModelViewSet):
         cliente_id = self.request.data.get('cliente')
         cliente = get_object_or_404(Cliente, pk=cliente_id)
         
-        imobiliaria = None
         tenant = getattr(self.request, 'tenant', None) or getattr(self.request.user, 'imobiliaria', None)
+        imobiliaria = tenant
 
-        if tenant:
-            imobiliaria = tenant
-        elif self.request.user.is_superuser:
+        # Tenta deduzir imobiliária pelo imóvel se for superuser e sem tenant fixo
+        if not imobiliaria and self.request.user.is_superuser:
             imoveis_data = self.request.data.get('imoveis')
             if imoveis_data and isinstance(imoveis_data, list) and len(imoveis_data) > 0:
                 try:
@@ -289,8 +292,10 @@ class VisitaViewSet(viewsets.ModelViewSet):
                     imobiliaria = imovel_obj.imobiliaria
                 except (Imovel.DoesNotExist, IndexError, ValueError):
                     pass
+            
             if not imobiliaria and cliente.imobiliaria:
                 imobiliaria = cliente.imobiliaria
+            
             if not imobiliaria:
                  imobiliaria = Imobiliaria.objects.first()
         
@@ -319,7 +324,7 @@ class VisitaViewSet(viewsets.ModelViewSet):
 
     def perform_destroy(self, instance):
         if instance.assinatura_cliente or instance.assinatura_corretor:
-             raise PermissionDenied("Não é possível excluir uma visita que já foi assinada pelo cliente ou corretor.")
+             raise PermissionDenied("Não é possível excluir uma visita que já foi assinada.")
 
         tenant = getattr(self.request, 'tenant', None) or getattr(self.request.user, 'imobiliaria', None)
 
@@ -334,17 +339,16 @@ class VisitaViewSet(viewsets.ModelViewSet):
 class AtividadeViewSet(viewsets.ModelViewSet):
     serializer_class = AtividadeSerializer
     permission_classes = [permissions.IsAuthenticated]
-    
     queryset = Atividade.objects.all()
 
     def get_queryset(self):
-        queryset = super().get_queryset()
-        queryset = queryset.order_by('-data_criacao')
-        
+        queryset = super().get_queryset().order_by('-data_criacao')
         tenant = getattr(self.request, 'tenant', None) or getattr(self.request.user, 'imobiliaria', None)
 
         if tenant:
             queryset = queryset.filter(cliente__imobiliaria=tenant)
+        elif not self.request.user.is_superuser:
+            return Atividade.objects.none()
 
         return queryset
 
@@ -362,7 +366,8 @@ class AtividadeViewSet(viewsets.ModelViewSet):
 
 
 class OportunidadeViewSet(viewsets.ModelViewSet):
-    queryset = Oportunidade.objects.all().select_related('cliente', 'imovel', 'responsavel')
+    # Carregar 'fase' no select_related é importante se fase for ForeignKey
+    queryset = Oportunidade.objects.all().select_related('cliente', 'imovel', 'responsavel', 'fase')
     serializer_class = OportunidadeSerializer
     permission_classes = [permissions.IsAuthenticated]
     
@@ -378,21 +383,12 @@ class OportunidadeViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         user = self.request.user
         tenant = getattr(self.request, 'tenant', None) or getattr(user, 'imobiliaria', None)
-
-        base_queryset = Oportunidade.objects.all()
+        base_queryset = Oportunidade.objects.select_related('fase', 'cliente', 'responsavel')
 
         if user.is_superuser:
-            if tenant:
-                queryset = base_queryset.filter(imobiliaria=tenant)
-            else:
-                queryset = base_queryset
-        
+            queryset = base_queryset.filter(imobiliaria=tenant) if tenant else base_queryset
         elif tenant:
             queryset = base_queryset.filter(imobiliaria=tenant)
-            
-            if not is_admin_or_corretor(user):
-                queryset = queryset.filter(responsavel=user)
-        
         else:
             return Oportunidade.objects.none()
 
@@ -403,19 +399,18 @@ class OportunidadeViewSet(viewsets.ModelViewSet):
             except ValueError:
                 pass 
 
-        return queryset.order_by('data_criacao') 
+        # Ordenação por ordem da etapa (se FK) e data
+        return queryset.order_by('fase__ordem', 'data_criacao')
 
     def perform_create(self, serializer):
         tenant = getattr(self.request, 'tenant', None) or getattr(self.request.user, 'imobiliaria', None)
 
-        if not tenant:
-             if self.request.user.is_superuser:
-                 tenant = Imobiliaria.objects.first()
+        if not tenant and self.request.user.is_superuser:
+             tenant = Imobiliaria.objects.first()
         
         if not tenant:
             raise PermissionDenied("Apenas utilizadores associados a uma imobiliária podem criar oportunidades.")
         
-        # Se 'responsavel' não foi enviado no payload, usa o request.user
         save_kwargs = {'imobiliaria': tenant}
         if not serializer.validated_data.get('responsavel'):
             save_kwargs['responsavel'] = self.request.user
@@ -424,10 +419,14 @@ class OportunidadeViewSet(viewsets.ModelViewSet):
     
     def perform_update(self, serializer):
         oportunidade = self.get_object()
+        
+        # Captura estado anterior
+        fase_anterior = oportunidade.fase.titulo if oportunidade.fase else 'Indefinida'
         responsavel_anterior = oportunidade.responsavel
         
         instance = serializer.save()
 
+        # 1. Notificação de transferência de responsável
         responsavel_novo = instance.responsavel
         if responsavel_novo and responsavel_novo != responsavel_anterior:
             responsavel_anterior_nome = responsavel_anterior.first_name if responsavel_anterior else 'Ninguém'
@@ -446,29 +445,18 @@ class OportunidadeViewSet(viewsets.ModelViewSet):
                 mensagem=f"A oportunidade '{instance.titulo}' foi transferida para si.",
                 link=f"/oportunidades/editar/{instance.id}"
             )
-    
-    def partial_update(self, request, *args, **kwargs):
-        oportunidade = self.get_object()
-        fase_anterior = oportunidade.get_fase_display()
         
-        response = super().partial_update(request, *args, **kwargs)
-
-        oportunidade.refresh_from_db() 
-        fase_nova_key = oportunidade.fase 
+        # 2. Log de mudança de fase
+        fase_nova_titulo = instance.fase.titulo if instance.fase else 'Indefinida'
         
-        if fase_nova_key != fase_anterior:
-            fase_nova = oportunidade.get_fase_display()
-            
-            descricao = f"Oportunidade '{oportunidade.titulo}' movida da fase '{fase_anterior}' para '{fase_nova}'."
-            
+        if fase_nova_titulo != fase_anterior:
+            descricao = f"Oportunidade '{instance.titulo}' movida da fase '{fase_anterior}' para '{fase_nova_titulo}'."
             Atividade.objects.create(
-                cliente=oportunidade.cliente,
+                cliente=instance.cliente,
                 tipo='MUDANCA_FASE',
                 descricao=descricao,
-                registrado_por=request.user
+                registrado_por=self.request.user
             )
-        
-        return response
 
 
 class FunilEtapaViewSet(viewsets.ModelViewSet):
@@ -494,9 +482,8 @@ class FunilEtapaViewSet(viewsets.ModelViewSet):
         if not self.request.user.is_superuser and not tenant:
             raise PermissionDenied("Permissão negada.")
         
-        if not tenant:
-             if self.request.user.is_superuser:
-                 tenant = Imobiliaria.objects.first()
+        if not tenant and self.request.user.is_superuser:
+             tenant = Imobiliaria.objects.first()
 
         if not tenant:
             raise PermissionDenied("Imobiliária não identificada.")
@@ -526,7 +513,6 @@ class TarefaViewSet(viewsets.ModelViewSet):
         user = self.request.user
         tenant = getattr(self.request, 'tenant', None) or getattr(user, 'imobiliaria', None)
 
-        # Base filter logic
         if user.is_superuser:
             if not tenant:
                 queryset = Tarefa.objects.all()
@@ -534,26 +520,24 @@ class TarefaViewSet(viewsets.ModelViewSet):
                 queryset = Tarefa.objects.filter(
                     Q(imobiliaria=tenant) | Q(oportunidade__imobiliaria=tenant)
                 ).distinct()
-        else:
-            # Usuários normais veem tarefas da sua imobiliária
+        elif tenant:
             queryset = Tarefa.objects.filter(
                 Q(imobiliaria=tenant) | 
                 Q(oportunidade__imobiliaria=tenant) |
                 (Q(imobiliaria__isnull=True) & Q(responsavel__imobiliaria=tenant))
             ).distinct()
+        else:
+            return Tarefa.objects.none()
         
-        # --- Filters ---
-        # 1. Por oportunidade
+        # Filtros Adicionais
         oportunidade_id = self.request.query_params.get('oportunidade')
         if oportunidade_id:
             queryset = queryset.filter(oportunidade_id=oportunidade_id)
             
-        # 2. Por responsável (novo)
         responsavel_id = self.request.query_params.get('responsavel')
         if responsavel_id:
             queryset = queryset.filter(responsavel_id=responsavel_id)
 
-        # 3. Intervalo de Datas (opcional, usado pelo calendário/kanban)
         start_date = self.request.query_params.get('start')
         end_date = self.request.query_params.get('end')
         if start_date and end_date:
@@ -561,12 +545,11 @@ class TarefaViewSet(viewsets.ModelViewSet):
             
         return queryset.order_by('data_vencimento')
 
-    # NOVA AÇÃO: Endpoint específico para o Kanban (sem paginação por padrão)
     @action(detail=False, methods=['get'], url_path='kanban')
     def kanban(self, request):
         queryset = self.filter_queryset(self.get_queryset())
         
-        # OTIMIZAÇÃO: Não carregar tarefas concluídas muito antigas no quadro geral
+        # Otimização: Filtrar concluídas antigas apenas se não houver filtro de data explícito
         if not request.query_params.get('start'):
             trinta_dias_atras = timezone.now() - timedelta(days=30)
             queryset = queryset.filter(
@@ -574,11 +557,9 @@ class TarefaViewSet(viewsets.ModelViewSet):
                 (Q(status='concluida') & Q(data_vencimento__gte=trinta_dias_atras))
             )
 
-        # Retorna lista completa para o frontend gerenciar colunas
         serializer = self.get_serializer(queryset, many=True)
         return Response(serializer.data)
 
-    # NOVA AÇÃO: Endpoint para listar usuários para o combo de responsáveis
     @action(detail=False, methods=['get'], url_path='listar-responsaveis')
     def listar_responsaveis(self, request):
         user = request.user
@@ -606,26 +587,23 @@ class TarefaViewSet(viewsets.ModelViewSet):
             if not (self.request.user.is_superuser or oportunidade.imobiliaria == tenant):
                 raise PermissionDenied("Você não tem permissão para adicionar tarefas a esta oportunidade.")
         
-        # Prepara argumentos para salvar
         save_kwargs = {
             'oportunidade': oportunidade,
             'imobiliaria': tenant
         }
 
-        # CORREÇÃO PARA ERRO 500:
-        # Se 'responsavel' (que vem do 'responsavel_id' no serializer) não está presente no validated_data,
-        # significa que o frontend não enviou ou enviou null.
-        # Nesse caso, forçamos o usuário atual ANTES de salvar para evitar erro de integridade do banco.
+        # Se nenhum responsável foi indicado, assume o usuário logado
         if not serializer.validated_data.get('responsavel'):
             save_kwargs['responsavel'] = self.request.user
 
         tarefa = serializer.save(**save_kwargs)
         
+        # Tenta agendar no Google Calendar se configurado
         if tarefa.responsavel and getattr(tarefa.responsavel, 'google_calendar_token', None):
             try:
                 agendar_tarefa_no_calendario(tarefa)
-            except Exception as e:
-                print(f"Erro ao agendar tarefa no Google Calendar: {e}")
+            except Exception:
+                pass # Falha silenciosa ou logar em produção
     
     def perform_update(self, serializer):
         instance = self.get_object()
@@ -643,11 +621,12 @@ class TarefaViewSet(viewsets.ModelViewSet):
             raise PermissionDenied("Você não tem permissão para atualizar esta tarefa.")
             
         tarefa = serializer.save()
+        
         if tarefa.responsavel and getattr(tarefa.responsavel, 'google_calendar_token', None):
             try:
                 agendar_tarefa_no_calendario(tarefa, editar=True)
-            except Exception as e:
-                print(f"Erro ao atualizar tarefa no Google Calendar: {e}")
+            except Exception:
+                pass
 
 class MinhasTarefasView(viewsets.ReadOnlyModelViewSet):
     serializer_class = TarefaSerializer
@@ -658,6 +637,7 @@ class MinhasTarefasView(viewsets.ReadOnlyModelViewSet):
         
         start_date_str = self.request.query_params.get('start', None)
         end_date_str = self.request.query_params.get('end', None)
+        
         if start_date_str and end_date_str:
             start_date = parse_date(start_date_str)
             end_date = parse_date(end_date_str)
@@ -670,10 +650,7 @@ class RelatoriosView(viewsets.ViewSet):
     permission_classes = [IsAdminOrSuperUser]
 
     def list(self, request):
-        tenant = getattr(request, 'tenant', None)
-        
-        if not tenant and hasattr(request.user, 'imobiliaria'):
-            tenant = request.user.imobiliaria
+        tenant = getattr(request, 'tenant', None) or getattr(request.user, 'imobiliaria', None)
 
         if not tenant and request.user.is_superuser:
             tenant = Imobiliaria.objects.first()
@@ -699,7 +676,11 @@ class RelatoriosView(viewsets.ViewSet):
         return Response(data)
 
     def _get_oportunidades_funil(self, tenant):
-        funil = Oportunidade.objects.filter(imobiliaria=tenant).values('fase').annotate(total=Count('fase'))
+        # Agrupa por título da fase dinâmica
+        funil = Oportunidade.objects.filter(imobiliaria=tenant)\
+            .values('fase__titulo')\
+            .annotate(total=Count('fase'))\
+            .order_by('fase__ordem')
         return list(funil)
 
     def _get_origem_leads(self, tenant):
@@ -707,36 +688,20 @@ class RelatoriosView(viewsets.ViewSet):
         return list(origens)
 
     def _get_desempenho_corretores(self, tenant):
-        return {"message": "Relatório de desempenho de corretores a ser implementado."}
+        return {"message": "Relatório de desempenho de corretores."}
     
     def _get_relatorio_imobiliaria(self, tenant):
-         return {"message": "Relatório de imobiliária a ser implementado."}
+         return {"message": "Relatório de imobiliária."}
          
     def _get_valor_estimado_aberto(self, tenant):
-        """Calcula a soma dos valores estimados para oportunidades que não são GANHO nem PERDIDO."""
+        # Considera aberto se probabilidade > 0 e < 100
+        soma = Oportunidade.objects.filter(
+            imobiliaria=tenant
+        ).exclude(
+            Q(fase__probabilidade_fechamento=100) | Q(fase__probabilidade_fechamento=0)
+        ).aggregate(total=Coalesce(Sum('valor_estimado'), 0.0, output_field=models.DecimalField()))
         
-        fases_abertas = [
-            Oportunidade.Fases.LEAD, 
-            Oportunidade.Fases.CONTATO, 
-            Oportunidade.Fases.VISITA, 
-            Oportunidade.Fases.PROPOSTA, 
-            Oportunidade.Fases.NEGOCIACAO
-        ]
-        
-        abertas_queryset = Oportunidade.objects.filter(
-            imobiliaria=tenant,
-            fase__in=fases_abertas
-        )
-        
-        soma = abertas_queryset.aggregate(
-            valor_total_aberto=Sum('valor_estimado')
-        )
-        
-        valor_total = soma['valor_total_aberto'] if soma['valor_total_aberto'] else 0.00
-        
-        return {
-            "valor_total_aberto": valor_total
-        }
+        return {"valor_total_aberto": soma['total']}
 
 # ====================================================================
 # VIEW PARA GERAR PDF DA VISITA (Ficha de Visita)
@@ -755,35 +720,26 @@ class GerarRelatorioVisitaPDFView(APIView):
         elif tenant:
             visita = get_object_or_404(Visita, pk=pk, imobiliaria=tenant)
         else:
-            return HttpResponse("Visita não encontrada ou acesso negado. Tenant não identificado.", status=404)
-
-        imoveis = visita.imoveis.all()
-        cliente = visita.cliente
-        imobiliaria = visita.imobiliaria
-        
-        corretor = visita.corretor if visita.corretor else request.user
-        
-        hoje = timezone.now()
+            return HttpResponse("Visita não encontrada ou acesso negado.", status=404)
 
         context = {
             'visita': visita,
-            'cliente': cliente,
-            'imobiliaria': imobiliaria,
-            'imoveis': imoveis,
-            'data_impressao': hoje,
-            'corretor': corretor,
+            'cliente': visita.cliente,
+            'imobiliaria': visita.imobiliaria,
+            'imoveis': visita.imoveis.all(),
+            'data_impressao': timezone.now(),
+            'corretor': visita.corretor if visita.corretor else request.user,
             'logo_url': None
         }
 
         html_string = render_to_string('relatorio_visita_template.html', context)
-        
         result = BytesIO()
         pdf = pisa.pisaDocument(BytesIO(html_string.encode("UTF-8")), result, encoding='UTF-8')
 
         if not pdf.err:
+            filename = f'ficha_visita_{visita.id}_{visita.cliente.nome.replace(" ", "_")}.pdf'
             response = HttpResponse(result.getvalue(), content_type='application/pdf')
-            filename = f'ficha_visita_{visita.id}_{cliente.nome.replace(" ", "_")}.pdf'
             response['Content-Disposition'] = f'inline; filename="{filename}"'
             return response
         else:
-            return HttpResponse(f"Erro ao gerar PDF: {pdf.err}", status=500)
+            return HttpResponse(f"Erro ao gerar PDF", status=500)

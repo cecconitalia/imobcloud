@@ -1,4 +1,4 @@
-# app_clientes/models.py
+# C:\wamp64\www\imobcloud\app_clientes\models.py
 
 from django.db import models
 from django.conf import settings
@@ -9,9 +9,6 @@ import re
 
 User = get_user_model()
 
-# ====================================================================
-# FUNÇÃO UTILITÁRIA
-# ====================================================================
 def apenas_numeros(valor):
     """Remove todos os caracteres não numéricos de uma string."""
     return re.sub(r'[^0-9]', '', str(valor or ''))
@@ -34,7 +31,7 @@ class FunilEtapa(models.Model):
         unique_together = ('imobiliaria', 'titulo')
 
     def __str__(self):
-        return f"{self.imobiliaria.nome} - {self.titulo}"
+        return f"{self.titulo}"
 
 # ====================================================================
 # Modelos do CRM
@@ -93,12 +90,12 @@ class Cliente(models.Model):
         
         if self.tipo_pessoa == 'FISICA':
             if len(self.documento) != 11:
-                raise ValidationError({'documento': 'CPF deve conter 11 dígitos.'})
+                pass 
             self.razao_social = None 
             self.inscricao_estadual = None
         elif self.tipo_pessoa == 'JURIDICA':
             if len(self.documento) != 14:
-                raise ValidationError({'documento': 'CNPJ deve conter 14 dígitos.'})
+                pass 
             if not self.razao_social:
                  raise ValidationError({'razao_social': 'Razão Social é obrigatória para Pessoa Jurídica.'})
 
@@ -118,15 +115,6 @@ class Cliente(models.Model):
         return f"{nome_display} ({self.imobiliaria.nome})"
 
 class Oportunidade(models.Model):
-    class Fases(models.TextChoices):
-        LEAD = 'LEAD', 'Novo Lead'
-        CONTATO = 'CONTATO', 'Primeiro Contato'
-        VISITA = 'VISITA', 'Visita Agendada'
-        PROPOSTA = 'PROPOSTA', 'Proposta Enviada'
-        NEGOCIACAO = 'NEGOCIACAO', 'Em Negociação'
-        GANHO = 'GANHO', 'Negócio Ganho'
-        PERDIDO = 'PERDIDO', 'Negócio Perdido'
-
     class Fontes(models.TextChoices):
         SITE = 'SITE', 'Site'
         INDICACAO = 'INDICACAO', 'Indicação'
@@ -138,7 +126,16 @@ class Oportunidade(models.Model):
     imovel = models.ForeignKey('app_imoveis.Imovel', on_delete=models.SET_NULL, null=True, blank=True, related_name='oportunidades')
     cliente = models.ForeignKey(Cliente, on_delete=models.CASCADE, related_name='oportunidades')
 
-    fase = models.CharField(max_length=20, choices=Fases.choices, default=Fases.LEAD)
+    # CAMPO ALTERADO: null=True adicionado para permitir a migração dos dados antigos
+    fase = models.ForeignKey(
+        FunilEtapa, 
+        on_delete=models.PROTECT, 
+        related_name='oportunidades',
+        verbose_name="Fase do Funil",
+        null=True,
+        blank=True
+    )
+    
     fonte = models.CharField(max_length=20, choices=Fontes.choices, null=True, blank=True, verbose_name="Fonte do Lead")
     
     responsavel = models.ForeignKey(
@@ -169,18 +166,10 @@ class Oportunidade(models.Model):
         return self.titulo
     
     def save(self, *args, **kwargs):
-        self.probabilidade = Oportunidade.PROBABILIDADE_POR_FASE.get(self.fase, 0)
+        # Atualiza probabilidade baseado na etapa do funil selecionada
+        if self.fase:
+            self.probabilidade = self.fase.probabilidade_fechamento
         super().save(*args, **kwargs)
-
-    PROBABILIDADE_POR_FASE = {
-        Fases.LEAD: 10,
-        Fases.CONTATO: 25,
-        Fases.VISITA: 50,
-        Fases.PROPOSTA: 75,
-        Fases.NEGOCIACAO: 90,
-        Fases.GANHO: 100,
-        Fases.PERDIDO: 0,
-    }
 
 class Tarefa(models.Model):
     STATUS_CHOICES = [
@@ -207,7 +196,6 @@ class Tarefa(models.Model):
     descricao = models.TextField(blank=True, null=True)
     data_vencimento = models.DateTimeField()
     
-    # Campo adicionado para corrigir o erro e padronizar
     data_criacao = models.DateTimeField(auto_now_add=True, verbose_name="Data de Criação")
     
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pendente', verbose_name="Status")

@@ -103,6 +103,25 @@ class CorretorRegistrationViewSet(viewsets.ModelViewSet):
         except Notificacao.DoesNotExist:
             return Response({'error': 'Notificação não encontrada'}, status=404)
 
+    # --- NOVO ENDPOINT PARA CORRIGIR O ERRO 404 NO SELECT DE CORRETORES ---
+    @action(detail=False, methods=['get'])
+    def lista_corretores_simples(self, request):
+        """
+        Retorna uma lista simplificada de corretores (ID, Nome, Email)
+        para preencher comboboxes no frontend sem carregar dados pesados.
+        """
+        queryset = self.filter_queryset(self.get_queryset())
+        data = [
+            {
+                'id': u.id, 
+                'nome_completo': u.get_full_name() or u.username,
+                'first_name': u.first_name,
+                'email': u.email
+            } 
+            for u in queryset
+        ]
+        return Response(data)
+
 class DashboardStatsView(APIView):
     permission_classes = [IsAuthenticated]
 
@@ -111,33 +130,18 @@ class DashboardStatsView(APIView):
             user = request.user
             imobiliaria = getattr(request, 'tenant', None)
             
-            # --- LÓGICA CORRIGIDA DE DETECÇÃO DE IMOBILIÁRIA ---
-            
-            # 1. Tenta pegar do usuário direto
+            # --- LÓGICA DE DETECÇÃO DE IMOBILIÁRIA ---
             if not imobiliaria and hasattr(user, 'imobiliaria') and user.imobiliaria:
                 imobiliaria = user.imobiliaria
 
-            # 2. Tenta pegar do PERFIL do usuário (Igual ao app_contratos)
             if not imobiliaria and hasattr(user, 'perfil') and user.perfil:
                 imobiliaria = user.perfil.imobiliaria
 
-            # 3. Fallback para Localhost (Força 'imobhome')
             if not imobiliaria:
                 imobiliaria = Imobiliaria.objects.filter(subdominio='imobhome').first()
-                # 4. Último recurso: pega a primeira do banco
                 if not imobiliaria:
                     imobiliaria = Imobiliaria.objects.first()
 
-            # ==================================================================
-            # DEBUG
-            print(f"\n--- DEBUG DASHBOARD CORE ---")
-            if imobiliaria:
-                print(f"Imobiliária Definida: {imobiliaria.nome} (ID: {imobiliaria.id})")
-            else:
-                print("ERRO: Nenhuma imobiliária encontrada.")
-            # ==================================================================
-
-            # Se mesmo assim não achar, retorna zerado (mas não deve acontecer com o fallback acima)
             if not imobiliaria and not user.is_superuser:
                 return Response({
                     'total_imoveis': 0, 'total_clientes': 0,
@@ -150,10 +154,8 @@ class DashboardStatsView(APIView):
             
             # --- 1. IMÓVEIS ---
             try:
-                # Exclui DESATIVADO e VENDIDO (opcional, dependendo da regra de negócio)
                 total_imoveis = Imovel.objects.filter(**filter_kwargs).exclude(status='DESATIVADO').count()
-            except Exception as e: 
-                print(f"Erro contagem Imóveis: {e}")
+            except Exception: 
                 total_imoveis = 0
             
             # --- 2. CLIENTES ---
@@ -164,13 +166,11 @@ class DashboardStatsView(APIView):
             
             # --- 3. CONTRATOS ---
             try:
-                # Tenta filtrar diretamente pela imobiliária
                 total_contratos_ativos = Contrato.objects.filter(
                     imobiliaria=imobiliaria, 
                     status_contrato='ATIVO'
                 ).count()
-            except Exception as e: 
-                print(f"Erro contagem Contratos: {e}")
+            except Exception: 
                 total_contratos_ativos = 0
             
             # --- 4. FINANCEIRO (A Receber 30 dias) ---
@@ -180,7 +180,6 @@ class DashboardStatsView(APIView):
                 trinta_dias = hoje + timedelta(days=30)
                 
                 if imobiliaria:
-                    # Filtra pagamentos pendentes de contratos ATIVOS dessa imobiliária
                     pagamentos_qs = Pagamento.objects.filter(
                         contrato__imobiliaria=imobiliaria,
                         status='PENDENTE',
@@ -189,8 +188,7 @@ class DashboardStatsView(APIView):
                     )
                     soma = pagamentos_qs.aggregate(Sum('valor'))['valor__sum']
                     total_a_receber = soma if soma else 0
-            except Exception as e:
-                print(f"Erro Financeiro Dashboard: {e}")
+            except Exception:
                 total_a_receber = 0
 
             return Response({
@@ -201,7 +199,6 @@ class DashboardStatsView(APIView):
             })
 
         except Exception as e:
-            print(f"ERRO CRÍTICO DASHBOARD: {e}")
             traceback.print_exc()
             return Response({
                 'total_imoveis': 0, 'total_clientes': 0,
@@ -230,39 +227,29 @@ class IntegracaoRedesSociaisView(APIView):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 class PerfilUsuarioViewSet(viewsets.ModelViewSet):
-    """
-    ViewSet para gerenciar perfis de usuários.
-    """
-    serializer_class = CorretorDisplaySerializer # ou PerfilUsuarioSerializer dependendo do uso
-    # Usa as permissões padrão do settings.py (IsAuthenticated + IsSubscriptionActive)
+    serializer_class = CorretorDisplaySerializer 
 
     def get_queryset(self):
         user = self.request.user
         if user.is_superuser:
             return User.objects.all()
-        # Usuário comum vê apenas a si mesmo e colegas da mesma imobiliária
         if hasattr(user, 'imobiliaria') and user.imobiliaria:
             return User.objects.filter(imobiliaria=user.imobiliaria)
         return User.objects.filter(id=user.id)
 
     def get_object(self):
-        # Permite retornar o usuário logado com a rota /me/
         pk = self.kwargs.get('pk')
         if pk == 'me':
             return self.request.user
         return super().get_object()
 
     def perform_create(self, serializer):
-        # Garante que o usuário criado pertença à mesma imobiliária de quem cria
         if self.request.user.imobiliaria:
             serializer.save(imobiliaria=self.request.user.imobiliaria)
         else:
             serializer.save()
 
 class MinhasNotificacoesView(APIView):
-    """
-    Retorna as notificações não lidas do usuário logado.
-    """
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
@@ -282,9 +269,6 @@ class MarcarNotificacaoLidaView(APIView):
         except Notificacao.DoesNotExist:
             return Response({'error': 'Notificação não encontrada'}, status=404)
 
-# ==============================================================================
-# NOVA VIEW: AUTO-CADASTRO PÚBLICO COM ENVIO DE EMAIL
-# ==============================================================================
 class PublicRegisterView(APIView):
     permission_classes = [permissions.AllowAny]
 
@@ -302,7 +286,6 @@ class PublicRegisterView(APIView):
             if User.objects.filter(email=email).exists():
                 return Response({"error": "Este email já está cadastrado."}, status=status.HTTP_400_BAD_REQUEST)
 
-            # 1. Gerar Subdomínio
             base_subdomain = slugify(nome_imobiliaria).replace('-', '')
             if not base_subdomain: base_subdomain = "nova"
             subdomain = base_subdomain
@@ -311,7 +294,6 @@ class PublicRegisterView(APIView):
                 subdomain = f"{base_subdomain}{counter}"
                 counter += 1
 
-            # 2. Criar Imobiliária
             imobiliaria = Imobiliaria.objects.create(
                 nome=nome_imobiliaria, 
                 subdominio=subdomain,
@@ -319,7 +301,6 @@ class PublicRegisterView(APIView):
                 telefone=telefone
             )
 
-            # 3. Criar Usuário e Senha
             senha_gerada = get_random_string(length=10)
             partes_nome = nome_completo.strip().split(" ")
             first_name = partes_nome[0]
@@ -337,7 +318,6 @@ class PublicRegisterView(APIView):
                 is_corretor=True
             )
 
-            # 4. Enviar Email de Boas-Vindas
             mensagem_extra = "Verifique seu e-mail para pegar a senha."
             credenciais_temp = {} 
 
@@ -361,7 +341,6 @@ class PublicRegisterView(APIView):
                 send_mail(assunto, msg_corpo, remetente, [email], fail_silently=False)
             except Exception as mail_error:
                 print(f"AVISO EMAIL: {mail_error}")
-                # Se o email falhar (ex: sem internet ou config), mostra a senha na tela
                 mensagem_extra = "Não foi possível enviar o e-mail. Anote sua senha abaixo."
                 credenciais_temp = {"senha_gerada": senha_gerada}
 
@@ -377,17 +356,12 @@ class PublicRegisterView(APIView):
             return Response({"error": f"Erro interno: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 class ConfiguracaoGlobalView(APIView):
-    """
-    Gerencia as configurações globais do sistema (Singleton).
-    Apenas Superusuários devem ter acesso de escrita.
-    """
-    permission_classes = [IsAdminUser] # Apenas Staff/Superuser
+    permission_classes = [IsAdminUser]
 
     def get(self, request):
         if not request.user.is_superuser:
             return Response({"detail": "Acesso restrito."}, status=status.HTTP_403_FORBIDDEN)
 
-        # Garante que existe 1 configuração (Get or Create)
         config, created = ConfiguracaoGlobal.objects.get_or_create(pk=1)
         serializer = ConfiguracaoGlobalSerializer(config)
         return Response(serializer.data)

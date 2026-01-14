@@ -262,7 +262,6 @@ import apiClient from '@/services/api';
 import vSelect from 'vue-select';
 import 'vue-select/dist/vue-select.css';
 import MoneyInput from '@/components/MoneyInput.vue'; 
-// CORREÇÃO: Removido o caminho '/clientes/' que não existe
 import ClienteAtividades from '@/components/ClienteAtividades.vue'; 
 import TarefaModal from '@/components/TarefaModal.vue';
 import { format, parseISO, isPast } from 'date-fns';
@@ -305,22 +304,14 @@ const tarefaParaEditarId = ref<number | null>(null);
 
 const clienteCriadoAutomaticamente = ref(false);
 
-const fasesFunil = ref<FaseFunilSelecao[]>([
-  { id: 'LEAD', titulo: 'Novo Lead' },
-  { id: 'CONTATO', titulo: 'Primeiro Contato' },
-  { id: 'VISITA', titulo: 'Visita Agendada' },
-  { id: 'PROPOSTA', titulo: 'Proposta Enviada' },
-  { id: 'NEGOCIACAO', titulo: 'Em Negociação' },
-  { id: 'GANHO', titulo: 'Negócio Ganho' },
-  { id: 'PERDIDO', titulo: 'Negócio Perdido' }
-]);
+const fasesFunil = ref<FaseFunilSelecao[]>([]);
 
 const oportunidade = ref({
   id: null,
   titulo: '',
   cliente_id: null as number | null,
   imovel_interesse_id: null as number | null,
-  fase_funil_id: 'LEAD',
+  fase_funil_id: null as string | null,
   responsavel_id: null as number | null,
   valor_estimado: null as number | null,
   fonte: null as string | null,
@@ -444,11 +435,13 @@ async function loadInitialData() {
     const promises = [
       apiClient.get('/v1/core/usuarios/lista_corretores_simples/'),
       apiClient.get('/v1/clientes/lista-simples/'), 
-      apiClient.get('/v1/imoveis/lista-simples/') 
+      apiClient.get('/v1/imoveis/lista-simples/'),
+      apiClient.get('/v1/fases-funil/')
     ];
 
     if (isEditing.value && oportunidadeId.value) {
-      promises.push(apiClient.get(`/v1/clientes/oportunidades/${oportunidadeId.value}/`));
+      // CORREÇÃO: URL ajustada de /v1/clientes/oportunidades/ para /v1/oportunidades/
+      promises.push(apiClient.get(`/v1/oportunidades/${oportunidadeId.value}/`));
       promises.push(apiClient.get(`/v1/tarefas/?oportunidade=${oportunidadeId.value}`));
     }
 
@@ -493,8 +486,13 @@ async function loadInitialData() {
         proprietario_nome: i.proprietario_nome
     }));
 
-    if (isEditing.value && results.length > 3) {
-      const opData = results[3].data;
+    fasesFunil.value = getDataFromResponse(results[3]);
+    if (!isEditing.value && fasesFunil.value.length > 0) {
+        oportunidade.value.fase_funil_id = fasesFunil.value[0].id;
+    }
+
+    if (isEditing.value && results.length > 4) {
+      const opData = results[4].data;
       const clienteObj = opData.cliente;
       const imovelObj = opData.imovel;
       const responsavelObj = opData.responsavel;
@@ -531,8 +529,8 @@ async function loadInitialData() {
         informacoes_adicionais: opData.informacoes_adicionais || '',
       };
 
-      if (results.length > 4) {
-          tarefas.value = getDataFromResponse(results[4]);
+      if (results.length > 5) {
+          tarefas.value = getDataFromResponse(results[5]);
       }
     } 
     else if (!isEditing.value && origemImovelId && contatoEmail && contatoNome) {
@@ -595,7 +593,10 @@ async function loadInitialData() {
         oportunidade.value.informacoes_adicionais = obs;
 
         oportunidade.value.fonte = 'SITE';
-        oportunidade.value.fase_funil_id = 'CONTATO'; 
+        // Defina a fase inicial padrão se não houver lógica específica
+        if (fasesFunil.value.length > 0) {
+             oportunidade.value.fase_funil_id = fasesFunil.value[0].id; 
+        }
 
     }
 
@@ -629,10 +630,11 @@ async function handleSubmit() {
     };
 
     let response;
+    // CORREÇÃO: URLs ajustadas de /v1/clientes/oportunidades/ para /v1/oportunidades/
     if (isEditing.value && oportunidadeId.value) {
-      response = await apiClient.patch(`/v1/clientes/oportunidades/${oportunidadeId.value}/`, apiPayload);
+      response = await apiClient.patch(`/v1/oportunidades/${oportunidadeId.value}/`, apiPayload);
     } else {
-      response = await apiClient.post('/v1/clientes/oportunidades/', apiPayload);
+      response = await apiClient.post('/v1/oportunidades/', apiPayload);
       
       const contatoIdOriginal = route.query.contato_id;
       if (contatoIdOriginal) {

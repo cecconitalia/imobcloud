@@ -234,7 +234,6 @@ const fetchClientes = async () => {
         telefone: item.telefone || item.celular || '',
         perfil_cliente: item.perfil_cliente || [],
         ativo: item.ativo,
-        // CORREÇÃO: Adicionado item.data_cadastro na lista de prioridades
         data_criacao: item.data_cadastro || item.data_criacao || item.created_at || item.date_joined || item.criado_em || null
     }));
     filterList();
@@ -246,7 +245,13 @@ const fetchClientes = async () => {
 };
 
 const goToCreateCliente = () => { router.push({ name: 'cliente-novo' }); };
-const editCliente = (id: number) => { router.push({ name: 'cliente-editar', params: { id } }); };
+
+// Função corrigida para garantir que o ID seja passado corretamente na rota
+const editCliente = (id: number) => { 
+    if (id) {
+        router.push({ name: 'cliente-editar', params: { id: id.toString() } }); 
+    }
+};
 
 const confirmDelete = async (cliente: Cliente) => {
     if(confirm(`Deseja inativar ${cliente.nome}?`)) {

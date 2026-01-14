@@ -1,91 +1,58 @@
 <template>
-  <div class="stat-card" :class="color || 'primary'">
-    <div class="stat-icon">
-      <slot name="icon"><i class="fas fa-chart-line"></i></slot>
+  <div 
+    class="relative flex items-center justify-between p-5 bg-white border border-gray-100 rounded-xl shadow-sm transition-all duration-300 hover:shadow-md hover:-translate-y-1 cursor-pointer group"
+    @click="$emit('click')"
+  >
+    <div class="flex flex-col z-10">
+      <span class="text-xs font-bold uppercase tracking-wider text-gray-500 mb-1">
+        {{ title }}
+      </span>
+      <div class="flex items-baseline gap-2">
+        <h3 class="text-2xl font-bold text-gray-800 leading-none">
+          {{ value }}
+        </h3>
+        <span 
+          v-if="trend !== undefined" 
+          class="text-xs font-bold px-1.5 py-0.5 rounded-full"
+          :class="trend >= 0 ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'"
+        >
+          <i :class="trend >= 0 ? 'fas fa-arrow-up text-[10px]' : 'fas fa-arrow-down text-[10px]'"></i>
+          {{ Math.abs(trend) }}%
+        </span>
+      </div>
     </div>
-    <div class="stat-details">
-      <p class="stat-label">{{ title }}</p>
-      <h3 class="stat-value">{{ value }}</h3>
+
+    <div 
+      class="flex items-center justify-center w-12 h-12 rounded-lg transition-colors duration-300"
+      :class="colorClasses[color || 'primary']"
+    >
+      <slot name="icon">
+        <i class="fas fa-chart-line text-xl"></i>
+      </slot>
     </div>
-    <div v-if="trend !== undefined" class="stat-trend" :class="trend >= 0 ? 'up' : 'down'">
-      <i :class="trend >= 0 ? 'fas fa-arrow-up' : 'fas fa-arrow-down'"></i>
-      {{ Math.abs(trend) }}%
+
+    <div class="absolute -right-4 -bottom-4 opacity-5 pointer-events-none transform rotate-12 transition-transform group-hover:scale-110">
+      <slot name="bg-icon"></slot>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-defineProps<{
+const props = defineProps<{
   title: string;
   value: string | number;
-  color?: 'primary' | 'success' | 'warning' | 'danger' | 'info';
+  color?: 'primary' | 'success' | 'warning' | 'danger' | 'purple' | 'info';
   trend?: number;
 }>();
+
+defineEmits(['click']);
+
+const colorClasses = {
+  primary: 'bg-blue-50 text-blue-600 group-hover:bg-blue-100',
+  success: 'bg-emerald-50 text-emerald-600 group-hover:bg-emerald-100',
+  warning: 'bg-amber-50 text-amber-600 group-hover:bg-amber-100',
+  danger: 'bg-rose-50 text-rose-600 group-hover:bg-rose-100',
+  purple: 'bg-purple-50 text-purple-600 group-hover:bg-purple-100',
+  info: 'bg-cyan-50 text-cyan-600 group-hover:bg-cyan-100'
+};
 </script>
-
-<style scoped>
-.stat-card {
-  background: #ffffff;
-  border: 1px solid #f1f5f9;
-  border-radius: 12px;
-  padding: 12px 16px;
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  transition: all 0.2s ease;
-}
-
-.stat-card:hover {
-  border-color: #e2e8f0;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.03);
-}
-
-.stat-icon {
-  width: 40px;
-  height: 40px;
-  border-radius: 10px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 1.1rem;
-}
-
-.stat-details {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-}
-
-.stat-label {
-  font-size: 0.7rem;
-  font-weight: 700;
-  color: #64748b;
-  text-transform: uppercase;
-  margin: 0;
-  letter-spacing: 0.025em;
-}
-
-.stat-value {
-  font-size: 1.25rem;
-  font-weight: 800;
-  color: #0f172a;
-  margin: 0;
-}
-
-.stat-trend {
-  font-size: 0.7rem;
-  font-weight: 700;
-  padding: 4px 8px;
-  border-radius: 20px;
-}
-
-.stat-trend.up { background: #f0fdf4; color: #16a34a; }
-.stat-trend.down { background: #fef2f2; color: #ef4444; }
-
-/* Colors */
-.primary .stat-icon { background: #eef2ff; color: #4f46e5; }
-.success .stat-icon { background: #ecfdf5; color: #10b981; }
-.warning .stat-icon { background: #fffbeb; color: #f59e0b; }
-.danger .stat-icon  { background: #fef2f2; color: #ef4444; }
-.info .stat-icon    { background: #ecfeff; color: #06b6d4; }
-</style>

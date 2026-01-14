@@ -12780,3 +12780,800 @@ WARNING 2026-01-14 15:48:18,559 log 8 140635636280192 Forbidden: /api/v1/core/us
 WARNING 2026-01-14 15:49:18,668 log 8 140635636280192 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
 WARNING 2026-01-14 15:50:18,656 log 8 140635636280192 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
 WARNING 2026-01-14 15:51:18,673 log 8 140635636280192 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2026-01-14 15:52:18,668 log 7 129904493607808 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2026-01-14 15:53:18,726 log 8 129904493607808 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2026-01-14 15:54:18,684 log 6 129904493607808 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2026-01-14 15:55:18,710 log 6 129904493607808 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2026-01-14 15:55:50,723 log 6 129904493607808 Unauthorized: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2026-01-14 15:56:18,716 log 7 129904493607808 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2026-01-14 15:57:18,713 log 6 129904493607808 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2026-01-14 15:58:18,781 log 8 129904493607808 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2026-01-14 15:59:18,751 log 7 129904493607808 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2026-01-14 16:00:18,764 log 8 129904493607808 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2026-01-14 16:01:18,793 log 6 129904493607808 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2026-01-14 16:02:18,816 log 6 129904493607808 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2026-01-14 16:03:20,230 log 6 129904493607808 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2026-01-14 16:04:20,240 log 6 129904493607808 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2026-01-14 16:05:20,213 log 6 129904493607808 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2026-01-14 16:07:20,397 log 8 124692589775744 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2026-01-14 16:08:07,683 log 6 124243934563200 Not Found: /api/v1/contratos/dashboard-stats/
+WARNING 2026-01-14 16:08:20,250 log 6 124243934563200 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2026-01-14 16:08:21,929 log 7 124243934563200 Not Found: /api/v1/contratos/dashboard-stats/
+WARNING 2026-01-14 16:09:20,400 log 7 124243934563200 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2026-01-14 16:10:20,364 log 6 124243934563200 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2026-01-14 16:11:20,366 log 7 124243934563200 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2026-01-14 16:12:20,386 log 7 124243934563200 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2026-01-14 16:13:20,388 log 6 124243934563200 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2026-01-14 16:14:20,380 log 8 124243934563200 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2026-01-14 16:14:51,453 log 7 124243934563200 Not Found: /api/v1/clientes/oportunidades/
+WARNING 2026-01-14 16:15:20,402 log 6 124243934563200 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2026-01-14 16:16:20,826 log 9 129774214093696 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2026-01-14 16:17:20,408 log 9 129774214093696 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2026-01-14 16:18:20,417 log 9 139353661258624 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2026-01-14 16:19:20,439 log 7 139353661258624 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2026-01-14 16:19:52,106 log 7 125350397827968 Not Found: /api/v1/clientes/oportunidades/
+WARNING 2026-01-14 16:19:53,060 log 7 125350397827968 Not Found: /api/v1/clientes/oportunidades/
+WARNING 2026-01-14 16:19:59,659 log 9 125350397827968 Not Found: /api/v1/core/usuarios/lista_corretores_simples/
+WARNING 2026-01-14 16:20:06,637 log 8 125350397827968 Not Found: /api/v1/clientes/oportunidades/
+WARNING 2026-01-14 16:20:20,432 log 9 125350397827968 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2026-01-14 16:20:22,004 log 9 125350397827968 Not Found: /api/v1/core/usuarios/lista_corretores_simples/
+WARNING 2026-01-14 16:20:43,903 log 9 125350397827968 Method Not Allowed: /api/v1/clientes/oportunidades/
+WARNING 2026-01-14 16:21:20,446 log 7 125350397827968 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2026-01-14 16:21:21,620 log 7 125350397827968 Method Not Allowed: /api/v1/clientes/oportunidades/
+WARNING 2026-01-14 16:22:20,531 log 8 125350397827968 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2026-01-14 16:23:20,583 log 7 125350397827968 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2026-01-14 16:24:20,548 log 8 136992686996352 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2026-01-14 16:24:43,113 log 7 136992686996352 Not Found: /api/v1/clientes/oportunidades/
+WARNING 2026-01-14 16:25:20,680 log 7 136992686996352 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2026-01-14 16:26:20,670 log 7 136992686996352 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2026-01-14 16:27:20,669 log 9 136992686996352 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2026-01-14 16:28:20,709 log 8 136992686996352 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2026-01-14 16:29:20,691 log 8 136992686996352 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2026-01-14 16:30:20,721 log 8 136992686996352 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2026-01-14 16:31:20,785 log 9 134297068497792 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2026-01-14 16:31:33,584 log 7 134297068497792 Not Found: /api/v1/clientes/oportunidades/
+WARNING 2026-01-14 16:31:38,007 log 8 134297068497792 Not Found: /api/v1/core/usuarios/lista_corretores_simples/
+WARNING 2026-01-14 16:31:49,239 log 8 134297068497792 Not Found: /api/v1/clientes/oportunidades/
+WARNING 2026-01-14 16:31:59,619 log 8 134297068497792 Not Found: /api/v1/clientes/oportunidades/
+WARNING 2026-01-14 16:32:00,473 log 8 134297068497792 Not Found: /favicon.ico
+WARNING 2026-01-14 16:32:20,764 log 7 134297068497792 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2026-01-14 16:33:20,790 log 7 134297068497792 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2026-01-14 16:33:38,233 utils 7 134297068497792 Could not reverse url from auth.user
+WARNING 2026-01-14 16:33:38,239 utils 7 134297068497792 Could not reverse url from auth.user
+WARNING 2026-01-14 16:33:38,253 utils 7 134297068497792 Could not reverse url from auth.user
+WARNING 2026-01-14 16:33:38,255 utils 7 134297068497792 Could not reverse url from auth.user
+WARNING 2026-01-14 16:33:38,260 utils 7 134297068497792 Could not reverse url from auth.user
+WARNING 2026-01-14 16:33:46,102 utils 9 134297068497792 Could not reverse url from auth.user
+WARNING 2026-01-14 16:33:46,111 utils 9 134297068497792 Could not reverse url from auth.user
+WARNING 2026-01-14 16:33:46,118 utils 9 134297068497792 Could not reverse url from auth.user
+WARNING 2026-01-14 16:33:46,121 utils 9 134297068497792 Could not reverse url from auth.user
+WARNING 2026-01-14 16:33:52,309 utils 8 134297068497792 Could not reverse url from auth.user
+WARNING 2026-01-14 16:33:52,314 utils 8 134297068497792 Could not reverse url from auth.user
+WARNING 2026-01-14 16:33:52,325 utils 8 134297068497792 Could not reverse url from auth.user
+WARNING 2026-01-14 16:33:52,327 utils 8 134297068497792 Could not reverse url from auth.user
+WARNING 2026-01-14 16:33:52,338 utils 8 134297068497792 Could not reverse url from auth.user
+WARNING 2026-01-14 16:34:20,945 log 9 134297068497792 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2026-01-14 16:35:20,936 log 8 134297068497792 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2026-01-14 16:36:20,951 log 8 134297068497792 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2026-01-14 16:37:20,992 log 9 134297068497792 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2026-01-14 16:38:24,011 log 9 134134698982272 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2026-01-14 16:39:21,035 log 8 134134698982272 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2026-01-14 16:40:21,016 log 9 134134698982272 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2026-01-14 16:41:21,133 log 9 134134698982272 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2026-01-14 16:42:21,347 log 10 134134698982272 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2026-01-14 16:43:21,169 log 8 134134698982272 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2026-01-14 16:44:21,148 log 8 134134698982272 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2026-01-14 16:45:21,173 log 8 134134698982272 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2026-01-14 16:46:21,178 log 8 134134698982272 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2026-01-14 16:47:21,183 log 9 134134698982272 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2026-01-14 16:48:21,196 log 9 134134698982272 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2026-01-14 16:49:21,203 log 8 134134698982272 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2026-01-14 16:50:21,190 log 8 134134698982272 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2026-01-14 16:51:21,210 log 9 134134698982272 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2026-01-14 16:52:21,215 log 9 134134698982272 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2026-01-14 16:53:21,250 log 8 134134698982272 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2026-01-14 16:54:21,257 log 9 134134698982272 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2026-01-14 16:55:21,273 log 8 134134698982272 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2026-01-14 16:56:21,251 log 8 134134698982272 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2026-01-14 16:57:21,515 log 8 134134698982272 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2026-01-14 16:57:22,730 log 10 134134698982272 Unauthorized: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2026-01-14 16:58:21,503 log 9 134134698982272 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2026-01-14 16:59:22,061 log 10 134134698982272 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2026-01-14 17:00:22,027 log 9 134134698982272 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2026-01-14 17:01:22,679 log 8 134134698982272 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2026-01-14 17:02:22,916 log 8 132022044056448 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2026-01-14 17:03:31,791 log 9 132022044056448 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2026-01-14 17:04:28,633 log 7 132022044056448 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2026-01-14 17:05:31,785 log 8 129981741095808 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2026-01-14 17:05:47,908 log 9 129981741095808 Not Found: /api/v1/clientes/oportunidades/
+WARNING 2026-01-14 17:06:22,305 utils 8 129981741095808 Could not reverse url from auth.user
+WARNING 2026-01-14 17:06:22,692 utils 8 129981741095808 Could not reverse url from auth.user
+WARNING 2026-01-14 17:06:22,702 utils 8 129981741095808 Could not reverse url from auth.user
+WARNING 2026-01-14 17:06:22,706 utils 8 129981741095808 Could not reverse url from auth.user
+WARNING 2026-01-14 17:06:22,715 utils 8 129981741095808 Could not reverse url from auth.user
+WARNING 2026-01-14 17:06:28,603 log 8 129981741095808 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2026-01-14 17:06:54,585 utils 9 129981741095808 Could not reverse url from auth.user
+WARNING 2026-01-14 17:06:54,606 utils 9 129981741095808 Could not reverse url from auth.user
+WARNING 2026-01-14 17:06:54,616 utils 9 129981741095808 Could not reverse url from auth.user
+WARNING 2026-01-14 17:06:54,620 utils 9 129981741095808 Could not reverse url from auth.user
+WARNING 2026-01-14 17:06:54,631 utils 9 129981741095808 Could not reverse url from auth.user
+WARNING 2026-01-14 17:07:28,612 log 8 129981741095808 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2026-01-14 17:07:39,505 utils 7 129981741095808 Could not reverse url from auth.user
+WARNING 2026-01-14 17:07:39,526 utils 7 129981741095808 Could not reverse url from auth.user
+WARNING 2026-01-14 17:07:39,551 utils 7 129981741095808 Could not reverse url from auth.user
+WARNING 2026-01-14 17:07:39,562 utils 7 129981741095808 Could not reverse url from auth.user
+WARNING 2026-01-14 17:07:42,439 utils 7 129981741095808 Could not reverse url from auth.user
+WARNING 2026-01-14 17:07:42,443 utils 7 129981741095808 Could not reverse url from auth.user
+WARNING 2026-01-14 17:07:42,453 utils 7 129981741095808 Could not reverse url from auth.user
+WARNING 2026-01-14 17:07:42,465 utils 7 129981741095808 Could not reverse url from auth.user
+WARNING 2026-01-14 17:08:28,636 log 9 129981741095808 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2026-01-14 17:09:28,725 log 7 129981741095808 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2026-01-14 17:10:28,698 log 7 129981741095808 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2026-01-14 17:11:28,865 log 10 133569197501312 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+WARNING 2026-01-14 17:12:17,625 log 8 133569197501312 Not Found: /api/v1/clientes/oportunidades/
+WARNING 2026-01-14 17:14:48,643 utils 7 138853921254272 Could not reverse url from auth.user
+WARNING 2026-01-14 17:14:48,668 utils 7 138853921254272 Could not reverse url from auth.user
+WARNING 2026-01-14 17:14:48,679 utils 7 138853921254272 Could not reverse url from auth.user
+WARNING 2026-01-14 17:14:48,683 utils 7 138853921254272 Could not reverse url from auth.user
+WARNING 2026-01-14 17:15:04,947 utils 7 138853921254272 Could not reverse url from auth.user
+WARNING 2026-01-14 17:15:04,952 utils 7 138853921254272 Could not reverse url from auth.user
+WARNING 2026-01-14 17:15:04,959 utils 7 138853921254272 Could not reverse url from auth.user
+WARNING 2026-01-14 17:15:04,962 utils 7 138853921254272 Could not reverse url from auth.user
+WARNING 2026-01-14 17:15:07,510 utils 9 138853921254272 Could not reverse url from auth.user
+WARNING 2026-01-14 17:15:07,525 utils 9 138853921254272 Could not reverse url from auth.user
+WARNING 2026-01-14 17:15:07,534 utils 9 138853921254272 Could not reverse url from auth.user
+WARNING 2026-01-14 17:15:07,537 utils 9 138853921254272 Could not reverse url from auth.user
+WARNING 2026-01-14 17:16:15,832 utils 8 138853921254272 Could not reverse url from auth.user
+WARNING 2026-01-14 17:16:15,837 utils 8 138853921254272 Could not reverse url from auth.user
+WARNING 2026-01-14 17:16:15,845 utils 8 138853921254272 Could not reverse url from auth.user
+WARNING 2026-01-14 17:16:15,847 utils 8 138853921254272 Could not reverse url from auth.user
+WARNING 2026-01-14 17:16:15,854 utils 8 138853921254272 Could not reverse url from auth.user
+WARNING 2026-01-14 17:16:19,587 utils 9 138853921254272 Could not reverse url from auth.user
+WARNING 2026-01-14 17:16:19,591 utils 9 138853921254272 Could not reverse url from auth.user
+WARNING 2026-01-14 17:16:19,602 utils 9 138853921254272 Could not reverse url from auth.user
+WARNING 2026-01-14 17:16:19,605 utils 9 138853921254272 Could not reverse url from auth.user
+WARNING 2026-01-14 17:16:29,646 utils 8 138853921254272 Could not reverse url from auth.user
+WARNING 2026-01-14 17:16:29,653 utils 8 138853921254272 Could not reverse url from auth.user
+WARNING 2026-01-14 17:16:29,664 utils 8 138853921254272 Could not reverse url from auth.user
+WARNING 2026-01-14 17:16:29,667 utils 8 138853921254272 Could not reverse url from auth.user
+WARNING 2026-01-14 17:16:31,193 utils 9 138853921254272 Could not reverse url from auth.user
+WARNING 2026-01-14 17:16:31,196 utils 9 138853921254272 Could not reverse url from auth.user
+WARNING 2026-01-14 17:16:31,205 utils 9 138853921254272 Could not reverse url from auth.user
+WARNING 2026-01-14 17:16:31,207 utils 9 138853921254272 Could not reverse url from auth.user
+WARNING 2026-01-14 17:16:31,213 utils 9 138853921254272 Could not reverse url from auth.user
+WARNING 2026-01-14 17:16:37,172 utils 7 138853921254272 Could not reverse url from auth.user
+WARNING 2026-01-14 17:16:37,177 utils 7 138853921254272 Could not reverse url from auth.user
+WARNING 2026-01-14 17:16:37,186 utils 7 138853921254272 Could not reverse url from auth.user
+WARNING 2026-01-14 17:16:37,189 utils 7 138853921254272 Could not reverse url from auth.user
+WARNING 2026-01-14 17:16:38,895 utils 7 138853921254272 Could not reverse url from auth.user
+WARNING 2026-01-14 17:16:38,898 utils 7 138853921254272 Could not reverse url from auth.user
+WARNING 2026-01-14 17:16:38,907 utils 7 138853921254272 Could not reverse url from auth.user
+WARNING 2026-01-14 17:16:38,911 utils 7 138853921254272 Could not reverse url from auth.user
+WARNING 2026-01-14 17:16:38,924 utils 7 138853921254272 Could not reverse url from auth.user
+WARNING 2026-01-14 17:16:44,591 utils 9 138853921254272 Could not reverse url from auth.user
+WARNING 2026-01-14 17:16:44,595 utils 9 138853921254272 Could not reverse url from auth.user
+WARNING 2026-01-14 17:16:44,602 utils 9 138853921254272 Could not reverse url from auth.user
+WARNING 2026-01-14 17:16:44,608 utils 9 138853921254272 Could not reverse url from auth.user
+WARNING 2026-01-14 17:16:44,613 utils 9 138853921254272 Could not reverse url from auth.user
+ERROR 2026-01-14 17:29:33,171 log 9 128380577164160 Internal Server Error: /api/v1/relatorios/
+Traceback (most recent call last):
+  File "/usr/local/lib/python3.12/site-packages/django/core/handlers/exception.py", line 55, in inner
+    response = get_response(request)
+               ^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/django/core/handlers/base.py", line 197, in _get_response
+    response = wrapped_callback(request, *callback_args, **callback_kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/django/views/decorators/csrf.py", line 65, in _view_wrapper
+    return view_func(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/rest_framework/viewsets.py", line 125, in view
+    return self.dispatch(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/rest_framework/views.py", line 509, in dispatch
+    response = self.handle_exception(exc)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/rest_framework/views.py", line 469, in handle_exception
+    self.raise_uncaught_exception(exc)
+  File "/usr/local/lib/python3.12/site-packages/rest_framework/views.py", line 480, in raise_uncaught_exception
+    raise exc
+  File "/usr/local/lib/python3.12/site-packages/rest_framework/views.py", line 506, in dispatch
+    response = handler(request, *args, **kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/app/app_clientes/views.py", line 672, in list
+    data = self._get_valor_estimado_aberto(tenant)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/app/app_clientes/views.py", line 702, in _get_valor_estimado_aberto
+    ).aggregate(total=Coalesce(Sum('valor_estimado'), 0.0, output_field=models.DecimalField()))
+                                                                        ^^^^^^
+NameError: name 'models' is not defined
+ERROR 2026-01-14 17:29:41,525 log 10 128380577164160 Internal Server Error: /api/v1/relatorios/
+Traceback (most recent call last):
+  File "/usr/local/lib/python3.12/site-packages/django/core/handlers/exception.py", line 55, in inner
+    response = get_response(request)
+               ^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/django/core/handlers/base.py", line 197, in _get_response
+    response = wrapped_callback(request, *callback_args, **callback_kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/django/views/decorators/csrf.py", line 65, in _view_wrapper
+    return view_func(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/rest_framework/viewsets.py", line 125, in view
+    return self.dispatch(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/rest_framework/views.py", line 509, in dispatch
+    response = self.handle_exception(exc)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/rest_framework/views.py", line 469, in handle_exception
+    self.raise_uncaught_exception(exc)
+  File "/usr/local/lib/python3.12/site-packages/rest_framework/views.py", line 480, in raise_uncaught_exception
+    raise exc
+  File "/usr/local/lib/python3.12/site-packages/rest_framework/views.py", line 506, in dispatch
+    response = handler(request, *args, **kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/app/app_clientes/views.py", line 672, in list
+    data = self._get_valor_estimado_aberto(tenant)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/app/app_clientes/views.py", line 702, in _get_valor_estimado_aberto
+    ).aggregate(total=Coalesce(Sum('valor_estimado'), 0.0, output_field=models.DecimalField()))
+                                                                        ^^^^^^
+NameError: name 'models' is not defined
+ERROR 2026-01-14 17:29:43,739 log 9 128380577164160 Internal Server Error: /api/v1/relatorios/
+Traceback (most recent call last):
+  File "/usr/local/lib/python3.12/site-packages/django/core/handlers/exception.py", line 55, in inner
+    response = get_response(request)
+               ^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/django/core/handlers/base.py", line 197, in _get_response
+    response = wrapped_callback(request, *callback_args, **callback_kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/django/views/decorators/csrf.py", line 65, in _view_wrapper
+    return view_func(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/rest_framework/viewsets.py", line 125, in view
+    return self.dispatch(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/rest_framework/views.py", line 509, in dispatch
+    response = self.handle_exception(exc)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/rest_framework/views.py", line 469, in handle_exception
+    self.raise_uncaught_exception(exc)
+  File "/usr/local/lib/python3.12/site-packages/rest_framework/views.py", line 480, in raise_uncaught_exception
+    raise exc
+  File "/usr/local/lib/python3.12/site-packages/rest_framework/views.py", line 506, in dispatch
+    response = handler(request, *args, **kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/app/app_clientes/views.py", line 672, in list
+    data = self._get_valor_estimado_aberto(tenant)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/app/app_clientes/views.py", line 702, in _get_valor_estimado_aberto
+    ).aggregate(total=Coalesce(Sum('valor_estimado'), 0.0, output_field=models.DecimalField()))
+                                                                        ^^^^^^
+NameError: name 'models' is not defined
+ERROR 2026-01-14 17:29:44,162 log 8 128380577164160 Internal Server Error: /api/v1/relatorios/
+Traceback (most recent call last):
+  File "/usr/local/lib/python3.12/site-packages/django/core/handlers/exception.py", line 55, in inner
+    response = get_response(request)
+               ^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/django/core/handlers/base.py", line 197, in _get_response
+    response = wrapped_callback(request, *callback_args, **callback_kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/django/views/decorators/csrf.py", line 65, in _view_wrapper
+    return view_func(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/rest_framework/viewsets.py", line 125, in view
+    return self.dispatch(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/rest_framework/views.py", line 509, in dispatch
+    response = self.handle_exception(exc)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/rest_framework/views.py", line 469, in handle_exception
+    self.raise_uncaught_exception(exc)
+  File "/usr/local/lib/python3.12/site-packages/rest_framework/views.py", line 480, in raise_uncaught_exception
+    raise exc
+  File "/usr/local/lib/python3.12/site-packages/rest_framework/views.py", line 506, in dispatch
+    response = handler(request, *args, **kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/app/app_clientes/views.py", line 672, in list
+    data = self._get_valor_estimado_aberto(tenant)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/app/app_clientes/views.py", line 702, in _get_valor_estimado_aberto
+    ).aggregate(total=Coalesce(Sum('valor_estimado'), 0.0, output_field=models.DecimalField()))
+                                                                        ^^^^^^
+NameError: name 'models' is not defined
+ERROR 2026-01-14 17:29:45,828 log 10 128380577164160 Internal Server Error: /api/v1/relatorios/
+Traceback (most recent call last):
+  File "/usr/local/lib/python3.12/site-packages/django/core/handlers/exception.py", line 55, in inner
+    response = get_response(request)
+               ^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/django/core/handlers/base.py", line 197, in _get_response
+    response = wrapped_callback(request, *callback_args, **callback_kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/django/views/decorators/csrf.py", line 65, in _view_wrapper
+    return view_func(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/rest_framework/viewsets.py", line 125, in view
+    return self.dispatch(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/rest_framework/views.py", line 509, in dispatch
+    response = self.handle_exception(exc)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/rest_framework/views.py", line 469, in handle_exception
+    self.raise_uncaught_exception(exc)
+  File "/usr/local/lib/python3.12/site-packages/rest_framework/views.py", line 480, in raise_uncaught_exception
+    raise exc
+  File "/usr/local/lib/python3.12/site-packages/rest_framework/views.py", line 506, in dispatch
+    response = handler(request, *args, **kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/app/app_clientes/views.py", line 672, in list
+    data = self._get_valor_estimado_aberto(tenant)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/app/app_clientes/views.py", line 702, in _get_valor_estimado_aberto
+    ).aggregate(total=Coalesce(Sum('valor_estimado'), 0.0, output_field=models.DecimalField()))
+                                                                        ^^^^^^
+NameError: name 'models' is not defined
+ERROR 2026-01-14 17:29:47,698 log 9 128380577164160 Internal Server Error: /api/v1/relatorios/
+Traceback (most recent call last):
+  File "/usr/local/lib/python3.12/site-packages/django/core/handlers/exception.py", line 55, in inner
+    response = get_response(request)
+               ^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/django/core/handlers/base.py", line 197, in _get_response
+    response = wrapped_callback(request, *callback_args, **callback_kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/django/views/decorators/csrf.py", line 65, in _view_wrapper
+    return view_func(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/rest_framework/viewsets.py", line 125, in view
+    return self.dispatch(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/rest_framework/views.py", line 509, in dispatch
+    response = self.handle_exception(exc)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/rest_framework/views.py", line 469, in handle_exception
+    self.raise_uncaught_exception(exc)
+  File "/usr/local/lib/python3.12/site-packages/rest_framework/views.py", line 480, in raise_uncaught_exception
+    raise exc
+  File "/usr/local/lib/python3.12/site-packages/rest_framework/views.py", line 506, in dispatch
+    response = handler(request, *args, **kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/app/app_clientes/views.py", line 672, in list
+    data = self._get_valor_estimado_aberto(tenant)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/app/app_clientes/views.py", line 702, in _get_valor_estimado_aberto
+    ).aggregate(total=Coalesce(Sum('valor_estimado'), 0.0, output_field=models.DecimalField()))
+                                                                        ^^^^^^
+NameError: name 'models' is not defined
+ERROR 2026-01-14 17:29:50,202 log 8 128380577164160 Internal Server Error: /api/v1/relatorios/
+Traceback (most recent call last):
+  File "/usr/local/lib/python3.12/site-packages/django/core/handlers/exception.py", line 55, in inner
+    response = get_response(request)
+               ^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/django/core/handlers/base.py", line 197, in _get_response
+    response = wrapped_callback(request, *callback_args, **callback_kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/django/views/decorators/csrf.py", line 65, in _view_wrapper
+    return view_func(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/rest_framework/viewsets.py", line 125, in view
+    return self.dispatch(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/rest_framework/views.py", line 509, in dispatch
+    response = self.handle_exception(exc)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/rest_framework/views.py", line 469, in handle_exception
+    self.raise_uncaught_exception(exc)
+  File "/usr/local/lib/python3.12/site-packages/rest_framework/views.py", line 480, in raise_uncaught_exception
+    raise exc
+  File "/usr/local/lib/python3.12/site-packages/rest_framework/views.py", line 506, in dispatch
+    response = handler(request, *args, **kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/app/app_clientes/views.py", line 672, in list
+    data = self._get_valor_estimado_aberto(tenant)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/app/app_clientes/views.py", line 702, in _get_valor_estimado_aberto
+    ).aggregate(total=Coalesce(Sum('valor_estimado'), 0.0, output_field=models.DecimalField()))
+                                                                        ^^^^^^
+NameError: name 'models' is not defined
+ERROR 2026-01-14 17:30:35,379 log 9 128380577164160 Internal Server Error: /api/v1/relatorios/
+Traceback (most recent call last):
+  File "/usr/local/lib/python3.12/site-packages/django/core/handlers/exception.py", line 55, in inner
+    response = get_response(request)
+               ^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/django/core/handlers/base.py", line 197, in _get_response
+    response = wrapped_callback(request, *callback_args, **callback_kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/django/views/decorators/csrf.py", line 65, in _view_wrapper
+    return view_func(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/rest_framework/viewsets.py", line 125, in view
+    return self.dispatch(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/rest_framework/views.py", line 509, in dispatch
+    response = self.handle_exception(exc)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/rest_framework/views.py", line 469, in handle_exception
+    self.raise_uncaught_exception(exc)
+  File "/usr/local/lib/python3.12/site-packages/rest_framework/views.py", line 480, in raise_uncaught_exception
+    raise exc
+  File "/usr/local/lib/python3.12/site-packages/rest_framework/views.py", line 506, in dispatch
+    response = handler(request, *args, **kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/app/app_clientes/views.py", line 672, in list
+    data = self._get_valor_estimado_aberto(tenant)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/app/app_clientes/views.py", line 702, in _get_valor_estimado_aberto
+    ).aggregate(total=Coalesce(Sum('valor_estimado'), 0.0, output_field=models.DecimalField()))
+                                                                        ^^^^^^
+NameError: name 'models' is not defined
+ERROR 2026-01-14 17:30:35,723 log 9 128380577164160 Internal Server Error: /api/v1/relatorios/
+Traceback (most recent call last):
+  File "/usr/local/lib/python3.12/site-packages/django/core/handlers/exception.py", line 55, in inner
+    response = get_response(request)
+               ^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/django/core/handlers/base.py", line 197, in _get_response
+    response = wrapped_callback(request, *callback_args, **callback_kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/django/views/decorators/csrf.py", line 65, in _view_wrapper
+    return view_func(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/rest_framework/viewsets.py", line 125, in view
+    return self.dispatch(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/rest_framework/views.py", line 509, in dispatch
+    response = self.handle_exception(exc)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/rest_framework/views.py", line 469, in handle_exception
+    self.raise_uncaught_exception(exc)
+  File "/usr/local/lib/python3.12/site-packages/rest_framework/views.py", line 480, in raise_uncaught_exception
+    raise exc
+  File "/usr/local/lib/python3.12/site-packages/rest_framework/views.py", line 506, in dispatch
+    response = handler(request, *args, **kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/app/app_clientes/views.py", line 672, in list
+    data = self._get_valor_estimado_aberto(tenant)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/app/app_clientes/views.py", line 702, in _get_valor_estimado_aberto
+    ).aggregate(total=Coalesce(Sum('valor_estimado'), 0.0, output_field=models.DecimalField()))
+                                                                        ^^^^^^
+NameError: name 'models' is not defined
+ERROR 2026-01-14 17:30:36,844 log 9 128380577164160 Internal Server Error: /api/v1/relatorios/
+Traceback (most recent call last):
+  File "/usr/local/lib/python3.12/site-packages/django/core/handlers/exception.py", line 55, in inner
+    response = get_response(request)
+               ^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/django/core/handlers/base.py", line 197, in _get_response
+    response = wrapped_callback(request, *callback_args, **callback_kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/django/views/decorators/csrf.py", line 65, in _view_wrapper
+    return view_func(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/rest_framework/viewsets.py", line 125, in view
+    return self.dispatch(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/rest_framework/views.py", line 509, in dispatch
+    response = self.handle_exception(exc)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/rest_framework/views.py", line 469, in handle_exception
+    self.raise_uncaught_exception(exc)
+  File "/usr/local/lib/python3.12/site-packages/rest_framework/views.py", line 480, in raise_uncaught_exception
+    raise exc
+  File "/usr/local/lib/python3.12/site-packages/rest_framework/views.py", line 506, in dispatch
+    response = handler(request, *args, **kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/app/app_clientes/views.py", line 672, in list
+    data = self._get_valor_estimado_aberto(tenant)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/app/app_clientes/views.py", line 702, in _get_valor_estimado_aberto
+    ).aggregate(total=Coalesce(Sum('valor_estimado'), 0.0, output_field=models.DecimalField()))
+                                                                        ^^^^^^
+NameError: name 'models' is not defined
+ERROR 2026-01-14 17:30:37,051 log 8 128380577164160 Internal Server Error: /api/v1/relatorios/
+Traceback (most recent call last):
+  File "/usr/local/lib/python3.12/site-packages/django/core/handlers/exception.py", line 55, in inner
+    response = get_response(request)
+               ^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/django/core/handlers/base.py", line 197, in _get_response
+    response = wrapped_callback(request, *callback_args, **callback_kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/django/views/decorators/csrf.py", line 65, in _view_wrapper
+    return view_func(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/rest_framework/viewsets.py", line 125, in view
+    return self.dispatch(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/rest_framework/views.py", line 509, in dispatch
+    response = self.handle_exception(exc)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/rest_framework/views.py", line 469, in handle_exception
+    self.raise_uncaught_exception(exc)
+  File "/usr/local/lib/python3.12/site-packages/rest_framework/views.py", line 480, in raise_uncaught_exception
+    raise exc
+  File "/usr/local/lib/python3.12/site-packages/rest_framework/views.py", line 506, in dispatch
+    response = handler(request, *args, **kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/app/app_clientes/views.py", line 672, in list
+    data = self._get_valor_estimado_aberto(tenant)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/app/app_clientes/views.py", line 702, in _get_valor_estimado_aberto
+    ).aggregate(total=Coalesce(Sum('valor_estimado'), 0.0, output_field=models.DecimalField()))
+                                                                        ^^^^^^
+NameError: name 'models' is not defined
+ERROR 2026-01-14 17:30:38,178 log 8 128380577164160 Internal Server Error: /api/v1/relatorios/
+Traceback (most recent call last):
+  File "/usr/local/lib/python3.12/site-packages/django/core/handlers/exception.py", line 55, in inner
+    response = get_response(request)
+               ^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/django/core/handlers/base.py", line 197, in _get_response
+    response = wrapped_callback(request, *callback_args, **callback_kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/django/views/decorators/csrf.py", line 65, in _view_wrapper
+    return view_func(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/rest_framework/viewsets.py", line 125, in view
+    return self.dispatch(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/rest_framework/views.py", line 509, in dispatch
+    response = self.handle_exception(exc)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/rest_framework/views.py", line 469, in handle_exception
+    self.raise_uncaught_exception(exc)
+  File "/usr/local/lib/python3.12/site-packages/rest_framework/views.py", line 480, in raise_uncaught_exception
+    raise exc
+  File "/usr/local/lib/python3.12/site-packages/rest_framework/views.py", line 506, in dispatch
+    response = handler(request, *args, **kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/app/app_clientes/views.py", line 672, in list
+    data = self._get_valor_estimado_aberto(tenant)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/app/app_clientes/views.py", line 702, in _get_valor_estimado_aberto
+    ).aggregate(total=Coalesce(Sum('valor_estimado'), 0.0, output_field=models.DecimalField()))
+                                                                        ^^^^^^
+NameError: name 'models' is not defined
+ERROR 2026-01-14 17:30:38,423 log 8 128380577164160 Internal Server Error: /api/v1/relatorios/
+Traceback (most recent call last):
+  File "/usr/local/lib/python3.12/site-packages/django/core/handlers/exception.py", line 55, in inner
+    response = get_response(request)
+               ^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/django/core/handlers/base.py", line 197, in _get_response
+    response = wrapped_callback(request, *callback_args, **callback_kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/django/views/decorators/csrf.py", line 65, in _view_wrapper
+    return view_func(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/rest_framework/viewsets.py", line 125, in view
+    return self.dispatch(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/rest_framework/views.py", line 509, in dispatch
+    response = self.handle_exception(exc)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/rest_framework/views.py", line 469, in handle_exception
+    self.raise_uncaught_exception(exc)
+  File "/usr/local/lib/python3.12/site-packages/rest_framework/views.py", line 480, in raise_uncaught_exception
+    raise exc
+  File "/usr/local/lib/python3.12/site-packages/rest_framework/views.py", line 506, in dispatch
+    response = handler(request, *args, **kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/app/app_clientes/views.py", line 672, in list
+    data = self._get_valor_estimado_aberto(tenant)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/app/app_clientes/views.py", line 702, in _get_valor_estimado_aberto
+    ).aggregate(total=Coalesce(Sum('valor_estimado'), 0.0, output_field=models.DecimalField()))
+                                                                        ^^^^^^
+NameError: name 'models' is not defined
+ERROR 2026-01-14 17:30:42,431 log 8 128380577164160 Internal Server Error: /api/v1/relatorios/
+Traceback (most recent call last):
+  File "/usr/local/lib/python3.12/site-packages/django/core/handlers/exception.py", line 55, in inner
+    response = get_response(request)
+               ^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/django/core/handlers/base.py", line 197, in _get_response
+    response = wrapped_callback(request, *callback_args, **callback_kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/django/views/decorators/csrf.py", line 65, in _view_wrapper
+    return view_func(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/rest_framework/viewsets.py", line 125, in view
+    return self.dispatch(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/rest_framework/views.py", line 509, in dispatch
+    response = self.handle_exception(exc)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/rest_framework/views.py", line 469, in handle_exception
+    self.raise_uncaught_exception(exc)
+  File "/usr/local/lib/python3.12/site-packages/rest_framework/views.py", line 480, in raise_uncaught_exception
+    raise exc
+  File "/usr/local/lib/python3.12/site-packages/rest_framework/views.py", line 506, in dispatch
+    response = handler(request, *args, **kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/app/app_clientes/views.py", line 672, in list
+    data = self._get_valor_estimado_aberto(tenant)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/app/app_clientes/views.py", line 702, in _get_valor_estimado_aberto
+    ).aggregate(total=Coalesce(Sum('valor_estimado'), 0.0, output_field=models.DecimalField()))
+                                                                        ^^^^^^
+NameError: name 'models' is not defined
+ERROR 2026-01-14 17:30:44,194 log 10 128380577164160 Internal Server Error: /api/v1/relatorios/
+Traceback (most recent call last):
+  File "/usr/local/lib/python3.12/site-packages/django/core/handlers/exception.py", line 55, in inner
+    response = get_response(request)
+               ^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/django/core/handlers/base.py", line 197, in _get_response
+    response = wrapped_callback(request, *callback_args, **callback_kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/django/views/decorators/csrf.py", line 65, in _view_wrapper
+    return view_func(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/rest_framework/viewsets.py", line 125, in view
+    return self.dispatch(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/rest_framework/views.py", line 509, in dispatch
+    response = self.handle_exception(exc)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/rest_framework/views.py", line 469, in handle_exception
+    self.raise_uncaught_exception(exc)
+  File "/usr/local/lib/python3.12/site-packages/rest_framework/views.py", line 480, in raise_uncaught_exception
+    raise exc
+  File "/usr/local/lib/python3.12/site-packages/rest_framework/views.py", line 506, in dispatch
+    response = handler(request, *args, **kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/app/app_clientes/views.py", line 672, in list
+    data = self._get_valor_estimado_aberto(tenant)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/app/app_clientes/views.py", line 702, in _get_valor_estimado_aberto
+    ).aggregate(total=Coalesce(Sum('valor_estimado'), 0.0, output_field=models.DecimalField()))
+                                                                        ^^^^^^
+NameError: name 'models' is not defined
+ERROR 2026-01-14 17:30:44,434 log 10 128380577164160 Internal Server Error: /api/v1/relatorios/
+Traceback (most recent call last):
+  File "/usr/local/lib/python3.12/site-packages/django/core/handlers/exception.py", line 55, in inner
+    response = get_response(request)
+               ^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/django/core/handlers/base.py", line 197, in _get_response
+    response = wrapped_callback(request, *callback_args, **callback_kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/django/views/decorators/csrf.py", line 65, in _view_wrapper
+    return view_func(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/rest_framework/viewsets.py", line 125, in view
+    return self.dispatch(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/rest_framework/views.py", line 509, in dispatch
+    response = self.handle_exception(exc)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/rest_framework/views.py", line 469, in handle_exception
+    self.raise_uncaught_exception(exc)
+  File "/usr/local/lib/python3.12/site-packages/rest_framework/views.py", line 480, in raise_uncaught_exception
+    raise exc
+  File "/usr/local/lib/python3.12/site-packages/rest_framework/views.py", line 506, in dispatch
+    response = handler(request, *args, **kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/app/app_clientes/views.py", line 672, in list
+    data = self._get_valor_estimado_aberto(tenant)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/app/app_clientes/views.py", line 702, in _get_valor_estimado_aberto
+    ).aggregate(total=Coalesce(Sum('valor_estimado'), 0.0, output_field=models.DecimalField()))
+                                                                        ^^^^^^
+NameError: name 'models' is not defined
+ERROR 2026-01-14 17:30:46,151 log 10 128380577164160 Internal Server Error: /api/v1/relatorios/
+Traceback (most recent call last):
+  File "/usr/local/lib/python3.12/site-packages/django/core/handlers/exception.py", line 55, in inner
+    response = get_response(request)
+               ^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/django/core/handlers/base.py", line 197, in _get_response
+    response = wrapped_callback(request, *callback_args, **callback_kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/django/views/decorators/csrf.py", line 65, in _view_wrapper
+    return view_func(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/rest_framework/viewsets.py", line 125, in view
+    return self.dispatch(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/rest_framework/views.py", line 509, in dispatch
+    response = self.handle_exception(exc)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/rest_framework/views.py", line 469, in handle_exception
+    self.raise_uncaught_exception(exc)
+  File "/usr/local/lib/python3.12/site-packages/rest_framework/views.py", line 480, in raise_uncaught_exception
+    raise exc
+  File "/usr/local/lib/python3.12/site-packages/rest_framework/views.py", line 506, in dispatch
+    response = handler(request, *args, **kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/app/app_clientes/views.py", line 672, in list
+    data = self._get_valor_estimado_aberto(tenant)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/app/app_clientes/views.py", line 702, in _get_valor_estimado_aberto
+    ).aggregate(total=Coalesce(Sum('valor_estimado'), 0.0, output_field=models.DecimalField()))
+                                                                        ^^^^^^
+NameError: name 'models' is not defined
+ERROR 2026-01-14 17:30:46,499 log 9 128380577164160 Internal Server Error: /api/v1/relatorios/
+Traceback (most recent call last):
+  File "/usr/local/lib/python3.12/site-packages/django/core/handlers/exception.py", line 55, in inner
+    response = get_response(request)
+               ^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/django/core/handlers/base.py", line 197, in _get_response
+    response = wrapped_callback(request, *callback_args, **callback_kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/django/views/decorators/csrf.py", line 65, in _view_wrapper
+    return view_func(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/rest_framework/viewsets.py", line 125, in view
+    return self.dispatch(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/rest_framework/views.py", line 509, in dispatch
+    response = self.handle_exception(exc)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/rest_framework/views.py", line 469, in handle_exception
+    self.raise_uncaught_exception(exc)
+  File "/usr/local/lib/python3.12/site-packages/rest_framework/views.py", line 480, in raise_uncaught_exception
+    raise exc
+  File "/usr/local/lib/python3.12/site-packages/rest_framework/views.py", line 506, in dispatch
+    response = handler(request, *args, **kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/app/app_clientes/views.py", line 672, in list
+    data = self._get_valor_estimado_aberto(tenant)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/app/app_clientes/views.py", line 702, in _get_valor_estimado_aberto
+    ).aggregate(total=Coalesce(Sum('valor_estimado'), 0.0, output_field=models.DecimalField()))
+                                                                        ^^^^^^
+NameError: name 'models' is not defined
+WARNING 2026-01-14 17:32:05,661 log 10 128380577164160 Bad Request: /api/v1/oportunidades/
+WARNING 2026-01-14 17:32:12,440 log 10 128380577164160 Bad Request: /api/v1/oportunidades/
+ERROR 2026-01-14 17:32:18,788 log 8 128380577164160 Internal Server Error: /api/v1/relatorios/
+Traceback (most recent call last):
+  File "/usr/local/lib/python3.12/site-packages/django/core/handlers/exception.py", line 55, in inner
+    response = get_response(request)
+               ^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/django/core/handlers/base.py", line 197, in _get_response
+    response = wrapped_callback(request, *callback_args, **callback_kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/django/views/decorators/csrf.py", line 65, in _view_wrapper
+    return view_func(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/rest_framework/viewsets.py", line 125, in view
+    return self.dispatch(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/rest_framework/views.py", line 509, in dispatch
+    response = self.handle_exception(exc)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/rest_framework/views.py", line 469, in handle_exception
+    self.raise_uncaught_exception(exc)
+  File "/usr/local/lib/python3.12/site-packages/rest_framework/views.py", line 480, in raise_uncaught_exception
+    raise exc
+  File "/usr/local/lib/python3.12/site-packages/rest_framework/views.py", line 506, in dispatch
+    response = handler(request, *args, **kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/app/app_clientes/views.py", line 672, in list
+    data = self._get_valor_estimado_aberto(tenant)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/app/app_clientes/views.py", line 702, in _get_valor_estimado_aberto
+    ).aggregate(total=Coalesce(Sum('valor_estimado'), 0.0, output_field=models.DecimalField()))
+                                                                        ^^^^^^
+NameError: name 'models' is not defined
+ERROR 2026-01-14 17:32:53,449 log 8 128380577164160 Internal Server Error: /api/v1/relatorios/
+Traceback (most recent call last):
+  File "/usr/local/lib/python3.12/site-packages/django/core/handlers/exception.py", line 55, in inner
+    response = get_response(request)
+               ^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/django/core/handlers/base.py", line 197, in _get_response
+    response = wrapped_callback(request, *callback_args, **callback_kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/django/views/decorators/csrf.py", line 65, in _view_wrapper
+    return view_func(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/rest_framework/viewsets.py", line 125, in view
+    return self.dispatch(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/rest_framework/views.py", line 509, in dispatch
+    response = self.handle_exception(exc)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/rest_framework/views.py", line 469, in handle_exception
+    self.raise_uncaught_exception(exc)
+  File "/usr/local/lib/python3.12/site-packages/rest_framework/views.py", line 480, in raise_uncaught_exception
+    raise exc
+  File "/usr/local/lib/python3.12/site-packages/rest_framework/views.py", line 506, in dispatch
+    response = handler(request, *args, **kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/app/app_clientes/views.py", line 672, in list
+    data = self._get_valor_estimado_aberto(tenant)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/app/app_clientes/views.py", line 702, in _get_valor_estimado_aberto
+    ).aggregate(total=Coalesce(Sum('valor_estimado'), 0.0, output_field=models.DecimalField()))
+                                                                        ^^^^^^
+NameError: name 'models' is not defined

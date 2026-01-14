@@ -365,6 +365,9 @@ const maskedCEP = computed({
 // =========================================================================
 
 watch(() => cliente.value.tipo_pessoa, (newTipo, oldTipo) => {
+    // CORREÇÃO CRÍTICA: Se estiver carregando dados, não limpa os campos!
+    if (isLoadingData.value) return; 
+
     if (newTipo === 'FISICA') {
         cliente.value.razao_social = null;
         cliente.value.inscricao_estadual = null;
@@ -374,6 +377,7 @@ watch(() => cliente.value.tipo_pessoa, (newTipo, oldTipo) => {
         cliente.value.estado_civil = null;
         cliente.value.profissao = null;
     }
+    // Apenas limpa se for uma mudança real pelo usuário (oldTipo existe)
     if (oldTipo && newTipo !== oldTipo) { 
         cliente.value.nome = ''; 
         cliente.value.documento = ''; 
@@ -405,6 +409,7 @@ async function fetchClienteData(id: string) {
     if (data.data_nascimento) data.data_nascimento = data.data_nascimento.split('T')[0];
     const perfilClienteData = Array.isArray(data.perfil_cliente) ? data.perfil_cliente : ['INTERESSADO'];
     
+    // Atribuição reativa mantendo isLoadingData = true para o watcher não limpar
     cliente.value = { 
         ...createEmptyCliente(), 
         ...data, 
@@ -417,7 +422,10 @@ async function fetchClienteData(id: string) {
     console.error('Erro ao carregar dados:', error);
     router.push({ name: 'clientes' }); 
   } finally {
-    isLoadingData.value = false;
+    // Pequeno delay para garantir que o watcher já rodou (se necessário) antes de liberar
+    setTimeout(() => {
+        isLoadingData.value = false;
+    }, 100);
   }
 }
 
