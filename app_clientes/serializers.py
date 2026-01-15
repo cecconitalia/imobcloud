@@ -70,10 +70,13 @@ class VisitaSerializer(serializers.ModelSerializer):
             'id', 'imobiliaria', 'cliente', 'cliente_obj', 
             'corretor', 'corretor_nome',
             'imoveis', 'imoveis_obj',
-            'data_visita', 'status', 'observacoes', 
-            'assinatura_cliente', 'data_assinatura', 'assinatura_corretor',
+            'data_visita', 'realizada', 'observacoes', 
+            'assinatura_cliente', 'data_assinatura', 
+            'assinatura_corretor', 'data_assinatura_corretor',
+            'localizacao_assinatura'
         ]
-        read_only_fields = ['imobiliaria', 'assinatura_cliente', 'data_assinatura', 'assinatura_corretor']
+        # IMPORTANTE: Assinaturas removidas daqui para permitir edição/upload
+        read_only_fields = ['imobiliaria']
 
     def get_corretor_nome(self, obj):
         if obj.corretor:

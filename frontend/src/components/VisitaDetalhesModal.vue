@@ -1,218 +1,198 @@
-<script setup lang="ts">
-import { ref, onMounted } from 'vue';
-import api from '@/services/api';
-
-// Correção dos imports: Apontando para a subpasta Vistorias/ onde os arquivos residem
-import FotoUploadModal from './Vistorias/FotoUploadModal.vue';
-import AmbienteFormModal from './Vistorias/AmbienteFormModal.vue';
-import ItemFormModal from './Vistorias/ItemFormModal.vue';
-
-interface Foto {
-  id: number;
-  url: string;
-}
-
-interface Item {
-  id: number;
-  item: string;
-  estado: string;
-  estado_entrada?: string; // Captura o estado original da entrada enviado pelo Serializer
-  descricao_avaria: string;
-  fotos: Foto[];
-}
-
-interface Ambiente {
-  id: number;
-  nome: string;
-  observacoes: string;
-  itens: Item[];
-}
-
-interface Vistoria {
-  id: number;
-  tipo: 'ENTRADA' | 'SAIDA' | 'PERIODICA';
-  tipo_display: string;
-  imovel_display: string;
-  data_vistoria: string;
-  concluida: boolean;
-  ambientes: Ambiente[];
-  observacoes: string;
-}
-
-const props = defineProps<{ vistoriaId: number }>();
-const emit = defineEmits(['close', 'update']);
-
-const vistoria = ref<Vistoria | null>(null);
-const loading = ref(true);
-
-const showAmbienteModal = ref(false);
-const showItemModal = ref(false);
-const showFotoModal = ref(false);
-const activeAmbienteId = ref<number | null>(null);
-const activeItemId = ref<number | null>(null);
-
-const fetchDetalhes = async () => {
-  loading.value = true;
-  try {
-    const response = await api.get<Vistoria>(`/vistorias/vistorias/${props.vistoriaId}/`);
-    vistoria.value = response.data;
-  } catch (err) {
-    console.error("Erro ao carregar detalhes da vistoria:", err);
-  } finally {
-    loading.value = false;
-  }
-};
-
-const atualizarEstadoItem = async (item: Item, novoEstado: string) => {
-  if (vistoria.value?.concluida) return;
-  try {
-    await api.patch(`/vistorias/itens/${item.id}/`, { estado: novoEstado });
-    item.estado = novoEstado;
-  } catch (err) {
-    alert("Erro ao atualizar estado.");
-  }
-};
-
-const salvarDescricao = async (item: Item) => {
-  if (vistoria.value?.concluida) return;
-  try {
-    await api.patch(`/vistorias/itens/${item.id}/`, { descricao_avaria: item.descricao_avaria });
-  } catch (err) {
-    console.error("Erro ao salvar descrição.");
-  }
-};
-
-const concluirVistoria = async () => {
-  if (!confirm("Deseja concluir a vistoria? Isso bloqueará edições.")) return;
-  try {
-    await api.patch(`/vistorias/vistorias/${props.vistoriaId}/`, { concluida: true });
-    fetchDetalhes();
-    emit('update');
-  } catch (err) {
-    alert("Erro ao concluir.");
-  }
-};
-
-const downloadPDF = () => {
-  window.open(`${import.meta.env.VITE_API_URL}/vistorias/vistorias/${props.vistoriaId}/gerar-laudo/`, '_blank');
-};
-
-onMounted(fetchDetalhes);
-</script>
-
 <template>
-  <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-2 sm:p-4">
-    <div class="bg-white w-full max-w-5xl max-h-[95vh] rounded-2xl shadow-2xl flex flex-col overflow-hidden">
+  <div v-if="show" class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 animate-fade-in" @click.self="$emit('close')">
+    <div class="bg-white w-full max-w-2xl rounded-xl shadow-2xl flex flex-col max-h-[90vh] overflow-hidden animate-slide-up">
       
-      <div class="p-4 border-b flex justify-between items-center bg-gray-50">
-        <div class="truncate mr-4">
-          <h2 class="text-lg font-bold text-gray-800 truncate">{{ vistoria?.imovel_display }}</h2>
-          <p class="text-[10px] text-gray-500 uppercase font-black tracking-widest">
-            {{ vistoria?.tipo_display }} | {{ vistoria?.data_vistoria }}
+      <div class="px-6 py-4 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
+        <div>
+          <h2 class="text-lg font-bold text-slate-800 m-0">Detalhes da Visita</h2>
+          <p class="text-xs text-slate-500 mt-1 flex items-center gap-2">
+             <span class="font-mono bg-slate-200 px-1.5 rounded text-slate-600">#{{ visita?.id }}</span>
+             <span class="w-1 h-1 rounded-full bg-slate-300"></span>
+             {{ formatarDataExtensa(visita?.data_visita) }}
           </p>
         </div>
-        <button @click="$emit('close')" class="p-2 hover:bg-gray-200 rounded-full transition-all active:scale-90 text-gray-400">
-          <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
+        <button @click="$emit('close')" class="w-8 h-8 flex items-center justify-center rounded-full text-slate-400 hover:bg-slate-100 hover:text-red-500 transition-colors cursor-pointer border-none bg-transparent">
+          <div class="i-fas-times text-lg" />
         </button>
       </div>
 
-      <div v-if="loading" class="flex-1 flex items-center justify-center p-12">
-        <div class="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-600"></div>
+      <div class="p-6 overflow-y-auto flex flex-col gap-6">
+        
+        <div class="flex items-center justify-between p-3 rounded-lg border" 
+             :class="visita?.realizada ? 'bg-emerald-50 border-emerald-100' : 'bg-amber-50 border-amber-100'">
+            <div class="flex items-center gap-3">
+                <div class="w-8 h-8 rounded-full flex items-center justify-center"
+                     :class="visita?.realizada ? 'bg-emerald-100 text-emerald-600' : 'bg-amber-100 text-amber-600'">
+                    <div :class="visita?.realizada ? 'i-fas-check' : 'i-fas-clock'" />
+                </div>
+                <div class="flex flex-col">
+                    <span class="text-xs font-bold uppercase tracking-wide" 
+                          :class="visita?.realizada ? 'text-emerald-700' : 'text-amber-700'">
+                        {{ visita?.realizada ? 'Visita Realizada' : 'Visita Pendente' }}
+                    </span>
+                    <span class="text-[11px] opacity-80" 
+                          :class="visita?.realizada ? 'text-emerald-700' : 'text-amber-700'">
+                        {{ visita?.realizada ? 'Concluída em ' + formatarData(visita?.data_assinatura || visita?.data_visita) : 'Aguardando realização' }}
+                    </span>
+                </div>
+            </div>
+            
+            <div class="flex gap-2">
+                <div v-if="visita?.assinatura_cliente" class="px-2 py-1 bg-white/60 rounded border border-emerald-200 text-[10px] font-bold text-emerald-700 flex items-center gap-1">
+                    <div class="i-fas-file-signature" /> Cliente OK
+                </div>
+                <div v-if="visita?.assinatura_corretor" class="px-2 py-1 bg-white/60 rounded border border-emerald-200 text-[10px] font-bold text-emerald-700 flex items-center gap-1">
+                    <div class="i-fas-user-tie" /> Corretor OK
+                </div>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div class="p-4 rounded-lg border border-slate-200 bg-white">
+                <h3 class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3 flex items-center gap-2">
+                    <div class="i-fas-user text-blue-500" /> Cliente
+                </h3>
+                <div class="flex flex-col gap-1">
+                    <span class="font-bold text-slate-700 text-sm">{{ visita?.cliente_obj?.nome || 'Não informado' }}</span>
+                    <a v-if="visita?.cliente_obj?.telefone" :href="'tel:'+visita?.cliente_obj?.telefone" class="text-xs text-slate-500 hover:text-blue-600 transition-colors flex items-center gap-1.5 decoration-none">
+                        <div class="i-fas-phone text-[10px]" /> {{ visita?.cliente_obj?.telefone }}
+                    </a>
+                    <a v-if="visita?.cliente_obj?.email" :href="'mailto:'+visita?.cliente_obj?.email" class="text-xs text-slate-500 hover:text-blue-600 transition-colors flex items-center gap-1.5 decoration-none">
+                        <div class="i-fas-envelope text-[10px]" /> {{ visita?.cliente_obj?.email }}
+                    </a>
+                </div>
+            </div>
+
+            <div class="p-4 rounded-lg border border-slate-200 bg-white">
+                <h3 class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3 flex items-center gap-2">
+                    <div class="i-fas-user-tie text-blue-500" /> Corretor Responsável
+                </h3>
+                <div class="flex flex-col gap-1">
+                    <span class="font-bold text-slate-700 text-sm">{{ visita?.corretor_nome || 'Não atribuído' }}</span>
+                    <span class="text-xs text-slate-400">Imobiliária</span>
+                </div>
+            </div>
+        </div>
+
+        <div>
+            <h3 class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3 flex items-center gap-2">
+                <div class="i-fas-home text-blue-500" /> Imóveis no Roteiro
+            </h3>
+            <div class="flex flex-col gap-3">
+                <div v-for="imovel in visita?.imoveis_obj" :key="imovel.id" class="flex gap-3 p-3 rounded-lg border border-slate-100 bg-slate-50 hover:border-blue-200 transition-colors group">
+                    <div class="w-10 h-10 rounded bg-white border border-slate-200 flex items-center justify-center shrink-0 text-slate-300">
+                        <div class="i-fas-building" />
+                    </div>
+                    <div class="flex-1 min-w-0">
+                        <div class="flex justify-between items-start">
+                            <h4 class="text-sm font-bold text-slate-700 truncate pr-2">{{ imovel.titulo_anuncio || 'Imóvel sem título' }}</h4>
+                            <span v-if="imovel.codigo_referencia" class="text-[10px] font-mono bg-white border border-slate-200 px-1.5 rounded text-slate-500">
+                                {{ imovel.codigo_referencia }}
+                            </span>
+                        </div>
+                        <p class="text-xs text-slate-500 truncate mt-0.5">
+                            {{ imovel.logradouro }}, {{ imovel.numero }} - {{ imovel.bairro }}
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div v-if="visita?.observacoes">
+            <h3 class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Observações</h3>
+            <p class="text-sm text-slate-600 bg-slate-50 p-3 rounded-lg border border-slate-100 italic">
+                "{{ visita.observacoes }}"
+            </p>
+        </div>
+
       </div>
 
-      <div v-else class="flex-1 overflow-y-auto p-4 space-y-6 bg-gray-100/30">
+      <div class="p-4 bg-slate-50 border-t border-slate-200 flex flex-wrap justify-end gap-3">
         
-        <div class="flex flex-wrap gap-2 sticky top-0 z-10 bg-white/80 backdrop-blur-md p-2 rounded-xl border shadow-sm">
-          <button @click="downloadPDF" class="flex-1 sm:flex-none bg-blue-600 text-white px-4 py-2 rounded-lg text-xs font-bold hover:bg-blue-700 active:scale-95 transition-all">
-            IMPRIMIR LAUDO
-          </button>
-          <button v-if="!vistoria?.concluida" @click="showAmbienteModal = true" class="flex-1 sm:flex-none bg-gray-200 text-gray-700 px-4 py-2 rounded-lg text-xs font-bold hover:bg-gray-300 active:scale-95 transition-all">
-            + AMBIENTE
-          </button>
-          <button v-if="!vistoria?.concluida" @click="concluirVistoria" class="flex-1 sm:flex-none bg-green-600 text-white px-4 py-2 rounded-lg text-xs font-bold hover:bg-green-700 active:scale-95 transition-all">
-            CONCLUIR
-          </button>
-        </div>
+        <button 
+            @click="$emit('close')"
+            class="px-4 py-2 rounded-md text-sm font-medium text-slate-600 bg-white border border-slate-300 hover:bg-slate-50 transition-all cursor-pointer"
+        >
+            Fechar
+        </button>
 
-        <div v-for="amb in vistoria?.ambientes" :key="amb.id" class="bg-white rounded-xl border border-gray-200 overflow-hidden shadow-sm">
-          <div class="p-3 bg-gray-800 text-white flex justify-between items-center">
-            <h3 class="font-bold text-xs uppercase tracking-tighter">{{ amb.nome }}</h3>
-            <button v-if="!vistoria?.concluida" @click="activeAmbienteId = amb.id; showItemModal = true" class="text-[9px] bg-white/20 hover:bg-white/30 px-2 py-1 rounded font-black uppercase transition-colors">
-              ADICIONAR ITEM
-            </button>
-          </div>
+        <button 
+            @click="abrirPDF"
+            class="px-4 py-2 rounded-md text-sm font-medium text-slate-700 bg-white border border-slate-300 hover:bg-slate-50 hover:text-blue-600 hover:border-blue-300 transition-all cursor-pointer flex items-center gap-2 shadow-sm"
+        >
+            <div class="i-fas-file-pdf text-red-500" /> Ficha de Visita
+        </button>
 
-          <div class="p-3 space-y-4">
-            <div v-for="item in amb.itens" :key="item.id" class="p-4 rounded-xl border border-gray-100 bg-gray-50/50">
-              
-              <div class="flex flex-col gap-3 mb-4">
-                <div class="flex justify-between items-start">
-                  <h4 class="font-bold text-gray-700 text-sm flex items-center gap-2">
-                    <span class="w-1.5 h-1.5 bg-blue-500 rounded-full"></span>
-                    {{ item.item }}
-                  </h4>
-                  
-                  <div v-if="item.estado_entrada" class="text-[9px] font-black bg-orange-100 text-orange-700 px-2 py-1 rounded border border-orange-200 uppercase">
-                    Entrada: {{ item.estado_entrada }}
-                  </div>
-                </div>
+        <button 
+            v-if="!visita?.assinatura_corretor"
+            @click="iniciarAssinatura('CORRETOR')"
+            class="px-4 py-2 rounded-md text-sm font-medium text-white bg-slate-700 hover:bg-slate-800 transition-all cursor-pointer flex items-center gap-2 shadow-sm"
+        >
+            <div class="i-fas-pen-nib" /> Assinar como Corretor
+        </button>
 
-                <div class="flex flex-wrap bg-gray-200/50 p-1 rounded-lg gap-1">
-                  <button 
-                    v-for="e in ['NOVO', 'BOM', 'REGULAR', 'RUIM', 'INOPERANTE']" 
-                    :key="e"
-                    @click="atualizarEstadoItem(item, e)"
-                    :disabled="vistoria?.concluida"
-                    :class="[
-                      'flex-1 py-1.5 rounded text-[9px] font-black transition-all active:scale-90',
-                      item.estado === e ? 'bg-white text-blue-600 shadow-sm border border-gray-100' : 'text-gray-400'
-                    ]"
-                  >
-                    {{ e }}
-                  </button>
-                </div>
-              </div>
+        <button 
+            v-if="!visita?.assinatura_cliente"
+            @click="iniciarAssinatura('CLIENTE')"
+            class="px-4 py-2 rounded-md text-sm font-bold text-white bg-blue-600 hover:bg-blue-700 transition-all cursor-pointer flex items-center gap-2 shadow-sm shadow-blue-200"
+        >
+            <div class="i-fas-file-signature" /> Coletar Assinatura do Cliente
+        </button>
 
-              <textarea 
-                v-model="item.descricao_avaria"
-                @blur="salvarDescricao(item)"
-                :disabled="vistoria?.concluida"
-                placeholder="Descreva o estado atual ou avarias..."
-                class="w-full text-xs border-gray-200 rounded-lg bg-white p-2 italic mb-4 focus:ring-1 focus:ring-blue-500 outline-none"
-                rows="2"
-              ></textarea>
-
-              <div class="grid grid-cols-4 sm:grid-cols-6 gap-2">
-                <div v-for="foto in item.fotos" :key="foto.id" class="aspect-square rounded-lg overflow-hidden border bg-gray-200">
-                  <img :src="foto.url" class="w-full h-full object-cover" />
-                </div>
-                <button 
-                  v-if="!vistoria?.concluida"
-                  @click="activeItemId = item.id; showFotoModal = true"
-                  class="aspect-square rounded-lg border-2 border-dashed border-gray-300 flex flex-col items-center justify-center text-gray-400 hover:border-blue-400 hover:text-blue-500 active:scale-95 transition-all bg-white"
-                >
-                  <span class="text-lg font-bold">+</span>
-                  <span class="text-[8px] font-black uppercase">Foto</span>
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div v-if="vistoria?.ambientes.length === 0" class="text-center py-12 border-2 border-dashed border-gray-300 rounded-2xl bg-white">
-          <p class="text-gray-400 text-xs font-bold uppercase">Nenhum ambiente herdado ou cadastrado.</p>
+        <div v-if="visita?.assinatura_cliente && visita?.assinatura_corretor" class="flex items-center gap-2 px-4 py-2 bg-emerald-100 text-emerald-700 rounded-md font-bold text-sm border border-emerald-200 cursor-default">
+            <div class="i-fas-check-double" /> Processo Concluído
         </div>
 
       </div>
     </div>
-
-    <AmbienteFormModal v-if="showAmbienteModal" :vistoria-id="props.vistoriaId" @close="showAmbienteModal = false" @saved="fetchDetalhes" />
-    <ItemFormModal v-if="showItemModal" :ambiente-id="activeAmbienteId!" @close="showItemModal = false" @saved="fetchDetalhes" />
-    <FotoUploadModal v-if="showFotoModal" :item-id="activeItemId!" @close="showFotoModal = false" @saved="fetchDetalhes" />
   </div>
 </template>
 
+<script setup lang="ts">
+import { format, parseISO } from 'date-fns';
+import { ptBR } from 'date-fns/locale';
+import apiClient from '@/services/api';
+
+const props = defineProps<{
+  show: boolean;
+  visita: any;
+}>();
+
+const emit = defineEmits(['close', 'iniciar-visita']);
+
+function formatarDataExtensa(data: string) {
+    if(!data) return '-';
+    try {
+        return format(parseISO(data), "eeee, d 'de' MMMM 'às' HH:mm", { locale: ptBR });
+    } catch { return data; }
+}
+
+function formatarData(data: string) {
+    if(!data) return '-';
+    try { return format(parseISO(data), 'dd/MM/yyyy HH:mm'); } catch { return '-'; }
+}
+
+function abrirPDF() {
+    if(!props.visita?.id) return;
+    const url = `${apiClient.defaults.baseURL}/v1/visitas/${props.visita.id}/pdf/`;
+    window.open(url, '_blank');
+}
+
+function iniciarAssinatura(tipo: 'CORRETOR' | 'CLIENTE') {
+    if(!props.visita) return;
+    // Emite evento para o componente pai (VisitasView) abrir o modal de assinatura
+    emit('iniciar-visita', {
+        visitaId: props.visita.id,
+        imoveisIds: props.visita.imoveis_obj?.map((i: any) => i.id) || [],
+        tipo: tipo
+    });
+}
+</script>
+
 <style scoped>
-::-webkit-scrollbar { width: 4px; }
-::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+.animate-fade-in { animation: fadeIn 0.2s ease-out; }
+.animate-slide-up { animation: slideUp 0.3s ease-out; }
+
+@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+@keyframes slideUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
 </style>

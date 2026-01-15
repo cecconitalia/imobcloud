@@ -1,298 +1,316 @@
 <template>
-  <div class="page-container">
+  <div class="min-h-screen bg-gray-50 p-4 md:p-8 font-sans text-slate-700">
     
-    <header class="page-header">
-      <div class="header-main">
-        <div class="title-area">
-           <nav class="breadcrumb">
-              <router-link to="/">Início</router-link>
-              <i class="fas fa-chevron-right separator"></i> 
-              <router-link to="/imoveis">Imóveis</router-link>
-              <i class="fas fa-chevron-right separator"></i>
-              <span class="active">{{ isEditing ? 'Editar Imóvel' : 'Novo Imóvel' }}</span>
-           </nav>
-           
-           <h1>{{ isEditing ? 'Editar Imóvel' : 'Cadastrar Novo Imóvel' }}</h1>
-        </div>
+    <header class="mb-8 flex flex-col md:flex-row md:items-end justify-between gap-4">
+      <div class="flex flex-col gap-2">
+        <nav class="flex items-center gap-2 text-xs font-medium text-slate-400 uppercase tracking-wide">
+          <router-link to="/" class="hover:text-primary-600 transition-colors decoration-none">Início</router-link>
+          <div class="i-fas-chevron-right text-[10px]" />
+          <router-link to="/imoveis" class="hover:text-primary-600 transition-colors decoration-none">Imóveis</router-link>
+          <div class="i-fas-chevron-right text-[10px]" />
+          <span class="text-primary-600 font-bold">{{ isEditing ? 'Editar' : 'Novo' }}</span>
+        </nav>
+        <h1 class="text-2xl md:text-3xl font-light text-slate-800 tracking-tight m-0">
+          {{ isEditing ? 'Editar Imóvel' : 'Cadastrar Novo Imóvel' }}
+        </h1>
       </div>
     </header>
 
-    <div v-if="isLoadingData" class="loading-state">
-         <div class="spinner"></div>
-         <p>A carregar dados do imóvel...</p>
+    <div v-if="isLoadingData" class="flex flex-col items-center justify-center py-16 text-slate-400">
+         <div class="w-10 h-10 border-3 border-slate-200 border-t-primary-500 rounded-full animate-spin mb-4" />
+         <p class="text-sm font-medium">A carregar dados do imóvel...</p>
     </div>
 
-    <form v-else @submit.prevent="handleSaveAndExit" class="main-content-grid">
+    <form v-else @submit.prevent="handleSaveAndExit" class="grid grid-cols-1 lg:grid-cols-[1fr_350px] gap-6 items-start">
       
-      <div class="left-column">
-        <div class="card form-card no-padding-body">
+      <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden flex flex-col min-h-[600px]">
             
-            <div class="tabs-header">
-                <button type="button" @click="activeTab = 'geral'" :class="{ active: activeTab === 'geral' }">
-                    <i class="fas fa-info-circle"></i> Dados Básicos
-                </button>
-                <button type="button" @click="activeTab = 'valores'" :class="{ active: activeTab === 'valores' }">
-                    <i class="fas fa-dollar-sign"></i> Valores
-                </button>
-                <button type="button" @click="activeTab = 'caracteristicas'" :class="{ active: activeTab === 'caracteristicas' }">
-                    <i class="fas fa-list"></i> Detalhes
-                </button>
-                <button type="button" @click="activeTab = 'imagens'" :class="{ active: activeTab === 'imagens' }" :disabled="!isEditing">
-                    <i class="fas fa-camera"></i> Imagens
-                </button>
-                <button type="button" @click="activeTab = 'autorizacao'" :class="{ active: activeTab === 'autorizacao' }">
-                    <i class="fas fa-file-signature"></i> Autorização
-                </button>
-                <button type="button" @click="activeTab = 'publico'" :class="{ active: activeTab === 'publico' }">
-                    <i class="fas fa-globe"></i> Site
+            <div class="flex flex-wrap bg-slate-50 border-b border-slate-200">
+                <button 
+                    v-for="tab in tabs" 
+                    :key="tab.id"
+                    type="button" 
+                    @click="activeTab = tab.id" 
+                    :disabled="tab.disabled"
+                    class="flex-1 min-w-[110px] py-4 px-2 text-sm font-medium text-slate-500 hover:text-slate-700 hover:bg-slate-100 transition-colors border-b-2 border-transparent flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                    :class="{ '!text-primary-600 !border-primary-600 !bg-white font-bold': activeTab === tab.id }"
+                >
+                    <div :class="tab.icon"></div> {{ tab.label }}
                 </button>
             </div>
 
-            <div class="tab-content-area">
+            <div class="p-6 md:p-8 flex-1">
                 
-                <div v-show="activeTab === 'geral'" class="tab-pane fade-in">
-                    <div class="form-section compact-section">
-                        <div class="form-group full-width">
-                            <label>Título do Anúncio <span class="required">*</span></label>
-                            <div class="input-wrapper">
-                                <i class="fas fa-heading input-icon"></i>
-                                <input type="text" v-model="imovel.titulo_anuncio" required class="form-input has-icon" placeholder="Ex: Apartamento Vista Mar no Centro" />
+                <div v-show="activeTab === 'geral'" class="animate-fade-in flex flex-col gap-8">
+                    <div class="flex flex-col gap-5">
+                        <div class="flex flex-col gap-1.5">
+                            <label class="text-sm font-bold text-slate-600">Título do Anúncio <span class="text-red-500">*</span></label>
+                            <div class="relative">
+                                <div class="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 i-fas-heading text-sm pointer-events-none" />
+                                <input 
+                                    type="text" 
+                                    v-model="imovel.titulo_anuncio" 
+                                    required 
+                                    class="w-full pl-9 pr-3 py-2 text-sm border border-slate-300 rounded-lg focus:border-primary-500 focus:ring-2 focus:ring-primary-100 outline-none transition-all text-slate-700 bg-white"
+                                    placeholder="Ex: Apartamento Vista Mar no Centro" 
+                                />
                             </div>
                         </div>
 
-                        <h3 class="section-divider">Localização</h3>
-                        <div class="form-grid">
-                            <div class="form-group">
-                                <label>CEP</label>
-                                <div class="input-wrapper">
-                                    <i class="fas fa-map-marker-alt input-icon"></i>
-                                    <CepInput v-model="imovel.cep" class="form-input has-icon" />
+                        <div>
+                            <h3 class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-4 pb-2 border-b border-dashed border-slate-200">Localização</h3>
+                            <div class="grid grid-cols-1 md:grid-cols-3 gap-5">
+                                <div class="flex flex-col gap-1.5">
+                                    <label class="text-sm font-bold text-slate-600">CEP</label>
+                                    <div class="relative">
+                                        <div class="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 i-fas-map-marker-alt text-sm pointer-events-none z-10" />
+                                        <CepInput 
+                                            v-model="imovel.cep" 
+                                            class="w-full pl-9 pr-3 py-2 text-sm border border-slate-300 rounded-lg focus:border-primary-500 focus:ring-2 focus:ring-primary-100 outline-none transition-all text-slate-700 bg-white" 
+                                        />
+                                    </div>
+                                </div>
+                                <div class="flex flex-col gap-1.5 md:col-span-2">
+                                    <label class="text-sm font-bold text-slate-600">Logradouro <span class="text-red-500">*</span></label>
+                                    <input type="text" v-model="imovel.logradouro" required class="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:border-primary-500 focus:ring-2 focus:ring-primary-100 outline-none transition-all text-slate-700 bg-white" />
+                                </div>
+                                <div class="flex flex-col gap-1.5">
+                                    <label class="text-sm font-bold text-slate-600">Número</label>
+                                    <input type="text" v-model="imovel.numero" class="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:border-primary-500 focus:ring-2 focus:ring-primary-100 outline-none transition-all text-slate-700 bg-white" />
+                                </div>
+                                <div class="flex flex-col gap-1.5 md:col-span-2">
+                                    <label class="text-sm font-bold text-slate-600">Complemento</label>
+                                    <input type="text" v-model="imovel.complemento" class="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:border-primary-500 focus:ring-2 focus:ring-primary-100 outline-none transition-all text-slate-700 bg-white" />
+                                </div>
+                                <div class="flex flex-col gap-1.5">
+                                    <label class="text-sm font-bold text-slate-600">Bairro <span class="text-red-500">*</span></label>
+                                    <input type="text" v-model="imovel.bairro" required class="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:border-primary-500 focus:ring-2 focus:ring-primary-100 outline-none transition-all text-slate-700 bg-white" />
+                                </div>
+                                <div class="flex flex-col gap-1.5">
+                                    <label class="text-sm font-bold text-slate-600">Cidade <span class="text-red-500">*</span></label>
+                                    <input type="text" v-model="imovel.cidade" required class="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:border-primary-500 focus:ring-2 focus:ring-primary-100 outline-none transition-all text-slate-700 bg-white" />
+                                </div>
+                                <div class="flex flex-col gap-1.5">
+                                    <label class="text-sm font-bold text-slate-600">Estado (UF) <span class="text-red-500">*</span></label>
+                                    <input type="text" v-model="imovel.estado" maxlength="2" required class="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:border-primary-500 focus:ring-2 focus:ring-primary-100 outline-none transition-all text-slate-700 bg-white uppercase" />
                                 </div>
                             </div>
-                            <div class="form-group full-width">
-                                <label>Logradouro <span class="required">*</span></label>
-                                <input type="text" v-model="imovel.logradouro" required class="form-input" />
+                        </div>
+                    </div>
+                </div>
+
+                <div v-show="activeTab === 'valores'" class="animate-fade-in flex flex-col gap-8">
+                    <div>
+                        <h3 class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-4 pb-2 border-b border-dashed border-slate-200">Financeiro</h3>
+                        <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-5">
+                            <div class="flex flex-col gap-1.5">
+                                <label class="text-sm font-bold text-slate-600">Valor de Venda</label>
+                                <MoneyInput v-model="imovel.valor_venda" class="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:border-primary-500 focus:ring-2 focus:ring-primary-100 outline-none transition-all text-slate-700 bg-white" :prefix="'R$ '" />
                             </div>
-                            <div class="form-group">
-                                <label>Número</label>
-                                <input type="text" v-model="imovel.numero" class="form-input" />
+                            <div class="flex flex-col gap-1.5">
+                                <label class="text-sm font-bold text-slate-600">Valor de Aluguel</label>
+                                <MoneyInput v-model="imovel.valor_aluguel" class="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:border-primary-500 focus:ring-2 focus:ring-primary-100 outline-none transition-all text-slate-700 bg-white" :prefix="'R$ '" />
                             </div>
-                            <div class="form-group">
-                                <label>Complemento</label>
-                                <input type="text" v-model="imovel.complemento" class="form-input" />
+                            <div class="flex flex-col gap-1.5">
+                                <label class="text-sm font-bold text-slate-600">Condomínio</label>
+                                <MoneyInput v-model="imovel.valor_condominio" class="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:border-primary-500 focus:ring-2 focus:ring-primary-100 outline-none transition-all text-slate-700 bg-white" :prefix="'R$ '" />
                             </div>
-                            <div class="form-group">
-                                <label>Bairro <span class="required">*</span></label>
-                                <input type="text" v-model="imovel.bairro" required class="form-input" />
+                            <div class="flex flex-col gap-1.5">
+                                <label class="text-sm font-bold text-slate-600">IPTU (Anual)</label>
+                                <MoneyInput v-model="imovel.valor_iptu" class="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:border-primary-500 focus:ring-2 focus:ring-primary-100 outline-none transition-all text-slate-700 bg-white" :prefix="'R$ '" />
                             </div>
-                            <div class="form-group">
-                                <label>Cidade <span class="required">*</span></label>
-                                <input type="text" v-model="imovel.cidade" required class="form-input" />
+                        </div>
+                    </div>
+
+                    <div>
+                        <h3 class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-4 pb-2 border-b border-dashed border-slate-200">Medidas e Divisões</h3>
+                        <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-5">
+                            <div class="flex flex-col gap-1.5">
+                                <label class="text-sm font-bold text-slate-600">Área Total</label>
+                                <input type="number" step="0.01" v-model.number="imovel.area_total" class="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:border-primary-500 focus:ring-2 focus:ring-primary-100 outline-none transition-all text-slate-700 bg-white" placeholder="m²" />
                             </div>
-                            <div class="form-group">
-                                <label>Estado (UF) <span class="required">*</span></label>
-                                <input type="text" v-model="imovel.estado" maxlength="2" required class="form-input" style="text-transform: uppercase;" />
+                            <div class="flex flex-col gap-1.5">
+                                <label class="text-sm font-bold text-slate-600">Área Útil</label>
+                                <input type="number" step="0.01" v-model.number="imovel.area_util" class="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:border-primary-500 focus:ring-2 focus:ring-primary-100 outline-none transition-all text-slate-700 bg-white" placeholder="m²" />
+                            </div>
+                            <div class="flex flex-col gap-1.5">
+                                <label class="text-sm font-bold text-slate-600">Quartos</label>
+                                <input type="number" v-model.number="imovel.quartos" class="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:border-primary-500 focus:ring-2 focus:ring-primary-100 outline-none transition-all text-slate-700 bg-white" />
+                            </div>
+                            <div class="flex flex-col gap-1.5">
+                                <label class="text-sm font-bold text-slate-600">Suítes</label>
+                                <input type="number" v-model.number="imovel.suites" class="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:border-primary-500 focus:ring-2 focus:ring-primary-100 outline-none transition-all text-slate-700 bg-white" />
+                            </div>
+                            <div class="flex flex-col gap-1.5">
+                                <label class="text-sm font-bold text-slate-600">Banheiros</label>
+                                <input type="number" v-model.number="imovel.banheiros" class="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:border-primary-500 focus:ring-2 focus:ring-primary-100 outline-none transition-all text-slate-700 bg-white" />
+                            </div>
+                            <div class="flex flex-col gap-1.5">
+                                <label class="text-sm font-bold text-slate-600">Vagas</label>
+                                <input type="number" v-model.number="imovel.vagas_garagem" class="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:border-primary-500 focus:ring-2 focus:ring-primary-100 outline-none transition-all text-slate-700 bg-white" />
                             </div>
                         </div>
                     </div>
                 </div>
 
-                <div v-show="activeTab === 'valores'" class="tab-pane fade-in">
-                    <div class="form-section compact-section">
-                        <h3 class="section-divider">Financeiro</h3>
-                        <div class="form-grid">
-                            <div class="form-group">
-                                <label>Valor de Venda</label>
-                                <MoneyInput v-model="imovel.valor_venda" class="form-input" :prefix="'R$ '" />
-                            </div>
-                            <div class="form-group">
-                                <label>Valor de Aluguel</label>
-                                <MoneyInput v-model="imovel.valor_aluguel" class="form-input" :prefix="'R$ '" />
-                            </div>
-                            <div class="form-group">
-                                <label>Condomínio</label>
-                                <MoneyInput v-model="imovel.valor_condominio" class="form-input" :prefix="'R$ '" />
-                            </div>
-                            <div class="form-group">
-                                <label>IPTU (Anual)</label>
-                                <MoneyInput v-model="imovel.valor_iptu" class="form-input" :prefix="'R$ '" />
-                            </div>
+                <div v-show="activeTab === 'caracteristicas'" class="animate-fade-in flex flex-col gap-8">
+                    <div>
+                        <h3 class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-4 pb-2 border-b border-dashed border-slate-200">Comodidades do Imóvel</h3>
+                        <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+                            <label class="flex items-center gap-2 cursor-pointer p-2 rounded hover:bg-slate-50 transition-colors text-sm text-slate-600"><input type="checkbox" v-model="imovel.lavabo" class="w-4 h-4 accent-primary-600 cursor-pointer"><span>Lavabo</span></label>
+                            <label class="flex items-center gap-2 cursor-pointer p-2 rounded hover:bg-slate-50 transition-colors text-sm text-slate-600"><input type="checkbox" v-model="imovel.escritorio" class="w-4 h-4 accent-primary-600 cursor-pointer"><span>Escritório</span></label>
+                            <label class="flex items-center gap-2 cursor-pointer p-2 rounded hover:bg-slate-50 transition-colors text-sm text-slate-600"><input type="checkbox" v-model="imovel.varanda" class="w-4 h-4 accent-primary-600 cursor-pointer"><span>Varanda / Sacada</span></label>
+                            <label class="flex items-center gap-2 cursor-pointer p-2 rounded hover:bg-slate-50 transition-colors text-sm text-slate-600"><input type="checkbox" v-model="imovel.mobiliado" class="w-4 h-4 accent-primary-600 cursor-pointer"><span>Mobiliado</span></label>
+                            <label class="flex items-center gap-2 cursor-pointer p-2 rounded hover:bg-slate-50 transition-colors text-sm text-slate-600"><input type="checkbox" v-model="imovel.ar_condicionado" class="w-4 h-4 accent-primary-600 cursor-pointer"><span>Ar Condicionado</span></label>
+                            <label class="flex items-center gap-2 cursor-pointer p-2 rounded hover:bg-slate-50 transition-colors text-sm text-slate-600"><input type="checkbox" v-model="imovel.moveis_planejados" class="w-4 h-4 accent-primary-600 cursor-pointer"><span>Móveis Planejados</span></label>
+                            <label class="flex items-center gap-2 cursor-pointer p-2 rounded hover:bg-slate-50 transition-colors text-sm text-slate-600"><input type="checkbox" v-model="imovel.piscina_privativa" class="w-4 h-4 accent-primary-600 cursor-pointer"><span>Piscina Privativa</span></label>
+                            <label class="flex items-center gap-2 cursor-pointer p-2 rounded hover:bg-slate-50 transition-colors text-sm text-slate-600"><input type="checkbox" v-model="imovel.churrasqueira_privativa" class="w-4 h-4 accent-primary-600 cursor-pointer"><span>Churrasqueira</span></label>
                         </div>
+                    </div>
 
-                        <h3 class="section-divider">Medidas e Divisões</h3>
-                        <div class="form-grid">
-                            <div class="form-group">
-                                <label>Área Total (m²)</label>
-                                <input type="number" step="0.01" v-model.number="imovel.area_total" class="form-input" />
+                    <div>
+                        <h3 class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-4 pb-2 border-b border-dashed border-slate-200">Infraestrutura do Condomínio</h3>
+                        <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+                            <label class="flex items-center gap-2 cursor-pointer p-2 rounded hover:bg-slate-50 transition-colors text-sm text-slate-600"><input type="checkbox" v-model="imovel.portaria_24h" class="w-4 h-4 accent-primary-600 cursor-pointer"><span>Portaria 24h</span></label>
+                            <label class="flex items-center gap-2 cursor-pointer p-2 rounded hover:bg-slate-50 transition-colors text-sm text-slate-600"><input type="checkbox" v-model="imovel.elevador" class="w-4 h-4 accent-primary-600 cursor-pointer"><span>Elevador</span></label>
+                            <label class="flex items-center gap-2 cursor-pointer p-2 rounded hover:bg-slate-50 transition-colors text-sm text-slate-600"><input type="checkbox" v-model="imovel.piscina_condominio" class="w-4 h-4 accent-primary-600 cursor-pointer"><span>Piscina</span></label>
+                            <label class="flex items-center gap-2 cursor-pointer p-2 rounded hover:bg-slate-50 transition-colors text-sm text-slate-600"><input type="checkbox" v-model="imovel.academia" class="w-4 h-4 accent-primary-600 cursor-pointer"><span>Academia</span></label>
+                            <label class="flex items-center gap-2 cursor-pointer p-2 rounded hover:bg-slate-50 transition-colors text-sm text-slate-600"><input type="checkbox" v-model="imovel.salao_festas" class="w-4 h-4 accent-primary-600 cursor-pointer"><span>Salão de Festas</span></label>
+                            <label class="flex items-center gap-2 cursor-pointer p-2 rounded hover:bg-slate-50 transition-colors text-sm text-slate-600"><input type="checkbox" v-model="imovel.playground" class="w-4 h-4 accent-primary-600 cursor-pointer"><span>Playground</span></label>
+                            <label class="flex items-center gap-2 cursor-pointer p-2 rounded hover:bg-slate-50 transition-colors text-sm text-slate-600"><input type="checkbox" v-model="imovel.quadra_esportiva" class="w-4 h-4 accent-primary-600 cursor-pointer"><span>Quadra Esportiva</span></label>
+                            <label class="flex items-center gap-2 cursor-pointer p-2 rounded hover:bg-slate-50 transition-colors text-sm text-slate-600"><input type="checkbox" v-model="imovel.espaco_pet" class="w-4 h-4 accent-primary-600 cursor-pointer"><span>Espaço Pet</span></label>
+                        </div>
+                    </div>
+
+                    <div>
+                        <h3 class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-4 pb-2 border-b border-dashed border-slate-200">Descrição e Observações</h3>
+                        <div class="flex flex-col gap-4">
+                            <div class="flex flex-col gap-1.5">
+                                <div class="flex justify-between items-center mb-1">
+                                    <label class="text-sm font-bold text-slate-600">Descrição Completa (Site)</label>
+                                    <button type="button" @click.prevent="handleGerarDescricaoIA" 
+                                            :disabled="isGerandoDescricao || !isEditing" 
+                                            class="text-xs font-bold text-primary-600 hover:text-primary-700 flex items-center gap-1.5 transition-colors cursor-pointer disabled:opacity-50">
+                                        <div :class="isGerandoDescricao ? 'i-fas-spinner animate-spin' : 'i-fas-magic'"></div>
+                                        {{ isGerandoDescricao ? 'Gerando...' : 'Gerar com IA' }}
+                                    </button>
+                                </div>
+                                <textarea v-model="imovel.descricao_completa" rows="6" class="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:border-primary-500 focus:ring-2 focus:ring-primary-100 outline-none transition-all text-slate-700 bg-white resize-y min-h-[100px]"></textarea>
                             </div>
-                            <div class="form-group">
-                                <label>Área Útil (m²)</label>
-                                <input type="number" step="0.01" v-model.number="imovel.area_util" class="form-input" />
-                            </div>
-                            <div class="form-group">
-                                <label>Quartos</label>
-                                <input type="number" v-model.number="imovel.quartos" class="form-input" />
-                            </div>
-                            <div class="form-group">
-                                <label>Suítes</label>
-                                <input type="number" v-model.number="imovel.suites" class="form-input" />
-                            </div>
-                            <div class="form-group">
-                                <label>Banheiros</label>
-                                <input type="number" v-model.number="imovel.banheiros" class="form-input" />
-                            </div>
-                            <div class="form-group">
-                                <label>Vagas Garagem</label>
-                                <input type="number" v-model.number="imovel.vagas_garagem" class="form-input" />
+                            <div class="flex flex-col gap-1.5">
+                                <label class="text-sm font-bold text-slate-600">Outras Características</label>
+                                <textarea v-model="imovel.outras_caracteristicas" rows="3" class="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:border-primary-500 focus:ring-2 focus:ring-primary-100 outline-none transition-all text-slate-700 bg-white resize-y min-h-[80px]"></textarea>
                             </div>
                         </div>
                     </div>
                 </div>
 
-                <div v-show="activeTab === 'caracteristicas'" class="tab-pane fade-in">
-                    <div class="form-section compact-section">
-                        <h3 class="section-divider">Comodidades do Imóvel</h3>
-                        <div class="checkbox-grid">
-                            <label class="custom-checkbox"><input type="checkbox" v-model="imovel.lavabo"><span>Lavabo</span></label>
-                            <label class="custom-checkbox"><input type="checkbox" v-model="imovel.escritorio"><span>Escritório</span></label>
-                            <label class="custom-checkbox"><input type="checkbox" v-model="imovel.varanda"><span>Varanda / Sacada</span></label>
-                            <label class="custom-checkbox"><input type="checkbox" v-model="imovel.mobiliado"><span>Mobiliado</span></label>
-                            <label class="custom-checkbox"><input type="checkbox" v-model="imovel.ar_condicionado"><span>Ar Condicionado</span></label>
-                            <label class="custom-checkbox"><input type="checkbox" v-model="imovel.moveis_planejados"><span>Móveis Planejados</span></label>
-                            <label class="custom-checkbox"><input type="checkbox" v-model="imovel.piscina_privativa"><span>Piscina Privativa</span></label>
-                            <label class="custom-checkbox"><input type="checkbox" v-model="imovel.churrasqueira_privativa"><span>Churrasqueira</span></label>
-                        </div>
-
-                        <h3 class="section-divider">Infraestrutura do Condomínio</h3>
-                        <div class="checkbox-grid">
-                            <label class="custom-checkbox"><input type="checkbox" v-model="imovel.portaria_24h"><span>Portaria 24h</span></label>
-                            <label class="custom-checkbox"><input type="checkbox" v-model="imovel.elevador"><span>Elevador</span></label>
-                            <label class="custom-checkbox"><input type="checkbox" v-model="imovel.piscina_condominio"><span>Piscina</span></label>
-                            <label class="custom-checkbox"><input type="checkbox" v-model="imovel.academia"><span>Academia</span></label>
-                            <label class="custom-checkbox"><input type="checkbox" v-model="imovel.salao_festas"><span>Salão de Festas</span></label>
-                            <label class="custom-checkbox"><input type="checkbox" v-model="imovel.playground"><span>Playground</span></label>
-                            <label class="custom-checkbox"><input type="checkbox" v-model="imovel.quadra_esportiva"><span>Quadra Esportiva</span></label>
-                            <label class="custom-checkbox"><input type="checkbox" v-model="imovel.espaco_pet"><span>Espaço Pet</span></label>
-                        </div>
-
-                        <h3 class="section-divider">Descrição e Observações</h3>
-                        <div class="form-group full-width">
-                            <div class="label-with-action">
-                                <label>Descrição Completa (Site)</label>
-                                <button type="button" @click.prevent="handleGerarDescricaoIA" 
-                                        :disabled="isGerandoDescricao || !isEditing" 
-                                        class="btn-text-action">
-                                    <i :class="isGerandoDescricao ? 'fas fa-spinner fa-spin' : 'fas fa-magic'"></i>
-                                    {{ isGerandoDescricao ? 'Gerando...' : 'Gerar com IA' }}
-                                </button>
-                            </div>
-                            <textarea v-model="imovel.descricao_completa" rows="6" class="form-textarea"></textarea>
-                        </div>
-                        <div class="form-group full-width">
-                            <label>Outras Características</label>
-                            <textarea v-model="imovel.outras_caracteristicas" rows="3" class="form-textarea"></textarea>
-                        </div>
-                    </div>
-                </div>
-
-                <div v-show="activeTab === 'imagens'" class="tab-pane fade-in">
+                <div v-show="activeTab === 'imagens'" class="animate-fade-in">
                     <div v-if="isEditing && imovel.id">
                         <ImovelImagensView :imovel-id="Number(imovel.id)" />
                     </div>
-                    <div v-else class="empty-tab-state">
-                        <i class="fas fa-save"></i>
-                        <h3>Salve o imóvel primeiro</h3>
-                        <p>Você precisa salvar os dados básicos antes de fazer upload das imagens.</p>
+                    <div v-else class="flex flex-col items-center justify-center py-16 text-slate-400 bg-slate-50 rounded-lg border border-dashed border-slate-200">
+                        <div class="i-fas-save text-3xl mb-3 opacity-50" />
+                        <h3 class="text-base font-bold text-slate-600 mb-1">Salve o imóvel primeiro</h3>
+                        <p class="text-sm">Você precisa salvar os dados básicos antes de fazer upload das imagens.</p>
                     </div>
                 </div>
 
-                <div v-show="activeTab === 'autorizacao'" class="tab-pane fade-in">
-                    <div class="form-section compact-section">
-                        <div class="form-group full-width">
-                            <label>Proprietário <span class="required">*</span></label>
-                            <div class="search-input-wrapper">
+                <div v-show="activeTab === 'autorizacao'" class="animate-fade-in flex flex-col gap-8">
+                    <div>
+                        <div class="flex flex-col gap-1.5 mb-6">
+                            <label class="text-sm font-bold text-slate-600">Proprietário <span class="text-red-500">*</span></label>
+                            <div class="relative">
                                 <input 
                                     type="text" 
                                     v-model="searchQuery" 
                                     @input="debouncedSearch($event.target.value)"
                                     placeholder="Buscar proprietário por nome, email ou CPF..."
-                                    class="form-input"
+                                    class="w-full pl-3 pr-10 py-2 text-sm border border-slate-300 rounded-lg focus:border-primary-500 focus:ring-2 focus:ring-primary-100 outline-none transition-all text-slate-700 bg-white"
                                     autocomplete="off"
                                     :disabled="isLoadingData || isSearchingProprietario"
                                 />
-                                <i class="fas fa-search search-icon" v-if="!isSearchingProprietario"></i>
-                                <i class="fas fa-spinner fa-spin search-icon" v-else></i>
+                                <div class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400">
+                                    <div v-if="isSearchingProprietario" class="i-fas-spinner animate-spin" />
+                                    <div v-else class="i-fas-search" />
+                                </div>
                                 
-                                <ul v-if="searchQuery && proprietarioSearchResults.length" class="dropdown-results">
+                                <ul v-if="searchQuery && proprietarioSearchResults.length" class="absolute top-full left-0 right-0 bg-white border border-slate-200 rounded-lg mt-1 shadow-lg z-20 max-h-60 overflow-y-auto list-none p-0 m-0">
                                     <li v-for="cliente in proprietarioSearchResults" 
                                         :key="cliente.id"
-                                        @click="selectProprietario(cliente)">
-                                        <div class="result-name">{{ cliente.nome || cliente.razao_social }}</div>
-                                        <div class="result-sub">{{ cliente.documento }} - {{ cliente.email }}</div>
+                                        @click="selectProprietario(cliente)"
+                                        class="px-4 py-3 hover:bg-slate-50 cursor-pointer border-b border-slate-50 last:border-none transition-colors"
+                                    >
+                                        <div class="text-sm font-bold text-slate-800">{{ cliente.nome || cliente.razao_social }}</div>
+                                        <div class="text-xs text-slate-500">{{ cliente.documento }} - {{ cliente.email }}</div>
                                     </li>
                                 </ul>
                             </div>
                             
-                            <div v-if="proprietarioNomeSelecionado" class="selected-badge">
-                                <div class="badge-content">
-                                    <i class="fas fa-user-check"></i>
-                                    <span>{{ proprietarioNomeSelecionado }}</span>
+                            <div v-if="proprietarioNomeSelecionado" class="mt-2 flex items-center justify-between bg-primary-50 border border-primary-200 text-primary-700 px-3 py-2 rounded-lg text-sm">
+                                <div class="flex items-center gap-2">
+                                    <div class="i-fas-user-check" />
+                                    <span class="font-medium">{{ proprietarioNomeSelecionado }}</span>
                                 </div>
-                                <button type="button" @click="clearProprietarioSelection" class="btn-close-badge" title="Remover"><i class="fas fa-times"></i></button>
+                                <button type="button" @click="clearProprietarioSelection" class="text-primary-400 hover:text-primary-700 cursor-pointer bg-transparent border-none flex items-center" title="Remover">
+                                    <div class="i-fas-times" />
+                                </button>
                             </div>
                         </div>
 
-                        <div class="form-grid">
-                            <div class="form-group">
-                                <label>Matrícula</label>
-                                <input type="text" v-model="imovel.numero_matricula" class="form-input" />
+                        <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-5">
+                            <div class="flex flex-col gap-1.5">
+                                <label class="text-sm font-bold text-slate-600">Matrícula</label>
+                                <input type="text" v-model="imovel.numero_matricula" class="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:border-primary-500 focus:ring-2 focus:ring-primary-100 outline-none transition-all text-slate-700 bg-white" />
                             </div>
-                            <div class="form-group">
-                                <label>Comissão (%)</label>
-                                <MoneyInput v-model="imovel.comissao_percentual" :suffix="'%'" :precision="2" class="form-input" />
+                            <div class="flex flex-col gap-1.5">
+                                <label class="text-sm font-bold text-slate-600">Comissão (%)</label>
+                                <MoneyInput v-model="imovel.comissao_percentual" :suffix="'%'" :precision="2" class="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:border-primary-500 focus:ring-2 focus:ring-primary-100 outline-none transition-all text-slate-700 bg-white" />
                             </div>
-                            <div class="form-group">
-                                <label>Data Captação</label>
-                                <input type="date" v-model="imovel.data_captacao" class="form-input" />
+                            <div class="flex flex-col gap-1.5">
+                                <label class="text-sm font-bold text-slate-600">Data Captação</label>
+                                <input type="date" v-model="imovel.data_captacao" class="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:border-primary-500 focus:ring-2 focus:ring-primary-100 outline-none transition-all text-slate-700 bg-white" />
                             </div>
-                            <div class="form-group">
-                                <label>Fim Autorização</label>
-                                <input type="date" v-model="imovel.data_fim_autorizacao" class="form-input" />
+                            <div class="flex flex-col gap-1.5">
+                                <label class="text-sm font-bold text-slate-600">Fim Autorização</label>
+                                <input type="date" v-model="imovel.data_fim_autorizacao" class="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:border-primary-500 focus:ring-2 focus:ring-primary-100 outline-none transition-all text-slate-700 bg-white" />
                             </div>
                         </div>
+                    </div>
 
-                        <h3 class="section-divider">Status da Documentação</h3>
-                        <div class="checkbox-grid">
-                            <label class="custom-checkbox"><input type="checkbox" v-model="imovel.possui_exclusividade"><span>Contrato de Exclusividade</span></label>
-                            <label class="custom-checkbox"><input type="checkbox" v-model="imovel.financiavel"><span>Aceita Financiamento</span></label>
-                            <label class="custom-checkbox"><input type="checkbox" v-model="imovel.quitado"><span>Quitado</span></label>
-                            <label class="custom-checkbox"><input type="checkbox" v-model="imovel.documentacao_ok"><span>Documentação OK</span></label>
+                    <div>
+                        <h3 class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-4 pb-2 border-b border-dashed border-slate-200">Status da Documentação</h3>
+                        <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+                            <label class="flex items-center gap-2 cursor-pointer p-2 rounded hover:bg-slate-50 transition-colors text-sm text-slate-600"><input type="checkbox" v-model="imovel.possui_exclusividade" class="w-4 h-4 accent-primary-600 cursor-pointer"><span>Contrato de Exclusividade</span></label>
+                            <label class="flex items-center gap-2 cursor-pointer p-2 rounded hover:bg-slate-50 transition-colors text-sm text-slate-600"><input type="checkbox" v-model="imovel.financiavel" class="w-4 h-4 accent-primary-600 cursor-pointer"><span>Aceita Financiamento</span></label>
+                            <label class="flex items-center gap-2 cursor-pointer p-2 rounded hover:bg-slate-50 transition-colors text-sm text-slate-600"><input type="checkbox" v-model="imovel.quitado" class="w-4 h-4 accent-primary-600 cursor-pointer"><span>Quitado</span></label>
+                            <label class="flex items-center gap-2 cursor-pointer p-2 rounded hover:bg-slate-50 transition-colors text-sm text-slate-600"><input type="checkbox" v-model="imovel.documentacao_ok" class="w-4 h-4 accent-primary-600 cursor-pointer"><span>Documentação OK</span></label>
                         </div>
 
-                        <div class="form-group full-width" style="margin-top: 1.5rem;">
-                            <label>Obs. Contratuais</label>
-                            <textarea v-model="imovel.informacoes_adicionais_autorizacao" rows="3" class="form-textarea" placeholder="Informações internas sobre a autorização..."></textarea>
+                        <div class="flex flex-col gap-1.5 mt-6">
+                            <label class="text-sm font-bold text-slate-600">Obs. Contratuais</label>
+                            <textarea v-model="imovel.informacoes_adicionais_autorizacao" rows="3" class="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:border-primary-500 focus:ring-2 focus:ring-primary-100 outline-none transition-all text-slate-700 bg-white" placeholder="Informações internas sobre a autorização..."></textarea>
                         </div>
                         
-                        <div class="form-group full-width" v-if="isEditing && imovel.id">
-                            <button type="button" @click="gerarContratoPDF" class="btn-secondary full-btn">
-                                <i class="fas fa-file-pdf"></i> Gerar Contrato de Autorização
+                        <div class="mt-6" v-if="isEditing && imovel.id">
+                            <button type="button" @click="gerarContratoPDF" class="w-full px-4 py-2.5 rounded-lg text-sm font-medium text-slate-600 bg-white border border-slate-300 hover:bg-slate-50 transition-colors cursor-pointer flex items-center justify-center gap-2">
+                                <div class="i-fas-file-pdf text-red-500" /> Gerar Contrato de Autorização
                             </button>
                         </div>
                     </div>
                 </div>
 
-                <div v-show="activeTab === 'publico'" class="tab-pane fade-in">
-                    <div class="alert-box">
-                        <i class="fas fa-info-circle"></i>
-                        <p>Controle quais campos aparecem publicamente no site da imobiliária.</p>
+                <div v-show="activeTab === 'publico'" class="animate-fade-in">
+                    <div class="bg-amber-50 border border-amber-200 text-amber-800 p-3 rounded-lg flex items-start gap-3 mb-6">
+                        <div class="i-fas-info-circle text-lg mt-0.5" />
+                        <p class="text-sm m-0">Controle quais campos aparecem publicamente no site da imobiliária.</p>
                     </div>
                     
-                    <div v-for="(campos, categoria) in camposVisiveis" :key="categoria" class="visibility-section">
-                        <h4 class="visibility-title">{{ categoria }}</h4>
-                        <div class="checkbox-grid dense">
-                            <label v-for="(label, key) in campos" :key="key" class="custom-checkbox small">
-                                <input type="checkbox" :id="key" v-model="imovel.configuracao_publica[key]">
+                    <div v-for="(campos, categoria) in camposVisiveis" :key="categoria" class="mb-6 pb-6 border-b border-slate-100 last:border-none last:mb-0 last:pb-0">
+                        <h4 class="text-sm font-bold text-slate-700 mb-3">{{ categoria }}</h4>
+                        <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+                            <label v-for="(label, key) in campos" :key="key" class="flex items-center gap-2 cursor-pointer text-sm text-slate-600">
+                                <input type="checkbox" :id="key" v-model="imovel.configuracao_publica[key]" class="w-4 h-4 accent-primary-600 cursor-pointer">
                                 <span>{{ label }}</span>
                             </label>
                         </div>
@@ -301,32 +319,50 @@
 
             </div>
 
-            <div class="form-footer">
-                <button type="button" @click="handleCancel" class="btn-secondary">Cancelar</button>
-                <div class="right-actions">
-                    <button type="button" @click="handleSaveAndContinue" class="btn-outline-primary" :disabled="isSubmitting">
-                        <i class="fas fa-save"></i> Salvar e Continuar
+            <div class="bg-slate-50 border-t border-slate-200 p-4 md:px-8 flex justify-between items-center">
+                <button 
+                    type="button" 
+                    @click="handleCancel" 
+                    class="px-4 py-2 rounded-md text-sm font-medium text-slate-600 bg-white border border-slate-300 hover:bg-slate-50 transition-all cursor-pointer shadow-sm"
+                >
+                    Cancelar
+                </button>
+                
+                <div class="flex gap-3">
+                    <button 
+                        type="button" 
+                        @click="handleSaveAndContinue" 
+                        class="px-4 py-2 rounded-md text-sm font-medium text-primary-600 bg-white border border-primary-600 hover:bg-primary-50 transition-all flex items-center gap-2 cursor-pointer shadow-sm" 
+                        :disabled="isSubmitting"
+                    >
+                        <div class="i-fas-save" /> Salvar e Continuar
                     </button>
-                    <button type="submit" class="btn-primary" :disabled="isSubmitting">
-                        <i v-if="isSubmitting" class="fas fa-spinner fa-spin"></i>
+                    
+                    <button 
+                        type="submit" 
+                        class="flex items-center justify-center gap-2 px-6 py-2 rounded-md text-sm font-medium text-white bg-primary-600 hover:bg-primary-700 shadow-sm hover:shadow transition-all disabled:opacity-70 disabled:cursor-not-allowed border-none cursor-pointer" 
+                        :disabled="isSubmitting"
+                    >
+                        <div v-if="isSubmitting" class="i-fas-spinner animate-spin" />
                         <span v-else>Salvar e Sair</span>
                     </button>
                 </div>
             </div>
-        </div>
       </div> 
       
-      <div class="right-column">
+      <div class="flex flex-col gap-6">
             
-            <div class="card info-card">
-                 <div class="widget-header">
-                     <h3 class="widget-title"><i class="fas fa-cog"></i> Configurações</h3>
+            <div class="bg-white rounded-xl border border-slate-200 shadow-sm p-5 border-l-4 border-l-primary-500">
+                 <div class="mb-4 pb-2 border-b border-slate-100">
+                     <h3 class="text-sm font-bold text-slate-700 m-0 flex items-center gap-2">
+                        <div class="i-fas-cog text-primary-600" /> Configurações
+                     </h3>
                  </div>
                  
-                 <div class="form-group">
-                    <label>Tipo de Imóvel</label>
-                    <div class="input-wrapper">
-                        <select v-model="imovel.tipo" class="form-select">
+                 <div class="flex flex-col gap-4">
+                     <div class="flex flex-col gap-1.5">
+                        <label class="text-xs font-bold text-slate-500 uppercase">Tipo de Imóvel</label>
+                        <select v-model="imovel.tipo" class="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:border-primary-500 focus:ring-2 focus:ring-primary-100 outline-none transition-all text-slate-700 bg-white">
                             <option value="CASA">Casa</option>
                             <option value="APARTAMENTO">Apartamento</option>
                             <option value="TERRENO">Terreno</option>
@@ -335,56 +371,59 @@
                             <option value="RURAL">Rural</option>
                             <option value="OUTRO">Outro</option>
                         </select>
-                    </div>
-                 </div>
+                     </div>
 
-                 <div class="form-group">
-                    <label>Finalidade</label>
-                    <select v-model="imovel.finalidade" class="form-select">
-                        <option value="RESIDENCIAL">Residencial</option>
-                        <option value="COMERCIAL">Comercial</option>
-                        <option value="INDUSTRIAL">Industrial</option>
-                        <option value="RURAL">Rural</option>
-                    </select>
-                 </div>
+                     <div class="flex flex-col gap-1.5">
+                        <label class="text-xs font-bold text-slate-500 uppercase">Finalidade</label>
+                        <select v-model="imovel.finalidade" class="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:border-primary-500 focus:ring-2 focus:ring-primary-100 outline-none transition-all text-slate-700 bg-white">
+                            <option value="RESIDENCIAL">Residencial</option>
+                            <option value="COMERCIAL">Comercial</option>
+                            <option value="INDUSTRIAL">Industrial</option>
+                            <option value="RURAL">Rural</option>
+                        </select>
+                     </div>
 
-                 <div class="form-group">
-                    <label>Situação</label>
-                    <select v-model="imovel.situacao" class="form-select">
-                        <option :value="null">Não informado</option>
-                        <option value="NOVO">Novo</option>
-                        <option value="USADO">Usado</option>
-                        <option value="NA_PLANTA">Na Planta</option>
-                    </select>
-                 </div>
+                     <div class="flex flex-col gap-1.5">
+                        <label class="text-xs font-bold text-slate-500 uppercase">Situação</label>
+                        <select v-model="imovel.situacao" class="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:border-primary-500 focus:ring-2 focus:ring-primary-100 outline-none transition-all text-slate-700 bg-white">
+                            <option :value="null">Não informado</option>
+                            <option value="NOVO">Novo</option>
+                            <option value="USADO">Usado</option>
+                            <option value="NA_PLANTA">Na Planta</option>
+                        </select>
+                     </div>
 
-                 <div class="form-group">
-                    <label>Status Atual</label>
-                    <select v-model="imovel.status" class="form-select status-select">
-                        <option value="A_VENDA">À Venda</option>
-                        <option value="PARA_ALUGAR">Para Alugar</option>
-                        <option value="VENDIDO">Vendido</option>
-                        <option value="ALUGADO">Alugado</option>
-                        <option value="EM_CONSTRUCAO">Em Construção</option>
-                        <option value="DESATIVADO">Desativado</option>
-                    </select>
+                     <div class="flex flex-col gap-1.5">
+                        <label class="text-xs font-bold text-slate-500 uppercase">Status Atual</label>
+                        <select v-model="imovel.status" class="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:border-primary-500 focus:ring-2 focus:ring-primary-100 outline-none transition-all text-slate-700 bg-white font-medium" :class="{'text-emerald-600': imovel.status === 'A_VENDA', 'text-amber-600': imovel.status === 'EM_CONSTRUCAO'}">
+                            <option value="A_VENDA">À Venda</option>
+                            <option value="PARA_ALUGAR">Para Alugar</option>
+                            <option value="VENDIDO">Vendido</option>
+                            <option value="ALUGADO">Alugado</option>
+                            <option value="EM_CONSTRUCAO">Em Construção</option>
+                            <option value="DESATIVADO">Desativado</option>
+                        </select>
+                     </div>
                  </div>
             </div>
 
-            <div class="card info-card">
-                 <div class="widget-header">
-                     <h3 class="widget-title"><i class="fas fa-globe"></i> Visibilidade</h3>
+            <div class="bg-white rounded-xl border border-slate-200 shadow-sm p-5 border-l-4 border-l-emerald-500">
+                 <div class="mb-4 pb-2 border-b border-slate-100">
+                     <h3 class="text-sm font-bold text-slate-700 m-0 flex items-center gap-2">
+                        <div class="i-fas-globe text-emerald-500" /> Visibilidade
+                     </h3>
                  </div>
-                 <div class="status-toggle-wrapper">
-                    <label class="switch-container">
-                        <input type="checkbox" v-model="imovel.publicado_no_site">
-                        <span class="slider round"></span>
+                 
+                 <div class="flex items-center gap-3">
+                    <label class="relative inline-flex items-center cursor-pointer">
+                        <input type="checkbox" v-model="imovel.publicado_no_site" class="sr-only peer">
+                        <div class="w-11 h-6 bg-slate-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-emerald-100 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-500"></div>
                     </label>
-                    <span class="status-label" :class="{ 'text-success': imovel.publicado_no_site, 'text-muted': !imovel.publicado_no_site }">
+                    <span class="text-sm font-bold" :class="imovel.publicado_no_site ? 'text-emerald-600' : 'text-slate-400'">
                         {{ imovel.publicado_no_site ? 'Publicado' : 'Oculto' }}
                     </span>
                  </div>
-                 <p class="helper-text-widget">Se desativado, o imóvel não aparecerá no site, independente das outras configurações.</p>
+                 <p class="text-xs text-slate-400 mt-3 italic">Se desativado, o imóvel não aparecerá no site, independente das outras configurações.</p>
             </div>
 
       </div> 
@@ -402,7 +441,6 @@ import ImovelImagensView from './ImovelImagensView.vue';
 import { debounce } from 'lodash'; 
 import '@fortawesome/fontawesome-free/css/all.css';
 import MoneyInput from '@/components/MoneyInput.vue';
-// Importação do novo componente
 import CepInput from '@/components/CepInput.vue';
 
 const route = useRoute();
@@ -411,6 +449,15 @@ const router = useRouter();
 const imovelId = computed(() => route.params.id as string | undefined);
 const isEditing = computed(() => !!imovelId.value);
 const activeTab = ref('geral');
+
+const tabs = [
+    { id: 'geral', label: 'Dados Básicos', icon: 'i-fas-info-circle' },
+    { id: 'valores', label: 'Valores', icon: 'i-fas-dollar-sign' },
+    { id: 'caracteristicas', label: 'Detalhes', icon: 'i-fas-list' },
+    { id: 'imagens', label: 'Imagens', icon: 'i-fas-camera', disabled: !isEditing.value },
+    { id: 'autorizacao', label: 'Autorização', icon: 'i-fas-file-signature' },
+    { id: 'publico', label: 'Site', icon: 'i-fas-globe' },
+];
 
 const isLoadingData = ref(false);
 const isSubmitting = ref(false);
@@ -596,200 +643,6 @@ watch(() => route.query.tab, (newTab) => { if (newTab) activeTab.value = newTab 
 </script>
 
 <style scoped>
-/* =========================================================
-   1. GERAL & HEADER
-   ========================================================= */
-.page-container {
-  min-height: 100vh;
-  background-color: #fcfcfc;
-  font-family: 'Inter', 'Segoe UI', Roboto, sans-serif;
-  padding: 1.5rem 2.5rem;
-  display: flex; flex-direction: column;
-}
-
-.page-header { margin-bottom: 2rem; }
-.title-area h1 { font-size: 1.5rem; font-weight: 300; color: #1f2937; margin: 0; letter-spacing: -0.02em; }
-.breadcrumb { display: flex; align-items: center; gap: 6px; font-size: 0.7rem; color: #94a3b8; font-weight: 500; text-transform: uppercase; letter-spacing: 0.05em; }
-.breadcrumb a { color: #94a3b8; text-decoration: none; transition: color 0.2s; }
-.breadcrumb a:hover { color: #2563eb; }
-.breadcrumb .separator { font-size: 0.5rem; color: #cbd5e1; }
-.breadcrumb .active { color: #2563eb; font-weight: 700; }
-
-.main-content-grid { 
-    display: grid; grid-template-columns: 1fr 300px; gap: 1.5rem; align-items: start; 
-}
-@media (max-width: 1200px) { .main-content-grid { grid-template-columns: 1fr; } }
-
-/* =========================================================
-   2. CARD PRINCIPAL & ABAS
-   ========================================================= */
-.card {
-  background-color: #fff; border-radius: 8px; box-shadow: 0 1px 2px rgba(0,0,0,0.03); 
-  border: 1px solid #e5e7eb; overflow: hidden;
-}
-.form-card { min-height: 500px; display: flex; flex-direction: column; }
-.no-padding-body { padding: 0; }
-
-.tabs-header {
-    display: flex; flex-wrap: wrap; background-color: #f8fafc; border-bottom: 1px solid #e2e8f0;
-}
-.tabs-header button {
-    flex: 1; min-width: 100px; padding: 1rem 0.5rem; border: none; background: transparent;
-    font-size: 0.85rem; font-weight: 500; color: #64748b; cursor: pointer; transition: all 0.2s;
-    border-bottom: 2px solid transparent; display: flex; align-items: center; justify-content: center; gap: 0.5rem;
-}
-.tabs-header button:hover { color: #334155; background-color: #f1f5f9; }
-.tabs-header button.active { color: #2563eb; border-bottom-color: #2563eb; background-color: #fff; font-weight: 600; }
-.tabs-header button:disabled { opacity: 0.5; cursor: not-allowed; }
-
-.tab-content-area { padding: 2rem; flex: 1; }
-.fade-in { animation: fadeIn 0.3s ease; }
+.animate-fade-in { animation: fadeIn 0.3s ease-out; }
 @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
-
-/* =========================================================
-   3. SEÇÕES E GRIDS
-   ========================================================= */
-.compact-section { margin-bottom: 0; }
-.section-divider {
-    font-size: 0.8rem; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.05em; font-weight: 700;
-    margin: 1.5rem 0 1rem 0; padding-bottom: 0.5rem; border-bottom: 1px dashed #e2e8f0;
-}
-.section-divider:first-child { margin-top: 0; }
-
-.form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; }
-.checkbox-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 0.8rem; }
-.checkbox-grid.dense { grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); }
-
-.form-group { display: flex; flex-direction: column; gap: 0.4rem; }
-.full-width { grid-column: 1 / -1; }
-
-label { font-weight: 500; font-size: 0.85rem; color: #4b5563; }
-.required { color: #ef4444; }
-
-/* =========================================================
-   4. INPUTS E CONTROLES
-   ========================================================= */
-.input-wrapper { position: relative; }
-.input-icon { position: absolute; left: 10px; top: 50%; transform: translateY(-50%); color: #9ca3af; font-size: 0.85rem; pointer-events: none; z-index: 5; }
-.form-input, .form-select, .form-textarea {
-    width: 100%; padding: 0.6rem 0.75rem; border: 1px solid #d1d5db; border-radius: 6px;
-    font-size: 0.9rem; transition: all 0.2s; background-color: #fff; box-sizing: border-box; color: #1f2937;
-    font-family: inherit;
-}
-.form-input.has-icon { padding-left: 2.2rem; }
-.form-input:focus, .form-select:focus, .form-textarea:focus { 
-    border-color: #3b82f6; outline: none; box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.1);
-}
-.form-textarea { resize: vertical; min-height: 80px; }
-
-/* Checkboxes Customizados */
-.custom-checkbox {
-    display: flex; align-items: center; gap: 0.6rem; cursor: pointer; font-size: 0.85rem; color: #4b5563;
-    padding: 0.4rem; border-radius: 4px; transition: background 0.2s;
-}
-.custom-checkbox:hover { background-color: #f8fafc; }
-.custom-checkbox input { accent-color: #2563eb; width: 16px; height: 16px; cursor: pointer; }
-
-/* =========================================================
-   5. COMPONENTES ESPECÍFICOS (BUSCA, BADGES)
-   ========================================================= */
-.search-input-wrapper { position: relative; }
-.search-icon { position: absolute; right: 10px; top: 50%; transform: translateY(-50%); color: #94a3b8; }
-.dropdown-results {
-    position: absolute; top: 100%; left: 0; right: 0; background: white; border: 1px solid #cbd5e1;
-    border-radius: 6px; margin-top: 4px; list-style: none; padding: 0; max-height: 200px; overflow-y: auto;
-    z-index: 10; box-shadow: 0 4px 6px rgba(0,0,0,0.05);
-}
-.dropdown-results li { padding: 0.6rem 1rem; cursor: pointer; border-bottom: 1px solid #f1f5f9; transition: background 0.1s; }
-.dropdown-results li:hover { background-color: #f8fafc; }
-.result-name { font-weight: 500; color: #1e293b; font-size: 0.9rem; }
-.result-sub { font-size: 0.75rem; color: #64748b; }
-
-.selected-badge {
-    margin-top: 0.5rem; display: flex; justify-content: space-between; align-items: center;
-    background-color: #eff6ff; border: 1px solid #bfdbfe; color: #1e40af;
-    padding: 0.5rem 1rem; border-radius: 6px; font-size: 0.85rem;
-}
-.badge-content { display: flex; align-items: center; gap: 0.5rem; font-weight: 500; }
-.btn-close-badge { background: none; border: none; color: #60a5fa; cursor: pointer; font-size: 0.9rem; }
-.btn-close-badge:hover { color: #1e40af; }
-
-/* Label com Ação (IA) */
-.label-with-action { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.3rem; }
-.btn-text-action {
-    background: none; border: none; color: #2563eb; cursor: pointer; font-size: 0.75rem; font-weight: 600;
-    display: flex; align-items: center; gap: 4px; transition: color 0.2s;
-}
-.btn-text-action:hover { color: #1d4ed8; text-decoration: underline; }
-
-/* Empty States */
-.empty-tab-state { text-align: center; padding: 3rem; color: #94a3b8; }
-.empty-tab-state i { font-size: 2.5rem; margin-bottom: 1rem; opacity: 0.5; }
-.empty-tab-state h3 { color: #475569; margin: 0 0 0.5rem 0; font-size: 1.1rem; }
-
-/* Alert Box */
-.alert-box {
-    background-color: #fffbeb; border: 1px solid #fcd34d; color: #92400e; padding: 0.8rem; border-radius: 6px;
-    display: flex; gap: 0.8rem; align-items: flex-start; margin-bottom: 1.5rem; font-size: 0.85rem;
-}
-
-/* Visibility Sections */
-.visibility-section { margin-bottom: 1.5rem; padding-bottom: 1.5rem; border-bottom: 1px solid #f1f5f9; }
-.visibility-section:last-child { border-bottom: none; margin-bottom: 0; }
-.visibility-title { font-size: 0.9rem; font-weight: 600; color: #334155; margin: 0 0 0.8rem 0; }
-
-/* =========================================================
-   6. COLUNA DIREITA & FOOTER
-   ========================================================= */
-.info-card { padding: 1.2rem; margin-bottom: 1rem; border-left: 3px solid #2563eb; }
-.widget-header { margin-bottom: 1rem; padding-bottom: 0.5rem; border-bottom: 1px solid #f1f5f9; }
-.widget-title { font-size: 0.9rem; font-weight: 600; margin: 0; color: #374151; }
-
-.status-toggle-wrapper { display: flex; align-items: center; gap: 1rem; margin-top: 0.5rem; }
-.status-label { font-size: 0.9rem; font-weight: 600; }
-.text-success { color: #16a34a; }
-.text-muted { color: #9ca3af; }
-.helper-text-widget { font-size: 0.75rem; color: #9ca3af; margin-top: 0.8rem; font-style: italic; line-height: 1.4; }
-
-/* Switch Slider */
-.switch-container { position: relative; display: inline-block; width: 44px; height: 24px; }
-.switch-container input { opacity: 0; width: 0; height: 0; }
-.slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #cbd5e1; transition: .4s; }
-.slider:before { position: absolute; content: ""; height: 18px; width: 18px; left: 3px; bottom: 3px; background-color: white; transition: .4s; }
-input:checked + .slider { background-color: #2563eb; }
-input:checked + .slider:before { transform: translateX(20px); }
-.slider.round { border-radius: 24px; }
-.slider.round:before { border-radius: 50%; }
-
-/* Footer Actions */
-.form-footer {
-    display: flex; justify-content: space-between; align-items: center;
-    padding: 1.5rem 2rem; border-top: 1px solid #e2e8f0; background-color: #f8fafc;
-}
-.right-actions { display: flex; gap: 0.8rem; }
-
-.btn-primary, .btn-secondary, .btn-outline-primary {
-    padding: 0.6rem 1.2rem; border-radius: 6px; border: none; font-weight: 500; cursor: pointer; font-size: 0.9rem;
-    display: flex; align-items: center; gap: 0.5rem; transition: all 0.2s;
-}
-.btn-primary { background-color: #2563eb; color: white; box-shadow: 0 1px 2px rgba(37, 99, 235, 0.1); }
-.btn-primary:hover { background-color: #1d4ed8; transform: translateY(-1px); }
-.btn-secondary { background-color: white; color: #64748b; border: 1px solid #cbd5e1; }
-.btn-secondary:hover { background-color: #f1f5f9; color: #334155; }
-.btn-outline-primary { background-color: white; color: #2563eb; border: 1px solid #2563eb; }
-.btn-outline-primary:hover { background-color: #eff6ff; }
-.full-btn { width: 100%; justify-content: center; }
-
-/* Loading */
-.loading-state { text-align: center; padding: 4rem; color: #64748b; }
-.spinner { border: 3px solid #e2e8f0; border-top: 3px solid #2563eb; border-radius: 50%; width: 32px; height: 32px; animation: spin 0.8s linear infinite; margin: 0 auto 1rem; }
-@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-
-@media (max-width: 1024px) {
-  .page-container { padding: 1rem; }
-  .tabs-header { overflow-x: auto; flex-wrap: nowrap; justify-content: flex-start; }
-  .form-footer { flex-direction: column-reverse; gap: 1rem; }
-  .right-actions { width: 100%; display: flex; flex-direction: column; }
-  .btn-primary, .btn-outline-primary, .btn-secondary { width: 100%; justify-content: center; }
-}
 </style>

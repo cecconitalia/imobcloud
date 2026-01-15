@@ -1,63 +1,93 @@
-<script setup lang="ts">
-/**
- * IMOBCLOUD - MODAL DE COLETA DE ASSINATURA (RESPONSIVO)
- * Atualização: 
- * - Layout responsivo com scroll interno (evita quebra em telas pequenas).
- * - Ajuste de grid para os botões de seleção.
- * - Melhoria na experiência mobile.
- */
-import { ref, onMounted, watch, nextTick } from 'vue';
-import { VueSignaturePad } from 'vue-signature-pad';
+<template>
+  <div class="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-fade-in" @click.self="fechar">
+    <div class="bg-white w-full max-w-[500px] rounded-xl shadow-2xl flex flex-col overflow-hidden animate-scale-in">
+      
+      <div class="bg-slate-50 px-5 py-4 border-b border-slate-100 flex justify-between items-center">
+          <h3 class="text-base font-bold text-slate-800 m-0 flex items-center gap-2">
+              <div class="i-fas-file-signature text-blue-600" />
+              {{ titulo || 'Coleta de Assinatura' }}
+          </h3>
+          <button @click="fechar" class="w-8 h-8 flex items-center justify-center rounded-full text-slate-400 hover:bg-slate-200 hover:text-red-500 transition-colors cursor-pointer border-none bg-transparent">
+              <div class="i-fas-times text-lg" />
+          </button>
+      </div>
+      
+      <div class="p-5 flex flex-col gap-4 bg-white">
+          
+          <div class="bg-blue-50 border border-blue-100 rounded-lg p-3">
+            <p class="text-sm text-blue-800 m-0 text-center font-medium leading-relaxed">
+                {{ enderecoImovel || 'Confirmo a realização da visita aos imóveis selecionados.' }}
+            </p>
+          </div>
 
-interface AssinanteOption {
-  label: string;
-  value: string;
-  signed?: boolean;
-}
+          <div class="flex flex-col gap-2">
+            <label class="text-xs font-bold text-slate-500 uppercase tracking-wide">Assine abaixo:</label>
+            <div class="relative border-2 border-dashed border-slate-300 rounded-xl bg-slate-50 overflow-hidden h-[220px] touch-none transition-colors hover:border-blue-300 group">
+                <VueSignaturePad 
+                    width="100%" 
+                    height="100%" 
+                    ref="signaturePad" 
+                    :options="{ penColor: '#1e293b', backgroundColor: 'transparent' }" 
+                />
+                
+                <div v-if="!userInteracted" class="absolute inset-0 flex items-center justify-center pointer-events-none opacity-40 group-hover:opacity-60 transition-opacity">
+                    <span class="text-slate-400 font-medium flex items-center gap-2">
+                        <div class="i-fas-pen-alt" /> Desenhe sua assinatura aqui
+                    </span>
+                </div>
+            </div>
+            
+            <div class="flex justify-end">
+                <button @click="limpar" class="text-xs font-semibold text-red-500 hover:text-red-700 bg-transparent border-none cursor-pointer flex items-center gap-1 py-1">
+                    <div class="i-fas-eraser" /> Limpar assinatura
+                </button>
+            </div>
+          </div>
+      </div>
+
+      <div class="p-4 bg-slate-50 border-t border-slate-200 flex justify-end gap-3">
+        <button @click="fechar" class="px-4 py-2.5 rounded-lg text-sm font-medium text-slate-600 bg-white border border-slate-200 hover:bg-slate-100 transition-colors cursor-pointer">
+            Cancelar
+        </button>
+        <button @click="salvar" class="px-6 py-2.5 rounded-lg text-sm font-bold text-white bg-blue-600 hover:bg-blue-700 shadow-sm hover:shadow transition-all cursor-pointer flex items-center gap-2 border-none disabled:opacity-70 disabled:cursor-not-allowed" :disabled="isSaving">
+            <div v-if="isSaving" class="i-fas-spinner animate-spin" />
+            <div v-else class="i-fas-check" />
+            <span>{{ isSaving ? 'Salvando...' : 'Confirmar Assinatura' }}</span>
+        </button>
+      </div>
+    </div>
+  </div>
+</template>
+
+<script setup lang="ts">
+import { ref, onMounted, nextTick } from 'vue';
+import { VueSignaturePad } from 'vue-signature-pad';
 
 const props = defineProps({
     titulo: { type: String, default: '' },
-    termo: { type: String, default: '' },
     enderecoImovel: { type: String, default: '' },
-    isSaving: { type: Boolean, default: false },
-    assinantesDisponiveis: { 
-      type: Array as () => AssinanteOption[], 
-      default: () => [] 
-    }
+    isSaving: { type: Boolean, default: false }
 });
 
 const emit = defineEmits(['close', 'save']);
 
 const signaturePad = ref<any>(null);
 const userInteracted = ref(false);
-const tipoSelecionado = ref<string>('');
 
-// Lógica de seleção automática
 onMounted(() => {
-  autoSelect();
-  resizeCanvas(); // Garante que o canvas tenha o tamanho correto ao abrir
+    resizeCanvas();
 });
-
-watch(() => props.assinantesDisponiveis, () => {
-  autoSelect();
-});
-
-function autoSelect() {
-  if (props.assinantesDisponiveis.length === 1) {
-    tipoSelecionado.value = props.assinantesDisponiveis[0].value;
-  }
-}
 
 function resizeCanvas() {
     nextTick(() => {
         if (signaturePad.value) {
             signaturePad.value.resizeCanvas();
+            // Adiciona listener para detectar interação
+            const canvas = signaturePad.value.$el;
+            canvas.addEventListener('mousedown', () => userInteracted.value = true);
+            canvas.addEventListener('touchstart', () => userInteracted.value = true);
         }
     });
-}
-
-function startSigning() {
-    userInteracted.value = true;
 }
 
 function limpar() {
@@ -65,268 +95,24 @@ function limpar() {
     userInteracted.value = false;
 }
 
-function salvar() {
-  if (props.assinantesDisponiveis.length > 0 && !tipoSelecionado.value) {
-    alert("Por favor, selecione quem está assinando.");
-    return;
-  }
+function fechar() {
+    emit('close');
+}
 
+function salvar() {
   const { isEmpty, data } = signaturePad.value.saveSignature();
   if (isEmpty) {
-    alert("Por favor, é necessário assinar antes de confirmar.");
+    alert("Por favor, faça sua assinatura antes de confirmar.");
     return;
   }
-  
-  emit('save', { signatureData: data, tipoAssinante: tipoSelecionado.value });
+  emit('save', data); // Envia base64 da imagem
 }
 </script>
 
-<template>
-  <div class="modal-overlay" @click.self="$emit('close')">
-    <div class="modal-content">
-      
-      <div class="modal-header">
-          <h3><i class="fas fa-file-signature"></i> {{ titulo || 'Assinatura' }}</h3>
-          <button class="btn-close" @click="$emit('close')"><i class="fas fa-times"></i></button>
-      </div>
-      
-      <div class="modal-body">
-          
-          <div class="form-group" v-if="assinantesDisponiveis.length > 0">
-            <label class="label-assinante">Quem está assinando?</label>
-            <div class="signer-options-grid">
-              <button 
-                v-for="op in assinantesDisponiveis" 
-                :key="op.value"
-                class="signer-btn"
-                :class="{ 
-                  'selected': tipoSelecionado === op.value,
-                  'signed': op.signed
-                }"
-                @click="tipoSelecionado = op.value"
-              >
-                <div class="icon-wrapper">
-                    <i class="fas fa-check-circle icon-signed" v-if="op.signed"></i>
-                    <i class="far fa-user icon-default" v-else></i>
-                </div>
-                
-                <div class="text-wrapper">
-                    <span class="btn-label">{{ op.label }}</span>
-                    <span class="btn-status signed-text" v-if="op.signed && tipoSelecionado !== op.value">
-                        <i class="fas fa-check"></i> Assinado
-                    </span>
-                    <span class="btn-status redo-text" v-else-if="op.signed && tipoSelecionado === op.value">
-                        <i class="fas fa-redo"></i> Refazer
-                    </span>
-                </div>
-                
-                <div class="selection-indicator" v-if="tipoSelecionado === op.value">
-                    <i class="fas fa-pen"></i>
-                </div>
-              </button>
-            </div>
-          </div>
-
-          <div class="termo-container">
-            <p class="termo-texto" v-if="termo">{{ termo }}</p>
-            <p class="termo-texto" v-else>
-                Visita ao imóvel: <strong>{{ enderecoImovel }}</strong>.
-            </p>
-          </div>
-
-          <div class="signature-section">
-            <div class="signature-wrapper">
-                <VueSignaturePad 
-                    width="100%" 
-                    height="100%" 
-                    ref="signaturePad" 
-                    :options="{ penColor: '#000', backgroundColor: 'rgb(248,250,252)' }" 
-                />
-                <div class="overlay-hint" v-if="!userInteracted" @click="startSigning">
-                    <i class="fas fa-pen-alt"></i> Toque para assinar
-                </div>
-            </div>
-            <div class="signature-tools">
-                <button @click="limpar" class="btn-link-danger"><i class="fas fa-eraser"></i> Limpar</button>
-            </div>
-          </div>
-      </div>
-
-      <div class="modal-actions">
-        <button @click="$emit('close')" class="btn-secondary">Cancelar</button>
-        <button @click="salvar" class="btn-primary" :disabled="isSaving">
-            <i v-if="isSaving" class="fas fa-spinner fa-spin"></i>
-            <span v-else>Confirmar</span>
-        </button>
-      </div>
-    </div>
-  </div>
-</template>
-
 <style scoped>
-.modal-overlay { 
-    position: fixed; top:0; left:0; right:0; bottom:0; 
-    background: rgba(0,0,0,0.6); z-index: 1050;
-    display:flex; justify-content:center; align-items:center; 
-    backdrop-filter: blur(3px);
-    padding: 10px; /* Espaço nas bordas em mobile */
-}
+.animate-fade-in { animation: fadeIn 0.2s ease-out; }
+.animate-scale-in { animation: scaleIn 0.2s ease-out; }
 
-/* Estrutura Flexível do Modal */
-.modal-content { 
-    background: white; 
-    border-radius: 16px; 
-    width: 100%; 
-    max-width: 500px; /* Largura máxima desktop */
-    max-height: 90vh; /* Altura máxima viewport */
-    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
-    display: flex; 
-    flex-direction: column; /* Cabeçalho e Rodapé fixos, Corpo rola */
-    overflow: hidden;
-}
-
-.modal-header {
-    padding: 1rem 1.25rem; 
-    border-bottom: 1px solid #e2e8f0;
-    display: flex; justify-content: space-between; align-items: center;
-    background-color: #f8fafc;
-    flex-shrink: 0;
-}
-.modal-header h3 { margin: 0; font-size: 1.1rem; color: #1e293b; font-weight: 700; display: flex; align-items: center; gap: 0.5rem; }
-.btn-close { background: none; border: none; cursor: pointer; font-size: 1.25rem; color: #94a3b8; transition: color 0.2s;}
-.btn-close:hover { color: #ef4444; }
-
-/* Corpo com Scroll */
-.modal-body { 
-    padding: 1.25rem; 
-    overflow-y: auto; /* Permite scroll se o conteúdo for grande */
-    flex: 1; /* Ocupa o espaço restante */
-    display: flex;
-    flex-direction: column;
-    gap: 1.25rem;
-}
-
-/* --- Botões de Seleção --- */
-.label-assinante { display: block; font-weight: 700; color: #334155; margin-bottom: 0.75rem; font-size: 0.9rem; text-align: center; }
-
-.signer-options-grid {
-  display: flex;
-  flex-direction: column; /* Mobile first: empilhado */
-  gap: 0.75rem;
-}
-
-.signer-btn {
-  background: white;
-  border: 1px solid #e2e8f0;
-  padding: 0.75rem;
-  border-radius: 12px;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  width: 100%;
-  position: relative;
-  text-align: left;
-}
-
-.signer-btn:hover { background-color: #f8fafc; border-color: #cbd5e1; }
-.signer-btn.signed { background-color: #f0fdf4; border-color: #86efac; }
-.signer-btn.selected { border-color: #3b82f6; background-color: #eff6ff; box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.3); z-index: 2; }
-
-.icon-wrapper {
-    width: 36px; height: 36px;
-    display: flex; align-items: center; justify-content: center;
-    border-radius: 50%; background: #f1f5f9; flex-shrink: 0;
-}
-.signer-btn.signed .icon-wrapper { background: #dcfce7; }
-.signer-btn.selected .icon-wrapper { background: #dbeafe; }
-
-.icon-signed { color: #16a34a; font-size: 1.2rem; }
-.icon-default { color: #94a3b8; font-size: 1.1rem; }
-.signer-btn.selected .icon-default { color: #2563eb; }
-
-.text-wrapper { flex: 1; display: flex; flex-direction: column; min-width: 0; }
-.btn-label { font-weight: 600; color: #334155; font-size: 0.9rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.signer-btn.signed .btn-label { color: #166534; }
-.signer-btn.selected .btn-label { color: #1e40af; }
-
-.btn-status { font-size: 0.65rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.025em; margin-top: 2px; }
-.signed-text { color: #16a34a; }
-.redo-text { color: #d97706; }
-
-.selection-indicator { color: #3b82f6; font-size: 0.9rem; }
-
-/* --- Termos --- */
-.termo-container {
-    background: #f8fafc; padding: 0.75rem; border-radius: 8px; border: 1px solid #f1f5f9;
-}
-.termo-texto { font-size: 0.85rem; color: #64748b; margin: 0; line-height: 1.5; text-align: justify; }
-
-/* --- Área da Assinatura --- */
-.signature-section {
-    display: flex; flex-direction: column; gap: 0.5rem; flex: 1; min-height: 180px;
-}
-
-.signature-wrapper { 
-    border: 2px dashed #cbd5e1; 
-    border-radius: 12px; 
-    position: relative; 
-    overflow: hidden; 
-    background: #f8fafc;
-    flex: 1; /* Ocupa espaço disponível vertical */
-    min-height: 160px; /* Garante altura mínima */
-}
-
-.overlay-hint {
-    position: absolute; top: 0; left: 0; right: 0; bottom: 0;
-    display: flex; align-items: center; justify-content: center;
-    background: rgba(255,255,255,0.7); color: #64748b; font-weight: 600; font-size: 0.9rem;
-    cursor: pointer; gap: 8px;
-    transition: opacity 0.2s;
-}
-.overlay-hint:hover { background: rgba(255,255,255,0.5); color: #3b82f6; }
-
-.signature-tools { display: flex; justify-content: flex-end; }
-.btn-link-danger {
-    background: none; border: none; color: #ef4444; cursor: pointer;
-    font-size: 0.8rem; font-weight: 600; display: flex; align-items: center; gap: 0.25rem;
-    padding: 0.25rem 0.5rem; border-radius: 4px;
-}
-.btn-link-danger:hover { background: #fef2f2; }
-
-/* --- Rodapé --- */
-.modal-actions { 
-    padding: 1rem 1.25rem; 
-    border-top: 1px solid #e2e8f0; 
-    display: flex; justify-content: flex-end; gap: 0.75rem; 
-    background-color: #f8fafc;
-    flex-shrink: 0;
-}
-
-.btn-secondary, .btn-primary {
-    padding: 0.75rem 1.5rem; border-radius: 8px; border: none; cursor: pointer; font-weight: 600; font-size: 0.9rem;
-    transition: all 0.2s;
-}
-.btn-secondary { background: white; border: 1px solid #e2e8f0; color: #64748b; }
-.btn-secondary:hover { background: #f1f5f9; color: #334155; }
-
-.btn-primary { background: #2563eb; color: white; display: flex; align-items: center; gap: 0.5rem; box-shadow: 0 4px 6px -1px rgba(37, 99, 235, 0.2);}
-.btn-primary:hover { background: #1d4ed8; transform: translateY(-1px); }
-.btn-primary:disabled { opacity: 0.7; cursor: not-allowed; transform: none; }
-
-/* --- Ajustes Mobile (Telas muito pequenas) --- */
-@media (max-width: 480px) {
-    .modal-content { 
-        height: 100%; /* Ocupa tela toda se necessário */
-        max-height: 100%; 
-        border-radius: 0; 
-    }
-    .modal-body { padding: 1rem; }
-    .signer-btn { padding: 0.6rem; }
-    .btn-label { font-size: 0.85rem; }
-    .signature-wrapper { min-height: 200px; /* Mais espaço para o dedo */ }
-    .modal-actions { padding: 0.75rem 1rem; }
-    .btn-primary, .btn-secondary { flex: 1; justify-content: center; } /* Botões expandidos */
-}
+@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+@keyframes scaleIn { from { opacity: 0; transform: scale(0.95); } to { opacity: 1; transform: scale(1); } }
 </style>

@@ -3,6 +3,7 @@
 import os
 import json
 import logging
+import base64
 from io import BytesIO
 from datetime import date
 
@@ -18,6 +19,7 @@ from django.http import HttpResponse, HttpResponseRedirect, Http404
 from django.urls import reverse
 from django.core.files.storage import default_storage
 from django.template.loader import render_to_string
+from django.contrib.staticfiles import finders
 
 from rest_framework import viewsets, permissions, status, filters
 from rest_framework.response import Response
@@ -47,6 +49,40 @@ from app_imoveis.models import Imovel
 
 User = get_user_model()
 logger = logging.getLogger(__name__)
+
+# ====================================================================
+# HELPER: CONVERTER IMAGEM PARA BASE64 (SOLUÇÃO ROBUSTA PDF)
+# ====================================================================
+def image_to_base64(image_field):
+    """
+    Lê um ImageField/FileField e retorna uma string base64 pronta para src=""
+    Retorna None se não houver imagem ou erro.
+    """
+    if not image_field or not hasattr(image_field, 'name') or not image_field.name:
+        return None
+        
+    try:
+        # Tenta pegar o caminho absoluto se for armazenamento local
+        file_path = None
+        if hasattr(image_field, 'path'):
+            file_path = image_field.path
+        elif hasattr(settings, 'MEDIA_ROOT'):
+            file_path = os.path.join(settings.MEDIA_ROOT, image_field.name)
+
+        if file_path and os.path.exists(file_path):
+            with open(file_path, "rb") as img_file:
+                encoded_string = base64.b64encode(img_file.read()).decode('utf-8')
+                
+            # Determina extensão
+            ext = os.path.splitext(file_path)[1].lower().replace('.', '')
+            if ext == 'jpg': ext = 'jpeg'
+            if not ext: ext = 'png' # Fallback
+            
+            return f"data:image/{ext};base64,{encoded_string}"
+    except Exception as e:
+        logger.error(f"Erro ao converter imagem para base64: {e}")
+        return None
+    return None
 
 # ====================================================================
 # HELPER PARA VERIFICAR PERMISSÕES
@@ -193,7 +229,6 @@ class ClienteViewSet(viewsets.ModelViewSet):
             elif tenant:
                 serializer.save(imobiliaria=tenant)
             else:
-                # Fallback para a primeira imobiliária (apenas dev/teste)
                 first_tenant = Imobiliaria.objects.first()
                 if first_tenant:
                     serializer.save(imobiliaria=first_tenant)
@@ -240,7 +275,6 @@ class ClienteViewSet(viewsets.ModelViewSet):
         if not finalidade:
             return Response([], status=status.HTTP_400_BAD_REQUEST)
         
-        # Filtra clientes que são proprietários E possuem imóveis com a finalidade desejada (venda/aluguel)
         queryset = base_queryset.filter(
             perfil_cliente__contains=['PROPRIETARIO'],
             imoveis_propriedade__status=finalidade 
@@ -282,7 +316,6 @@ class VisitaViewSet(viewsets.ModelViewSet):
         tenant = getattr(self.request, 'tenant', None) or getattr(self.request.user, 'imobiliaria', None)
         imobiliaria = tenant
 
-        # Tenta deduzir imobiliária pelo imóvel se for superuser e sem tenant fixo
         if not imobiliaria and self.request.user.is_superuser:
             imoveis_data = self.request.data.get('imoveis')
             if imoveis_data and isinstance(imoveis_data, list) and len(imoveis_data) > 0:
@@ -310,7 +343,7 @@ class VisitaViewSet(viewsets.ModelViewSet):
         
         if (instance.assinatura_cliente or instance.assinatura_corretor):
              dados = self.request.data
-             eh_processo_assinatura = 'assinatura_cliente' in dados or 'assinatura_corretor' in dados
+             eh_processo_assinatura = 'assinatura_cliente' in dados or 'assinatura_corretor' in dados or 'realizada' in dados or 'localizacao_assinatura' in dados
              
              if not eh_processo_assinatura:
                  raise PermissionDenied("Não é possível editar os dados de uma visita que já possui assinaturas.")
@@ -366,7 +399,6 @@ class AtividadeViewSet(viewsets.ModelViewSet):
 
 
 class OportunidadeViewSet(viewsets.ModelViewSet):
-    # Carregar 'fase' no select_related é importante se fase for ForeignKey
     queryset = Oportunidade.objects.all().select_related('cliente', 'imovel', 'responsavel', 'fase')
     serializer_class = OportunidadeSerializer
     permission_classes = [permissions.IsAuthenticated]
@@ -399,7 +431,6 @@ class OportunidadeViewSet(viewsets.ModelViewSet):
             except ValueError:
                 pass 
 
-        # Ordenação por ordem da etapa (se FK) e data
         return queryset.order_by('fase__ordem', 'data_criacao')
 
     def perform_create(self, serializer):
@@ -419,18 +450,14 @@ class OportunidadeViewSet(viewsets.ModelViewSet):
     
     def perform_update(self, serializer):
         oportunidade = self.get_object()
-        
-        # Captura estado anterior
         fase_anterior = oportunidade.fase.titulo if oportunidade.fase else 'Indefinida'
         responsavel_anterior = oportunidade.responsavel
         
         instance = serializer.save()
 
-        # 1. Notificação de transferência de responsável
         responsavel_novo = instance.responsavel
         if responsavel_novo and responsavel_novo != responsavel_anterior:
             responsavel_anterior_nome = responsavel_anterior.first_name if responsavel_anterior else 'Ninguém'
-            
             descricao = f"Oportunidade transferida de '{responsavel_anterior_nome}' para '{responsavel_novo.first_name}'."
             
             Atividade.objects.create(
@@ -446,9 +473,7 @@ class OportunidadeViewSet(viewsets.ModelViewSet):
                 link=f"/oportunidades/editar/{instance.id}"
             )
         
-        # 2. Log de mudança de fase
         fase_nova_titulo = instance.fase.titulo if instance.fase else 'Indefinida'
-        
         if fase_nova_titulo != fase_anterior:
             descricao = f"Oportunidade '{instance.titulo}' movida da fase '{fase_anterior}' para '{fase_nova_titulo}'."
             Atividade.objects.create(
@@ -529,7 +554,6 @@ class TarefaViewSet(viewsets.ModelViewSet):
         else:
             return Tarefa.objects.none()
         
-        # Filtros Adicionais
         oportunidade_id = self.request.query_params.get('oportunidade')
         if oportunidade_id:
             queryset = queryset.filter(oportunidade_id=oportunidade_id)
@@ -549,7 +573,6 @@ class TarefaViewSet(viewsets.ModelViewSet):
     def kanban(self, request):
         queryset = self.filter_queryset(self.get_queryset())
         
-        # Otimização: Filtrar concluídas antigas apenas se não houver filtro de data explícito
         if not request.query_params.get('start'):
             trinta_dias_atras = timezone.now() - timedelta(days=30)
             queryset = queryset.filter(
@@ -592,18 +615,16 @@ class TarefaViewSet(viewsets.ModelViewSet):
             'imobiliaria': tenant
         }
 
-        # Se nenhum responsável foi indicado, assume o usuário logado
         if not serializer.validated_data.get('responsavel'):
             save_kwargs['responsavel'] = self.request.user
 
         tarefa = serializer.save(**save_kwargs)
         
-        # Tenta agendar no Google Calendar se configurado
         if tarefa.responsavel and getattr(tarefa.responsavel, 'google_calendar_token', None):
             try:
                 agendar_tarefa_no_calendario(tarefa)
             except Exception:
-                pass # Falha silenciosa ou logar em produção
+                pass
     
     def perform_update(self, serializer):
         instance = self.get_object()
@@ -676,7 +697,6 @@ class RelatoriosView(viewsets.ViewSet):
         return Response(data)
 
     def _get_oportunidades_funil(self, tenant):
-        # Agrupa por título da fase dinâmica
         funil = Oportunidade.objects.filter(imobiliaria=tenant)\
             .values('fase__titulo')\
             .annotate(total=Count('fase'))\
@@ -694,7 +714,6 @@ class RelatoriosView(viewsets.ViewSet):
          return {"message": "Relatório de imobiliária."}
          
     def _get_valor_estimado_aberto(self, tenant):
-        # Considera aberto se probabilidade > 0 e < 100
         soma = Oportunidade.objects.filter(
             imobiliaria=tenant
         ).exclude(
@@ -722,6 +741,14 @@ class GerarRelatorioVisitaPDFView(APIView):
         else:
             return HttpResponse("Visita não encontrada ou acesso negado.", status=404)
 
+        # Prepara imagens em Base64 para evitar problemas de path/url
+        logo_b64 = None
+        if visita.imobiliaria and hasattr(visita.imobiliaria, 'foto_perfil'):
+            logo_b64 = image_to_base64(visita.imobiliaria.foto_perfil)
+
+        assinatura_corretor_b64 = image_to_base64(visita.assinatura_corretor)
+        assinatura_cliente_b64 = image_to_base64(visita.assinatura_cliente)
+
         context = {
             'visita': visita,
             'cliente': visita.cliente,
@@ -729,7 +756,11 @@ class GerarRelatorioVisitaPDFView(APIView):
             'imoveis': visita.imoveis.all(),
             'data_impressao': timezone.now(),
             'corretor': visita.corretor if visita.corretor else request.user,
-            'logo_url': None
+            
+            # Passando as imagens já convertidas
+            'logo_b64': logo_b64,
+            'assinatura_corretor_b64': assinatura_corretor_b64,
+            'assinatura_cliente_b64': assinatura_cliente_b64,
         }
 
         html_string = render_to_string('relatorio_visita_template.html', context)

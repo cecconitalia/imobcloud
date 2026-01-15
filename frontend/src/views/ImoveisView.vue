@@ -53,7 +53,7 @@
       <div class="kpi-card purple" :class="{ active: filters.status === '' }" @click="setFilter('status', '')">
         <div class="kpi-content">
           <span class="kpi-value">{{ imoveis.length }}</span>
-          <span class="kpi-label">Total na Carteira</span>
+          <span class="kpi-label">Total Carteira</span>
         </div>
         <div class="kpi-icon"><i class="fas fa-warehouse"></i></div>
       </div>
@@ -77,9 +77,7 @@
           <label>Cidade</label>
           <select v-model="filters.cidade" class="form-control">
             <option value="">Todas</option>
-            <option v-for="cidade in cidadesOptions" :key="cidade" :value="cidade">
-              {{ cidade }}
-            </option>
+            <option v-for="cidade in cidadesOptions" :key="cidade" :value="cidade">{{ cidade }}</option>
           </select>
         </div>
 
@@ -87,9 +85,7 @@
           <label>Bairro</label>
           <select v-model="filters.bairro" class="form-control">
             <option value="">Todos</option>
-            <option v-for="bairro in bairrosOptions" :key="bairro" :value="bairro">
-              {{ bairro }}
-            </option>
+            <option v-for="bairro in bairrosOptions" :key="bairro" :value="bairro">{{ bairro }}</option>
           </select>
         </div>
 
@@ -100,14 +96,13 @@
             <option value="CASA">Casa</option>
             <option value="APARTAMENTO">Apartamento</option>
             <option value="TERRENO">Terreno</option>
-            <option value="SALA_COMERCIAL">Sala Comercial</option>
+            <option value="SALA_COMERCIAL">Sala</option>
             <option value="GALPAO">Galpão</option>
             <option value="RURAL">Rural</option>
-            <option value="OUTRO">Outro</option>
           </select>
         </div>
 
-        <div class="filter-group" style="min-width: 100px;">
+        <div class="filter-group" style="min-width: 80px;">
           <label>Quartos</label>
           <select v-model="filters.quartos" class="form-control">
             <option value="">Qtd</option>
@@ -118,132 +113,116 @@
           </select>
         </div>
 
-        <div class="filter-group">
-          <label>Status</label>
-          <select v-model="filters.status" class="form-control">
-            <option value="">Todos</option>
-            <option value="A_VENDA">À Venda</option>
-            <option value="PARA_ALUGAR">Para Alugar</option>
-            <option value="VENDIDO">Vendido</option>
-            <option value="ALUGADO">Alugado</option>
-            <option value="EM_CONSTRUCAO">Em Construção</option>
-            <option value="DESATIVADO">Desativado</option>
-          </select>
+        <div class="filter-group small-btn">
+            <label>&nbsp;</label>
+            <button @click="clearFilters" class="btn-clear" title="Limpar Filtros">
+                <i class="fas fa-eraser"></i>
+            </button>
         </div>
     </div>
 
-    <div v-if="isLoading" class="loading-state">
-      <div class="spinner"></div>
-      <p>Carregando imóveis...</p>
-    </div>
-    
-    <div v-else-if="filteredImoveis.length === 0" class="empty-state">
-      <i class="fas fa-folder-open empty-icon"></i>
-      <p>Nenhum imóvel encontrado para os filtros e pesquisa aplicados.</p>
-    </div>
-    
-    <div v-else class="imoveis-grid">
-      <div v-for="imovel in filteredImoveis" :key="imovel.id" class="imovel-card">
-        
-        <div class="card-top-bar" @click="editImovel(imovel.id)">
-           <div class="badges-left">
-               <span class="imovel-id">#{{ imovel.codigo_referencia }}</span>
-               <span :class="['tipo-badge', imovel.finalidade === 'VENDA' ? 'tipo-venda' : 'tipo-aluguel']">
-                  {{ imovel.finalidade }} ({{ imovel.tipo }})
-               </span>
-           </div>
-           <div class="badges-right">
-               <span :class="['status-pill', getStatusClass(imovel.status)]">
-                  <i :class="getStatusIcon(imovel.status)"></i>
-                  {{ formatStatus(imovel.status) }}
-               </span>
-           </div>
-        </div>
-        
-        <div class="card-body">
-          <div class="imovel-section" @click="editImovel(imovel.id)">
-             <div class="card-image-container">
-                 <img 
-                    :src="getPrincipalImage(imovel.imagens)" 
-                    alt="Imagem do Imóvel" 
-                    class="imovel-image"
-                 />
-             </div>
-             
-             <div class="imovel-info-text">
-                <h4 class="imovel-title" :title="imovel.titulo_anuncio">
-                    {{ imovel.titulo_anuncio || 'Imóvel sem título' }}
-                </h4>
-                <p class="imovel-address">
-                    <i class="fas fa-map-marker-alt text-muted"></i> 
-                    {{ imovel.bairro }}, {{ imovel.cidade }}
-                </p>
-                <p class="imovel-specs">
-                    <span><i class="fas fa-ruler-combined"></i> {{ imovel.area_total }} m²</span>
-                    <span v-if="imovel.quartos"><i class="fas fa-bed"></i> {{ imovel.quartos }} Qts</span>
-                    <span v-if="imovel.suites"><i class="fas fa-bath"></i> {{ imovel.suites }} Suítes</span>
-                </p>
-             </div>
-          </div>
+    <main class="report-main-wrapper">
+      
+      <div v-if="isLoading" class="loading-state">
+        <div class="spinner"></div>
+        <p>Carregando imóveis...</p>
+      </div>
+      
+      <div v-else-if="filteredImoveis.length === 0" class="empty-state">
+        <i class="fas fa-filter"></i>
+        <p>Nenhum imóvel encontrado com os filtros selecionados.</p>
+      </div>
 
-          <div class="datas-grid">
-             <div class="data-col">
-                <span class="data-label">Captação</span>
-                <div class="data-value text-muted">
-                    <i class="far fa-calendar-alt"></i> {{ formatarData(imovel.data_captacao) }}
-                </div>
-             </div>
-             <div class="data-divider"></div>
-             <div class="data-col">
-                <span class="data-label">Exclusividade</span>
-                <div class="data-value" :class="imovel.possui_exclusividade ? 'text-blue' : 'text-muted'">
-                    <i :class="imovel.possui_exclusividade ? 'fas fa-lock' : 'fas fa-unlock'"></i> 
-                    {{ imovel.possui_exclusividade ? 'Sim' : 'Não' }}
-                </div>
-             </div>
-          </div>
+      <div v-else class="report-scroll-viewport">
+        <table class="report-table">
+          <thead>
+            <tr>
+              <th width="8%">Ref.</th>
+              <th width="25%">Imóvel</th>
+              <th width="20%">Localização</th>
+              <th width="15%">Detalhes</th>
+              <th width="12%">Valor</th>
+              <th width="10%">Status</th>
+              <th width="10%" class="text-right">Ações</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="imovel in filteredImoveis" :key="imovel.id" class="clickable-row" @click="editImovel(imovel.id)">
+              
+              <td>
+                <span class="ref-badge">#{{ imovel.codigo_referencia || imovel.id }}</span>
+              </td>
 
-          <div class="pessoas-container">
-              <div class="pessoa-row">
-                 <div class="pessoa-avatar avatar-proprietario">
-                    <i class="fas fa-user-shield"></i>
+              <td>
+                 <div class="cell-imovel-main">
+                    <div class="imovel-thumb">
+                        <img :src="getPrincipalImage(imovel.imagens)" alt="Imóvel" loading="lazy">
+                    </div>
+                    <div class="imovel-texts">
+                        <span class="imovel-title" :title="imovel.titulo_anuncio">{{ imovel.titulo_anuncio || 'Sem título' }}</span>
+                        <span class="imovel-type">{{ imovel.tipo }} • {{ imovel.finalidade }}</span>
+                    </div>
                  </div>
-                 <div class="pessoa-info">
-                    <span class="pessoa-role role-proprietario">Proprietário</span>
-                    <span class="pessoa-name" :title="imovel.proprietario_detalhes?.nome_display">
-                        {{ imovel.proprietario_detalhes?.nome_display || '—' }}
+              </td>
+
+              <td>
+                 <div class="cell-local">
+                    <span class="local-bairro">{{ imovel.bairro || 'Bairro N/D' }}</span>
+                    <span class="local-cidade">{{ imovel.cidade }}</span>
+                    <span class="local-end text-muted" :title="imovel.logradouro">{{ imovel.logradouro }}</span>
+                 </div>
+              </td>
+
+              <td>
+                 <div class="cell-specs">
+                    <span v-if="imovel.area_total" title="Área Total"><i class="fas fa-ruler-combined"></i> {{ imovel.area_total }}m²</span>
+                    <span v-if="imovel.quartos" title="Quartos"><i class="fas fa-bed"></i> {{ imovel.quartos }}</span>
+                    <span v-if="imovel.suites" title="Suítes"><i class="fas fa-bath"></i> {{ imovel.suites }}</span>
+                    <span v-if="imovel.vagas" title="Vagas"><i class="fas fa-car"></i> {{ imovel.vagas }}</span>
+                 </div>
+              </td>
+
+              <td>
+                 <div class="cell-valor">
+                    <span class="valor-main">
+                        {{ imovel.finalidade === 'VENDA' ? formatCurrency(imovel.valor_venda) : formatCurrency(imovel.valor_aluguel) }}
+                    </span>
+                    <span class="valor-sub" v-if="imovel.condominio && imovel.condominio > 0">
+                        Cond: {{ formatCurrency(imovel.condominio) }}
                     </span>
                  </div>
-              </div>
-          </div>
-        </div>
-        
-        <div class="valor-footer">
-           <span class="valor-label">{{ imovel.status === 'A_VENDA' ? 'Valor Venda' : 'Valor Aluguel' }}</span>
-           <span class="valor-amount">{{ imovel.valor_venda ? formatCurrency(imovel.valor_venda) : formatCurrency(imovel.valor_aluguel) }}</span>
-        </div>
+              </td>
 
-        <div class="card-actions">
-          <div class="actions-left">
-            <button @click="editImovel(imovel.id)" class="btn-pill btn-edit-detail">
-                <i class="fas fa-pen"></i> Editar
-            </button>
-            <button @click="router.push({ name: 'imovel-imagens', params: { id: imovel.id } })" class="btn-pill btn-images">
-                <i class="fas fa-camera"></i> Fotos
-            </button>
-          </div>
+              <td>
+                 <span :class="['badge-status', getStatusClass(imovel.status)]">
+                    {{ formatStatus(imovel.status) }}
+                 </span>
+                 <div v-if="imovel.possui_exclusividade" class="exclusividade-tag">
+                    <i class="fas fa-lock"></i> Exclusivo
+                 </div>
+              </td>
 
-          <div class="actions-right">
-              <button @click="handleVisualizarAutorizacao(imovel.id)" class="btn-mini btn-info" title="Autorização PDF">
-                <i class="fas fa-file-pdf"></i>
-              </button>
-              <button @click="confirmInativar(imovel.id)" class="btn-mini btn-delete-mini" title="Inativar/Excluir">
-                <i class="fas fa-trash"></i>
-              </button>
-          </div>
-        </div>
+              <td class="text-right" @click.stop>
+                <div class="actions-flex">
+                    <button class="btn-action edit" @click="editImovel(imovel.id)" title="Editar">
+                        <i class="fas fa-pen"></i>
+                    </button>
+                    <button class="btn-action photos" @click="router.push({ name: 'imovel-imagens', params: { id: imovel.id } })" title="Fotos">
+                        <i class="fas fa-camera"></i>
+                    </button>
+                    <button class="btn-action pdf" @click="handleVisualizarAutorizacao(imovel.id)" title="Autorização (PDF)">
+                        <i class="fas fa-file-pdf"></i>
+                    </button>
+                    <button class="btn-action delete" @click="confirmInativar(imovel.id)" title="Inativar/Excluir">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </div>
+              </td>
+            </tr>
+          </tbody>
+        </table>
       </div>
-    </div>
+    </main>
 
   </div>
 </template>
@@ -253,8 +232,6 @@ import { ref, onMounted, computed, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import apiClient from '@/services/api';
 import { formatCurrency } from '@/utils/formatters';
-import { format, parseISO } from 'date-fns';
-import { ptBR } from 'date-fns/locale';
 
 const router = useRouter();
 const imoveis = ref<any[]>([]);
@@ -270,7 +247,7 @@ const filters = ref({
 });
 
 const sumarioImoveis = ref<any>(null); 
-const defaultImage = 'https://via.placeholder.com/400x300.png?text=Sem+imagem';
+const defaultImage = 'https://via.placeholder.com/150x150.png?text=Sem+Foto';
 
 // --- ACTIONS ---
 async function fetchImoveis() {
@@ -323,6 +300,11 @@ function calculateSummary(list: any[]) {
 function setFilter(key: keyof typeof filters.value, value: string) {
     if (filters.value[key] === value) filters.value[key] = '';
     else filters.value[key] = value;
+}
+
+function clearFilters() {
+    searchQuery.value = '';
+    filters.value = { tipo: '', finalidade: '', status: '', cidade: '', bairro: '', quartos: '' };
 }
 
 const cidadesOptions = computed(() => {
@@ -381,18 +363,6 @@ function getStatusClass(status: string) {
     }
 }
 
-function getStatusIcon(status: string) {
-  switch (status) {
-    case 'A_VENDA': return 'fas fa-tag';
-    case 'PARA_ALUGAR': return 'fas fa-building';
-    case 'VENDIDO': return 'fas fa-flag-checkered';
-    case 'ALUGADO': return 'fas fa-key';
-    case 'EM_CONSTRUCAO': return 'fas fa-hard-hat';
-    case 'DESATIVADO': return 'fas fa-ban';
-    default: return 'fas fa-info-circle';
-  }
-}
-
 const formatStatus = (status: string) => {
   switch (status) {
     case 'A_VENDA': return 'À Venda';
@@ -404,11 +374,6 @@ const formatStatus = (status: string) => {
     default: return status;
   }
 };
-
-function formatarData(data: string | null | undefined): string {
-  if (!data) return '-';
-  try { return format(parseISO(data), 'dd/MM/yy', { locale: ptBR }); } catch { return '-'; }
-}
 
 function goToCreateImovel() { router.push({ name: 'imovel-novo' }); }
 function editImovel(id: number) { router.push({ name: 'imovel-editar', params: { id } }); }
@@ -428,7 +393,7 @@ onMounted(() => { fetchImoveis(); });
   padding: 1.5rem 2.5rem;
 }
 
-/* HEADER DA PÁGINA (PADRONIZADO) */
+/* HEADER DA PÁGINA */
 .page-header { margin-bottom: 2rem; }
 .title-area { display: flex; flex-direction: column; gap: 6px; }
 .title-area h1 { font-size: 1.5rem; font-weight: 300; color: #1f2937; margin: 0; letter-spacing: -0.02em; }
@@ -438,7 +403,7 @@ onMounted(() => { fetchImoveis(); });
 .header-main { display: flex; justify-content: space-between; align-items: flex-end; }
 .actions-area { display: flex; gap: 0.75rem; }
 
-/* Botões Estilo Fino (PADRONIZADO) */
+/* Botões Estilo Fino */
 .btn-primary-thin {
   background: #2563eb; color: white; border: none; padding: 0.5rem 1.2rem;
   border-radius: 6px; font-weight: 400; font-size: 0.85rem; cursor: pointer; text-decoration: none;
@@ -454,21 +419,19 @@ onMounted(() => { fetchImoveis(); });
 }
 .btn-icon-thin:hover { border-color: #cbd5e1; color: #2563eb; background: #f8fafc; }
 
-/* KPI GRID (PADRONIZADO) */
+/* KPI GRID */
 .kpi-grid { 
     display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); 
     gap: 1.25rem; margin-bottom: 2rem; 
 }
-
 .kpi-card {
   background: white; border-radius: 8px; padding: 1.25rem 1.5rem; border: 1px solid #f0f0f0;
   display: flex; justify-content: space-between; align-items: center;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.02); transition: all 0.2s; position: relative; overflow: hidden;
-  cursor: pointer;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.02); cursor: pointer; transition: all 0.2s;
+  position: relative; overflow: hidden;
 }
 .kpi-card:hover { transform: translateY(-2px); box-shadow: 0 6px 12px rgba(0,0,0,0.04); }
 .kpi-card.active { border: 1px solid; }
-
 .kpi-content { display: flex; flex-direction: column; }
 .kpi-value { font-size: 1.6rem; font-weight: 300; line-height: 1.1; color: #111; }
 .kpi-label { font-size: 0.7rem; font-weight: 600; text-transform: uppercase; color: #9ca3af; margin-top: 4px; letter-spacing: 0.05em; }
@@ -476,31 +439,26 @@ onMounted(() => { fetchImoveis(); });
 
 .kpi-card.blue.active { background-color: #f8fbff; border-color: #3b82f6; }
 .kpi-card.blue .kpi-value, .kpi-card.blue .kpi-icon { color: #2563eb; }
-
 .kpi-card.green.active { background-color: #f3fdf8; border-color: #10b981; }
 .kpi-card.green .kpi-value, .kpi-card.green .kpi-icon { color: #059669; }
-
 .kpi-card.orange.active { background-color: #fffdf5; border-color: #f59e0b; }
 .kpi-card.orange .kpi-value, .kpi-card.orange .kpi-icon { color: #d97706; }
-
 .kpi-card.purple.active { background-color: #faf5ff; border-color: #9333ea; }
 .kpi-card.purple .kpi-value, .kpi-card.purple .kpi-icon { color: #9333ea; }
 
-/* TOOLBAR (PADRONIZADO) */
+/* TOOLBAR */
 .toolbar-row {
   background-color: #ffffff; border-radius: 8px; border: 1px solid #e5e7eb;
   padding: 1rem; box-shadow: 0 1px 2px rgba(0,0,0,0.02);
   display: flex; flex-wrap: wrap; gap: 1rem; align-items: flex-end;
   margin-bottom: 1.5rem;
 }
-
 .filter-group { flex: 1; display: flex; flex-direction: column; gap: 0.3rem; min-width: 140px; }
-.search-group { flex: 2; min-width: 220px; }
+.search-group { flex: 2; min-width: 200px; }
+.small-btn { flex: 0 0 auto; min-width: auto; }
 .filter-group label { font-size: 0.65rem; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 0.04em; }
-
 .input-with-icon { position: relative; width: 100%; }
 .input-with-icon i { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: #94a3b8; font-size: 0.9rem; }
-
 .form-control {
   width: 100%; padding: 0.5rem 0.8rem; font-size: 0.85rem;
   border: 1px solid #cbd5e1; border-radius: 6px; background-color: #fff; color: #334155;
@@ -508,129 +466,94 @@ onMounted(() => { fetchImoveis(); });
 }
 .input-with-icon .form-control { padding-left: 2.2rem; }
 .form-control:focus { border-color: #3b82f6; box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.1); }
+.btn-clear {
+    width: 38px; height: 38px; border: 1px solid #cbd5e1; background: #f8fafc;
+    border-radius: 6px; color: #64748b; cursor: pointer;
+    display: flex; align-items: center; justify-content: center; transition: all 0.2s;
+}
+.btn-clear:hover { background: #fee2e2; color: #ef4444; border-color: #fca5a5; }
 
-/* GRID DE IMÓVEIS */
-.imoveis-grid {
-  display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
-  gap: 1.5rem; padding-bottom: 2rem;
+/* TABELA */
+.report-main-wrapper {
+  background: white; border-radius: 8px; border: 1px solid #e5e7eb;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.02);
+  display: flex; flex-direction: column; overflow: hidden;
+}
+.report-scroll-viewport { width: 100%; overflow-x: auto; }
+.report-table { width: 100%; border-collapse: collapse; min-width: 900px; }
+.report-table th {
+  background: #f8fafc; padding: 0.8rem 1.2rem; text-align: left;
+  font-size: 0.65rem; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 0.06em;
+  border-bottom: 1px solid #e2e8f0;
+}
+.report-table td {
+  padding: 0.8rem 1.2rem; border-bottom: 1px solid #f1f5f9;
+  font-size: 0.85rem; color: #334155; vertical-align: middle;
+}
+.clickable-row { cursor: pointer; transition: background 0.1s; }
+.clickable-row:hover { background-color: #fcfcfc; }
+
+/* Células Customizadas */
+.ref-badge { 
+    background: #f1f5f9; color: #475569; padding: 3px 6px; 
+    border-radius: 4px; font-weight: 700; font-size: 0.7rem; 
 }
 
-.imovel-card {
-  background-color: #fff; border-radius: 8px; border: 1px solid #e5e7eb;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.02); display: flex; flex-direction: column;
-  transition: all 0.2s ease; position: relative; overflow: hidden;
+.cell-imovel-main { display: flex; align-items: center; gap: 12px; }
+.imovel-thumb { 
+    width: 40px; height: 40px; border-radius: 4px; overflow: hidden; flex-shrink: 0; border: 1px solid #e2e8f0; 
 }
-.imovel-card:hover { transform: translateY(-2px); box-shadow: 0 8px 16px rgba(0,0,0,0.06); border-color: #cbd5e1; }
+.imovel-thumb img { width: 100%; height: 100%; object-fit: cover; }
+.imovel-texts { display: flex; flex-direction: column; gap: 2px; }
+.imovel-title { font-weight: 600; color: #1e293b; font-size: 0.85rem; line-height: 1.2; }
+.imovel-type { font-size: 0.7rem; color: #64748b; text-transform: uppercase; }
 
-/* Card Top Bar */
-.card-top-bar {
-    padding: 0.8rem 1rem; display: flex; justify-content: space-between; align-items: center;
-    border-bottom: 1px solid #f1f5f9; background: #fff; cursor: pointer;
-}
-.badges-left, .badges-right { display: flex; align-items: center; gap: 8px; }
+.cell-local { display: flex; flex-direction: column; gap: 1px; }
+.local-bairro { font-weight: 600; color: #334155; }
+.local-cidade { font-size: 0.75rem; color: #64748b; }
+.local-end { font-size: 0.7rem; }
 
-.imovel-id {
-    font-size: 0.7rem; font-weight: 700; color: #64748b;
-    background: #f1f5f9; padding: 2px 6px; border-radius: 4px;
-}
-.tipo-badge {
-    font-size: 0.65rem; font-weight: 700; text-transform: uppercase;
-    padding: 2px 6px; border-radius: 4px; color: #475569; background-color: #f8fafc; border: 1px solid #e2e8f0;
-}
-.status-pill {
-    padding: 2px 8px; border-radius: 4px; font-size: 0.65rem; font-weight: 700;
-    text-transform: uppercase; display: flex; align-items: center; gap: 4px;
-}
-.status-ativo { background-color: #dcfce7; color: #166534; }
-.status-concluido { background-color: #e0f2fe; color: #1e40af; }
-.status-pendente { background-color: #fef9c3; color: #854d0e; }
-.status-inativo { background-color: #f1f5f9; color: #64748b; }
+.cell-specs { display: flex; gap: 8px; color: #64748b; font-size: 0.75rem; font-weight: 500; }
+.cell-specs i { color: #94a3b8; }
 
-/* Card Body */
-.card-body { padding: 0; flex-grow: 1; display: flex; flex-direction: column; }
+.cell-valor { display: flex; flex-direction: column; align-items: flex-start; }
+.valor-main { font-weight: 700; color: #2563eb; }
+.valor-sub { font-size: 0.7rem; color: #94a3b8; }
 
-.imovel-section { display: flex; padding: 1rem; cursor: pointer; gap: 1rem; }
-.imovel-info-text { flex-grow: 1; min-width: 0; display: flex; flex-direction: column; gap: 0.3rem; }
+.badge-status {
+  font-size: 0.65rem; font-weight: 600; padding: 2px 8px; border-radius: 4px; 
+  text-transform: uppercase; letter-spacing: 0.02em; display: inline-block;
+}
+.status-ativo { background: #dcfce7; color: #15803d; }
+.status-concluido { background: #e0f2fe; color: #1d4ed8; }
+.status-pendente { background: #fef9c3; color: #854d0e; }
+.status-inativo { background: #f3f4f6; color: #6b7280; }
 
-.card-image-container { 
-    width: 90px; height: 90px; border-radius: 6px; overflow: hidden; 
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1); flex-shrink: 0; 
+.exclusividade-tag {
+    font-size: 0.6rem; color: #9333ea; margin-top: 2px; font-weight: 600; 
+    display: flex; align-items: center; gap: 3px;
 }
-.imovel-image { width: 100%; height: 100%; object-fit: cover; }
 
-.imovel-title { 
-    font-size: 0.95rem; font-weight: 700; color: #1e293b; margin: 0; 
-    line-height: 1.3; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+/* Ações */
+.actions-flex { display: flex; gap: 0.5rem; justify-content: flex-end; }
+.btn-action {
+  width: 32px; height: 32px; border: none; border-radius: 6px; cursor: pointer;
+  display: flex; align-items: center; justify-content: center; transition: all 0.2s;
+  background: transparent; color: #94a3b8; border: 1px solid transparent;
 }
-.imovel-address { 
-    font-size: 0.8rem; color: #64748b; margin: 0; 
-    display: flex; align-items: center; gap: 6px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; 
-}
-.imovel-specs {
-    font-size: 0.75rem; color: #334155; font-weight: 500; display: flex; gap: 10px; align-items: center; margin-top: auto;
-}
-.imovel-specs i { color: #94a3b8; }
+.btn-action:hover { background-color: #f1f5f9; color: #334155; border-color: #e2e8f0; }
 
-.datas-grid { 
-    display: flex; align-items: center; justify-content: space-between; 
-    padding: 0.5rem 1rem; background-color: #f8fafc; 
-    border-top: 1px solid #f1f5f9; border-bottom: 1px solid #f1f5f9; 
-}
-.data-col { display: flex; flex-direction: column; gap: 1px; }
-.data-label { font-size: 0.65rem; color: #94a3b8; font-weight: 700; text-transform: uppercase; }
-.data-value { font-size: 0.75rem; font-weight: 600; color: #475569; display: flex; align-items: center; gap: 5px; }
-.data-divider { width: 1px; height: 20px; background-color: #e2e8f0; }
-.text-blue { color: #2563eb; }
+.btn-action.edit:hover { background-color: #eff6ff; color: #2563eb; }
+.btn-action.photos:hover { background-color: #f0fdf4; color: #16a34a; }
+.btn-action.pdf:hover { background-color: #fff1f2; color: #e11d48; }
+.btn-action.delete:hover { background-color: #fef2f2; color: #ef4444; }
 
-.pessoas-container { padding: 0.8rem 1rem; }
-.pessoa-row { display: flex; align-items: center; gap: 0.75rem; }
-.pessoa-avatar { 
-    width: 30px; height: 30px; border-radius: 6px; display: flex; 
-    align-items: center; justify-content: center; font-size: 0.8rem; flex-shrink: 0; 
-}
-.avatar-proprietario { background-color: #f3e8ff; color: #9333ea; }
-.role-proprietario { color: #9333ea; font-size: 0.65rem; font-weight: 700; text-transform: uppercase; margin-bottom: 1px; }
-.pessoa-info { display: flex; flex-direction: column; overflow: hidden; }
-.pessoa-name { font-size: 0.85rem; color: #334155; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-
-/* Footer & Actions */
-.valor-footer { 
-    margin-top: auto; padding: 0.6rem 1rem; display: flex; justify-content: space-between; align-items: center; 
-    background-color: #1e293b; color: #fff; 
-}
-.valor-label { font-size: 0.7rem; color: #94a3b8; font-weight: 600; text-transform: uppercase; }
-.valor-amount { font-size: 1rem; font-weight: 700; color: #fff; }
-
-.card-actions { 
-    padding: 0.75rem 1rem; background-color: #fff; 
-    display: flex; justify-content: space-between; align-items: center; gap: 1rem; 
-}
-.actions-left { display: flex; gap: 0.5rem; }
-.actions-right { display: flex; gap: 0.25rem; }
-
-.btn-pill { 
-    border: none; border-radius: 4px; padding: 0.35rem 0.75rem; font-size: 0.75rem; font-weight: 600; 
-    cursor: pointer; display: inline-flex; align-items: center; gap: 6px; transition: all 0.2s; 
-}
-.btn-edit-detail { background-color: #eff6ff; color: #1e40af; }
-.btn-edit-detail:hover { background-color: #dbeafe; }
-.btn-images { background-color: #f0fdf4; color: #15803d; }
-.btn-images:hover { background-color: #dcfce7; }
-
-.btn-mini { 
-    width: 28px; height: 28px; border-radius: 4px; border: 1px solid transparent; background: transparent; 
-    color: #94a3b8; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: all 0.2s; font-size: 0.8rem;
-}
-.btn-mini:hover { background-color: #f1f5f9; color: #334155; }
-.btn-delete-mini:hover { background-color: #fef2f2; color: #ef4444; }
-.btn-info:hover { background-color: #eff6ff; color: #2563eb; }
-
-.loading-state, .empty-state { text-align: center; padding: 4rem 2rem; color: #64748b; }
-.empty-icon { font-size: 2.5rem; color: #e2e8f0; margin-bottom: 1rem; }
+.text-muted { color: #94a3b8; }
+.loading-state, .error-message, .empty-state { text-align: center; padding: 4rem 2rem; color: #64748b; }
 .spinner { width: 32px; height: 32px; border: 3px solid #e2e8f0; border-top: 3px solid #2563eb; border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto 1rem; }
 @keyframes spin { 100% { transform: rotate(360deg); } }
 
-@media (max-width: 768px) {
+@media (max-width: 1024px) {
   .page-container { padding: 1rem; }
   .header-main { flex-direction: column; align-items: flex-start; gap: 1rem; }
   .actions-area { width: 100%; justify-content: flex-start; }

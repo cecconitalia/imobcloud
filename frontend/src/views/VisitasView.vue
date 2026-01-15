@@ -29,7 +29,7 @@
       <div class="kpi-card blue" :class="{ active: filterStatus === '' }" @click="filterStatus = ''">
         <div class="kpi-content">
           <span class="kpi-value">{{ stats.total }}</span>
-          <span class="kpi-label">Total de Visitas</span>
+          <span class="kpi-label">Total Visitas</span>
         </div>
         <div class="kpi-icon"><i class="fas fa-calendar-check"></i></div>
       </div>
@@ -50,10 +50,10 @@
         <div class="kpi-icon"><i class="fas fa-check-circle"></i></div>
       </div>
       
-      <div class="kpi-card purple">
+      <div class="kpi-card bg-gray">
         <div class="kpi-content">
           <span class="kpi-value">{{ stats.hoje }}</span>
-          <span class="kpi-label">Agendadas para Hoje</span>
+          <span class="kpi-label">Hoje</span>
         </div>
         <div class="kpi-icon"><i class="fas fa-calendar-day"></i></div>
       </div>
@@ -67,7 +67,7 @@
             <input 
               type="text" 
               v-model="searchTerm" 
-              placeholder="Buscar por cliente, imóvel ou bairro..." 
+              placeholder="Cliente, imóvel, bairro..." 
               class="form-control"
             >
           </div>
@@ -81,120 +81,118 @@
             <option value="REALIZADA">Realizada</option>
           </select>
         </div>
-    </div>
 
-    <div v-if="isLoading" class="loading-state">
-      <div class="spinner"></div>
-      <p>Carregando visitas...</p>
-    </div>
-    
-    <div v-else-if="error" class="error-message">{{ error }}</div>
-    
-    <div v-else-if="filteredVisitas.length === 0" class="empty-state">
-      <i class="far fa-calendar-times empty-icon"></i>
-      <p>Nenhuma visita encontrada com os filtros selecionados.</p>
-    </div>
-
-    <div v-else class="visitas-grid">
-      <div 
-        v-for="visita in filteredVisitas" 
-        :key="visita.id" 
-        class="visita-card"
-        :class="{ 'border-realizada': visita.realizada }"
-      >
-        <div class="card-top-bar">
-           <div class="badges-left">
-               <span class="visita-id">#{{ visita.id }}</span>
-               <span class="date-badge">
-                  <i class="far fa-calendar-alt"></i> {{ formatarData(visita.data_visita) }}
-               </span>
-           </div>
-           <div class="badges-right">
-               <span :class="['status-pill', visita.realizada ? 'status-realizada' : 'status-pendente']">
-                  <i :class="visita.realizada ? 'fas fa-check-circle' : 'far fa-clock'"></i>
-                  {{ visita.realizada ? 'Realizada' : 'Pendente' }}
-               </span>
-           </div>
+        <div class="filter-group small-btn">
+            <label>&nbsp;</label>
+            <button @click="clearFilters" class="btn-clear" title="Limpar Filtros">
+                <i class="fas fa-eraser"></i>
+            </button>
         </div>
-        
-        <div class="card-body" @click="abrirDetalhes(visita)" style="cursor: pointer;">
-          
-          <div class="imovel-section">
-             <h4 class="imovel-title" :title="getTituloImovel(visita)">
-                {{ getTituloImovel(visita) }}
-             </h4>
-             <p class="imovel-address">
-                <i class="fas fa-map-marker-alt text-muted"></i> 
-                {{ getEnderecoImovel(visita) }}
-             </p>
-             <small class="text-muted" v-if="visita.imoveis_obj && visita.imoveis_obj.length > 1">
-                 <i class="fas fa-layer-group"></i> Roteiro com {{ visita.imoveis_obj.length }} imóveis
-             </small>
-             <small class="text-muted" v-else>
-                 {{ visita.imoveis_obj?.[0]?.bairro }} - {{ visita.imoveis_obj?.[0]?.cidade }}
-             </small>
-          </div>
+    </div>
 
-          <div class="time-highlight">
-              <i class="far fa-clock"></i> {{ formatarHora(visita.data_visita) }}
-          </div>
+    <main class="report-main-wrapper">
+      <div v-if="isLoading" class="loading-state">
+        <div class="spinner"></div>
+        <p>Carregando visitas...</p>
+      </div>
+      
+      <div v-else-if="error" class="error-message">{{ error }}</div>
+      
+      <div v-else-if="filteredVisitas.length === 0" class="empty-state">
+        <i class="fas fa-filter"></i>
+        <p>Nenhuma visita encontrada com os filtros selecionados.</p>
+      </div>
 
-          <div class="pessoas-container">
-              <div class="pessoa-row">
-                 <div class="pessoa-avatar avatar-cliente">
-                    <i class="fas fa-user"></i>
+      <div v-else class="report-scroll-viewport">
+        <table class="report-table">
+          <thead>
+            <tr>
+              <th width="15%">Agendamento</th>
+              <th width="30%">Imóvel</th>
+              <th width="20%">Cliente</th>
+              <th width="15%">Status</th>
+              <th width="20%" class="text-right">Ações</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="visita in filteredVisitas" :key="visita.id" @click="abrirDetalhes(visita)" class="clickable-row">
+              <td>
+                <div class="cell-date">
+                    <span class="date-main">{{ formatarData(visita.data_visita) }}</span>
+                    <span class="date-sub">
+                        <i class="far fa-clock"></i> {{ formatarHora(visita.data_visita) }} • #{{ visita.id }}
+                    </span>
+                </div>
+              </td>
+
+              <td>
+                <div class="cell-imovel">
+                    <span class="imovel-title" :title="getTituloImovel(visita)">
+                        {{ getTituloImovel(visita) }}
+                    </span>
+                    <span class="imovel-address">
+                        <i class="fas fa-map-marker-alt"></i> {{ getEnderecoImovel(visita) }}
+                    </span>
+                </div>
+              </td>
+
+              <td>
+                 <div class="cell-cliente">
+                    <i class="far fa-user"></i>
+                    <span>{{ visita.cliente_obj?.nome || 'Não informado' }}</span>
                  </div>
-                 <div class="pessoa-info">
-                    <span class="pessoa-role">Cliente Interessado</span>
-                    <span class="pessoa-name" :title="visita.cliente_obj?.nome">
-                        {{ visita.cliente_obj?.nome || 'Nome não informado' }}
+              </td>
+
+              <td>
+                 <div class="status-cell">
+                    <span :class="['badge-type', visita.realizada ? 'bg-green' : 'bg-orange']">
+                        {{ visita.realizada ? 'Realizada' : 'Pendente' }}
+                    </span>
+                    
+                    <span v-if="visita.assinatura_cliente && visita.assinatura_corretor" class="badge-mini bg-blue-light" title="Assinado Digitalmente">
+                        <i class="fas fa-check-double"></i> Assinado
                     </span>
                  </div>
-              </div>
-          </div>
-        </div>
-        
-        <div class="card-actions">
-          <div class="actions-left">
-            <span v-if="visita.assinatura_cliente && visita.assinatura_corretor" class="signed-badge">
-                <i class="fas fa-check-double"></i> Assinado
-            </span>
+              </td>
 
-            <button 
-                v-else
-                @click="abrirDetalhes(visita)" 
-                class="btn-pill btn-sign"
-                title="Gerir Assinaturas"
-            >
-                <i class="fas fa-file-signature"></i> Assinar
-            </button>
-          </div>
+              <td class="text-right" @click.stop>
+                <div class="actions-flex">
+                    <button 
+                        v-if="!(visita.assinatura_cliente && visita.assinatura_corretor)"
+                        @click="abrirDetalhes(visita)" 
+                        class="btn-action sign"
+                        title="Assinar"
+                    >
+                        <i class="fas fa-file-signature"></i>
+                    </button>
 
-          <div class="actions-right">
-              <button @click="abrirPDFVisita(visita.id)" class="btn-mini btn-pdf" title="Ficha de Visita (PDF)">
-                <i class="fas fa-file-pdf"></i>
-              </button>
+                    <button class="btn-action pdf" @click="abrirPDFVisita(visita.id)" title="Gerar PDF">
+                        <i class="fas fa-file-pdf"></i>
+                    </button>
 
-              <button @click="abrirDetalhes(visita)" class="btn-mini" title="Ver Detalhes Completos">
-                <i class="fas fa-eye"></i>
-              </button>
-              
-              <span v-if="visita.assinatura_cliente || visita.assinatura_corretor" title="Visita assinada não pode ser editada" style="cursor: not-allowed; opacity: 0.5; display: inline-block;">
-                  <button class="btn-mini" disabled style="pointer-events: none;">
-                    <i class="fas fa-pen"></i>
-                  </button>
-              </span>
-              <router-link v-else :to="`/visitas/editar/${visita.id}`" class="btn-mini" title="Editar">
-                <i class="fas fa-pen"></i>
-              </router-link>
-              
-              <button @click="handleDeletar(visita.id)" class="btn-mini btn-delete-mini" title="Cancelar">
-                <i class="fas fa-trash"></i>
-              </button>
-          </div>
-        </div>
+                    <button class="btn-action view" @click="abrirDetalhes(visita)" title="Ver Detalhes">
+                        <i class="fas fa-eye"></i>
+                    </button>
+                    
+                    <div v-if="visita.assinatura_cliente || visita.assinatura_corretor" class="disabled-wrapper">
+                        <button class="btn-action edit disabled" disabled>
+                            <i class="fas fa-pen"></i>
+                        </button>
+                    </div>
+                    <router-link v-else :to="`/visitas/editar/${visita.id}`" class="btn-action edit" title="Editar">
+                        <i class="fas fa-pen"></i>
+                    </router-link>
+                    
+                    <button class="btn-action delete" @click="handleDeletar(visita.id)" title="Cancelar">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </div>
+              </td>
+            </tr>
+          </tbody>
+        </table>
       </div>
-    </div>
+    </main>
 
     <AssinaturaModal
         v-if="showAssinaturaModal"
@@ -241,29 +239,21 @@ const isSavingSignature = ref(false);
 const showDetalhesModal = ref(false);
 const visitaSelecionada = ref<any>(null);
 
-// Variáveis de controle para assinatura
+// Controle assinatura
 const imoveisParaSalvar = ref<number[]>([]);
 const tipoAssinaturaAtual = ref<'CORRETOR' | 'CLIENTE'>('CORRETOR');
 
-// --- Helpers de Exibição ---
-
+// --- Helpers ---
 function getTituloImovel(visita: any) {
-    if (!visita?.imoveis_obj || visita.imoveis_obj.length === 0) {
-        return 'Nenhum imóvel vinculado';
-    }
+    if (!visita?.imoveis_obj || visita.imoveis_obj.length === 0) return 'Nenhum imóvel vinculado';
     const primeiro = visita.imoveis_obj[0];
     const qtd = visita.imoveis_obj.length;
-    
-    if (qtd > 1) {
-        return `${primeiro.titulo_anuncio || 'Imóvel Principal'} (+${qtd - 1} outros)`;
-    }
+    if (qtd > 1) return `${primeiro.titulo_anuncio || 'Imóvel Principal'} (+${qtd - 1} outros)`;
     return primeiro.titulo_anuncio || 'Imóvel sem título';
 }
 
 function getEnderecoImovel(visita: any) {
-    if (!visita?.imoveis_obj || visita.imoveis_obj.length === 0) {
-        return 'Endereço não disponível';
-    }
+    if (!visita?.imoveis_obj || visita.imoveis_obj.length === 0) return 'Endereço não disponível';
     const primeiro = visita.imoveis_obj[0];
     return `${primeiro.logradouro || ''}, ${primeiro.numero || ''}`;
 }
@@ -274,29 +264,22 @@ const tituloModalAssinatura = computed(() => {
     return `Assinatura do ${quem} - ${base}`;
 });
 
-// --- Ação PDF ---
 function abrirPDFVisita(visitaId: number) {
     const url = `${apiClient.defaults.baseURL}/v1/visitas/${visitaId}/pdf/`;
     window.open(url, '_blank');
 }
 
-// --- Computed Stats ---
 const stats = computed(() => {
     const total = visitas.value.length;
     const realizadas = visitas.value.filter(v => v.realizada).length;
     const pendentes = total - realizadas;
-    
     const hojeDate = new Date();
     const hoje = visitas.value.filter(v => {
-        try {
-            return isSameDay(parseISO(v.data_visita), hojeDate);
-        } catch { return false; }
+        try { return isSameDay(parseISO(v.data_visita), hojeDate); } catch { return false; }
     }).length;
-
     return { total, realizadas, pendentes, hoje };
 });
 
-// --- Filtros ---
 const filteredVisitas = computed(() => {
   return visitas.value.filter(visita => {
     const searchLower = searchTerm.value.toLowerCase();
@@ -321,12 +304,10 @@ const filteredVisitas = computed(() => {
 });
 
 function formatarData(data: string) { 
-    try { return format(parseISO(data), 'dd/MM/yyyy', { locale: ptBR }); } 
-    catch { return '-'; }
+    try { return format(parseISO(data), 'dd/MM/yyyy', { locale: ptBR }); } catch { return '-'; }
 }
 function formatarHora(data: string) { 
-    try { return format(parseISO(data), 'HH:mm'); } 
-    catch { return '-'; }
+    try { return format(parseISO(data), 'HH:mm'); } catch { return '-'; }
 }
 
 async function fetchVisitas() {
@@ -336,7 +317,7 @@ async function fetchVisitas() {
     const response = await apiClient.get('/v1/visitas/');
     visitas.value = response.data;
   } catch (err) {
-    console.error("Erro ao buscar visitas:", err);
+    console.error("Erro visitas:", err);
     error.value = 'Não foi possível carregar as visitas.';
   } finally {
     isLoading.value = false;
@@ -344,64 +325,56 @@ async function fetchVisitas() {
 }
 
 async function handleDeletar(visitaId: number) {
-  if (!window.confirm('Tem a certeza de que deseja cancelar este agendamento?')) return;
+  if (!window.confirm('Cancelar este agendamento?')) return;
   try {
     await apiClient.delete(`/v1/visitas/${visitaId}/`);
     visitas.value = visitas.value.filter(v => v.id !== visitaId);
     toast.success('Agendamento cancelado.');
   } catch (error: any) {
-    const msg = error.response?.data?.detail || "Erro ao cancelar agendamento. Tente novamente.";
-    toast.error(msg);
+    toast.error("Erro ao cancelar.");
   }
 }
 
-// --- Controle de Modais ---
+function clearFilters() {
+    searchTerm.value = '';
+    filterStatus.value = '';
+}
+
+// Modais
 function abrirDetalhes(visita: any) {
     visitaSelecionada.value = visita;
     showDetalhesModal.value = true;
 }
-
 function fecharDetalhes() {
     showDetalhesModal.value = false;
     visitaSelecionada.value = null;
 }
-
-// Chamado pelo Modal de Detalhes quando clica em "Assinar"
 function iniciarAssinaturaDeDetalhes(payload: any) {
     const { visitaId, imoveisIds, tipo } = payload;
     const visitaObj = visitas.value.find(v => v.id === visitaId);
-    
     if (visitaObj) {
-        imoveisParaSalvar.value = imoveisIds; // IDs selecionados/filtrados
-        tipoAssinaturaAtual.value = tipo; // 'CORRETOR' ou 'CLIENTE'
-        
+        imoveisParaSalvar.value = imoveisIds;
+        tipoAssinaturaAtual.value = tipo;
         fecharDetalhes();
         abrirModalAssinatura(visitaObj, true);
     }
 }
-
 function abrirModalAssinatura(visita: any, veioDoDetalhe = false) {
     visitaParaAssinar.value = visita;
-    // Se abriu direto (sem passar pelo detalhe), assume todos os imóveis e cliente por padrão
     if (!veioDoDetalhe) {
-        if (visita.imoveis_obj) {
-            imoveisParaSalvar.value = visita.imoveis_obj.map((i: any) => i.id);
-        }
-        tipoAssinaturaAtual.value = 'CLIENTE'; // Padrão antigo
+        if (visita.imoveis_obj) imoveisParaSalvar.value = visita.imoveis_obj.map((i: any) => i.id);
+        tipoAssinaturaAtual.value = 'CLIENTE';
     }
     showAssinaturaModal.value = true;
 }
-
 function fecharModalAssinatura() {
     showAssinaturaModal.value = false;
     visitaParaAssinar.value = null;
     imoveisParaSalvar.value = [];
 }
-
 async function salvarAssinatura(base64Image: string) {
     if (!visitaParaAssinar.value) return;
     isSavingSignature.value = true;
-
     let localizacao = '';
     if (navigator.geolocation) {
         try {
@@ -409,15 +382,11 @@ async function salvarAssinatura(base64Image: string) {
                 navigator.geolocation.getCurrentPosition(resolve, reject, { timeout: 4000 });
             });
             localizacao = `${position.coords.latitude}, ${position.coords.longitude}`;
-        } catch { 
-            localizacao = ''; 
-        }
+        } catch {}
     }
-
     const res = await fetch(base64Image);
     const blob = await res.blob();
     const file = new File([blob], "assinatura.png", { type: "image/png" });
-
     const formData = new FormData();
     
     if (tipoAssinaturaAtual.value === 'CORRETOR') {
@@ -428,42 +397,31 @@ async function salvarAssinatura(base64Image: string) {
         formData.append('data_assinatura', new Date().toISOString());
         formData.append('realizada', 'true');
     }
-
     if(localizacao) formData.append('localizacao_assinatura', localizacao);
-    
-    imoveisParaSalvar.value.forEach(id => {
-        formData.append('imoveis', id.toString());
-    });
+    imoveisParaSalvar.value.forEach(id => formData.append('imoveis', id.toString()));
 
     try {
         const response = await apiClient.patch(`/v1/visitas/${visitaParaAssinar.value.id}/`, formData, {
             headers: { 'Content-Type': 'multipart/form-data' }
         });
-        
         const index = visitas.value.findIndex(v => v.id === visitaParaAssinar.value.id);
-        if (index !== -1) {
-            visitas.value[index] = { ...visitas.value[index], ...response.data };
-        }
+        if (index !== -1) visitas.value[index] = { ...visitas.value[index], ...response.data };
         
-        toast.success(`${tipoAssinaturaAtual.value === 'CORRETOR' ? 'Corretor' : 'Cliente'} assinou com sucesso!`);
+        toast.success("Assinatura salva com sucesso!");
         fecharModalAssinatura();
         abrirDetalhes(visitas.value[index]);
-
     } catch (error) {
-        console.error(error);
         toast.error("Erro ao salvar assinatura.");
     } finally {
         isSavingSignature.value = false;
     }
 }
 
-onMounted(() => {
-  fetchVisitas();
-});
+onMounted(fetchVisitas);
 </script>
 
 <style scoped>
-/* CONFIGURAÇÃO GERAL (PADRONIZADO) */
+/* CONFIGURAÇÃO GERAL (IDÊNTICO A CLIENTES) */
 .page-container {
   min-height: 100vh;
   background-color: #fcfcfc;
@@ -471,7 +429,7 @@ onMounted(() => {
   padding: 1.5rem 2.5rem;
 }
 
-/* HEADER DA PÁGINA (PADRONIZADO) */
+/* HEADER DA PÁGINA */
 .page-header { margin-bottom: 2rem; }
 .title-area { display: flex; flex-direction: column; gap: 6px; }
 .title-area h1 { font-size: 1.5rem; font-weight: 300; color: #1f2937; margin: 0; letter-spacing: -0.02em; }
@@ -481,7 +439,7 @@ onMounted(() => {
 .header-main { display: flex; justify-content: space-between; align-items: flex-end; }
 .actions-area { display: flex; gap: 0.75rem; }
 
-/* Botões Estilo Fino (PADRONIZADO) */
+/* Botões Estilo Fino */
 .btn-primary-thin {
   background: #2563eb; color: white; border: none; padding: 0.5rem 1.2rem;
   border-radius: 6px; font-weight: 400; font-size: 0.85rem; cursor: pointer; text-decoration: none;
@@ -497,21 +455,19 @@ onMounted(() => {
 }
 .btn-icon-thin:hover { border-color: #cbd5e1; color: #2563eb; background: #f8fafc; }
 
-/* KPI GRID (PADRONIZADO) */
+/* KPI GRID */
 .kpi-grid { 
     display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); 
     gap: 1.25rem; margin-bottom: 2rem; 
 }
-
 .kpi-card {
   background: white; border-radius: 8px; padding: 1.25rem 1.5rem; border: 1px solid #f0f0f0;
   display: flex; justify-content: space-between; align-items: center;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.02); transition: all 0.2s; position: relative; overflow: hidden;
-  cursor: pointer;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.02); cursor: pointer; transition: all 0.2s;
+  position: relative; overflow: hidden;
 }
 .kpi-card:hover { transform: translateY(-2px); box-shadow: 0 6px 12px rgba(0,0,0,0.04); }
 .kpi-card.active { border: 1px solid; }
-
 .kpi-content { display: flex; flex-direction: column; }
 .kpi-value { font-size: 1.6rem; font-weight: 300; line-height: 1.1; color: #111; }
 .kpi-label { font-size: 0.7rem; font-weight: 600; text-transform: uppercase; color: #9ca3af; margin-top: 4px; letter-spacing: 0.05em; }
@@ -519,30 +475,25 @@ onMounted(() => {
 
 .kpi-card.blue.active { background-color: #f8fbff; border-color: #3b82f6; }
 .kpi-card.blue .kpi-value, .kpi-card.blue .kpi-icon { color: #2563eb; }
-
 .kpi-card.green.active { background-color: #f3fdf8; border-color: #10b981; }
 .kpi-card.green .kpi-value, .kpi-card.green .kpi-icon { color: #059669; }
-
 .kpi-card.orange.active { background-color: #fffdf5; border-color: #f59e0b; }
 .kpi-card.orange .kpi-value, .kpi-card.orange .kpi-icon { color: #d97706; }
+.kpi-card.bg-gray .kpi-value { color: #475569; }
 
-.kpi-card.purple .kpi-value, .kpi-card.purple .kpi-icon { color: #9333ea; }
-
-/* TOOLBAR (PADRONIZADO) */
+/* TOOLBAR */
 .toolbar-row {
   background-color: #ffffff; border-radius: 8px; border: 1px solid #e5e7eb;
   padding: 1rem; box-shadow: 0 1px 2px rgba(0,0,0,0.02);
   display: flex; flex-wrap: wrap; gap: 1rem; align-items: flex-end;
   margin-bottom: 1.5rem;
 }
-
 .filter-group { flex: 1; display: flex; flex-direction: column; gap: 0.3rem; min-width: 160px; }
 .search-group { flex: 2; min-width: 260px; }
+.small-btn { flex: 0 0 auto; min-width: auto; }
 .filter-group label { font-size: 0.65rem; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 0.04em; }
-
 .input-with-icon { position: relative; width: 100%; }
 .input-with-icon i { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: #94a3b8; font-size: 0.9rem; }
-
 .form-control {
   width: 100%; padding: 0.5rem 0.8rem; font-size: 0.85rem;
   border: 1px solid #cbd5e1; border-radius: 6px; background-color: #fff; color: #334155;
@@ -550,111 +501,75 @@ onMounted(() => {
 }
 .input-with-icon .form-control { padding-left: 2.2rem; }
 .form-control:focus { border-color: #3b82f6; box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.1); }
-
-/* ================================================== */
-/* GRID DE VISITAS (ESPECÍFICO DESTA PÁGINA) */
-/* ================================================== */
-.visitas-grid {
-  display: grid; 
-  grid-template-columns: repeat(4, 1fr); 
-  gap: 1.5rem; 
-  padding-bottom: 2rem;
+.btn-clear {
+    width: 38px; height: 38px; border: 1px solid #cbd5e1; background: #f8fafc;
+    border-radius: 6px; color: #64748b; cursor: pointer;
+    display: flex; align-items: center; justify-content: center; transition: all 0.2s;
 }
+.btn-clear:hover { background: #fee2e2; color: #ef4444; border-color: #fca5a5; }
 
-@media (max-width: 1300px) { .visitas-grid { grid-template-columns: repeat(3, 1fr); } }
-@media (max-width: 992px) { .visitas-grid { grid-template-columns: repeat(2, 1fr); } }
-@media (max-width: 600px) { .visitas-grid { grid-template-columns: 1fr; } }
+/* TABELA */
+.report-main-wrapper {
+  background: white; border-radius: 8px; border: 1px solid #e5e7eb;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.02);
+  display: flex; flex-direction: column; overflow: hidden;
+}
+.report-scroll-viewport { width: 100%; overflow-x: auto; }
+.report-table { width: 100%; border-collapse: collapse; min-width: 900px; }
+.report-table th {
+  background: #f8fafc; padding: 0.8rem 1.2rem; text-align: left;
+  font-size: 0.65rem; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 0.06em;
+  border-bottom: 1px solid #e2e8f0;
+}
+.report-table td {
+  padding: 0.8rem 1.2rem; border-bottom: 1px solid #f1f5f9;
+  font-size: 0.85rem; color: #334155; vertical-align: middle;
+}
+.clickable-row { cursor: pointer; transition: background 0.1s; }
+.clickable-row:hover { background-color: #fcfcfc; }
 
-.visita-card {
-  background-color: #fff; border-radius: 8px; border: 1px solid #e5e7eb;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.02); display: flex; flex-direction: column;
-  transition: all 0.2s ease; position: relative; overflow: hidden;
-}
-.visita-card:hover { transform: translateY(-2px); box-shadow: 0 8px 16px rgba(0,0,0,0.06); border-color: #cbd5e1; }
-.border-realizada { border-left: 4px solid #10b981; }
+/* Celulas customizadas */
+.cell-date { display: flex; flex-direction: column; }
+.date-main { font-weight: 600; color: #1e293b; font-size: 0.9rem; }
+.date-sub { font-size: 0.7rem; color: #94a3b8; display: flex; align-items: center; gap: 4px; }
 
-/* Card Top */
-.card-top-bar {
-    padding: 0.8rem 1rem; display: flex; justify-content: space-between; align-items: center;
-    border-bottom: 1px solid #f1f5f9; background: #fff;
-}
-.badges-left, .badges-right { display: flex; align-items: center; gap: 8px; }
+.cell-imovel { display: flex; flex-direction: column; }
+.imovel-title { font-weight: 600; color: #1e293b; font-size: 0.85rem; }
+.imovel-address { font-size: 0.75rem; color: #64748b; margin-top: 2px; display: inline-flex; align-items: center; gap: 5px; }
 
-.visita-id {
-    font-size: 0.7rem; font-weight: 700; color: #64748b;
-    background: #f1f5f9; padding: 2px 6px; border-radius: 4px;
-}
-.date-badge {
-    font-size: 0.75rem; color: #475569; font-weight: 600; display: flex; align-items: center; gap: 5px;
-}
-.status-pill {
-    padding: 2px 8px; border-radius: 4px; font-size: 0.65rem; font-weight: 700;
-    text-transform: uppercase; display: flex; align-items: center; gap: 4px;
-}
-.status-pendente { background-color: #eff6ff; color: #1d4ed8; }
-.status-realizada { background-color: #dcfce7; color: #15803d; }
+.cell-cliente { display: flex; align-items: center; gap: 8px; color: #475569; font-weight: 500; }
+.cell-cliente i { color: #cbd5e1; }
 
-/* Card Body */
-.card-body { padding: 0; flex-grow: 1; display: flex; flex-direction: column; }
-
-.imovel-section { padding: 1rem 1rem 0.5rem; }
-.imovel-title {
-    font-size: 0.9rem; font-weight: 600; color: #1e293b; margin: 0 0 0.25rem 0;
-    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+.status-cell { display: flex; flex-direction: column; gap: 4px; align-items: flex-start; }
+.badge-type {
+  font-size: 0.65rem; font-weight: 600; padding: 3px 8px; border-radius: 4px; text-transform: uppercase; letter-spacing: 0.02em;
 }
-.imovel-address {
-    font-size: 0.8rem; color: #64748b; margin: 0;
-    display: flex; align-items: center; gap: 6px;
-    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-}
+.bg-green { background: #dcfce7; color: #166534; }
+.bg-orange { background: #ffedd5; color: #c2410c; }
+.bg-blue-light { background: #eff6ff; color: #2563eb; }
+.badge-mini { font-size: 0.6rem; padding: 2px 6px; border-radius: 3px; font-weight: 600; display: inline-flex; align-items: center; gap: 4px; }
 
-.time-highlight {
-    background-color: #f8fafc; border-top: 1px solid #f1f5f9; border-bottom: 1px solid #f1f5f9;
-    padding: 0.4rem 1rem; font-weight: 600; color: #2563eb; font-size: 0.85rem;
-    display: flex; align-items: center; gap: 6px;
+/* Ações */
+.actions-flex { display: flex; gap: 0.5rem; justify-content: flex-end; }
+.btn-action {
+  width: 32px; height: 32px; border: none; border-radius: 6px; cursor: pointer;
+  display: flex; align-items: center; justify-content: center; transition: all 0.2s;
+  background: transparent; color: #94a3b8; border: 1px solid transparent;
 }
+.btn-action:hover { background-color: #f1f5f9; color: #334155; border-color: #e2e8f0; }
 
-.pessoas-container { padding: 0.8rem 1rem; }
-.pessoa-row { display: flex; align-items: center; gap: 0.75rem; }
-.pessoa-avatar {
-    width: 32px; height: 32px; border-radius: 6px; display: flex; align-items: center; justify-content: center; font-size: 0.8rem; flex-shrink: 0;
-}
-.avatar-cliente { background-color: #fffbeb; color: #b45309; }
-.pessoa-info { display: flex; flex-direction: column; overflow: hidden; }
-.pessoa-role { font-size: 0.65rem; font-weight: 700; text-transform: uppercase; margin-bottom: 1px; color: #b45309; }
-.pessoa-name { font-size: 0.85rem; color: #334155; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.btn-action.sign { background-color: #eff6ff; color: #2563eb; }
+.btn-action.sign:hover { background-color: #2563eb; color: #fff; }
 
-/* Card Actions */
-.card-actions {
-    padding: 0.75rem 1rem; background-color: #fff; border-top: 1px solid #f1f5f9;
-    display: flex; justify-content: space-between; align-items: center; gap: 1rem;
-}
-.actions-left { display: flex; gap: 0.5rem; }
-.actions-right { display: flex; gap: 0.25rem; }
+.btn-action.pdf:hover { background-color: #fff1f2; color: #e11d48; }
+.btn-action.view:hover { background-color: #f0f9ff; color: #0284c7; }
+.btn-action.edit:hover { background-color: #eff6ff; color: #2563eb; }
+.btn-action.delete:hover { background-color: #fee2e2; color: #ef4444; }
 
-.btn-pill {
-    border: none; border-radius: 4px; padding: 0.35rem 0.75rem; font-size: 0.75rem; font-weight: 600;
-    cursor: pointer; display: inline-flex; align-items: center; gap: 6px; transition: all 0.2s;
-}
-.btn-sign { background-color: #eff6ff; color: #2563eb; }
-.btn-sign:hover { background-color: #2563eb; color: #fff; }
+.btn-action.disabled { opacity: 0.3; cursor: not-allowed; pointer-events: none; }
+.disabled-wrapper { cursor: not-allowed; }
 
-.signed-badge {
-    display: inline-flex; align-items: center; gap: 5px; font-size: 0.75rem; 
-    color: #10b981; font-weight: 600; background-color: #ecfdf5; padding: 3px 8px; border-radius: 4px;
-}
-
-.btn-mini {
-    width: 28px; height: 28px; border-radius: 4px; border: 1px solid transparent; background: transparent;
-    color: #94a3b8; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: all 0.2s; font-size: 0.8rem;
-}
-.btn-mini:hover { background-color: #f1f5f9; color: #334155; }
-.btn-delete-mini:hover { background-color: #fef2f2; color: #ef4444; }
-.btn-pdf:hover { background-color: #fff1f2; color: #e11d48; }
-
-.text-muted { color: #94a3b8; }
 .loading-state, .error-message, .empty-state { text-align: center; padding: 4rem 2rem; color: #64748b; }
-.empty-icon { font-size: 2.5rem; color: #e2e8f0; margin-bottom: 1rem; }
 .spinner {
   border: 3px solid #e2e8f0; border-top: 3px solid #2563eb; border-radius: 50%;
   width: 32px; height: 32px; animation: spin 0.8s linear infinite; margin: 0 auto 1rem;

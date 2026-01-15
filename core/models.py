@@ -66,6 +66,14 @@ class Imobiliaria(models.Model):
     subdominio = models.CharField(max_length=255, unique=True)
     email_contato = models.EmailField(max_length=254, blank=True, null=True, verbose_name="Email para Notificações")
     
+    # Identidade Visual
+    foto_perfil = models.ImageField(
+        upload_to='imobiliarias_logos/', 
+        null=True, 
+        blank=True, 
+        verbose_name="Logo da Imobiliária"
+    )
+    
     cnpj = models.CharField(max_length=18, blank=True, null=True, verbose_name="CNPJ")
     creci = models.CharField(max_length=20, blank=True, null=True, verbose_name="CRECI")
 
