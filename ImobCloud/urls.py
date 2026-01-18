@@ -77,16 +77,16 @@ urlpatterns = [
     path('api/v1/stats/', DashboardStatsView.as_view(), name='dashboard_stats_root'),
 
     # --- Apps Principais (Rotas Base) ---
-    # app_clientes e app_imoveis ficam na raiz v1 para gerar rotas como:
-    # /api/v1/clientes/, /api/v1/tarefas/, /api/v1/imoveis/
+    # app_clientes, app_imoveis e app_contratos ficam na raiz v1 para gerar rotas como:
+    # /api/v1/clientes/, /api/v1/imoveis/, /api/v1/contratos/
     path('api/v1/', include('app_clientes.urls')),
     path('api/v1/', include('app_imoveis.urls')),
+    path('api/v1/', include('app_contratos.urls')), # Alterado de 'api/v1/contratos/' para 'api/v1/' para evitar duplicidade no path
 
     # --- Módulos Específicos (Com Prefixos) ---
     # Prefixos ajudam a organizar e evitar conflitos de rotas
     path('api/v1/core/', include('core.urls')),
     path('api/v1/financeiro/', include('app_financeiro.urls')),
-    path('api/v1/contratos/', include('app_contratos.urls')),
     path('api/v1/alugueis/', include('app_alugueis.urls')),
     path('api/v1/boletos/', include('app_boletos.urls')),
     path('api/v1/vistorias/', include('app_vistorias.urls')),

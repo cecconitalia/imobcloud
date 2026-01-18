@@ -3,6 +3,7 @@
 from rest_framework import serializers
 from django.contrib.auth import get_user_model
 
+# Certifique-se de que 'apenas_numeros' existe em .models ou utils
 from .models import Cliente, Visita, Atividade, Oportunidade, Tarefa, FunilEtapa, apenas_numeros
 from core.models import PerfilUsuario
 from app_imoveis.models import Imovel
@@ -31,9 +32,16 @@ class UsuarioSimplesSerializer(serializers.ModelSerializer):
 
 class ClienteSimplesSerializer(serializers.ModelSerializer):
     """Para exibir dados básicos do cliente em listagens e selects"""
+    nome_display = serializers.SerializerMethodField()
+
     class Meta:
         model = Cliente
-        fields = ['id', 'nome', 'razao_social', 'telefone', 'email']
+        fields = ['id', 'nome', 'razao_social', 'telefone', 'email', 'nome_display']
+
+    def get_nome_display(self, obj):
+        if obj.tipo_pessoa == 'JURIDICA' and obj.razao_social:
+            return f"{obj.razao_social} ({obj.nome})"
+        return obj.nome if obj.nome else "Sem Nome"
 
 class ImovelSimplesSerializer(serializers.ModelSerializer):
     """Para exibir dados básicos do imóvel na visita"""
@@ -75,7 +83,6 @@ class VisitaSerializer(serializers.ModelSerializer):
             'assinatura_corretor', 'data_assinatura_corretor',
             'localizacao_assinatura'
         ]
-        # IMPORTANTE: Assinaturas removidas daqui para permitir edição/upload
         read_only_fields = ['imobiliaria']
 
     def get_corretor_nome(self, obj):
@@ -110,6 +117,7 @@ class TarefaSerializer(serializers.ModelSerializer):
     oportunidade_id = serializers.PrimaryKeyRelatedField(
         queryset=Oportunidade.objects.all(), source='oportunidade', write_only=True, required=False, allow_null=True
     )
+    # Campo auxiliar para input direto de ID de cliente (se não vier via oportunidade)
     cliente_id_input = serializers.IntegerField(write_only=True, required=False, allow_null=True)
 
     class Meta:
@@ -139,11 +147,15 @@ class OportunidadeSerializer(serializers.ModelSerializer):
     cliente = serializers.PrimaryKeyRelatedField(queryset=Cliente.objects.all())
     imovel = serializers.PrimaryKeyRelatedField(queryset=Imovel.objects.all(), required=False, allow_null=True)
     
-    # Campo Dinâmico: Fase (ForeignKey)
     fase = serializers.PrimaryKeyRelatedField(queryset=FunilEtapa.objects.all())
     fase_titulo = serializers.ReadOnlyField(source='fase.titulo')
     
+    # Leitura: Objeto completo / Escrita: ID
     responsavel = ResponsavelSimplificadoSerializer(read_only=True)
+    responsavel_id = serializers.PrimaryKeyRelatedField(
+        queryset=User.objects.all(), source='responsavel', write_only=True, required=False, allow_null=True
+    )
+    
     tarefas = TarefaSerializer(many=True, read_only=True)
     
     responsavel_nome = serializers.SerializerMethodField()
@@ -153,20 +165,24 @@ class OportunidadeSerializer(serializers.ModelSerializer):
         super().__init__(*args, **kwargs)
         # Filtra as fases e clientes para mostrar apenas dados do tenant atual
         request = self.context.get('request')
-        if request:
+        if request and hasattr(request, 'user'):
             tenant = getattr(request, 'tenant', None) or getattr(request.user, 'imobiliaria', None)
             if tenant:
-                self.fields['fase'].queryset = FunilEtapa.objects.filter(imobiliaria=tenant)
-                self.fields['cliente'].queryset = Cliente.objects.filter(imobiliaria=tenant)
-                self.fields['imovel'].queryset = Imovel.objects.filter(imobiliaria=tenant)
+                if 'fase' in self.fields:
+                    self.fields['fase'].queryset = FunilEtapa.objects.filter(imobiliaria=tenant)
+                if 'cliente' in self.fields:
+                    self.fields['cliente'].queryset = Cliente.objects.filter(imobiliaria=tenant)
+                if 'imovel' in self.fields:
+                    self.fields['imovel'].queryset = Imovel.objects.filter(imobiliaria=tenant)
 
     class Meta:
         model = Oportunidade
         fields = [
             'id', 'titulo', 'valor_estimado', 'fase', 'fase_titulo', 'probabilidade',
             'motivo_perda', 'data_criacao', 'fonte',
-            'cliente', 'imovel', 'imovel_titulo', 'responsavel', 'responsavel_nome', 'tarefas',
-            'informacoes_adicionais'
+            'cliente', 'imovel', 'imovel_titulo', 
+            'responsavel', 'responsavel_id', 'responsavel_nome', 
+            'tarefas', 'informacoes_adicionais', 'data_fechamento_prevista'
         ]
         read_only_fields = ('data_criacao', 'probabilidade', 'imobiliaria')
 
@@ -178,13 +194,13 @@ class OportunidadeSerializer(serializers.ModelSerializer):
 
     def to_representation(self, instance):
         representation = super().to_representation(instance)
-        cliente_instance = instance.cliente
-        representation['cliente_detalhe'] = {
-            'id': cliente_instance.id,
-            'nome': cliente_instance.nome,
-            'telefone': cliente_instance.telefone,
-            'email': cliente_instance.email
-        }
+        if instance.cliente:
+            representation['cliente_detalhe'] = {
+                'id': instance.cliente.id,
+                'nome': instance.cliente.nome,
+                'telefone': instance.cliente.telefone,
+                'email': instance.cliente.email
+            }
         return representation
 
 class ClienteSerializer(serializers.ModelSerializer):
@@ -220,16 +236,11 @@ class ClienteSerializer(serializers.ModelSerializer):
         documento = data.get('documento')
         razao_social = data.get('razao_social')
 
-        if tipo_pessoa == 'FISICA':
-            if documento and len(apenas_numeros(documento)) != 11:
-                # pass 
-                pass
-        elif tipo_pessoa == 'JURIDICA':
-            if documento and len(apenas_numeros(documento)) != 14:
-                # pass 
-                pass
-            if not razao_social and not self.instance:
-                raise serializers.ValidationError({"razao_social": "Razão Social é obrigatória para Pessoa Jurídica."})
+        # Lógica de validação de CPF/CNPJ pode ser implementada aqui
+        # if tipo_pessoa == 'FISICA' and documento: ...
+        
+        if tipo_pessoa == 'JURIDICA' and not razao_social and not self.instance:
+             raise serializers.ValidationError({"razao_social": "Razão Social é obrigatória para Pessoa Jurídica."})
         
         return data
 

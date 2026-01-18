@@ -11,15 +11,15 @@
           :disabled="loading"
           class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 flex items-center gap-2"
         >
-          <Save v-if="!loading" class="w-4 h-4" />
-          <Loader2 v-else class="w-4 h-4 animate-spin" />
+          <div v-if="!loading" class="i-fas-save w-4 h-4"></div>
+          <div v-else class="i-fas-spinner animate-spin w-4 h-4"></div>
           {{ loading ? 'Salvando...' : 'Salvar Alterações' }}
         </button>
       </div>
     </header>
 
     <div v-if="error" class="bg-red-50 text-red-600 p-4 rounded-lg flex items-center gap-2">
-      <AlertTriangle class="w-5 h-5" />
+      <div class="i-fas-exclamation-triangle w-5 h-5"></div>
       {{ error }}
     </div>
 
@@ -28,7 +28,7 @@
         v-for="tab in tabs" 
         :key="tab.id"
         @click="currentTab = tab.id"
-        class="px-4 py-2 text-sm font-medium transition-colors relative"
+        class="px-4 py-2 text-sm font-medium transition-colors relative cursor-pointer"
         :class="currentTab === tab.id ? 'text-blue-600' : 'text-slate-500 hover:text-slate-700'"
       >
         {{ tab.label }}
@@ -40,7 +40,7 @@
     </div>
 
     <div v-if="loadingData" class="flex justify-center py-12">
-      <Loader2 class="w-8 h-8 text-blue-600 animate-spin" />
+      <div class="i-fas-spinner w-8 h-8 text-blue-600 animate-spin"></div>
     </div>
 
     <form v-else class="bg-white p-6 rounded-xl shadow-sm border border-slate-100 space-y-6">
@@ -60,7 +60,7 @@
         </div>
 
         <div class="flex items-center gap-3 bg-yellow-50 p-4 rounded-lg border border-yellow-100 mt-4">
-          <input v-model="form.modo_manutencao" type="checkbox" id="manutencao" class="w-5 h-5 text-blue-600 rounded focus:ring-blue-500" />
+          <input v-model="form.modo_manutencao" type="checkbox" id="manutencao" class="w-5 h-5 text-blue-600 rounded focus:ring-blue-500 cursor-pointer" />
           <div>
             <label for="manutencao" class="font-medium text-slate-800 cursor-pointer">Ativar Modo Manutenção</label>
             <p class="text-xs text-slate-500">Se ativo, apenas Superusuários conseguirão acessar o sistema.</p>
@@ -126,7 +126,6 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue';
 import api from '@/services/api';
-import { Save, Loader2, AlertTriangle } from 'lucide-vue-next';
 import { useAuthStore } from '@/stores/auth';
 import { useRouter } from 'vue-router';
 
@@ -160,22 +159,25 @@ const form = ref({
 });
 
 onMounted(async () => {
-  // Verifica se é superadmin (segurança frontend)
-  if (authStore.userCargo !== 'SUPERADMIN') {
-    router.push('/dashboard');
-    return;
-  }
+  // REMOVIDA A VERIFICAÇÃO DE SUPERADMIN QUE CAUSAVA O REDIRECT
   await fetchConfig();
 });
 
 async function fetchConfig() {
   try {
     loadingData.value = true;
-    const response = await api.get('/api/v1/core/configuracao-global/');
-    form.value = { ...form.value, ...response.data };
+    const response = await api.get('/v1/core/configuracao-global/');
+    if (response.data) {
+        form.value = { ...form.value, ...response.data };
+    }
   } catch (err: any) {
     console.error(err);
-    error.value = "Erro ao carregar configurações. Verifique suas permissões.";
+    // Se der 403 (proibido), aí sim avisamos, mas não redirecionamos forçado
+    if (err.response?.status === 403) {
+        error.value = "Você não tem permissão para visualizar estas configurações.";
+    } else {
+        error.value = "Erro ao carregar configurações.";
+    }
   } finally {
     loadingData.value = false;
   }
@@ -185,7 +187,7 @@ async function saveConfig() {
   try {
     loading.value = true;
     error.value = '';
-    await api.put('/api/v1/core/configuracao-global/', form.value);
+    await api.put('/v1/core/configuracao-global/', form.value);
     alert('Configurações salvas com sucesso!');
   } catch (err: any) {
     console.error(err);

@@ -19,6 +19,9 @@ router.register(r'pagamentos', PagamentoViewSet, basename='pagamento')
 router.register(r'modelos-contrato', ModeloContratoViewSet, basename='modelo-contrato')
 
 urlpatterns = [
+    # Rota explícita para Dashboard Stats para evitar 404 em alguns casos de roteamento
+    path('contratos/dashboard-stats/', ContratoViewSet.as_view({'get': 'dashboard_stats'}), name='contratos-dashboard-stats'),
+
     # Inclui as rotas automáticas do router
     path('', include(router.urls)),
     

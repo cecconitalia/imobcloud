@@ -1,4 +1,4 @@
-# C:\wamp64\www\imobcloud\app_clientes\views.py
+# C:\wamp64\www\ImobCloud\app_clientes\views.py
 
 import os
 import json
@@ -23,10 +23,12 @@ from django.contrib.staticfiles import finders
 
 from rest_framework import viewsets, permissions, status, filters
 from rest_framework.response import Response
-from rest_framework.decorators import action
-from rest_framework.exceptions import PermissionDenied
+from rest_framework.decorators import action, permission_classes, api_view
+from rest_framework.exceptions import PermissionDenied, AuthenticationFailed
 from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
 from rest_framework.views import APIView
+from rest_framework_simplejwt.authentication import JWTAuthentication
+from rest_framework.permissions import AllowAny, IsAuthenticated
 
 from google_auth_oauthlib.flow import Flow
 from xhtml2pdf import pisa
@@ -51,18 +53,12 @@ User = get_user_model()
 logger = logging.getLogger(__name__)
 
 # ====================================================================
-# HELPER: CONVERTER IMAGEM PARA BASE64 (SOLUÇÃO ROBUSTA PDF)
+# HELPER: CONVERTER IMAGEM PARA BASE64
 # ====================================================================
 def image_to_base64(image_field):
-    """
-    Lê um ImageField/FileField e retorna uma string base64 pronta para src=""
-    Retorna None se não houver imagem ou erro.
-    """
     if not image_field or not hasattr(image_field, 'name') or not image_field.name:
         return None
-        
     try:
-        # Tenta pegar o caminho absoluto se for armazenamento local
         file_path = None
         if hasattr(image_field, 'path'):
             file_path = image_field.path
@@ -72,29 +68,21 @@ def image_to_base64(image_field):
         if file_path and os.path.exists(file_path):
             with open(file_path, "rb") as img_file:
                 encoded_string = base64.b64encode(img_file.read()).decode('utf-8')
-                
-            # Determina extensão
             ext = os.path.splitext(file_path)[1].lower().replace('.', '')
             if ext == 'jpg': ext = 'jpeg'
-            if not ext: ext = 'png' # Fallback
-            
+            if not ext: ext = 'png'
             return f"data:image/{ext};base64,{encoded_string}"
     except Exception as e:
         logger.error(f"Erro ao converter imagem para base64: {e}")
         return None
     return None
 
-# ====================================================================
-# HELPER PARA VERIFICAR PERMISSÕES
-# ====================================================================
 def is_admin_or_corretor(user):
     is_admin_bool = getattr(user, 'is_admin', False)
     is_corretor_bool = getattr(user, 'is_corretor', False)
-    
     cargo = getattr(user, 'cargo', None)
     is_admin_cargo = (str(cargo).upper() == 'ADMIN')
     is_corretor_cargo = (str(cargo).upper() == 'CORRETOR')
-    
     return is_admin_bool or is_corretor_bool or is_admin_cargo or is_corretor_cargo
 
 # ====================================================================
@@ -104,20 +92,40 @@ SCOPES = ['https://www.googleapis.com/auth/calendar.events']
 CREDENTIALS_DIR = os.path.join(settings.MEDIA_ROOT, 'google_credentials')
 
 class GoogleCalendarAuthView(APIView):
-    permission_classes = [permissions.IsAuthenticated]
+    authentication_classes = [] 
+    permission_classes = [AllowAny] 
 
     def get(self, request, *args, **kwargs):
         try:
-            user = request.user
+            user = None
+            token = request.query_params.get('token')
+            if token:
+                try:
+                    jwt_auth = JWTAuthentication()
+                    validated_token = jwt_auth.get_validated_token(token)
+                    user = jwt_auth.get_user(validated_token)
+                except Exception as e:
+                    pass
+            
+            if not user and request.user and request.user.is_authenticated:
+                user = request.user
+
+            if not user:
+                return HttpResponse("Autenticação necessária. Token JWT inválido ou não fornecido na URL.", status=401)
+
             if not getattr(user, 'google_json_file', None):
-                return Response({"error": "Nenhum arquivo de credenciais do Google foi encontrado."}, status=status.HTTP_400_BAD_REQUEST)
+                return HttpResponse(f"Erro: Usuário {user.username} não possui arquivo de credenciais do Google configurado.", status=400)
             
             json_file_path = default_storage.path(user.google_json_file.name)
+            callback_url = request.build_absolute_uri(reverse('google-calendar-auth-callback'))
             
+            if 'localhost' in callback_url or '127.0.0.1' in callback_url or 'http:' in callback_url:
+                 os.environ['OAUTHLIB_INSECURE_TRANSPORT'] = '1'
+
             flow = Flow.from_client_secrets_file(
                 json_file_path,
                 scopes=SCOPES,
-                redirect_uri=request.build_absolute_uri(reverse('google-calendar-auth-callback'))
+                redirect_uri=callback_url
             )
             
             authorization_url, state = flow.authorization_url(
@@ -127,29 +135,43 @@ class GoogleCalendarAuthView(APIView):
             )
     
             request.session['oauth_state'] = state
+            request.session['auth_user_id'] = user.id
+            request.session.modified = True
+            
             return HttpResponseRedirect(authorization_url)
+            
         except Exception as e:
-            return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+            logger.error(f"Erro Auth Google: {e}")
+            return HttpResponse(f"Erro interno: {str(e)}", status=400)
 
 class GoogleCalendarAuthCallbackView(APIView):
-    permission_classes = [permissions.IsAuthenticated]
+    authentication_classes = []
+    permission_classes = [AllowAny]
 
     def get(self, request, *args, **kwargs):
-        state = request.session.pop('oauth_state', None)
-        if not state or state != request.query_params.get('state'):
-            return HttpResponse("Estado inválido. O processo de autenticação falhou.", status=400)
+        user_id = request.session.get('auth_user_id')
+        state = request.session.get('oauth_state')
+        
+        if not user_id or not state:
+            return HttpResponse("Sessão expirada. Por favor, volte ao sistema e tente conectar novamente.", status=400)
+        
+        if state != request.query_params.get('state'):
+            return HttpResponse("Estado inválido (Erro de segurança). Tente novamente.", status=400)
         
         try:
-            user = request.user
+            user = User.objects.get(id=user_id)
             if not getattr(user, 'google_json_file', None):
-                 return HttpResponse("Erro: Arquivo de credenciais não encontrado no usuário.", status=400)
+                 return HttpResponse("Erro: Arquivo de credenciais não encontrado.", status=400)
 
             json_file_path = default_storage.path(user.google_json_file.name)
-    
+            callback_url = request.build_absolute_uri(reverse('google-calendar-auth-callback'))
+            if 'localhost' in callback_url or '127.0.0.1' in callback_url or 'http:' in callback_url:
+                 os.environ['OAUTHLIB_INSECURE_TRANSPORT'] = '1'
+
             flow = Flow.from_client_secrets_file(
                 json_file_path,
                 scopes=SCOPES,
-                redirect_uri=request.build_absolute_uri(reverse('google-calendar-auth-callback'))
+                redirect_uri=callback_url
             )
             
             flow.fetch_token(authorization_response=request.get_full_path())
@@ -166,10 +188,16 @@ class GoogleCalendarAuthCallbackView(APIView):
             user.google_calendar_token = json.dumps(credentials_json)
             user.save()
             
-            return HttpResponse("Conexão com o Google Calendar realizada com sucesso!")
+            if 'oauth_state' in request.session: del request.session['oauth_state']
+            if 'auth_user_id' in request.session: del request.session['auth_user_id']
+            
+            return HttpResponseRedirect("/integracoes?status=success_google")
+            
+        except User.DoesNotExist:
+            return HttpResponse("Usuário não encontrado.", status=400)
         except Exception as e:
             logger.error(f"Erro Google Calendar Callback: {e}")
-            return HttpResponse(f"Erro ao processar o callback.", status=400)
+            return HttpResponse(f"Erro ao processar a conexão: {str(e)}", status=400)
 
 # ====================================================================
 # VIEWS DO CRM
@@ -270,16 +298,9 @@ class ClienteViewSet(viewsets.ModelViewSet):
     @action(detail=False, methods=['get'], url_path='lista-proprietarios')
     def lista_proprietarios(self, request):
         base_queryset = self.get_queryset()
-        finalidade = request.query_params.get('finalidade') 
-        
-        if not finalidade:
-            return Response([], status=status.HTTP_400_BAD_REQUEST)
-        
         queryset = base_queryset.filter(
-            perfil_cliente__contains=['PROPRIETARIO'],
-            imoveis_propriedade__status=finalidade 
-        ).distinct() 
-        
+            perfil_cliente__contains=['PROPRIETARIO']
+        ).distinct()
         serializer = ClienteSimplesSerializer(queryset, many=True)
         return Response(serializer.data)
 
@@ -415,15 +436,34 @@ class OportunidadeViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         user = self.request.user
         tenant = getattr(self.request, 'tenant', None) or getattr(user, 'imobiliaria', None)
+        
+        # Otimiza a busca inicial
         base_queryset = Oportunidade.objects.select_related('fase', 'cliente', 'responsavel')
 
+        # 1. Filtro por Tenant (Isolamento de Dados da Imobiliária)
         if user.is_superuser:
+            # Superusuário do Django vê tudo ou filtra por tenant se especificado
             queryset = base_queryset.filter(imobiliaria=tenant) if tenant else base_queryset
         elif tenant:
+            # Usuários normais (Admin ou Corretor) só veem da sua imobiliária
             queryset = base_queryset.filter(imobiliaria=tenant)
         else:
+            # Sem imobiliária = não vê nada
             return Oportunidade.objects.none()
 
+        # 2. Filtro de Privacidade (Visão do Corretor vs Admin)
+        # Verifica se é Admin checando múltiplas flags para garantir
+        is_admin_user = (
+            user.is_superuser or 
+            getattr(user, 'is_admin', False) or 
+            str(getattr(user, 'cargo', '')).upper() in ['ADMIN', 'SUPERADMIN']
+        )
+
+        # Se NÃO for Admin, aplica o filtro para ver apenas as oportunidades onde é responsável
+        if not is_admin_user:
+            queryset = queryset.filter(responsavel=user)
+
+        # 3. Filtros Extras da URL (Ex: Admin filtrando por um corretor específico no dashboard)
         responsavel_id = self.request.query_params.get('responsavel')
         if responsavel_id:
             try:
@@ -443,19 +483,64 @@ class OportunidadeViewSet(viewsets.ModelViewSet):
             raise PermissionDenied("Apenas utilizadores associados a uma imobiliária podem criar oportunidades.")
         
         save_kwargs = {'imobiliaria': tenant}
+        
+        # Se não enviou responsável, define o usuário atual
         if not serializer.validated_data.get('responsavel'):
             save_kwargs['responsavel'] = self.request.user
             
         serializer.save(**save_kwargs)
     
     def perform_update(self, serializer):
+        # 1. Dados Prévios
         oportunidade = self.get_object()
         fase_anterior = oportunidade.fase.titulo if oportunidade.fase else 'Indefinida'
         responsavel_anterior = oportunidade.responsavel
         
+        user = self.request.user
+        
+        # Verificação Robusta de Admin também no update
+        is_admin_user = (
+            user.is_superuser or 
+            getattr(user, 'is_admin', False) or 
+            str(getattr(user, 'cargo', '')).upper() in ['ADMIN', 'SUPERADMIN']
+        )
+        
+        # 2. Trava de Segurança: Apenas o dono ou Admin pode editar
+        if not is_admin_user and oportunidade.responsavel != user:
+             raise PermissionDenied("Você não pode editar uma oportunidade que não lhe pertence.")
+
+        # 3. Salva a instância (Update normal)
         instance = serializer.save()
 
+        # 4. FORÇA BRUTA: Atualização do Responsável (Para permitir transferência pelo Admin)
+        if is_admin_user and 'responsavel' in self.request.data:
+            try:
+                new_resp_data = self.request.data['responsavel']
+                new_resp_id = None
+
+                # Normaliza se veio Objeto ou ID
+                if isinstance(new_resp_data, dict):
+                    new_resp_id = new_resp_data.get('id')
+                elif new_resp_data is not None:
+                    # Tenta converter para int caso venha como string
+                    try:
+                        new_resp_id = int(new_resp_data)
+                    except (ValueError, TypeError):
+                        pass
+                
+                # Se temos um ID válido e ele é diferente do atual
+                if new_resp_id and instance.responsavel_id != new_resp_id:
+                    # Atualiza direto no banco (Bypass do Serializer ReadOnly)
+                    instance.responsavel_id = new_resp_id
+                    instance.save(update_fields=['responsavel']) 
+                    instance.refresh_from_db() 
+            except Exception as e:
+                logger.error(f"ERRO AO TRANSFERIR OPORTUNIDADE: {e}")
+
+        # 5. Notificações
         responsavel_novo = instance.responsavel
+        
+        # Notificação de Transferência
         if responsavel_novo and responsavel_novo != responsavel_anterior:
             responsavel_anterior_nome = responsavel_anterior.first_name if responsavel_anterior else 'Ninguém'
             descricao = f"Oportunidade transferida de '{responsavel_anterior_nome}' para '{responsavel_novo.first_name}'."
@@ -473,6 +558,7 @@ class OportunidadeViewSet(viewsets.ModelViewSet):
                 link=f"/oportunidades/editar/{instance.id}"
             )
         
+        # Notificação de Fase
         fase_nova_titulo = instance.fase.titulo if instance.fase else 'Indefinida'
         if fase_nova_titulo != fase_anterior:
             descricao = f"Oportunidade '{instance.titulo}' movida da fase '{fase_anterior}' para '{fase_nova_titulo}'."
@@ -483,10 +569,9 @@ class OportunidadeViewSet(viewsets.ModelViewSet):
                 registrado_por=self.request.user
             )
 
-
 class FunilEtapaViewSet(viewsets.ModelViewSet):
     serializer_class = FunilEtapaSerializer
-    permission_classes = [IsAdminOrSuperUser]
+    permission_classes = [permissions.IsAuthenticated] # CORRIGIDO: Permite visualização para Corretores
 
     def get_queryset(self):
         user = self.request.user
@@ -502,11 +587,11 @@ class FunilEtapaViewSet(viewsets.ModelViewSet):
         return FunilEtapa.objects.none()
 
     def perform_create(self, serializer):
-        tenant = getattr(self.request, 'tenant', None) or getattr(self.request.user, 'imobiliaria', None)
+        # Bloqueia criação se não for admin
+        if not (self.request.user.is_superuser or getattr(self.request.user, 'is_admin', False)):
+             raise PermissionDenied("Apenas administradores podem criar etapas.")
 
-        if not self.request.user.is_superuser and not tenant:
-            raise PermissionDenied("Permissão negada.")
-        
+        tenant = getattr(self.request, 'tenant', None) or getattr(self.request.user, 'imobiliaria', None)
         if not tenant and self.request.user.is_superuser:
              tenant = Imobiliaria.objects.first()
 
@@ -516,12 +601,20 @@ class FunilEtapaViewSet(viewsets.ModelViewSet):
         serializer.save(imobiliaria=tenant)
 
     def perform_update(self, serializer):
+        # Bloqueia edição se não for admin
+        if not (self.request.user.is_superuser or getattr(self.request.user, 'is_admin', False)):
+             raise PermissionDenied("Apenas administradores podem editar etapas.")
+             
         tenant = getattr(self.request, 'tenant', None) or getattr(self.request.user, 'imobiliaria', None)
         if not self.request.user.is_superuser and serializer.instance.imobiliaria != tenant:
             raise PermissionDenied("Permissão negada.")
         serializer.save()
 
     def perform_destroy(self, instance):
+        # Bloqueia exclusão se não for admin
+        if not (self.request.user.is_superuser or getattr(self.request.user, 'is_admin', False)):
+             raise PermissionDenied("Apenas administradores podem excluir etapas.")
+             
         tenant = getattr(self.request, 'tenant', None) or getattr(self.request.user, 'imobiliaria', None)
         if not self.request.user.is_superuser and instance.imobiliaria != tenant:
             raise PermissionDenied("Permissão negada.")
@@ -722,9 +815,6 @@ class RelatoriosView(viewsets.ViewSet):
         
         return {"valor_total_aberto": soma['total']}
 
-# ====================================================================
-# VIEW PARA GERAR PDF DA VISITA (Ficha de Visita)
-# ====================================================================
 class GerarRelatorioVisitaPDFView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
@@ -741,7 +831,6 @@ class GerarRelatorioVisitaPDFView(APIView):
         else:
             return HttpResponse("Visita não encontrada ou acesso negado.", status=404)
 
-        # Prepara imagens em Base64 para evitar problemas de path/url
         logo_b64 = None
         if visita.imobiliaria and hasattr(visita.imobiliaria, 'foto_perfil'):
             logo_b64 = image_to_base64(visita.imobiliaria.foto_perfil)
@@ -756,8 +845,6 @@ class GerarRelatorioVisitaPDFView(APIView):
             'imoveis': visita.imoveis.all(),
             'data_impressao': timezone.now(),
             'corretor': visita.corretor if visita.corretor else request.user,
-            
-            # Passando as imagens já convertidas
             'logo_b64': logo_b64,
             'assinatura_corretor_b64': assinatura_corretor_b64,
             'assinatura_cliente_b64': assinatura_cliente_b64,

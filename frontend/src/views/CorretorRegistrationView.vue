@@ -1,556 +1,522 @@
 <template>
   <div class="page-container">
-    <div class="content-wrapper">
-      
-      <div class="view-header">
-        <div class="header-left">
-          <h1>{{ isEditing ? 'Editar Utilizador' : 'Novo Utilizador' }}</h1>
-          <p class="subtitle">Preencha os dados para {{ isEditing ? 'atualizar' : 'cadastrar' }} um membro da equipa.</p>
+    
+    <header class="page-header">
+      <div class="header-main">
+        <div class="title-area">
+           <nav class="breadcrumb">
+              <span>Gestão</span> 
+              <i class="fas fa-chevron-right separator"></i> 
+              <router-link :to="{ name: 'corretores' }">Utilizadores</router-link>
+              <i class="fas fa-chevron-right separator"></i> 
+              <span class="active">{{ isEditing ? 'Editar' : 'Novo' }}</span>
+           </nav>
+           
+           <h1>{{ isEditing ? 'Editar Colaborador' : 'Cadastrar Novo Colaborador' }}</h1>
         </div>
-        <button @click="handleCancel" class="btn-back">
-          <i class="fas fa-arrow-left"></i> Voltar à Lista
-        </button>
+        
+        <div class="actions-area">
+            <button @click="$router.push({ name: 'corretores' })" class="btn-secondary-thin">
+                <i class="fas fa-arrow-left"></i> Voltar
+            </button>
+            <button @click="handleSubmit" class="btn-primary-thin" :disabled="isLoading">
+                <i class="fas fa-save" :class="{ 'fa-spin': isLoading }"></i>
+                {{ isLoading ? 'Salvando...' : 'Salvar Dados' }}
+            </button>
+        </div>
       </div>
+    </header>
 
-      <div v-if="isLoadingData" class="loading-state card">
-         <div class="spinner"></div>
-         <p>A carregar dados...</p>
-      </div>
-
-      <div v-else class="card form-card">
-        <form @submit.prevent="handleSubmit">
-          
-          <div class="form-section">
-             <h3 class="section-title"><i class="fas fa-user-shield"></i> Dados de Acesso & Pessoais</h3>
-             <div class="form-grid">
-                <div class="form-group">
-                  <label for="username">Nome de Utilizador <span class="required">*</span></label>
-                  <div class="input-wrapper">
-                    <i class="fas fa-at input-icon"></i>
-                    <input type="text" id="username" v-model="user.username" required class="form-input has-icon" placeholder="Ex: joao.silva" />
-                  </div>
-                </div>
-
-                <div class="form-group">
-                  <label for="email">Email Corporativo <span class="required">*</span></label>
-                  <div class="input-wrapper">
-                    <i class="fas fa-envelope input-icon"></i>
-                    <input type="email" id="email" v-model="user.email" required class="form-input has-icon" placeholder="joao@imobiliaria.com" />
-                  </div>
-                </div>
-
-                <div class="form-group">
-                   <label for="password">Palavra-passe</label>
-                   <div class="input-wrapper">
-                     <i class="fas fa-lock input-icon"></i>
-                     <input 
-                        type="password" 
-                        id="password" 
-                        v-model="user.password" 
-                        class="form-input has-icon" 
-                        :placeholder="isEditing ? 'Deixe vazio para manter a atual' : 'Senha inicial'" 
-                        :required="!isEditing" 
-                     />
-                   </div>
-                </div>
-
-                <div class="form-group full-width">
-                  <label>Cargos / Permissões <span class="required">*</span></label>
-                  <div class="roles-container">
-                      <label class="role-checkbox">
-                          <input type="checkbox" v-model="user.perfil.is_admin" />
-                          <span class="role-label">
-                              <i class="fas fa-user-shield"></i> Administrador
-                              <small>Acesso total às configurações</small>
-                          </span>
-                      </label>
-                      <label class="role-checkbox">
-                          <input type="checkbox" v-model="user.perfil.is_corretor" />
-                          <span class="role-label">
-                              <i class="fas fa-user-tie"></i> Corretor
-                              <small>Pode receber leads e gerir imóveis</small>
-                          </span>
-                      </label>
-                  </div>
-                </div>
-
-                <div class="form-group">
-                  <label for="first_name">Nome Próprio <span class="required">*</span></label>
-                  <input type="text" id="first_name" v-model="user.first_name" required class="form-input" />
-                </div>
-
-                <div class="form-group">
-                  <label for="last_name">Apelido <span class="required">*</span></label>
-                  <input type="text" id="last_name" v-model="user.last_name" required class="form-input" />
-                </div>
+    <main class="form-wrapper">
+      <form @submit.prevent="handleSubmit">
+        
+        <div class="form-column left-col">
+            
+            <section class="form-section">
+                <h3 class="section-title"><i class="far fa-id-card"></i> Dados Pessoais</h3>
                 
-                <div class="form-group">
-                  <label for="telefone">Telefone / WhatsApp</label>
-                  <input type="tel" id="telefone" v-model="user.perfil.telefone" class="form-input" placeholder="(00) 00000-0000" />
-                </div>
-
-                <div class="form-group">
-                  <label for="creci">CRECI</label>
-                  <input type="text" id="creci" v-model="user.perfil.creci" class="form-input" placeholder="Nº do registo" />
-                </div>
-             </div>
-          </div>
-
-          <div class="section-divider"></div>
-
-          <div class="form-section">
-             <h3 class="section-title"><i class="fas fa-map-marker-alt"></i> Endereço Residencial</h3>
-             <div class="form-grid">
-                <div class="form-group">
-                  <label for="cep">CEP</label>
-                  <input type="text" id="cep" v-model="user.perfil.endereco_cep" class="form-input" placeholder="00000-000" />
-                </div>
-                
-                <div class="form-group span-2">
-                  <label for="logradouro">Logradouro</label>
-                  <input type="text" id="logradouro" v-model="user.perfil.endereco_logradouro" class="form-input" />
-                </div>
-
-                <div class="form-group">
-                  <label for="numero">Número</label>
-                  <input type="text" id="numero" v-model="user.perfil.endereco_numero" class="form-input" />
-                </div>
-
-                <div class="form-group">
-                  <label for="bairro">Bairro</label>
-                  <input type="text" id="bairro" v-model="user.perfil.endereco_bairro" class="form-input" />
-                </div>
-
-                <div class="form-group">
-                  <label for="cidade">Cidade</label>
-                  <input type="text" id="cidade" v-model="user.perfil.endereco_cidade" class="form-input" />
-                </div>
-
-                <div class="form-group">
-                  <label for="estado">Estado (UF)</label>
-                  <input type="text" id="estado" maxlength="2" v-model="user.perfil.endereco_estado" class="form-input" style="text-transform: uppercase;" />
-                </div>
-             </div>
-          </div>
-
-          <div class="section-divider"></div>
-
-          <div class="form-section">
-             <h3 class="section-title"><i class="fas fa-file-signature"></i> Assinatura Digital</h3>
-             <div class="integration-card">
-                <div class="integration-body">
-                    <p class="help-text">Esta assinatura será utilizada automaticamente em documentos gerados pelo sistema (ex: Termos de Visita).</p>
-                    
-                    <div class="signature-preview" v-if="previewAssinatura">
-                        <img :src="previewAssinatura" alt="Pré-visualização da Assinatura" />
-                        <button type="button" class="btn-remove-sig" @click="removeAssinatura">
-                            <i class="fas fa-trash"></i> Remover
-                        </button>
-                    </div>
-
-                    <div class="file-upload-area" v-else>
-                        <label for="assinatura_file" class="custom-file-upload">
-                            <i class="fas fa-pen-nib"></i>
-                            <span>Carregar Imagem da Assinatura (PNG/JPG)</span>
-                        </label>
-                        <input type="file" id="assinatura_file" @change="handleAssinaturaUpload" accept="image/*" />
-                    </div>
-                    <small class="help-text" style="margin-top: 0.5rem; display: block;">Recomendado: Imagem com fundo transparente (PNG), proporção horizontal.</small>
-                </div>
-             </div>
-          </div>
-          
-           <div class="section-divider"></div>
-
-           <div class="form-section">
-             <h3 class="section-title"><i class="fas fa-plug"></i> Integrações & Observações</h3>
-             
-             <div class="form-group full-width">
-                <label for="observacoes">Observações Internas</label>
-                <textarea id="observacoes" v-model="user.perfil.observacoes" rows="3" class="form-textarea" placeholder="Informações adicionais sobre este utilizador..."></textarea>
-             </div>
-
-             <div class="integration-card">
-                <div class="integration-header">
-                    <i class="fab fa-google"></i>
-                    <h4>Google Calendar</h4>
-                </div>
-                <div class="integration-body">
-                    <p class="help-text">Conecte a conta para sincronizar automaticamente tarefas e visitas.</p>
-                    
-                    <div class="file-upload-area">
-                        <label for="google_json_file" class="custom-file-upload">
-                            <i class="fas fa-cloud-upload-alt"></i>
-                            <span v-if="!user.perfil.google_json_file">Carregar JSON de Credenciais</span>
-                            <span v-else>Arquivo selecionado: {{ typeof user.perfil.google_json_file === 'string' ? 'Já enviado' : user.perfil.google_json_file.name }}</span>
-                        </label>
-                        <input type="file" id="google_json_file" @change="handleFileUpload" accept=".json" />
-                    </div>
-
-                    <div v-if="isEditing && user.perfil.google_json_file" class="auth-actions">
-                        <div v-if="user.perfil.google_calendar_token" class="status-connected">
-                            <i class="fas fa-check-circle"></i> Conectado com sucesso
+                <div class="form-grid-2">
+                    <div class="form-group">
+                        <label>Nome <span class="req">*</span></label>
+                        <div class="input-with-icon">
+                            <i class="fas fa-user"></i>
+                            <input type="text" v-model="form.first_name" required class="form-control" placeholder="Ex: Ana">
                         </div>
-                        <button v-else type="button" @click="handleGoogleAuth" class="btn-google">
-                            Autorizar Acesso Google
-                        </button>
+                    </div>
+                    <div class="form-group">
+                        <label>Sobrenome <span class="req">*</span></label>
+                        <input type="text" v-model="form.last_name" required class="form-control" placeholder="Ex: Silva">
                     </div>
                 </div>
-             </div>
-          </div>
 
-          <div v-if="successMessage" class="alert alert-success">
-            <i class="fas fa-check-circle"></i> {{ successMessage }}
-          </div>
-          <div v-if="errorMessage" class="alert alert-error">
-            <i class="fas fa-exclamation-triangle"></i> {{ errorMessage }}
-          </div>
+                <div class="form-group mt-3">
+                    <label>Email Corporativo <span class="req">*</span></label>
+                    <div class="input-with-icon">
+                        <i class="far fa-envelope"></i>
+                        <input type="email" v-model="form.email" required class="form-control" placeholder="ana@imobiliaria.com">
+                    </div>
+                </div>
+            </section>
 
-          <div class="form-actions-footer">
-            <button type="button" @click="handleCancel" class="btn-secondary">
-                Cancelar
-            </button>
-            <button type="submit" class="btn-primary" :disabled="isSubmitting">
-              <i v-if="isSubmitting" class="fas fa-spinner fa-spin"></i>
-              <span v-else>
-                  <i class="fas fa-save"></i> {{ isEditing ? 'Salvar Alterações' : 'Registar Utilizador' }}
-              </span>
-            </button>
-          </div>
-        </form>
-      </div>
+            <section class="form-section mt-6">
+                <h3 class="section-title"><i class="fas fa-key"></i> Credenciais</h3>
+                
+                <div class="form-grid-2">
+                    <div class="form-group">
+                        <label>Usuário (Login) <span class="req">*</span></label>
+                        <div class="input-with-icon">
+                            <i class="fas fa-at"></i>
+                            <input type="text" v-model="form.username" required class="form-control" placeholder="ana.silva">
+                        </div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>
+                            {{ isEditing ? 'Nova Senha' : 'Senha Inicial' }} 
+                            <span v-if="!isEditing" class="req">*</span>
+                        </label>
+                        <div class="input-with-icon">
+                            <i class="fas fa-lock"></i>
+                            <input 
+                                type="password" 
+                                v-model="form.password" 
+                                :required="!isEditing" 
+                                class="form-control" 
+                                placeholder="******"
+                                autocomplete="new-password"
+                            >
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="form-group mt-4">
+                    <label class="toggle-label">
+                        <div class="toggle-switch">
+                            <input type="checkbox" v-model="form.is_active">
+                            <span class="slider"></span>
+                        </div>
+                        <div class="toggle-text">
+                            <span class="main">Acesso Ativo</span>
+                            <span class="sub">Permite que o usuário faça login no sistema.</span>
+                        </div>
+                    </label>
+                </div>
+            </section>
+        </div>
 
-    </div>
+        <div class="form-column permissions-column">
+            <section class="permissions-card">
+                <div class="card-header">
+                    <h3><i class="fas fa-user-shield"></i> Permissões de Acesso</h3>
+                    <p>Defina exatamente o que este usuário pode ver ou fazer.</p>
+                </div>
+
+                <div class="profile-tabs">
+                    <button type="button" class="profile-tab" :class="{ active: currentProfile === 'corretor' }" @click="applyProfile('corretor')">
+                        <i class="fas fa-id-badge"></i> Padrão Corretor
+                    </button>
+                    <button type="button" class="profile-tab" :class="{ active: currentProfile === 'admin' }" @click="applyProfile('admin')">
+                        <i class="fas fa-crown"></i> Admin Total
+                    </button>
+                    <button type="button" class="profile-tab" :class="{ active: currentProfile === 'custom' }" @click="currentProfile = 'custom'">
+                        <i class="fas fa-sliders-h"></i> Personalizado
+                    </button>
+                </div>
+
+                <div class="permissions-scroll">
+                    
+                    <div v-for="(group, gIndex) in allPermissionGroups" :key="gIndex" class="perm-group">
+                        <div class="perm-group-header">
+                            <h4 class="perm-group-title">{{ group.name }}</h4>
+                            <button type="button" class="btn-text-small" @click="toggleGroup(group)">
+                                {{ isGroupFull(group) ? 'Desmarcar Todos' : 'Marcar Todos' }}
+                            </button>
+                        </div>
+                        
+                        <div class="perm-grid">
+                            <label v-for="perm in group.permissions" :key="perm.code" class="checkbox-wrapper">
+                                <input type="checkbox" v-model="form.permissions" :value="perm.code">
+                                <span class="checkmark"></span>
+                                <span class="label-text">{{ perm.label }}</span>
+                            </label>
+                        </div>
+                    </div>
+
+                </div>
+            </section>
+        </div>
+
+      </form>
+    </main>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, computed } from 'vue';
+import { ref, onMounted, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import apiClient from '@/services/api';
+import api from '@/services/api';
+import { useToast } from 'vue-toast-notification';
 
 const route = useRoute();
 const router = useRouter();
+const toast = useToast();
 
-const userId = computed(() => route.params.id as string | undefined);
-const isEditing = computed(() => !!userId.value);
-const previewAssinatura = ref<string | null>(null);
+const isEditing = ref(false);
+const isLoading = ref(false);
+const currentProfile = ref('custom');
 
-const user = ref({
-  username: '',
+// --- ESTRUTURA DE DADOS DAS PERMISSÕES ---
+// Aqui definimos TODAS as permissões possíveis no sistema
+const allPermissionGroups = [
+    {
+        name: 'Imóveis',
+        permissions: [
+            { label: 'Visualizar Lista', code: 'view_imovel' },
+            { label: 'Cadastrar Novos', code: 'add_imovel' },
+            { label: 'Editar Dados', code: 'change_imovel' },
+            { label: 'Excluir Imóveis', code: 'delete_imovel' },
+            { label: 'Gerenciar Imagens', code: 'manage_images' },
+            { label: 'Autorizações de Venda', code: 'view_autorizacao' }
+        ]
+    },
+    {
+        name: 'Clientes & CRM',
+        permissions: [
+            { label: 'Visualizar Clientes', code: 'view_cliente' },
+            { label: 'Cadastrar/Editar', code: 'change_cliente' },
+            { label: 'Excluir Clientes', code: 'delete_cliente' },
+            { label: 'Acessar Funil', code: 'view_funil' },
+            { label: 'Gerenciar Oportunidades', code: 'manage_oportunidade' },
+            { label: 'Agendar Visitas', code: 'manage_visita' }
+        ]
+    },
+    {
+        name: 'Contratos & Jurídico',
+        permissions: [
+            { label: 'Visualizar Contratos', code: 'view_contrato' },
+            { label: 'Criar Contratos', code: 'add_contrato' },
+            { label: 'Editar/Renovar', code: 'change_contrato' },
+            { label: 'Gerenciar Vistorias', code: 'manage_vistoria' }
+        ]
+    },
+    {
+        name: 'Financeiro',
+        permissions: [
+            { label: 'Ver Dashboard Fin.', code: 'view_financeiro_dash' },
+            { label: 'Contas a Receber', code: 'view_receitas' },
+            { label: 'Contas a Pagar', code: 'view_despesas' },
+            { label: 'Gerenciar Transações', code: 'manage_transacao' },
+            { label: 'Gerenciar Boletos', code: 'manage_boletos' },
+            { label: 'Contas Bancárias', code: 'manage_contas_bancarias' }
+        ]
+    },
+    {
+        name: 'Marketing & Site',
+        permissions: [
+            { label: 'Publicar no Site', code: 'publish_site' },
+            { label: 'Integração Portais', code: 'manage_portais' },
+            { label: 'Redes Sociais', code: 'manage_social' }
+        ]
+    },
+    {
+        name: 'Sistema & Admin',
+        permissions: [
+            { label: 'Gerenciar Usuários', code: 'manage_users' },
+            { label: 'Configurações Globais', code: 'manage_settings' },
+            { label: 'Ver Relatórios Gerenciais', code: 'view_reports' },
+            { label: 'Integrações (API)', code: 'manage_integrations' }
+        ]
+    }
+];
+
+// Perfis pré-definidos (Atalhos)
+const presets: any = {
+    corretor: [
+        'view_imovel', 'add_imovel', 'change_imovel', 'manage_images', 'view_autorizacao',
+        'view_cliente', 'change_cliente', 'view_funil', 'manage_oportunidade', 'manage_visita',
+        'publish_site'
+    ],
+    admin: allPermissionGroups.flatMap(g => g.permissions.map(p => p.code)) // Todos
+};
+
+// MODELO DO FORM
+const form = ref({
   first_name: '',
   last_name: '',
+  username: '',
   email: '',
   password: '',
-  perfil: {
-    is_admin: false,
-    is_corretor: true,
-    
-    creci: '',
-    telefone: '',
-    endereco_logradouro: '',
-    endereco_numero: '',
-    endereco_bairro: '',
-    endereco_cidade: '',
-    endereco_estado: '',
-    endereco_cep: '',
-    observacoes: '',
-    google_json_file: null as File | null | string,
-    google_calendar_token: null as string | null,
-    assinatura: null as File | null | string // Campo novo
-  },
+  is_active: true,
+  permissions: [] as string[]
 });
 
-const isLoadingData = ref(false);
-const isSubmitting = ref(false);
-const successMessage = ref('');
-const errorMessage = ref('');
+// --- LÓGICA DE SELEÇÃO ---
 
-async function fetchUserData() {
-  if (isEditing.value) {
-    isLoadingData.value = true;
-    try {
-      const response = await apiClient.get(`/v1/core/usuarios/${userId.value}/`);
-      const data = response.data;
-      
-      user.value.username = data.username;
-      user.value.first_name = data.first_name;
-      user.value.last_name = data.last_name;
-      user.value.email = data.email;
-      
-      const perfilData = data.perfil || {};
-      user.value.perfil = { 
-          ...user.value.perfil, 
-          ...perfilData,
-          is_admin: !!perfilData.is_admin,
-          is_corretor: !!perfilData.is_corretor 
-      };
+const isGroupFull = (group: any) => {
+    return group.permissions.every((p: any) => form.value.permissions.includes(p.code));
+};
 
-      // Se já tiver assinatura, mostra o preview
-      if (perfilData.assinatura) {
-          previewAssinatura.value = perfilData.assinatura;
-      }
-      
-    } catch (error) {
-      console.error("Erro ao buscar dados:", error);
-      errorMessage.value = "Não foi possível carregar os dados do utilizador.";
-      setTimeout(() => router.push({ name: 'corretores' }), 2000);
-    } finally {
-      isLoadingData.value = false;
+const toggleGroup = (group: any) => {
+    if (isGroupFull(group)) {
+        // Desmarcar todos do grupo
+        form.value.permissions = form.value.permissions.filter(p => !group.permissions.find((gp: any) => gp.code === p));
+    } else {
+        // Marcar todos do grupo (adiciona os que faltam)
+        const groupCodes = group.permissions.map((p: any) => p.code);
+        const newPerms = new Set([...form.value.permissions, ...groupCodes]);
+        form.value.permissions = Array.from(newPerms);
     }
-  }
-}
+};
 
-function handleFileUpload(event: Event) {
-    const target = event.target as HTMLInputElement;
-    if (target.files && target.files[0]) {
-        user.value.perfil.google_json_file = target.files[0];
+const applyProfile = (profileName: string) => {
+    currentProfile.value = profileName;
+    if (presets[profileName]) {
+        form.value.permissions = [...presets[profileName]];
     }
-}
+};
 
-// Manipula o upload da assinatura e gera preview
-function handleAssinaturaUpload(event: Event) {
-    const target = event.target as HTMLInputElement;
-    if (target.files && target.files[0]) {
-        const file = target.files[0];
-        user.value.perfil.assinatura = file;
-        
-        // Cria URL temporária para preview
-        previewAssinatura.value = URL.createObjectURL(file);
-    }
-}
+// Detecta mudanças manuais para mudar status para "Custom"
+watch(() => form.value.permissions, (newPerms) => {
+    // Ordena para comparar JSON
+    const sortedNew = [...newPerms].sort();
+    const sortedCorretor = [...presets.corretor].sort();
+    const sortedAdmin = [...presets.admin].sort();
 
-function removeAssinatura() {
-    user.value.perfil.assinatura = null; // Será tratado no backend se enviar null/vazio?
-    previewAssinatura.value = null;
-    // Nota: Para apagar no backend, geralmente precisaríamos de uma flag ou lógica específica, 
-    // mas aqui estamos apenas limpando o input para novo upload.
-}
+    if (JSON.stringify(sortedNew) === JSON.stringify(sortedCorretor)) currentProfile.value = 'corretor';
+    else if (JSON.stringify(sortedNew) === JSON.stringify(sortedAdmin)) currentProfile.value = 'admin';
+    else currentProfile.value = 'custom';
+}, { deep: true });
 
-function handleGoogleAuth() {
-  window.location.href = `${apiClient.defaults.baseURL}/v1/clientes/google-calendar-auth/`;
-}
 
-async function handleSubmit() {
-  isSubmitting.value = true;
-  successMessage.value = '';
-  errorMessage.value = '';
+// --- API ---
 
-  const formData = new FormData();
-  formData.append('username', user.value.username);
-  formData.append('first_name', user.value.first_name);
-  formData.append('last_name', user.value.last_name || '');
-  formData.append('email', user.value.email);
-  
-  if (user.value.password) {
-    formData.append('password', user.value.password);
+onMounted(async () => {
+  // Inicializa limpo ou com padrão corretor? Vamos deixar limpo ou corretor
+  applyProfile('corretor');
+
+  if (route.params.id) {
+    isEditing.value = true;
+    await fetchUser(Number(route.params.id));
   }
+});
 
-  const p = user.value.perfil;
-  formData.append('perfil.is_admin', p.is_admin ? 'true' : 'false');
-  formData.append('perfil.is_corretor', p.is_corretor ? 'true' : 'false');
-  
-  if (p.creci) formData.append('perfil.creci', p.creci);
-  if (p.telefone) formData.append('perfil.telefone', p.telefone);
-  if (p.endereco_logradouro) formData.append('perfil.endereco_logradouro', p.endereco_logradouro);
-  if (p.endereco_numero) formData.append('perfil.endereco_numero', p.endereco_numero);
-  if (p.endereco_bairro) formData.append('perfil.endereco_bairro', p.endereco_bairro);
-  if (p.endereco_cidade) formData.append('perfil.endereco_cidade', p.endereco_cidade);
-  if (p.endereco_estado) formData.append('perfil.endereco_estado', p.endereco_estado);
-  if (p.endereco_cep) formData.append('perfil.endereco_cep', p.endereco_cep);
-  if (p.observacoes) formData.append('perfil.observacoes', p.observacoes);
-  
-  // Envia arquivos apenas se forem objetos File (novos uploads)
-  if (p.google_json_file instanceof File) {
-    formData.append('perfil.google_json_file', p.google_json_file);
-  }
-  
-  if (p.assinatura instanceof File) {
-    formData.append('perfil.assinatura', p.assinatura);
-  }
-
+const fetchUser = async (id: number) => {
+  isLoading.value = true;
   try {
-    if (isEditing.value) {
-      await apiClient.put(`/v1/core/usuarios/${userId.value}/`, formData, {
-        headers: { 'Content-Type': 'multipart/form-data' },
-      });
-      successMessage.value = 'Utilizador atualizado com sucesso!';
+    const { data } = await api.get(`/v1/core/usuarios/${id}/`);
+    
+    form.value.first_name = data.first_name;
+    form.value.last_name = data.last_name;
+    form.value.username = data.username;
+    form.value.email = data.email;
+    form.value.is_active = data.is_active;
+    
+    // IMPORTANTE: Aqui você deve receber as permissões do backend.
+    // Se o backend enviar 'user_permissions' ou 'custom_permissions', use aqui.
+    // Exemplo: form.value.permissions = data.custom_permissions || [];
+    
+    // Lógica de compatibilidade se o backend só tiver is_superuser por enquanto:
+    if (data.is_superuser || data.is_admin) {
+        applyProfile('admin');
     } else {
-      await apiClient.post('/v1/core/usuarios/', formData, {
-        headers: { 'Content-Type': 'multipart/form-data' },
-      });
-      successMessage.value = 'Utilizador registado com sucesso!';
+        // Se tiver campo de permissões reais no futuro, remova essa linha e use o dado real
+        // form.value.permissions = data.permissions_list; 
+        
+        // Fallback: Se não for admin, assume corretor ou tenta ler o que vier
+        applyProfile('corretor'); 
     }
 
-    setTimeout(() => {
-        router.push({ name: 'corretores' });
-    }, 1500);
-
-  } catch (err: any) {
-    console.error("Erro ao guardar:", err);
-    const resp = err.response?.data;
-    if (resp) {
-        const keys = Object.keys(resp);
-        if (keys.length > 0) {
-            const firstError = resp[keys[0]];
-            errorMessage.value = `${keys[0]}: ${Array.isArray(firstError) ? firstError[0] : firstError}`;
-        } else {
-             errorMessage.value = "Erro ao processar requisição.";
-        }
-    } else {
-        errorMessage.value = "Ocorreu um erro inesperado.";
-    }
+  } catch (error) {
+    toast.error('Erro ao carregar dados.');
+    router.push({ name: 'corretores' });
   } finally {
-    isSubmitting.value = false;
+    isLoading.value = false;
   }
-}
+};
 
-function handleCancel() {
-  router.push({ name: 'corretores' });
-}
+const handleSubmit = async () => {
+  if (!form.value.first_name || !form.value.username) return toast.warning("Campos obrigatórios faltando.");
+  
+  isLoading.value = true;
+  try {
+    // Determina se é admin baseado na permissão crítica 'manage_settings' ou se selecionou tudo
+    const isAdminProfile = form.value.permissions.includes('manage_settings') && form.value.permissions.includes('manage_users');
+    
+    const payload: any = {
+        ...form.value,
+        is_staff: true, 
+        // Mantém compatibilidade com sistema antigo de flags
+        is_superuser: isAdminProfile, 
+        is_admin: isAdminProfile,
+        // Envia a lista granular para o backend (Backend precisa estar preparado para receber isso)
+        permissions_list: form.value.permissions 
+    };
 
-onMounted(() => {
-  fetchUserData();
-});
+    if (isEditing.value && !payload.password) delete payload.password;
+
+    if (isEditing.value) {
+      await api.patch(`/v1/core/usuarios/${route.params.id}/`, payload);
+      toast.success('Usuário atualizado!');
+    } else {
+      await api.post('/v1/core/usuarios/', payload);
+      toast.success('Usuário criado!');
+    }
+    router.push({ name: 'corretores' });
+  } catch (error: any) {
+    const msg = error.response?.data?.username ? 'Usuário já existe.' : 'Erro ao salvar.';
+    toast.error(msg);
+  } finally {
+    isLoading.value = false;
+  }
+};
 </script>
 
 <style scoped>
-/* Layout Base */
-.page-container { 
-    padding: 1.5rem; 
-    background-color: #f4f7f6; 
-    min-height: 100vh; 
-    display: flex; 
-    justify-content: center; 
+/* GERAL */
+.page-container {
+  min-height: 100vh;
+  background-color: #fcfcfc;
+  font-family: 'Inter', 'Segoe UI', Roboto, sans-serif;
+  padding: 1.5rem 2.5rem;
 }
-.content-wrapper { width: 100%; max-width: 900px; }
 
-/* Header */
-.view-header {
-    display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;
+/* HEADER */
+.page-header { margin-bottom: 2rem; }
+.title-area h1 { font-size: 1.5rem; font-weight: 300; color: #1f2937; margin: 0; }
+.breadcrumb { display: flex; align-items: center; gap: 6px; font-size: 0.7rem; color: #94a3b8; font-weight: 500; text-transform: uppercase; letter-spacing: 0.05em; }
+.breadcrumb .separator { font-size: 0.5rem; color: #cbd5e1; }
+.breadcrumb .active { color: #2563eb; font-weight: 700; }
+.header-main { display: flex; justify-content: space-between; align-items: flex-end; }
+.actions-area { display: flex; gap: 0.75rem; }
+
+/* BOTÕES */
+.btn-primary-thin, .btn-secondary-thin {
+  padding: 0.5rem 1.2rem; border-radius: 6px; font-weight: 500; font-size: 0.85rem; cursor: pointer;
+  display: flex; align-items: center; gap: 0.5rem; transition: all 0.2s; border: none;
 }
-.header-left h1 { font-size: 1.5rem; color: #343a40; margin: 0 0 0.3rem 0; font-weight: 700; }
-.subtitle { color: #6c757d; font-size: 0.9rem; margin: 0; }
+.btn-primary-thin { background: #2563eb; color: white; box-shadow: 0 1px 2px rgba(37, 99, 235, 0.15); }
+.btn-primary-thin:hover { background: #1d4ed8; transform: translateY(-1px); }
+.btn-secondary-thin { background: white; border: 1px solid #e2e8f0; color: #64748b; }
+.btn-secondary-thin:hover { background: #f8fafc; border-color: #cbd5e1; color: #334155; }
+.btn-primary-thin:disabled { opacity: 0.7; cursor: not-allowed; }
+.btn-text-small { background: none; border: none; font-size: 0.7rem; color: #2563eb; cursor: pointer; font-weight: 600; text-transform: uppercase; }
+.btn-text-small:hover { text-decoration: underline; }
 
-.btn-back {
-    background: none; border: 1px solid #dee2e6; padding: 0.5rem 1rem; border-radius: 6px;
-    color: #6c757d; cursor: pointer; font-weight: 600; transition: all 0.2s; display: flex; align-items: center; gap: 0.5rem;
+/* LAYOUT FORMULÁRIO */
+.form-wrapper form {
+    display: grid;
+    grid-template-columns: 1fr 1.2fr; /* Coluna da direita ligeiramente maior */
+    gap: 2rem;
+    align-items: start;
+    max-width: 1400px;
 }
-.btn-back:hover { background-color: #e9ecef; color: #343a40; }
 
-/* Card Form */
-.card { background: #fff; border-radius: 10px; box-shadow: 0 4px 12px rgba(0,0,0,0.04); padding: 2rem; border: 1px solid #eaedf0; }
+/* CARDS */
+.form-column {
+    background: white; border-radius: 8px; border: 1px solid #e5e7eb;
+    padding: 2rem; box-shadow: 0 1px 2px rgba(0,0,0,0.02);
+}
+.left-col { position: sticky; top: 2rem; } /* Coluna esquerda fixa ao rolar */
 
-.form-section { margin-bottom: 2rem; }
 .section-title {
-    font-size: 1.1rem; color: #2c3e50; margin-bottom: 1.2rem; padding-bottom: 0.5rem;
-    border-bottom: 2px solid #f0f2f5; font-weight: 700; display: flex; align-items: center; gap: 0.6rem;
+    font-size: 1rem; color: #1e293b; margin: 0 0 1.5rem 0; font-weight: 600;
+    display: flex; align-items: center; gap: 0.6rem; border-bottom: 1px solid #f1f5f9; padding-bottom: 0.8rem;
 }
-.section-divider { height: 1px; background: #f0f2f5; margin: 2rem 0; }
+.section-title i { color: #2563eb; font-size: 0.9rem; }
 
-/* Custom Roles Checkboxes */
-.roles-container { display: flex; gap: 1rem; flex-wrap: wrap; }
-.role-checkbox {
-    flex: 1; min-width: 200px; display: flex; align-items: flex-start; gap: 10px;
-    border: 1px solid #ced4da; padding: 1rem; border-radius: 8px; cursor: pointer; transition: all 0.2s;
-}
-.role-checkbox:hover { background-color: #f8f9fa; border-color: #adb5bd; }
-.role-checkbox:has(input:checked) { background-color: #e8f0fe; border-color: #3498db; }
-.role-label { display: flex; flex-direction: column; font-weight: 600; color: #343a40; }
-.role-label small { font-weight: 400; color: #6c757d; margin-top: 2px; font-size: 0.8rem; }
-.role-label i { margin-bottom: 5px; color: #3498db; }
-
-/* Grid & Inputs */
-.form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1.2rem; }
-@media (max-width: 768px) { .form-grid { grid-template-columns: 1fr; } }
+.form-grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 1.25rem; }
+.mt-3 { margin-top: 1rem; }
+.mt-4 { margin-top: 1.5rem; }
+.mt-6 { margin-top: 2.5rem; }
 
 .form-group { display: flex; flex-direction: column; gap: 0.4rem; }
-.span-2 { grid-column: span 2; }
-@media (max-width: 768px) { .span-2 { grid-column: span 1; } }
-.full-width { grid-column: 1 / -1; }
+.form-group label { font-size: 0.75rem; font-weight: 600; color: #475569; text-transform: uppercase; letter-spacing: 0.02em; }
+.req { color: #ef4444; margin-left: 2px; }
 
-label { font-weight: 600; font-size: 0.85rem; color: #495057; }
-.required { color: #e74c3c; }
+.input-with-icon { position: relative; width: 100%; }
+.input-with-icon i { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: #94a3b8; font-size: 0.9rem; }
 
-.input-wrapper { position: relative; }
-.input-icon {
-    position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: #adb5bd; font-size: 0.9rem;
+.form-control {
+  width: 100%; padding: 0.6rem 0.8rem 0.6rem 2.3rem; font-size: 0.9rem;
+  border: 1px solid #cbd5e1; border-radius: 6px; background-color: #fff; color: #334155;
+  outline: none; height: 40px; box-sizing: border-box; transition: all 0.2s;
+}
+.form-control:focus { border-color: #3b82f6; box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.1); }
+
+/* TOGGLE */
+.toggle-label { display: flex; align-items: center; gap: 1rem; cursor: pointer; }
+.toggle-switch { position: relative; width: 44px; height: 24px; }
+.toggle-switch input { opacity: 0; width: 0; height: 0; }
+.slider {
+  position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0;
+  background-color: #ccc; transition: .4s; border-radius: 34px;
+}
+.slider:before {
+  position: absolute; content: ""; height: 18px; width: 18px; left: 3px; bottom: 3px;
+  background-color: white; transition: .4s; border-radius: 50%;
+}
+input:checked + .slider { background-color: #10b981; }
+input:checked + .slider:before { transform: translateX(20px); }
+.toggle-text .main { font-weight: 600; font-size: 0.9rem; color: #1e293b; }
+.toggle-text .sub { font-size: 0.75rem; color: #64748b; }
+
+/* SEÇÃO DE PERMISSÕES */
+.permissions-column { background-color: #fcfcfc; border-color: #e2e8f0; padding: 0; overflow: hidden; display: flex; flex-direction: column; height: auto; }
+.permissions-card { display: flex; flex-direction: column; height: 100%; }
+
+.card-header { padding: 1.5rem; border-bottom: 1px solid #f1f5f9; background: white; }
+.card-header h3 { font-size: 1rem; font-weight: 600; color: #1e293b; margin: 0 0 0.3rem 0; display: flex; align-items: center; gap: 0.5rem; }
+.card-header p { font-size: 0.8rem; color: #64748b; margin: 0; }
+.card-header i { color: #2563eb; }
+
+/* TABS DE PERFIL */
+.profile-tabs { display: flex; gap: 0.5rem; background: #f1f5f9; padding: 0.5rem 1.5rem; border-bottom: 1px solid #e2e8f0; }
+.profile-tab {
+    flex: 1; border: none; background: transparent; padding: 0.6rem; border-radius: 6px;
+    font-size: 0.75rem; font-weight: 600; color: #64748b; cursor: pointer; transition: all 0.2s;
+    display: flex; align-items: center; justify-content: center; gap: 6px; border: 1px solid transparent;
+}
+.profile-tab:hover { background: rgba(255,255,255,0.5); }
+.profile-tab.active { background: white; color: #2563eb; border-color: #e2e8f0; box-shadow: 0 1px 2px rgba(0,0,0,0.05); }
+.profile-tab i { font-size: 0.9rem; }
+
+/* SCROLL AREA */
+.permissions-scroll {
+    flex: 1; overflow-y: auto; padding: 1.5rem; max-height: 600px;
 }
 
-.form-input, .form-select, .form-textarea {
-    width: 100%; padding: 0.6rem 0.8rem; border: 1px solid #ced4da; border-radius: 6px;
-    font-size: 0.95rem; transition: border-color 0.2s; background-color: #fff; box-sizing: border-box;
-}
-.form-input.has-icon { padding-left: 2.2rem; }
-.form-input:focus, .form-select:focus, .form-textarea:focus {
-    border-color: #3498db; outline: none; box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.1);
-}
+/* GRUPOS */
+.perm-group { margin-bottom: 2rem; }
+.perm-group-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.8rem; border-bottom: 1px solid #e2e8f0; padding-bottom: 0.4rem; }
+.perm-group-title { font-size: 0.8rem; font-weight: 700; color: #334155; text-transform: uppercase; letter-spacing: 0.05em; margin: 0; }
 
-/* Integração */
-.integration-card {
-    background-color: #f8f9fa; border: 1px solid #e9ecef; border-radius: 8px; overflow: hidden;
-}
-.integration-header {
-    background-color: #fff; padding: 0.8rem 1.2rem; border-bottom: 1px solid #e9ecef;
-    display: flex; align-items: center; gap: 0.8rem;
-}
-.integration-header i { color: #4285F4; font-size: 1.2rem; }
-.integration-header h4 { margin: 0; font-size: 0.95rem; font-weight: 700; color: #343a40; }
-.integration-body { padding: 1.2rem; }
-.help-text { font-size: 0.85rem; color: #6c757d; margin-top: 0; margin-bottom: 1rem; }
+.perm-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.8rem; }
 
-/* File Upload Custom */
-input[type="file"] { display: none; }
-.custom-file-upload {
-    display: inline-flex; align-items: center; gap: 0.5rem;
-    border: 1px dashed #adb5bd; padding: 0.6rem 1rem; border-radius: 6px;
-    cursor: pointer; background-color: #fff; color: #495057; font-size: 0.9rem; transition: all 0.2s; width: 100%; justify-content: center;
+.checkbox-wrapper {
+    display: flex; align-items: center; position: relative; padding-left: 28px; cursor: pointer;
+    font-size: 0.85rem; color: #475569; user-select: none; transition: color 0.2s;
 }
-.custom-file-upload:hover { border-color: #3498db; color: #3498db; background-color: #f1f8ff; }
+.checkbox-wrapper:hover { color: #1e293b; }
+.checkbox-wrapper input { position: absolute; opacity: 0; cursor: pointer; height: 0; width: 0; }
+.checkmark {
+    position: absolute; top: 0; left: 0; height: 18px; width: 18px;
+    background-color: #fff; border: 1px solid #cbd5e1; border-radius: 4px; transition: all 0.2s;
+}
+.checkbox-wrapper:hover input ~ .checkmark { border-color: #94a3b8; }
+.checkbox-wrapper input:checked ~ .checkmark { background-color: #2563eb; border-color: #2563eb; }
+.checkmark:after {
+    content: ""; position: absolute; display: none;
+    left: 6px; top: 2px; width: 4px; height: 9px;
+    border: solid white; border-width: 0 2px 2px 0; transform: rotate(45deg);
+}
+.checkbox-wrapper input:checked ~ .checkmark:after { display: block; }
 
-/* Signature Preview */
-.signature-preview {
-    display: flex; flex-direction: column; align-items: center; gap: 10px;
-    background: #fff; padding: 15px; border: 1px solid #dee2e6; border-radius: 6px;
+@media (max-width: 1024px) {
+    .page-container { padding: 1rem; }
+    .form-wrapper form { grid-template-columns: 1fr; }
+    .header-main { flex-direction: column; align-items: flex-start; gap: 1rem; }
+    .actions-area { width: 100%; justify-content: space-between; }
+    .left-col { position: static; }
+    .permissions-scroll { max-height: none; }
 }
-.signature-preview img { max-height: 80px; max-width: 100%; object-fit: contain; }
-.btn-remove-sig {
-    background: #ffebee; color: #c62828; border: 1px solid #ef9a9a;
-    padding: 5px 10px; border-radius: 4px; cursor: pointer; font-size: 0.8rem; display: flex; align-items: center; gap: 5px;
-}
-.btn-remove-sig:hover { background: #ffcdd2; }
-
-.auth-actions { margin-top: 1rem; text-align: center; }
-.btn-google {
-    background-color: #4285F4; color: white; border: none; padding: 0.6rem 1.2rem;
-    border-radius: 5px; cursor: pointer; font-weight: 600; display: inline-flex; align-items: center; gap: 0.5rem;
-}
-.btn-google:hover { background-color: #357ae8; }
-.status-connected { color: #27ae60; font-weight: 600; font-size: 0.9rem; display: flex; align-items: center; gap: 0.5rem; justify-content: center; }
-
-/* Footer Actions */
-.form-actions-footer {
-    display: flex; justify-content: flex-end; gap: 1rem; margin-top: 2rem; padding-top: 1.5rem; border-top: 1px solid #f0f2f5;
-}
-.btn-primary, .btn-secondary {
-    padding: 0.7rem 1.5rem; border-radius: 6px; border: none; font-weight: 600; cursor: pointer; font-size: 0.95rem; display: flex; align-items: center; gap: 0.5rem;
-}
-.btn-primary { background-color: #007bff; color: white; }
-.btn-primary:hover { background-color: #0056b3; transform: translateY(-1px); }
-.btn-primary:disabled { background-color: #94aabf; cursor: not-allowed; transform: none; }
-.btn-secondary { background-color: #6c757d; color: white; }
-.btn-secondary:hover { background-color: #5a6268; }
-
-/* Alerts */
-.alert { padding: 1rem; border-radius: 6px; margin-top: 1.5rem; font-size: 0.9rem; display: flex; align-items: center; gap: 0.5rem; }
-.alert-success { background-color: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
-.alert-error { background-color: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
-
-/* Loading */
-.loading-state { text-align: center; padding: 4rem; color: #6c757d; }
-.spinner {
-  border: 3px solid #e9ecef; border-top: 3px solid #007bff; border-radius: 50%;
-  width: 40px; height: 40px; animation: spin 0.8s linear infinite; margin: 0 auto 1rem;
-}
-@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
 </style>

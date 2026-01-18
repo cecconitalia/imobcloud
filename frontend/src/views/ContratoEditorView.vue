@@ -9,6 +9,10 @@
 
     <div v-if="!isLoading && !error && editor" class="card card-no-padding">
       
+      <div class="editor-header px-4 py-3 border-b border-slate-200 bg-slate-50 flex justify-between items-center" v-if="docTitle">
+          <h2 class="text-sm font-bold text-slate-700 m-0 uppercase tracking-wide">{{ docTitle }}</h2>
+      </div>
+
       <div class="editor-toolbar">
         
         <div class="toolbar-group">
@@ -165,16 +169,12 @@
 </template>
 
 <script setup lang="ts">
-// ==========================================================
-// === IMPORTAÇÃO ADICIONADA: 'computed'                  ===
-// ==========================================================
 import { ref, onMounted, onBeforeUnmount, computed } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import apiClient from '@/services/api';
 import { useToast } from 'vue-toast-notification';
 import 'vue-toast-notification/dist/theme-sugar.css';
 
-// (Importações Tiptap inalteradas)
 import { useEditor, EditorContent } from '@tiptap/vue-3';
 import StarterKit from '@tiptap/starter-kit';
 import { Underline } from '@tiptap/extension-underline';
@@ -185,22 +185,25 @@ import { Highlight } from '@tiptap/extension-highlight';
 import { FontFamily } from '@tiptap/extension-font-family';
 import { FontSize } from '@/extensions/tiptapExtensions';
 
+// --- Props para tornar o componente reutilizável ---
+const props = defineProps({
+  docType: {
+    type: String,
+    default: 'contrato', // 'contrato' | 'imovel-autorizacao'
+  }
+});
 
 const route = useRoute();
 const router = useRouter(); 
 const toast = useToast();
 
-const contratoId = ref<string | null>(null);
+const documentId = ref<string | null>(null);
 const isLoading = ref(true);
 const isSaving = ref(false);
 const error = ref<string | null>(null);
 const isGeneratingPdf = ref(false);
 
-// ==========================================================
-// === NOVO ESTADO: Nível de Zoom                         ===
-// ==========================================================
-const zoomLevel = ref(1); // 1 = 100%
-// ==========================================================
+const zoomLevel = ref(1); 
 
 const fontFamilies = ref([
   { label: 'Padrão (Times)', value: 'Times New Roman' },
@@ -210,7 +213,6 @@ const fontFamilies = ref([
   { label: 'Georgia', value: 'Georgia' },
 ]);
 
-// (Opções de fonte com 16px como padrão - inalterado)
 const fontSizes = ref([
   { label: 'Padrão (16px)', value: '16px' }, 
   { label: '10px', value: '10px' },
@@ -220,8 +222,27 @@ const fontSizes = ref([
   { label: '18px', value: '18px' },
 ]);
 
+// --- Configuração dos Endpoints com base no docType ---
+const apiEndpoints = computed(() => {
+  if (props.docType === 'imovel-autorizacao') {
+    return {
+      fetch: `/v1/imoveis/${documentId.value}/get-autorizacao-html/`,
+      save: `/v1/imoveis/${documentId.value}/salvar-autorizacao-html/`,
+      pdf: `/v1/imoveis/${documentId.value}/visualizar-autorizacao-pdf/`, 
+      title: 'Editor de Autorização'
+    };
+  }
+  // Padrão: Contrato
+  return {
+    fetch: `/v1/contratos/${documentId.value}/get-html/`,
+    save: `/v1/contratos/${documentId.value}/salvar-html-editado/`,
+    pdf: `/v1/contratos/${documentId.value}/visualizar-pdf/`,
+    title: 'Editor de Contrato'
+  };
+});
 
-// (Configuração do Editor Tiptap - inalterada)
+const docTitle = computed(() => apiEndpoints.value.title);
+
 const editor = useEditor({
   content: '',
   extensions: [
@@ -248,32 +269,21 @@ const editor = useEditor({
   },
 });
 
-// ==========================================================
-// === NOVAS FUNÇÕES: Lógica de Zoom                      ===
-// ==========================================================
 function zoomIn() {
-  if (zoomLevel.value < 2) { // Limite máximo de 200%
-    zoomLevel.value = parseFloat((zoomLevel.value + 0.1).toFixed(1));
-  }
+  if (zoomLevel.value < 2) zoomLevel.value = parseFloat((zoomLevel.value + 0.1).toFixed(1));
 }
 function zoomOut() {
-  if (zoomLevel.value > 0.5) { // Limite mínimo de 50%
-    zoomLevel.value = parseFloat((zoomLevel.value - 0.1).toFixed(1));
-  }
+  if (zoomLevel.value > 0.5) zoomLevel.value = parseFloat((zoomLevel.value - 0.1).toFixed(1));
 }
 function resetZoom() {
   zoomLevel.value = 1;
 }
 
-// Computa o estilo CSS para aplicar o zoom
 const editorStyle = computed(() => ({
   transform: `scale(${zoomLevel.value})`,
   transformOrigin: 'top left',
 }));
-// ==========================================================
 
-
-// (Handlers de Fonte - inalterados, corretos para 16px)
 function handleFontFamilyChange(event: Event) {
   const target = event.target as HTMLSelectElement;
   editor.value?.chain().focus().setFontFamily(target.value).run();
@@ -296,27 +306,25 @@ function getActiveFontSize() {
   return editor.value.getAttributes('textStyle').fontSize || '16px'; 
 }
 
-
-// (Funções fetchContrato, handleSave, handleVisualizarPDF - inalteradas)
-async function fetchContratoHtml() {
+async function fetchDocumentContent() {
   isLoading.value = true;
   error.value = null;
-  contratoId.value = route.params.id as string;
-  if (!contratoId.value) {
-    error.value = 'ID do contrato não encontrado.';
+  documentId.value = route.params.id as string;
+  
+  if (!documentId.value) {
+    error.value = 'ID do documento não encontrado.';
     isLoading.value = false;
     return;
   }
+  
   try {
-    const response = await apiClient.get(
-      `/v1/contratos/${contratoId.value}/get-html/`
-    );
+    const response = await apiClient.get(apiEndpoints.value.fetch);
     if (editor.value) {
       editor.value.commands.setContent(response.data);
     }
   } catch (err) {
-    console.error('Erro ao buscar HTML do contrato:', err);
-    error.value = 'Não foi possível carregar o documento do contrato.';
+    console.error('Erro ao buscar HTML do documento:', err);
+    error.value = 'Não foi possível carregar o documento. Verifique se ele foi gerado corretamente.';
     toast.error(error.value);
   } finally {
     isLoading.value = false;
@@ -324,21 +332,19 @@ async function fetchContratoHtml() {
 }
 
 async function handleSave(): Promise<boolean> { 
-  if (!editor.value || !contratoId.value) return false;
+  if (!editor.value || !documentId.value) return false;
   isSaving.value = true;
   const htmlParaSalvar = editor.value.getHTML();
   let success = false; 
   try {
     await apiClient.post(
-      `/v1/contratos/${contratoId.value}/salvar-html-editado/`,
-      {
-        html_content: htmlParaSalvar,
-      }
+      apiEndpoints.value.save,
+      { html_content: htmlParaSalvar }
     );
-    toast.success('Documento do contrato salvo com sucesso!');
+    toast.success('Documento salvo com sucesso!');
     success = true; 
   } catch (err) {
-    console.error('Erro ao salvar HTML do contrato:', err);
+    console.error('Erro ao salvar HTML do documento:', err);
     toast.error('Falha ao salvar o documento.');
     success = false;
   } finally {
@@ -348,7 +354,7 @@ async function handleSave(): Promise<boolean> {
 }
 
 async function handleVisualizarPDF() {
-  if (isGeneratingPdf.value || !contratoId.value || isSaving.value) return; 
+  if (isGeneratingPdf.value || !documentId.value || isSaving.value) return; 
   isGeneratingPdf.value = true;
   
   toast.info('Salvando alterações...', { duration: 2000, position: 'top-right' });
@@ -363,10 +369,8 @@ async function handleVisualizarPDF() {
   try {
     toast.info('Gerando PDF... Por favor, aguarde.', { duration: 2000, position: 'top-right' });
     const response = await apiClient.get(
-      `/v1/contratos/${contratoId.value}/visualizar-pdf/`,
-      {
-        responseType: 'blob' 
-      }
+      apiEndpoints.value.pdf,
+      { responseType: 'blob' }
     );
     const file = new Blob([response.data], { type: 'application/pdf' });
     const fileURL = URL.createObjectURL(file);
@@ -381,7 +385,7 @@ async function handleVisualizarPDF() {
   }
 }
 
-onMounted(fetchContratoHtml);
+onMounted(fetchDocumentContent);
 
 onBeforeUnmount(() => {
   if (editor.value) {
@@ -408,52 +412,25 @@ onBeforeUnmount(() => {
   /* Tamanho de fonte padrão (zoom) */
   font-size: 1rem; /* 16px */
   
-  /* ========================================================== */
-  /* === NOVA PROPRIEDADE: Transição suave de zoom          === */
-  /* ========================================================== */
   transition: transform 0.2s ease-in-out;
-  /* (O 'transform' e 'transform-origin' são aplicados via style (JS)) */
-  /* ========================================================== */
 }
 .editor-content-area .prose-mirror-editor:focus {
   outline: none;
 }
 
-
-/* (Estilos de parágrafo, lista, etc. - inalterados) */
 .editor-content-area .prose-mirror-editor p {
   text-align: justify; 
   text-indent: 40px; 
   margin-bottom: 10px; 
 }
-.editor-content-area .prose-mirror-editor [style*="text-align: left"] {
-  text-align: left;
-}
-.editor-content-area .prose-mirror-editor [style*="text-align: center"] {
-  text-align: center;
-  text-indent: 0px;
-}
-.editor-content-area .prose-mirror-editor [style*="text-align: right"] {
-  text-align: right;
-  text-indent: 0px;
-}
-.editor-content-area .prose-mirror-editor [style*="text-align: justify"] {
-  text-align: justify;
-}
-.editor-content-area .prose-mirror-editor ul {
-  list-style-type: disc;
-  padding-left: 40px;
-  text-align: justify;
-}
-.editor-content-area .prose-mirror-editor li {
-  text-align: justify;
-}
-.editor-content-area .prose-mirror-editor u {
-  text-decoration: underline;
-}
-.editor-content-area .prose-mirror-editor s {
-  text-decoration: line-through;
-}
+.editor-content-area .prose-mirror-editor [style*="text-align: left"] { text-align: left; }
+.editor-content-area .prose-mirror-editor [style*="text-align: center"] { text-align: center; text-indent: 0px; }
+.editor-content-area .prose-mirror-editor [style*="text-align: right"] { text-align: right; text-indent: 0px; }
+.editor-content-area .prose-mirror-editor [style*="text-align: justify"] { text-align: justify; }
+.editor-content-area .prose-mirror-editor ul { list-style-type: disc; padding-left: 40px; text-align: justify; }
+.editor-content-area .prose-mirror-editor li { text-align: justify; }
+.editor-content-area .prose-mirror-editor u { text-decoration: underline; }
+.editor-content-area .prose-mirror-editor s { text-decoration: line-through; }
 .editor-content-area .prose-mirror-editor blockquote {
   border-left: 3px solid #ccc;
   margin-left: 1rem;
@@ -461,13 +438,8 @@ onBeforeUnmount(() => {
   font-style: italic;
   color: #555;
 }
-.editor-content-area .prose-mirror-editor hr {
-  border-top: 1px solid #000;
-  margin: 1rem 0;
-}
-.editor-content-area .prose-mirror-editor mark {
-  background-color: #fef08a;
-}
+.editor-content-area .prose-mirror-editor hr { border-top: 1px solid #000; margin: 1rem 0; }
+.editor-content-area .prose-mirror-editor mark { background-color: #fef08a; }
 
 /* ========================================================== */
 /* ==================== ESTILOS DA TOOLBAR ================== */
@@ -475,7 +447,7 @@ onBeforeUnmount(() => {
 .editor-toolbar {
   border: 1px solid #ccc;
   border-bottom: none;
-  border-radius: 8px 8px 0 0;
+  border-top: none; 
   background-color: #f8f9fa;
   padding: 0.5rem;
   display: flex;
@@ -490,215 +462,71 @@ onBeforeUnmount(() => {
   gap: 0.5rem;
   align-items: center;
 }
-.toolbar-divider {
-  width: 1px;
-  height: 24px;
-  background-color: #ddd;
-  margin: 0 0.25rem;
-}
+.toolbar-divider { width: 1px; height: 24px; background-color: #ddd; margin: 0 0.25rem; }
 
-
-/* Botões simples (ícones) */
 .editor-toolbar button {
-  background: #fff;
-  border: 1px solid #ccc;
-  border-radius: 4px;
-  padding: 0.25rem 0.6rem;
-  cursor: pointer;
-  font-weight: 500;
-  line-height: 1.2;
-  font-size: 0.85rem; 
-  display: inline-flex;
-  align-items: center;
-  gap: 0.4rem;
-  height: 29.5px; 
+  background: #fff; border: 1px solid #ccc; border-radius: 4px; padding: 0.25rem 0.6rem;
+  cursor: pointer; font-weight: 500; line-height: 1.2; font-size: 0.85rem; 
+  display: inline-flex; align-items: center; gap: 0.4rem; height: 29.5px; 
 }
 
-/* Botões de Ação (com texto, na toolbar) */
 .editor-toolbar .btn-toolbar-action {
-  padding: 0.25rem 0.75rem; 
-  font-weight: 500;
-  font-size: 0.8rem;
-  border-width: 1px;
-  border-style: solid;
-  transition: background-color 0.2s;
+  padding: 0.25rem 0.75rem; font-weight: 500; font-size: 0.8rem; border-width: 1px; border-style: solid; transition: background-color 0.2s;
 }
-.editor-toolbar .btn-toolbar-action i {
-  font-size: 0.9em;
-}
+.editor-toolbar .btn-toolbar-action i { font-size: 0.9em; }
 
-/* Cores dos botões de ação */
-.editor-toolbar .btn-secondary-toolbar {
-  background-color: #6c757d; color: white; border-color: #6c757d;
-}
-.editor-toolbar .btn-secondary-toolbar:hover {
-  background-color: #5a6268;
-}
-.editor-toolbar .btn-success-toolbar {
-  background-color: #198754; color: white; border-color: #198754;
-}
-.editor-toolbar .btn-success-toolbar:hover:not(:disabled) {
-  background-color: #157347;
-}
-.editor-toolbar .btn-info-toolbar {
-  background-color: #0d6efd; color: white; border-color: #0d6efd;
-}
-.editor-toolbar .btn-info-toolbar:hover:not(:disabled) {
-  background-color: #0b5ed7;
-}
+.editor-toolbar .btn-secondary-toolbar { background-color: #6c757d; color: white; border-color: #6c757d; }
+.editor-toolbar .btn-secondary-toolbar:hover { background-color: #5a6268; }
+.editor-toolbar .btn-success-toolbar { background-color: #198754; color: white; border-color: #198754; }
+.editor-toolbar .btn-success-toolbar:hover:not(:disabled) { background-color: #157347; }
+.editor-toolbar .btn-info-toolbar { background-color: #0d6efd; color: white; border-color: #0d6efd; }
+.editor-toolbar .btn-info-toolbar:hover:not(:disabled) { background-color: #0b5ed7; }
 
-/* Estados (ativo, hover, disabled) */
-.editor-toolbar button.is-active {
-  background-color: #007bff;
-  color: white;
-  border-color: #0056b3;
-  outline: none;
+.editor-toolbar button.is-active { background-color: #007bff; color: white; border-color: #0056b3; outline: none; }
+.editor-toolbar button:hover:not(.is-active) { background-color: #e9ecef; }
+.editor-toolbar button:disabled, .editor-toolbar .btn-toolbar-action:disabled {
+  opacity: 0.5; cursor: not-allowed; background-color: #e9ecef; color: #6c757d; border-color: #ced4da;
 }
-.editor-toolbar button:hover:not(.is-active) {
-  background-color: #e9ecef;
-}
-.editor-toolbar button:disabled,
-.editor-toolbar .btn-toolbar-action:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-  background-color: #e9ecef;
-  color: #6c757d;
-  border-color: #ced4da;
-}
-.editor-toolbar .btn-success-toolbar:disabled {
-  background-color: #198754; opacity: 0.6; color: white;
-}
-.editor-toolbar .btn-info-toolbar:disabled {
-  background-color: #0d6efd; opacity: 0.6; color: white;
-}
-.editor-toolbar .btn-secondary-toolbar:disabled {
-  background-color: #6c757d; opacity: 0.6; color: white;
-}
+.editor-toolbar .btn-success-toolbar:disabled { background-color: #198754; opacity: 0.6; color: white; }
+.editor-toolbar .btn-info-toolbar:disabled { background-color: #0d6efd; opacity: 0.6; color: white; }
+.editor-toolbar .btn-secondary-toolbar:disabled { background-color: #6c757d; opacity: 0.6; color: white; }
 
-
-/* Select (Dropdown) para Fontes/Tamanhos */
 .toolbar-select {
-  background: #fff;
-  border: 1px solid #ccc;
-  border-radius: 4px;
-  padding: 0.25rem 0.4rem;
-  cursor: pointer;
-  font-weight: 500;
-  line-height: 1.2;
-  font-size: 0.85rem; 
-  height: 29.5px; 
-  max-width: 120px; 
+  background: #fff; border: 1px solid #ccc; border-radius: 4px; padding: 0.25rem 0.4rem;
+  cursor: pointer; font-weight: 500; line-height: 1.2; font-size: 0.85rem; height: 29.5px; max-width: 120px; 
 }
-.toolbar-select:hover {
-  background-color: #e9ecef;
-}
-.toolbar-select:focus {
-  outline: 2px solid #007bff;
-  border-color: #0056b3;
-}
+.toolbar-select:hover { background-color: #e9ecef; }
+.toolbar-select:focus { outline: 2px solid #007bff; border-color: #0056b3; }
 
-
-/* Seletores de Cor */
 .toolbar-color-wrapper {
-  display: inline-flex;
-  align-items: center;
-  background: #fff;
-  border: 1px solid #ccc;
-  border-radius: 4px;
-  padding: 0.25rem 0.6rem;
-  gap: 0.4rem;
-  height: 29.5px;
-  box-sizing: border-box;
+  display: inline-flex; align-items: center; background: #fff; border: 1px solid #ccc;
+  border-radius: 4px; padding: 0.25rem 0.6rem; gap: 0.4rem; height: 29.5px; box-sizing: border-box;
 }
 .toolbar-color-picker {
-  width: 20px;
-  height: 20px;
-  padding: 0;
-  border: none;
-  background: none;
-  cursor: pointer;
-  -webkit-appearance: none;
-  -moz-appearance: none;
-  appearance: none;
+  width: 20px; height: 20px; padding: 0; border: none; background: none; cursor: pointer;
+  -webkit-appearance: none; -moz-appearance: none; appearance: none;
 }
-.toolbar-color-picker::-webkit-color-swatch-wrapper {
-  padding: 0;
-}
-.toolbar-color-picker::-webkit-color-swatch {
-  border: 1px solid #888;
-  border-radius: 4px;
-}
-.toolbar-color-picker::-moz-color-swatch {
-  border: 1px solid #888;
-  border-radius: 4px;
-}
-
+.toolbar-color-picker::-webkit-color-swatch-wrapper { padding: 0; }
+.toolbar-color-picker::-webkit-color-swatch { border: 1px solid #888; border-radius: 4px; }
+.toolbar-color-picker::-moz-color-swatch { border: 1px solid #888; border-radius: 4px; }
 </style>
 
 <style scoped>
-/* ========================================================== */
-/* === NOVO ESTILO: Display de Zoom                       === */
-/* ========================================================== */
 .zoom-display {
-  font-size: 0.8rem;
-  color: #495057;
-  font-weight: 600;
-  margin: 0 0.25rem;
-  width: 40px; /* Largura fixa para estabilidade */
-  text-align: center;
-  display: inline-block;
-  padding: 0;
+  font-size: 0.8rem; color: #495057; font-weight: 600; margin: 0 0.25rem;
+  width: 40px; text-align: center; display: inline-block; padding: 0;
 }
-/* Altera o botão de 100% para se parecer com o display */
-.editor-toolbar button .zoom-display {
-   margin: 0;
-   padding: 0;
-}
-/* ========================================================== */
+.editor-toolbar button .zoom-display { margin: 0; padding: 0; }
 
+.editor-container { padding: 0; overflow-x: auto; }
+.card { background: white; border-radius: 8px; box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05); margin-bottom: 1.5rem; }
+.card-no-padding { padding: 0; border-radius: 8px; overflow: hidden; border: 1px solid #ccc; }
+.card-full-padding { padding: 1.5rem; }
 
-/* Estilos da página (Scoped) */
-.editor-container {
-  padding: 0;
-  /* ========================================================== */
-  /* === Adiciona overflow-x para conter o zoom             === */
-  /* ========================================================== */
-  overflow-x: auto;
-}
-.card {
-  background: white;
-  border-radius: 8px;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
-  margin-bottom: 1.5rem;
-}
-.card-no-padding {
-  padding: 0;
-  border-radius: 8px; 
-  overflow: hidden; 
-  border: 1px solid #ccc; 
-}
-.card-full-padding {
-  padding: 1.5rem;
-}
-
-.loading-message,
-.error-message {
-  text-align: center;
-  padding: 2rem;
-  color: #6c757d;
-}
+.loading-message, .error-message { text-align: center; padding: 2rem; color: #6c757d; }
 .spinner {
-  border: 4px solid #f3f3f3;
-  border-top: 4px solid #007bff;
-  border-radius: 50%;
-  width: 40px;
-  height: 40px;
-  animation: spin 1s linear infinite;
-  margin: 0 auto 1rem;
+  border: 4px solid #f3f3f3; border-top: 4px solid #007bff; border-radius: 50%;
+  width: 40px; height: 40px; animation: spin 1s linear infinite; margin: 0 auto 1rem;
 }
-@keyframes spin {
-  0% { transform: rotate(0deg); }
-  100% { transform: rotate(360deg); }
-}
-
+@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
 </style>

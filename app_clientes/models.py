@@ -126,7 +126,6 @@ class Oportunidade(models.Model):
     imovel = models.ForeignKey('app_imoveis.Imovel', on_delete=models.SET_NULL, null=True, blank=True, related_name='oportunidades')
     cliente = models.ForeignKey(Cliente, on_delete=models.CASCADE, related_name='oportunidades')
 
-    # CAMPO ALTERADO: null=True adicionado para permitir a migração dos dados antigos
     fase = models.ForeignKey(
         FunilEtapa, 
         on_delete=models.PROTECT, 
@@ -151,6 +150,9 @@ class Oportunidade(models.Model):
     probabilidade = models.IntegerField(default=10, verbose_name="Probabilidade de Fechamento")
     
     motivo_perda = models.TextField(blank=True, null=True, verbose_name="Motivo da Perda")
+    
+    # CAMPO ADICIONADO PARA CORRIGIR O ERRO
+    data_fechamento_prevista = models.DateField(null=True, blank=True, verbose_name="Previsão de Fechamento")
     
     data_criacao = models.DateTimeField(auto_now_add=True, verbose_name="Data de Criação")
     data_atualizacao = models.DateTimeField(auto_now=True, verbose_name="Última Atualização")
@@ -259,6 +261,8 @@ class Visita(models.Model):
 
     assinatura_corretor = models.ImageField(upload_to='assinaturas_visitas/', blank=True, null=True, verbose_name="Assinatura do Corretor")
     data_assinatura_corretor = models.DateTimeField(blank=True, null=True, verbose_name="Data da Assinatura Corretor")
+
+    data_criacao = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
         return f"Visita de {self.cliente} em {self.data_visita}"

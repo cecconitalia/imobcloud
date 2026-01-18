@@ -5,839 +5,481 @@
       <div class="header-main">
         <div class="title-area">
            <nav class="breadcrumb">
-              <span>Vendas</span> 
+              <span>Comercial</span> 
               <i class="fas fa-chevron-right separator"></i> 
-              <router-link to="/funil-vendas">Funil</router-link>
-              <i class="fas fa-chevron-right separator"></i>
-              <span class="active">{{ isEditing ? 'Editar' : 'Nova' }}</span>
+              <router-link :to="{ name: 'funil-vendas' }">Funil</router-link>
+              <i class="fas fa-chevron-right separator"></i> 
+              <span class="active">{{ isEditing ? 'Editar Oportunidade' : 'Nova Oportunidade' }}</span>
            </nav>
            
-           <h1>{{ isEditing ? 'Editar Oportunidade' : 'Nova Oportunidade' }}</h1>
+           <h1>{{ isEditing ? 'Editar Negócio' : 'Criar Novo Negócio' }}</h1>
+        </div>
+        
+        <div class="actions-area">
+            <button @click="$router.back()" class="btn-secondary-thin">
+                <i class="fas fa-arrow-left"></i> Voltar
+            </button>
+            <button @click="handleSubmit" class="btn-primary-thin" :disabled="isLoading">
+                <i class="fas fa-save" :class="{ 'fa-spin': isLoading }"></i>
+                {{ isLoading ? 'Salvando...' : 'Salvar Negócio' }}
+            </button>
         </div>
       </div>
     </header>
 
     <div v-if="isLoadingData" class="loading-state">
-         <div class="spinner"></div>
-         <p>A carregar dados...</p>
+        <div class="spinner"></div>
     </div>
 
-    <div v-else class="main-content-grid">
-      
-      <div class="left-column">
-        <div class="card form-card">
-          <form @submit.prevent="handleSubmit">
+    <main v-else class="form-wrapper">
+      <form @submit.prevent="handleSubmit">
+        
+        <div class="form-column main-col">
             
-            <div class="form-section compact-section">
-                <h3 class="section-title"><i class="fas fa-bullseye"></i> Dados da Negociação</h3>
-                
-                <div class="form-grid">
-                    <div class="form-group full-width">
-                    <label for="titulo">Título da Oportunidade <span class="required">*</span></label>
-                    <div class="input-wrapper">
-                        <i class="fas fa-heading input-icon"></i>
-                        <input 
-                            type="text" 
-                            id="titulo" 
-                            v-model="oportunidade.titulo" 
-                            placeholder="Ex: Compra Apto Centro" 
-                            required 
-                            class="form-input has-icon"
-                        />
-                    </div>
+            <section class="card">
+                <div class="card-header">
+                    <h3><i class="fas fa-info-circle"></i> Informações do Negócio</h3>
+                </div>
+                <div class="card-body">
+                    
+                    <div class="form-group">
+                        <label>Título da Oportunidade <span class="req">*</span></label>
+                        <input type="text" v-model="form.titulo" required class="form-control" placeholder="Ex: Venda Apartamento Centro">
                     </div>
 
+                    <div class="form-grid-2 mt-4">
+                        <div class="form-group">
+                            <label>Cliente / Lead <span class="req">*</span></label>
+                            <v-select 
+                                v-model="form.cliente" 
+                                :options="clientesList" 
+                                :reduce="(option: any) => option.id" 
+                                label="nome_display"
+                                placeholder="Buscar cliente..."
+                                class="style-chooser"
+                            >
+                                <template #no-options>Digite para buscar...</template>
+                                <template #option="option">
+                                    <div class="select-option">
+                                        <span>{{ option.nome }}</span>
+                                        <small v-if="option.razao_social" class="text-muted">{{ option.razao_social }}</small>
+                                    </div>
+                                </template>
+                            </v-select>
+                        </div>
+
+                        <div class="form-group">
+                            <label>Imóvel de Interesse</label>
+                            <v-select 
+                                v-model="form.imovel" 
+                                :options="imoveisList" 
+                                :reduce="(option: any) => option.id" 
+                                label="titulo_formatado"
+                                placeholder="Buscar imóvel..."
+                                class="style-chooser"
+                            >
+                                <template #option="option">
+                                    <div class="select-option">
+                                        <span>{{ option.codigo_referencia }} - {{ option.titulo_anuncio }}</span>
+                                        <small class="text-muted">{{ option.bairro || 'Bairro não inf.' }} - {{ option.cidade }}</small>
+                                    </div>
+                                </template>
+                            </v-select>
+                        </div>
+                    </div>
+
+                    <div class="form-grid-2 mt-4">
+                        <div class="form-group">
+                            <label>Valor Estimado (R$)</label>
+                            <input 
+                                type="number" 
+                                step="0.01" 
+                                v-model="form.valor_estimado" 
+                                class="form-control" 
+                                placeholder="0,00"
+                            >
+                        </div>
+                        <div class="form-group">
+                            <label>Probabilidade de Fechamento (%)</label>
+                            <input 
+                                type="number" 
+                                min="0" max="100" 
+                                v-model="form.probabilidade" 
+                                class="form-control" 
+                                placeholder="Ex: 50"
+                            >
+                        </div>
+                    </div>
+
+                    <div class="form-group mt-4">
+                        <label>Descrição / Observações</label>
+                        <textarea v-model="form.descricao" rows="4" class="form-control" placeholder="Detalhes sobre a negociação..."></textarea>
+                    </div>
+
+                </div>
+            </section>
+
+        </div>
+
+        <div class="form-column side-col">
+            
+            <section class="card mb-4">
+                <div class="card-header">
+                    <h3><i class="fas fa-tasks"></i> Andamento</h3>
+                </div>
+                <div class="card-body">
                     <div class="form-group">
-                    <label for="cliente">Cliente <span class="required">*</span></label>
-                    <v-select
-                        id="cliente"
-                        v-model="oportunidade.cliente_id"
-                        :options="clienteOptions"
-                        :reduce="(option) => option.value"
-                        label="label"
-                        placeholder="Pesquisar cliente..."
-                        :clearable="false"
-                        :disabled="isLoadingClientes || clienteCriadoAutomaticamente"
-                        class="style-chooser"
-                        @search="onClienteSearch"
-                    >
-                        <template #option="option">
-                        <div class="option-content">
-                            <div class="option-title">{{ option.label }}</div>
-                            <div class="option-subtitle" v-if="option.documento || option.telefone">
-                                <span v-if="option.documento"><i class="fas fa-id-card"></i> {{ option.documento }}</span>
+                        <label>Etapa do Funil <span class="req">*</span></label>
+                        <div class="status-steps">
+                            <div 
+                                v-for="fase in fasesList" 
+                                :key="fase.id"
+                                class="step-item"
+                                :class="{ active: form.fase === fase.id }"
+                                @click="form.fase = fase.id"
+                            >
+                                <div class="step-circle"></div>
+                                <span class="step-label">{{ fase.titulo }}</span>
                             </div>
                         </div>
-                        </template>
-                        <template #no-options>
-                            <span class="no-results">Digite para buscar...</span>
-                        </template>
-                    </v-select>
-                    <small v-if="clienteCriadoAutomaticamente" class="helper-text text-success">
-                        <i class="fas fa-check-circle"></i> Cliente criado/selecionado automaticamente.
-                    </small>
                     </div>
 
+                    <div class="form-group mt-4">
+                        <label>Previsão de Fechamento <span class="req">*</span></label>
+                        <input type="date" v-model="form.data_fechamento_prevista" required class="form-control">
+                        <small class="help-text">Data estimada para conclusão do negócio.</small>
+                    </div>
+                </div>
+            </section>
+
+            <section v-if="isAdmin" class="card highlight-border">
+                <div class="card-header bg-orange-light">
+                    <h3 class="text-orange"><i class="fas fa-user-tie"></i> Responsável</h3>
+                </div>
+                <div class="card-body">
                     <div class="form-group">
-                    <label for="imovel_interesse">Imóvel de Interesse</label>
-                    <v-select
-                            id="imovel_interesse"
-                            v-model="oportunidade.imovel_interesse_id"
-                            :options="imovelOptions"
-                            :reduce="(option) => option.value"
-                            label="label"
-                            placeholder="Pesquisar imóvel..."
-                            :disabled="isLoadingImoveis"
+                        <label class="text-orange-dark font-bold">Corretor Responsável</label>
+                        <v-select 
+                            v-model="form.responsavel" 
+                            :options="usersList" 
+                            :reduce="(option: any) => option.id" 
+                            :get-option-label="(option: any) => `${option.first_name} ${option.last_name || ''} (${option.username})`"
+                            placeholder="Selecione o corretor..."
                             class="style-chooser"
-                            @search="onImovelSearch"
                         >
-                        <template #option="option">
-                            <div class="option-content">
-                                <div class="option-title">
-                                    {{ option.titulo_anuncio || 'Imóvel sem título' }} 
-                                    <span class="badge-code" v-if="option.codigo_referencia">{{ option.codigo_referencia }}</span>
-                                </div>
-                                <div class="option-subtitle" v-if="option.logradouro">
-                                        <i class="fas fa-map-marker-alt"></i> 
-                                        {{ option.logradouro }}{{ option.bairro ? ', ' + option.bairro : '' }}
-                                </div>
-                            </div>
-                        </template>
-                            <template #no-options>
-                            <span class="no-results">Digite para buscar...</span>
-                            </template>
                         </v-select>
+                        <small class="help-text mt-2">
+                            <i class="fas fa-info-circle"></i> Ao alterar, o novo corretor será notificado e a oportunidade aparecerá no funil dele.
+                        </small>
                     </div>
+                </div>
+            </section>
 
+            <section class="card mt-4">
+                <div class="card-header">
+                    <h3><i class="fas fa-bullhorn"></i> Origem</h3>
+                </div>
+                <div class="card-body">
                     <div class="form-group">
-                    <label for="fase_funil">Fase do Funil <span class="required">*</span></label>
-                    <div class="input-wrapper">
-                        <i class="fas fa-layer-group input-icon"></i>
-                        <select id="fase_funil" v-model="oportunidade.fase_funil_id" required class="form-select has-icon">
-                            <option v-for="fase in fasesFunil" :key="fase.id" :value="fase.id">
-                            {{ fase.titulo }}
-                            </option>
+                        <label>Fonte do Lead</label>
+                        <select v-model="form.fonte" class="form-control">
+                            <option value="">Selecione...</option>
+                            <option value="SITE">Site da Imobiliária</option>
+                            <option value="PORTAL">Portal Imobiliário</option>
+                            <option value="INDICACAO">Indicação</option>
+                            <option value="REDES_SOCIAIS">Redes Sociais</option>
+                            <option value="TELEFONE">Telefone Ativo</option>
+                            <option value="OUTRO">Outro</option>
                         </select>
                     </div>
-                    </div>
-
-                    <div class="form-group">
-                        <label for="valor_estimado">Valor Estimado (R$)</label>
-                        <MoneyInput
-                            id="valor_estimado"
-                            v-model="oportunidade.valor_estimado"
-                            class="form-input"
-                            :prefix="'R$ '"
-                        />
-                    </div>
-
-                    <div class="form-group">
-                        <label for="responsavel">Corretor Responsável</label>
-                        <v-select
-                            id="responsavel"
-                            v-model="oportunidade.responsavel_id"
-                            :options="corretoresOptions"
-                            :reduce="(option) => option.value"
-                            label="label"
-                            placeholder="Selecione ou pesquise..."
-                            class="style-chooser"
-                        >
-                            <template #option="option">
-                                <div class="option-content">
-                                    <div class="option-title">{{ option.label }}</div>
-                                    <div class="option-subtitle" v-if="option.email">
-                                        {{ option.email }}
-                                    </div>
-                                </div>
-                            </template>
-                            <template #no-options>
-                                <span class="no-results">Nenhum corretor encontrado</span>
-                            </template>
-                        </v-select>
-                    </div>
-
-                    <div class="form-group">
-                        <label for="fonte">Origem do Lead</label>
-                        <div class="input-wrapper">
-                            <i class="fas fa-bullhorn input-icon"></i>
-                            <select id="fonte" v-model="oportunidade.fonte" class="form-select has-icon">
-                                <option :value="null">-- Selecione --</option>
-                                <option value="SITE">Site</option>
-                                <option value="PORTAL_IMOVEIS">Portal Imobiliário</option>
-                                <option value="INDICACAO">Indicação</option>
-                                <option value="CLIENTE_EXISTENTE">Cliente da Carteira</option>
-                                <option value="REDES_SOCIAIS">Redes Sociais</option>
-                                <option value="TELEFONE">Telefone Ativo</option>
-                                <option value="EMAIL">Email</option>
-                                <option value="VISITA_PRESENCIAL">Visita à Loja</option>
-                                <option value="OUTRO">Outro</option>
-                            </select>
-                        </div>
-                    </div>
-
-                    <div class="form-group full-width">
-                    <label for="informacoes_adicionais">Observações / Detalhes</label>
-                    <textarea 
-                        id="informacoes_adicionais" 
-                        v-model="oportunidade.informacoes_adicionais" 
-                        rows="3" 
-                        class="form-textarea"
-                        placeholder="Insira detalhes importantes sobre a negociação..."
-                    ></textarea>
-                    </div>
                 </div>
-            </div>
+            </section>
 
-            <div class="form-actions-footer">
-                <button type="button" @click="handleCancel" class="btn-secondary">
-                    Cancelar
-                </button>
-                <button type="submit" class="btn-primary" :disabled="isSubmitting || !oportunidade.cliente_id">
-                <i v-if="isSubmitting" class="fas fa-spinner fa-spin"></i>
-                <span v-else>{{ isEditing ? 'Salvar' : 'Criar' }}</span>
-                </button>
-            </div>
-          </form>
         </div>
-      </div> 
-      
-      <div class="right-column" v-if="isEditing">
-            <div class="card tasks-card">
-                 <div class="widget-header">
-                     <h3 class="widget-title"><i class="fas fa-tasks"></i> Tarefas</h3>
-                     <button @click="abrirModalNovaTarefa" class="btn-icon-mini" title="Nova Tarefa">
-                        <i class="fas fa-plus"></i>
-                    </button>
-                 </div>
-                
-                <div v-if="tarefas.length === 0" class="empty-state-widget">
-                    <i class="fas fa-check-double"></i>
-                    <p>Nenhuma tarefa pendente.</p>
-                </div>
-                 <ul v-else class="tarefas-list">
-                     <li v-for="tarefa in tarefas" :key="tarefa.id" :class="['tarefa-item', { concluida: tarefa.concluida }]">
-                        <div class="tarefa-check">
-                             <input type="checkbox" :checked="tarefa.concluida" @change="toggleConcluirTarefa(tarefa)" />
-                        </div>
-                        <div class="tarefa-content">
-                            <span class="tarefa-text">{{ tarefa.titulo }}</span>
-                            <small class="tarefa-date" :class="{'text-danger': isAtrasada(tarefa.data_agendada) && !tarefa.concluida}">
-                                <i class="far fa-calendar-alt"></i> {{ formatarDataHora(tarefa.data_agendada) }}
-                            </small>
-                        </div>
-                        <button @click="abrirModalEditarTarefa(tarefa)" class="btn-edit-mini">
-                            <i class="fas fa-pen"></i>
-                        </button>
-                     </li>
-                 </ul>
-            </div>
-            
-            <div class="card activities-card">
-                <ClienteAtividades 
-                    v-if="oportunidade.cliente_id" 
-                    :clienteId="oportunidade.cliente_id" 
-                />
-                <div v-else class="empty-state-widget">
-                    <p>Selecione um cliente para ver/adicionar atividades.</p>
-                </div>
-            </div>
-        </div> 
-    </div> 
-    
-    <TarefaModal
-        v-if="showTarefaModal"
-        :tarefa-id="tarefaParaEditarId"
-        :oportunidade-id="oportunidadeId ? parseInt(oportunidadeId) : undefined"
-        @close="fecharModalTarefa"
-        @saved="tarefaSalva"
-    />
 
+      </form>
+    </main>
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import apiClient from '@/services/api';
+import api from '@/services/api';
+import { useAuthStore } from '@/stores/auth';
+import { useToast } from 'vue-toast-notification';
 import vSelect from 'vue-select';
 import 'vue-select/dist/vue-select.css';
-import MoneyInput from '@/components/MoneyInput.vue'; 
-import ClienteAtividades from '@/components/ClienteAtividades.vue'; 
-import TarefaModal from '@/components/TarefaModal.vue';
-import { format, parseISO, isPast } from 'date-fns';
-import { ptBR } from 'date-fns/locale';
-
-// Interfaces
-interface SelectOption { 
-    label: string; 
-    value: number; 
-    documento?: string;
-    telefone?: string;
-    proprietario_nome?: string;
-    titulo_anuncio?: string;
-    codigo_referencia?: string;
-    logradouro?: string;
-    bairro?: string;
-    cidade?: string;
-    email?: string;
-}
-interface FaseFunilSelecao { id: string; titulo: string; } 
-interface Tarefa { id: number; titulo: string; data_agendada: string; concluida: boolean; }
 
 const route = useRoute();
 const router = useRouter();
-const oportunidadeId = computed(() => route.params.id as string | undefined);
-const isEditing = computed(() => !!oportunidadeId.value);
-const isLoadingData = ref(false);
-const isSubmitting = ref(false);
+const authStore = useAuthStore();
+const toast = useToast();
 
-const clienteOptions = ref<SelectOption[]>([]);
-const imovelOptions = ref<SelectOption[]>([]);
-const corretoresOptions = ref<SelectOption[]>([]);
+const isEditing = ref(false);
+const isLoading = ref(false);
+const isLoadingData = ref(true);
 
-const isLoadingClientes = ref(false);
-const isLoadingImoveis = ref(false);
+// Listas para Dropdowns
+const clientesList = ref<any[]>([]);
+const imoveisList = ref<any[]>([]);
+const fasesList = ref<any[]>([]);
+const usersList = ref<any[]>([]);
 
-const tarefas = ref<Tarefa[]>([]);
-const showTarefaModal = ref(false);
-const tarefaParaEditarId = ref<number | null>(null);
-
-const clienteCriadoAutomaticamente = ref(false);
-
-const fasesFunil = ref<FaseFunilSelecao[]>([]);
-
-const oportunidade = ref({
-  id: null,
-  titulo: '',
-  cliente_id: null as number | null,
-  imovel_interesse_id: null as number | null,
-  fase_funil_id: null as string | null,
-  responsavel_id: null as number | null,
-  valor_estimado: null as number | null,
-  fonte: null as string | null,
-  informacoes_adicionais: '',
+// Modelo do Formulário
+const form = ref({
+    titulo: '',
+    cliente: null as number | null,
+    imovel: null as number | null,
+    fase: null as number | null,
+    valor_estimado: null as number | null,
+    probabilidade: 50,
+    descricao: '',
+    fonte: '',
+    data_fechamento_prevista: '',
+    responsavel: null as number | null 
 });
 
-function getDataFromResponse(response: any) {
-    if (response.data && Array.isArray(response.data.results)) return response.data.results; 
-    if (Array.isArray(response.data)) return response.data; 
-    return []; 
-}
+// Permissão de Admin
+const isAdmin = computed(() => {
+    const user = authStore.user;
+    return user?.is_superuser || user?.is_admin;
+});
 
-// --- Funções de Busca ---
-let clienteSearchTimeout: NodeJS.Timeout | null = null;
-async function onClienteSearch(search: string, loading: (l: boolean) => void) {
-    if (search.length >= 2) {
-        if (clienteSearchTimeout) clearTimeout(clienteSearchTimeout);
-        loading(true);
-        clienteSearchTimeout = setTimeout(async () => {
-            try {
-                const response = await apiClient.get(`/v1/clientes/?search=${search}`);
-                const rawData = getDataFromResponse(response);
-                clienteOptions.value = rawData.map((c: any) => ({
-                    label: c.nome_display || c.nome || c.razao_social,
-                    value: c.id,
-                    documento: c.documento,
-                    telefone: c.telefone
-                }));
-            } finally { loading(false); }
-        }, 400);
-    }
-}
+// --- FUNÇÃO AUXILIAR: CALCULAR DATA PADRÃO (+3 MESES) ---
+const getThreeMonthsAheadDate = () => {
+    const date = new Date();
+    date.setMonth(date.getMonth() + 3);
+    // Formato YYYY-MM-DD
+    return date.toISOString().split('T')[0];
+};
 
-let imovelSearchTimeout: NodeJS.Timeout | null = null;
-async function onImovelSearch(search: string, loading: (l: boolean) => void) {
-     if (search.length >= 2) {
-        if (imovelSearchTimeout) clearTimeout(imovelSearchTimeout);
-        loading(true);
-        imovelSearchTimeout = setTimeout(async () => {
-            try {
-                const response = await apiClient.get(`/v1/imoveis/?search=${search}`);
-                const rawData = getDataFromResponse(response);
-                imovelOptions.value = rawData.map((i: any) => ({
-                    label: i.titulo_codigo || `${i.titulo_anuncio || 'Imóvel'} (${i.codigo_referencia || 'S/Cód'})`,
-                    value: i.id,
-                    titulo_anuncio: i.titulo_anuncio,
-                    codigo_referencia: i.codigo_referencia,
-                    logradouro: i.logradouro,
-                    bairro: i.bairro,
-                    cidade: i.cidade,
-                    proprietario_nome: i.proprietario_detalhes ? (i.proprietario_detalhes.nome || i.proprietario_detalhes.razao_social) : 'N/A'
-                }));
-            } finally { loading(false); }
-        }, 400);
-    }
-}
-
-async function checkOrCreateClient(leadData: { nome: string, email: string, telefone: string }): Promise<number | null> {
+// --- CARREGAMENTO DE DADOS ---
+onMounted(async () => {
     try {
-        const searchResponse = await apiClient.get(`/v1/clientes/?search=${leadData.email}`);
-        const foundClients = getDataFromResponse(searchResponse);
+        await Promise.all([
+            fetchClientes(),
+            fetchImoveis(),
+            fetchFases(),
+            isAdmin.value ? fetchUsers() : Promise.resolve()
+        ]);
 
-        const exactMatch = foundClients.find((c: any) => 
-            c.email && c.email.toLowerCase() === leadData.email.toLowerCase()
-        );
-
-        if (exactMatch) {
-            const optionExiste = clienteOptions.value.find(o => o.value === exactMatch.id);
-            if (!optionExiste) {
-                clienteOptions.value.unshift({
-                    label: exactMatch.nome || exactMatch.razao_social || 'Cliente Encontrado',
-                    value: exactMatch.id,
-                    email: exactMatch.email,
-                    telefone: exactMatch.telefone,
-                    documento: exactMatch.documento
-                });
-            }
-            return exactMatch.id;
-        }
-
-        const uniqueDocumento = '00000000000'; 
-        
-        const newClientPayload = {
-            nome: leadData.nome,
-            email: leadData.email,
-            telefone: leadData.telefone,
-            tipo_pessoa: 'FISICA',
-            documento: uniqueDocumento, 
-            perfil_cliente: ['INTERESSADO'] 
-        };
-        
-        const createResponse = await apiClient.post('/v1/clientes/', newClientPayload);
-        const newClientId = createResponse.data.id;
-        
-        clienteOptions.value.unshift({
-            label: leadData.nome,
-            value: newClientId,
-            email: leadData.email,
-            telefone: leadData.telefone,
-            documento: newClientPayload.documento
-        });
-        clienteCriadoAutomaticamente.value = true;
-
-        return newClientId;
-
-    } catch (e: any) {
-        const errorDetails = JSON.stringify(e.response?.data, null, 2) || e.message;
-        console.error("Erro ao verificar ou criar cliente automaticamente:", errorDetails);
-        alert(`Falha ao criar cliente automático. Detalhes: ${errorDetails}`);
-        return null; 
-    }
-}
-
-
-async function loadInitialData() {
-  isLoadingData.value = true;
-  isLoadingClientes.value = true;
-  isLoadingImoveis.value = true;
-
-  try {
-    const promises = [
-      apiClient.get('/v1/core/usuarios/lista_corretores_simples/'),
-      apiClient.get('/v1/clientes/lista-simples/'), 
-      apiClient.get('/v1/imoveis/lista-simples/'),
-      apiClient.get('/v1/fases-funil/')
-    ];
-
-    if (isEditing.value && oportunidadeId.value) {
-      // CORREÇÃO: URL ajustada de /v1/clientes/oportunidades/ para /v1/oportunidades/
-      promises.push(apiClient.get(`/v1/oportunidades/${oportunidadeId.value}/`));
-      promises.push(apiClient.get(`/v1/tarefas/?oportunidade=${oportunidadeId.value}`));
-    }
-
-    const query = route.query;
-    const origemImovelId = query.imovel_id ? String(query.imovel_id) : null;
-    const contatoNome = query.contato_nome ? String(query.contato_nome) : null;
-    const contatoEmail = query.contato_email ? String(query.contato_email) : null;
-    const contatoMensagem = query.mensagem ? String(query.mensagem) : null;
-    const contatoTelefone = query.contato_telefone ? String(query.contato_telefone) : null;
-    const queryClienteId = query.cliente_id ? String(query.cliente_id) : null;
-    
-    if (origemImovelId) {
-        promises.push(apiClient.get(`/v1/imoveis/${origemImovelId}/`));
-    }
-
-    const results = await Promise.all(promises);
-
-    const corretoresRaw = results[0].data;
-    corretoresOptions.value = corretoresRaw.map((c: any) => ({
-        label: c.nome_completo,
-        value: c.id,
-        email: c.email
-    }));
-    
-    const clientesRaw = getDataFromResponse(results[1]);
-    clienteOptions.value = clientesRaw.map((c: any) => ({
-        label: c.nome_display || c.nome || c.razao_social,
-        value: c.id,
-        documento: c.documento,
-        telefone: c.telefone
-    }));
-
-    const imoveisRaw = getDataFromResponse(results[2]);
-    imovelOptions.value = imoveisRaw.map((i: any) => ({
-        label: i.label || `${i.titulo_anuncio || 'Imóvel'} (${i.codigo_referencia || 'S/Cód'})`,
-        value: i.id,
-        titulo_anuncio: i.titulo_anuncio,
-        codigo_referencia: i.codigo_referencia,
-        logradouro: i.logradouro,
-        bairro: i.bairro,
-        cidade: i.cidade,
-        proprietario_nome: i.proprietario_nome
-    }));
-
-    fasesFunil.value = getDataFromResponse(results[3]);
-    if (!isEditing.value && fasesFunil.value.length > 0) {
-        oportunidade.value.fase_funil_id = fasesFunil.value[0].id;
-    }
-
-    if (isEditing.value && results.length > 4) {
-      const opData = results[4].data;
-      const clienteObj = opData.cliente;
-      const imovelObj = opData.imovel;
-      const responsavelObj = opData.responsavel;
-      
-      const clienteId = (clienteObj && typeof clienteObj === 'object') ? clienteObj.id : clienteObj;
-      const imovelId = (imovelObj && typeof imovelObj === 'object') ? imovelObj.id : imovelObj;
-      const responsavelId = (responsavelObj && typeof responsavelObj === 'object') ? responsavelObj.id : responsavelObj;
-
-      if (clienteId && !clienteOptions.value.find(c => c.value === clienteId)) {
-          const nome = (clienteObj && typeof clienteObj === 'object') ? (clienteObj.nome_completo || 'Cliente') : 'Cliente';
-          clienteOptions.value.unshift({ label: nome, value: clienteId });
-      }
-      if (imovelId && !imovelOptions.value.find(i => i.value === imovelId)) {
-           const titulo = (imovelObj && typeof imovelObj === 'object') ? (imovelObj.imovel_titulo || 'Imóvel') : 'Imóvel';
-           imovelOptions.value.unshift({ label: titulo, value: imovelId });
-      }
-      
-      if (responsavelId && !corretoresOptions.value.find(c => c.value === responsavelId)) {
-          const nomeResp = (responsavelObj && typeof responsavelObj === 'object') 
-              ? (responsavelObj.first_name || responsavelObj.username || 'Responsável') 
-              : 'Responsável';
-          corretoresOptions.value.unshift({ label: nomeResp, value: responsavelId });
-      }
-
-      oportunidade.value = {
-        id: opData.id,
-        titulo: opData.titulo,
-        cliente_id: clienteId,
-        imovel_interesse_id: imovelId, 
-        fase_funil_id: opData.fase, 
-        responsavel_id: responsavelId,
-        valor_estimado: opData.valor_estimado ? parseFloat(opData.valor_estimado) : null,
-        fonte: opData.fonte || null,
-        informacoes_adicionais: opData.informacoes_adicionais || '',
-      };
-
-      if (results.length > 5) {
-          tarefas.value = getDataFromResponse(results[5]);
-      }
-    } 
-    else if (!isEditing.value && origemImovelId && contatoEmail && contatoNome) {
-        
-        let clientID: number | null = null;
-
-        if (queryClienteId) {
-            clientID = parseInt(queryClienteId);
-            
-            try {
-                 const clienteJaNaLista = clienteOptions.value.find(c => c.value === clientID);
-                 if (!clienteJaNaLista) {
-                     const clientDetailResp = await apiClient.get(`/v1/clientes/${clientID}/`);
-                     const cData = clientDetailResp.data;
-                     const nomeDisplay = cData.nome || cData.razao_social || 'Cliente Selecionado';
-                     
-                     clienteOptions.value.unshift({
-                        label: nomeDisplay,
-                        value: clientID,
-                        documento: cData.documento,
-                        telefone: cData.telefone,
-                        email: cData.email
-                     });
-                 }
-                 clienteCriadoAutomaticamente.value = true; 
-            } catch (err) {
-                console.error("Erro ao buscar detalhes do cliente pré-selecionado:", err);
-            }
-
+        if (route.params.id) {
+            isEditing.value = true;
+            await loadOportunidade(Number(route.params.id));
         } else {
-            const leadClientData = {
-                nome: contatoNome,
-                email: contatoEmail,
-                telefone: contatoTelefone || '',
-            };
-            clientID = await checkOrCreateClient(leadClientData);
+            // == CONFIGURAÇÃO INICIAL PARA NOVA OPORTUNIDADE ==
+            
+            // 1. Define responsável como eu mesmo por padrão
+            if (authStore.user) {
+                form.value.responsavel = authStore.user.id;
+            }
+            // 2. Define primeira fase como padrão
+            if (fasesList.value.length > 0) {
+                form.value.fase = fasesList.value[0].id;
+            }
+            // 3. Define data de fechamento para +3 meses
+            form.value.data_fechamento_prevista = getThreeMonthsAheadDate();
         }
-        
-        const imovelDetail = results[results.length - 1].data;
-        
-        const imovelOption = {
-            label: `${imovelDetail.titulo_anuncio || 'Imóvel'} (${imovelDetail.codigo_referencia || 'S/Cód'})`,
-            value: imovelDetail.id,
-            titulo_anuncio: imovelDetail.titulo_anuncio,
-            codigo_referencia: imovelDetail.codigo_referencia,
-            logradouro: imovelDetail.logradouro,
-            bairro: imovelDetail.bairro
+    } catch (e) {
+        console.error("Erro ao inicializar formulário", e);
+        toast.error("Erro ao carregar dados iniciais.");
+    } finally {
+        isLoadingData.value = false;
+    }
+});
+
+const fetchClientes = async () => {
+    const { data } = await api.get('/v1/clientes/lista-simples/');
+    clientesList.value = data;
+};
+
+const fetchImoveis = async () => {
+    try {
+        const { data } = await api.get('/v1/imoveis/lista-simples/');
+        imoveisList.value = data.map((i: any) => ({
+            ...i,
+            titulo_formatado: `${i.codigo_referencia || 'S/REF'} - ${i.titulo_anuncio || 'Sem Título'}`
+        }));
+    } catch (e) {
+        console.error("Erro ao buscar imóveis", e);
+    }
+};
+
+const fetchFases = async () => {
+    const { data } = await api.get('/v1/fases-funil/');
+    fasesList.value = data.results || data;
+};
+
+const fetchUsers = async () => {
+    const { data } = await api.get('/v1/core/usuarios/?page_size=100&is_active=true');
+    usersList.value = data.results || data;
+};
+
+const loadOportunidade = async (id: number) => {
+    try {
+        const { data } = await api.get(`/v1/oportunidades/${id}/`);
+        form.value = {
+            titulo: data.titulo,
+            cliente: data.cliente?.id || data.cliente,
+            imovel: data.imovel?.id || data.imovel,
+            fase: data.fase?.id || data.fase,
+            valor_estimado: data.valor_estimado,
+            probabilidade: data.probabilidade,
+            descricao: data.descricao || '',
+            fonte: data.fonte || '',
+            data_fechamento_prevista: data.data_fechamento_prevista || '',
+            responsavel: (typeof data.responsavel === 'object' && data.responsavel) ? data.responsavel.id : data.responsavel
         };
+    } catch (e) {
+        toast.error("Erro ao carregar oportunidade.");
+        router.push({ name: 'funil-vendas' });
+    }
+};
 
-        if (!imovelOptions.value.find(i => i.value === imovelDetail.id)) {
-            imovelOptions.value.unshift(imovelOption);
-        }
-
-        oportunidade.value.imovel_interesse_id = imovelDetail.id;
-        oportunidade.value.cliente_id = clientID; 
-        oportunidade.value.titulo = `Lead Site - ${contatoNome} (${imovelDetail.codigo_referencia})`;
-        
-        let obs = contatoMensagem ? `Mensagem Original: "${contatoMensagem}"` : 'Contato via formulário do site.';
-        obs += `\n\nDados do Contato:\nEmail: ${contatoEmail}\nTel: ${contatoTelefone || 'N/A'}`;
-        oportunidade.value.informacoes_adicionais = obs;
-
-        oportunidade.value.fonte = 'SITE';
-        // Defina a fase inicial padrão se não houver lógica específica
-        if (fasesFunil.value.length > 0) {
-             oportunidade.value.fase_funil_id = fasesFunil.value[0].id; 
-        }
-
+// --- SUBMIT ---
+const handleSubmit = async () => {
+    // Validação de campos obrigatórios
+    if (!form.value.titulo || !form.value.cliente || !form.value.fase) {
+        return toast.warning("Preencha os campos obrigatórios (Título, Cliente, Etapa).");
+    }
+    
+    // Validação da Data de Fechamento (Agora Obrigatória)
+    if (!form.value.data_fechamento_prevista) {
+        return toast.warning("A Previsão de Fechamento é obrigatória.");
     }
 
-  } catch (error) {
-    console.error('Erro ao carregar dados:', error);
-  } finally {
-    isLoadingData.value = false;
-    isLoadingClientes.value = false;
-    isLoadingImoveis.value = false;
-  }
-}
-
-async function handleSubmit() {
-  isSubmitting.value = true;
-  if (!oportunidade.value.cliente_id) {
-       alert("É obrigatório vincular um Cliente a esta oportunidade.");
-       isSubmitting.value = false;
-       return;
-  }
-  
-  try {
-    const apiPayload = {
-        titulo: oportunidade.value.titulo,
-        cliente: oportunidade.value.cliente_id,
-        imovel: oportunidade.value.imovel_interesse_id, 
-        fase: oportunidade.value.fase_funil_id, 
-        responsavel: oportunidade.value.responsavel_id,
-        valor_estimado: oportunidade.value.valor_estimado,
-        fonte: oportunidade.value.fonte,
-        informacoes_adicionais: oportunidade.value.informacoes_adicionais
-    };
-
-    let response;
-    // CORREÇÃO: URLs ajustadas de /v1/clientes/oportunidades/ para /v1/oportunidades/
-    if (isEditing.value && oportunidadeId.value) {
-      response = await apiClient.patch(`/v1/oportunidades/${oportunidadeId.value}/`, apiPayload);
-    } else {
-      response = await apiClient.post('/v1/oportunidades/', apiPayload);
-      
-      const contatoIdOriginal = route.query.contato_id;
-      if (contatoIdOriginal) {
-          try {
-              await apiClient.post(`/v1/contatos/${contatoIdOriginal}/arquivar/`);
-          } catch (e) { console.error(e); }
-      }
-    }
-    router.push('/funil-vendas');
-  } catch (error: any) {
-    console.error("Erro ao guardar:", error.response?.data || error);
-    let msg = 'Erro ao salvar. Verifique os dados.';
-    if(error.response?.data) {
-        const keys = Object.keys(error.response.data);
-        if(keys.length > 0) msg = `${keys[0]}: ${error.response.data[keys[0]]}`;
-    }
-    alert(msg);
-  } finally {
-    isSubmitting.value = false;
-  }
-}
-
-function handleCancel() { router.push('/funil-vendas'); }
-
-function abrirModalNovaTarefa() { tarefaParaEditarId.value = null; showTarefaModal.value = true; }
-function abrirModalEditarTarefa(tarefa: any) { tarefaParaEditarId.value = tarefa.id; showTarefaModal.value = true; }
-function fecharModalTarefa() { showTarefaModal.value = false; tarefaParaEditarId.value = null; }
-function tarefaSalva() { fecharModalTarefa(); fetchTarefas(); }
-
-async function fetchTarefas() {
-    if (!oportunidadeId.value) return;
+    isLoading.value = true;
     try {
-        const response = await apiClient.get(`/v1/tarefas/?oportunidade=${oportunidadeId.value}`);
-        tarefas.value = getDataFromResponse(response);
-    } catch (error) { console.error(error); }
-}
+        const payload = { ...form.value };
 
-async function toggleConcluirTarefa(tarefa: any) {
-    try {
-        const novoStatus = !tarefa.concluida;
-        await apiClient.patch(`/v1/tarefas/${tarefa.id}/`, { 
-            concluida: novoStatus,
-            data_conclusao: novoStatus ? new Date().toISOString() : null
-        });
-        tarefa.concluida = novoStatus;
-    } catch (error) { fetchTarefas(); }
-}
-
-function formatarDataHora(dataIso: string | null): string {
-  if (!dataIso) return '-';
-  try { return format(parseISO(dataIso), 'dd/MM HH:mm', { locale: ptBR }); } catch { return '-'; }
-}
-
-function isAtrasada(dataIso: string): boolean {
-    if (!dataIso) return false;
-    return isPast(parseISO(dataIso));
-}
-
-onMounted(loadInitialData);
+        if (isEditing.value) {
+            await api.patch(`/v1/oportunidades/${route.params.id}/`, payload);
+            toast.success("Oportunidade atualizada!");
+        } else {
+            await api.post('/v1/oportunidades/', payload);
+            toast.success("Oportunidade criada!");
+        }
+        router.push({ name: 'funil-vendas' });
+    } catch (e: any) {
+        console.error(e);
+        toast.error("Erro ao salvar oportunidade.");
+    } finally {
+        isLoading.value = false;
+    }
+};
 </script>
 
 <style scoped>
-/* =========================================================
-   1. GERAL & HEADER (PADRÃO LISTAS)
-   ========================================================= */
+/* GERAL */
 .page-container {
   min-height: 100vh;
-  background-color: #fcfcfc; /* Fundo cinza claro padrão */
+  background-color: #fcfcfc;
   font-family: 'Inter', 'Segoe UI', Roboto, sans-serif;
   padding: 1.5rem 2.5rem;
-  display: flex;
-  flex-direction: column;
 }
 
-/* Header & Breadcrumb */
+/* HEADER */
 .page-header { margin-bottom: 2rem; }
-
-.title-area { display: flex; flex-direction: column; gap: 6px; }
-.title-area h1 {
-  font-size: 1.5rem; font-weight: 300; color: #1f2937; margin: 0; letter-spacing: -0.02em;
-}
-
-.breadcrumb {
-  display: flex; align-items: center; gap: 6px;
-  font-size: 0.7rem; color: #94a3b8; font-weight: 500; text-transform: uppercase; letter-spacing: 0.05em;
-}
-.breadcrumb a { color: #94a3b8; text-decoration: none; transition: color 0.2s; }
-.breadcrumb a:hover { color: #2563eb; }
+.title-area h1 { font-size: 1.5rem; font-weight: 300; color: #1f2937; margin: 0; }
+.breadcrumb { display: flex; align-items: center; gap: 6px; font-size: 0.7rem; color: #94a3b8; font-weight: 500; text-transform: uppercase; letter-spacing: 0.05em; }
 .breadcrumb .separator { font-size: 0.5rem; color: #cbd5e1; }
 .breadcrumb .active { color: #2563eb; font-weight: 700; }
-
 .header-main { display: flex; justify-content: space-between; align-items: flex-end; }
+.actions-area { display: flex; gap: 0.75rem; }
 
-/* =========================================================
-   2. GRID LAYOUT
-   ========================================================= */
-.main-content-grid { 
-    display: grid; 
-    grid-template-columns: 1fr 360px; 
-    gap: 1.5rem; 
-    align-items: start; 
+/* BOTÕES */
+.btn-primary-thin, .btn-secondary-thin {
+  padding: 0.5rem 1.2rem; border-radius: 6px; font-weight: 500; font-size: 0.85rem; cursor: pointer;
+  display: flex; align-items: center; gap: 0.5rem; transition: all 0.2s; border: none; text-decoration: none;
 }
-@media (max-width: 1100px) { .main-content-grid { grid-template-columns: 1fr; } }
+.btn-primary-thin { background: #2563eb; color: white; box-shadow: 0 1px 2px rgba(37, 99, 235, 0.15); }
+.btn-primary-thin:hover { background: #1d4ed8; transform: translateY(-1px); }
+.btn-secondary-thin { background: white; border: 1px solid #e2e8f0; color: #64748b; }
+.btn-secondary-thin:hover { background: #f8fafc; border-color: #cbd5e1; color: #334155; }
+.btn-primary-thin:disabled { opacity: 0.7; cursor: not-allowed; }
 
-/* =========================================================
-   3. CARDS & FORMS
-   ========================================================= */
+/* LAYOUT FORMULÁRIO */
+.form-wrapper form {
+    display: grid;
+    grid-template-columns: 2fr 1fr;
+    gap: 1.5rem;
+    align-items: start;
+    max-width: 1200px;
+}
+
+/* CARDS */
 .card {
-  background-color: #fff; 
-  border-radius: 8px; /* Borda um pouco mais sutil */
-  box-shadow: 0 1px 2px rgba(0,0,0,0.03); /* Sombra mais leve */
-  padding: 1.5rem; 
-  border: 1px solid #e5e7eb; /* Borda mais clara */
+    background: white; border-radius: 8px; border: 1px solid #e5e7eb;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.02); overflow: hidden;
 }
-.tasks-card, .activities-card { padding: 1.2rem; margin-bottom: 1rem; }
+.card-header { padding: 1rem 1.5rem; border-bottom: 1px solid #f1f5f9; background: #fff; }
+.card-header h3 { font-size: 0.95rem; font-weight: 600; color: #1e293b; margin: 0; display: flex; align-items: center; gap: 0.5rem; }
+.card-header i { color: #2563eb; }
+.card-body { padding: 1.5rem; }
 
-.form-section { margin-bottom: 1.5rem; }
-.section-title {
-    font-size: 1rem; color: #1f2937; margin-bottom: 1.2rem; padding-bottom: 0.5rem;
-    border-bottom: 1px solid #f1f5f9; font-weight: 600; display: flex; align-items: center; gap: 0.6rem;
+/* INPUTS */
+.form-group { margin-bottom: 1rem; display: flex; flex-direction: column; gap: 0.4rem; }
+.form-group label { font-size: 0.75rem; font-weight: 600; color: #475569; text-transform: uppercase; letter-spacing: 0.02em; }
+.req { color: #ef4444; margin-left: 2px; }
+
+.form-control {
+  width: 100%; padding: 0.6rem 0.8rem; font-size: 0.9rem;
+  border: 1px solid #cbd5e1; border-radius: 6px; background-color: #fff; color: #334155;
+  outline: none; height: 40px; box-sizing: border-box; transition: all 0.2s;
 }
-.compact-section { margin-bottom: 0; }
+textarea.form-control { height: auto; font-family: inherit; }
+.form-control:focus { border-color: #3b82f6; box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.1); }
 
-.form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
-.form-group { display: flex; flex-direction: column; gap: 0.4rem; }
-.full-width { grid-column: 1 / -1; }
+.form-grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+.mt-4 { margin-top: 1.5rem; }
+.mb-4 { margin-bottom: 1.5rem; }
 
-label { font-weight: 500; font-size: 0.85rem; color: #4b5563; }
-.required { color: #ef4444; }
+/* ESTILOS CUSTOMIZADOS PARA TRANSFERÊNCIA */
+.highlight-border { border: 1px solid #fed7aa; }
+.bg-orange-light { background-color: #fff7ed; }
+.text-orange { color: #ea580c !important; }
+.text-orange-dark { color: #9a3412 !important; }
+.help-text { font-size: 0.75rem; color: #64748b; display: block; line-height: 1.4; }
 
-/* Inputs */
-.input-wrapper { position: relative; }
-.input-icon {
-    position: absolute; left: 10px; top: 50%; transform: translateY(-50%); color: #9ca3af; font-size: 0.85rem; pointer-events: none;
+/* STEPS DE FASE */
+.status-steps {
+    display: flex; flex-direction: column; gap: 0; border-left: 2px solid #e2e8f0; margin-left: 8px; padding: 10px 0;
 }
-.form-input, .form-select, .form-textarea {
-    width: 100%; padding: 0.6rem 0.75rem; border: 1px solid #d1d5db; border-radius: 6px;
-    font-size: 0.9rem; transition: all 0.2s; background-color: #fff; box-sizing: border-box; color: #1f2937;
+.step-item {
+    position: relative; padding-left: 20px; cursor: pointer; padding-bottom: 15px;
+    display: flex; align-items: center; transition: all 0.2s;
 }
-.form-input.has-icon, .form-select.has-icon { padding-left: 2.2rem; }
-.form-input:focus, .form-select:focus, .form-textarea:focus { 
-    border-color: #3b82f6; outline: none; box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.1);
+.step-item:last-child { padding-bottom: 0; }
+.step-circle {
+    width: 12px; height: 12px; border-radius: 50%; background: white; border: 2px solid #cbd5e1;
+    position: absolute; left: -7px; transition: all 0.2s;
 }
-.form-textarea { resize: vertical; min-height: 100px; font-family: inherit; }
+.step-label { font-size: 0.85rem; color: #64748b; font-weight: 500; }
 
-/* V-Select Styles */
-.style-chooser :deep(.vs__dropdown-toggle) {
-    border: 1px solid #d1d5db; border-radius: 6px; padding: 4px 0 5px 0;
-}
-.style-chooser :deep(.vs__search) { margin-top: 0; color: #1f2937; }
+.step-item:hover .step-label { color: #2563eb; }
+.step-item.active .step-circle { background: #2563eb; border-color: #2563eb; transform: scale(1.2); }
+.step-item.active .step-label { color: #1e293b; font-weight: 700; }
 
-/* Footer Actions */
-.form-actions-footer {
-    display: flex; justify-content: flex-end; gap: 0.75rem; margin-top: 2rem; padding-top: 1rem; border-top: 1px solid #f1f5f9;
+/* VUE SELECT CUSTOM */
+:deep(.style-chooser .vs__dropdown-toggle) {
+    border-color: #cbd5e1; border-radius: 6px; padding: 4px 0;
 }
-.btn-primary, .btn-secondary {
-    padding: 0.5rem 1.2rem; border-radius: 6px; border: none; font-weight: 500; cursor: pointer; font-size: 0.85rem; display: flex; align-items: center; gap: 0.5rem; transition: all 0.2s;
+:deep(.style-chooser .vs__search::placeholder) { color: #94a3b8; }
+
+.select-option { display: flex; flex-direction: column; line-height: 1.2; }
+.select-option small { font-size: 0.7rem; }
+
+.loading-state { text-align: center; padding: 4rem; }
+.spinner {
+  border: 3px solid #e2e8f0; border-top: 3px solid #2563eb; border-radius: 50%;
+  width: 32px; height: 32px; animation: spin 0.8s linear infinite; margin: 0 auto;
 }
-.btn-primary { background-color: #2563eb; color: white; box-shadow: 0 1px 2px rgba(37, 99, 235, 0.1); }
-.btn-primary:hover { background-color: #1d4ed8; transform: translateY(-1px); }
-.btn-secondary { background-color: #f8fafc; color: #64748b; border: 1px solid #e2e8f0; }
-.btn-secondary:hover { background-color: #f1f5f9; border-color: #cbd5e1; color: #334155; }
-
-/* =========================================================
-   4. WIDGETS COLUNA DIREITA (TAREFAS)
-   ========================================================= */
-.widget-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; padding-bottom: 0.5rem; border-bottom: 1px solid #f1f5f9; }
-.widget-title { font-size: 0.9rem; font-weight: 600; margin: 0; color: #374151; display: flex; align-items: center; gap: 0.5rem; }
-.btn-icon-mini { 
-    width: 28px; height: 28px; border-radius: 6px; border: 1px solid #e5e7eb; 
-    background: white; color: #2563eb; cursor: pointer; 
-    display: flex; align-items: center; justify-content: center; transition: all 0.2s; font-size: 0.75rem;
-}
-.btn-icon-mini:hover { background: #eff6ff; border-color: #bfdbfe; }
-
-.tarefas-list { list-style: none; padding: 0; margin: 0; }
-.tarefa-item { display: flex; align-items: center; gap: 0.8rem; padding: 0.7rem 0; border-bottom: 1px solid #f3f4f6; }
-.tarefa-item:last-child { border-bottom: none; }
-.tarefa-content { flex: 1; min-width: 0; }
-.tarefa-text { font-size: 0.85rem; font-weight: 500; color: #1f2937; display: block; }
-.tarefa-item.concluida .tarefa-text { text-decoration: line-through; color: #9ca3af; }
-.tarefa-date { font-size: 0.7rem; color: #6b7280; display: flex; align-items: center; gap: 4px; margin-top: 2px; }
-.text-danger { color: #ef4444; }
-.btn-edit-mini { background: none; border: none; color: #9ca3af; cursor: pointer; font-size: 0.8rem; transition: color 0.2s; }
-.btn-edit-mini:hover { color: #2563eb; }
-.empty-state-widget { text-align: center; padding: 2rem 1rem; color: #9ca3af; font-size: 0.85rem; }
-.empty-state-widget i { font-size: 1.5rem; margin-bottom: 0.5rem; display: block; opacity: 0.3; }
-
-/* Loading */
-.loading-state { text-align: center; padding: 4rem; color: #64748b; }
-.spinner { border: 3px solid #e2e8f0; border-top: 3px solid #2563eb; border-radius: 50%; width: 32px; height: 32px; animation: spin 0.8s linear infinite; margin: 0 auto 1rem; }
 @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
 
-/* Badges in Select */
-.option-content { display: flex; flex-direction: column; }
-.option-title { font-weight: 500; font-size: 0.9rem; color: #1f2937; }
-.option-subtitle { font-size: 0.75rem; color: #6b7280; display: flex; align-items: center; gap: 5px; }
-.badge-code { background-color: #f3f4f6; color: #374151; padding: 0 4px; border-radius: 4px; font-size: 0.7rem; font-weight: 600; border: 1px solid #e5e7eb; }
-
-.helper-text { font-size: 0.75rem; margin-top: 0.3rem; }
-.text-success { color: #16a34a; }
-
 @media (max-width: 1024px) {
-  .page-container { padding: 1rem; }
+    .page-container { padding: 1rem; }
+    .form-wrapper form { grid-template-columns: 1fr; }
+    .side-col { order: -1; }
 }
 </style>

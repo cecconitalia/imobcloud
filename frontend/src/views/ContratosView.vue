@@ -335,6 +335,7 @@ async function fetchDashboardStats() {
     dashboardData.value = response.data;
   } catch (err) {
     console.error('Erro ao buscar estatísticas do dashboard:', err);
+    // Não bloqueia a UI se falhar o dashboard
   } finally {
     isLoadingStats.value = false;
   }
@@ -344,21 +345,29 @@ async function fetchContratos() {
   isLoading.value = true;
   error.value = null;
   try {
-    const response = await apiClient.get<Contrato[]>('/v1/contratos/');
-    contratos.value = response.data;
+    const response = await apiClient.get('/v1/contratos/');
+    
+    // CORREÇÃO DA PAGINAÇÃO
+    // Verifica se a resposta contém 'results' (paginada) ou é um array direto
+    if (response.data && Array.isArray(response.data.results)) {
+        contratos.value = response.data.results;
+    } else if (Array.isArray(response.data)) {
+        contratos.value = response.data;
+    } else {
+        console.warn("Formato de resposta inesperado:", response.data);
+        contratos.value = [];
+    }
   } catch (err) {
     console.error("Erro ao buscar contratos:", err);
     error.value = "Não foi possível carregar os contratos.";
+    contratos.value = []; // Garante array vazio em caso de erro
   } finally {
     isLoading.value = false;
   }
 }
 
 async function handleDelete(contratoId: number) {
-  // 1º ALERTA: Confirmação padrão
   if (window.confirm('Tem certeza que deseja excluir este contrato?')) {
-      
-      // 2º ALERTA: Aviso de IRREVERSIBILIDADE
       if (window.confirm('ATENÇÃO: Esta ação é IRREVERSÍVEL. O contrato desaparecerá da lista e todo o financeiro pendente será cancelado. Deseja realmente continuar?')) {
           try {
             await apiClient.delete(`/v1/contratos/${contratoId}/`);
@@ -404,8 +413,13 @@ async function handleAtivarContrato(contrato: Contrato) {
     try {
         const response = await apiClient.post(`/v1/contratos/${contrato.id}/ativar/`);
         toast.success("Contrato ativado com sucesso!");
+        
+        // Atualiza na lista local
         const index = contratos.value.findIndex(c => c.id === contrato.id);
-        if (index !== -1) { contratos.value[index] = response.data; }
+        if (index !== -1) { 
+            // Mantém os detalhes que podem não vir no retorno simples, se necessário, ou substitui
+            contratos.value[index] = { ...contratos.value[index], ...response.data };
+        }
         fetchDashboardStats(); 
     } catch (error: any) {
         console.error("Erro ao ativar contrato:", error.response?.data || error);
@@ -426,15 +440,26 @@ function fecharModalFinanceiro() { showModalFinanceiro.value = false; contratoSe
 
 // --- Computados e Formatadores ---
 const filteredContratos = computed(() => {
+  if (!Array.isArray(contratos.value)) return []; // Proteção extra
+
   return contratos.value.filter(contrato => {
     const searchLower = filtro.value.toLowerCase().trim();
+    
+    // Proteção contra campos nulos/undefined
+    const titulo = contrato.imovel_detalhes?.titulo_anuncio?.toLowerCase() || '';
+    const endereco = contrato.imovel_detalhes?.endereco_completo?.toLowerCase() || '';
+    const inquilino = contrato.inquilino_detalhes?.nome_display?.toLowerCase() || '';
+    const proprietario = contrato.proprietario_detalhes?.nome_display?.toLowerCase() || '';
+
     const matchSearch = !searchLower ||
-      (contrato.imovel_detalhes?.titulo_anuncio?.toLowerCase() || '').includes(searchLower) ||
-      (contrato.imovel_detalhes?.endereco_completo?.toLowerCase() || '').includes(searchLower) ||
-      (contrato.inquilino_detalhes?.nome_display?.toLowerCase() || '').includes(searchLower) ||
-      (contrato.proprietario_detalhes?.nome_display?.toLowerCase() || '').includes(searchLower);
+      titulo.includes(searchLower) ||
+      endereco.includes(searchLower) ||
+      inquilino.includes(searchLower) ||
+      proprietario.includes(searchLower);
+      
     const matchStatus = !filtroStatus.value || contrato.status_contrato === filtroStatus.value;
     const matchTipo = !filtroTipo.value || contrato.tipo_contrato === filtroTipo.value;
+    
     return matchSearch && matchStatus && matchTipo;
   });
 });

@@ -1,6 +1,5 @@
 <template>
   <div class="min-h-screen bg-gray-50 p-4 md:p-8 font-sans text-slate-700">
-    
     <header class="mb-8 flex flex-col md:flex-row md:items-end justify-between gap-4">
       <div class="flex flex-col gap-2">
         <nav class="flex items-center gap-2 text-xs font-medium text-slate-400 uppercase tracking-wide">
@@ -24,7 +23,6 @@
     <form v-else @submit.prevent="handleSaveAndExit" class="grid grid-cols-1 lg:grid-cols-[1fr_350px] gap-6 items-start">
       
       <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden flex flex-col min-h-[600px]">
-            
             <div class="flex flex-wrap bg-slate-50 border-b border-slate-200">
                 <button 
                     v-for="tab in tabs" 
@@ -40,7 +38,6 @@
             </div>
 
             <div class="p-6 md:p-8 flex-1">
-                
                 <div v-show="activeTab === 'geral'" class="animate-fade-in flex flex-col gap-8">
                     <div class="flex flex-col gap-5">
                         <div class="flex flex-col gap-1.5">
@@ -56,7 +53,6 @@
                                 />
                             </div>
                         </div>
-
                         <div>
                             <h3 class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-4 pb-2 border-b border-dashed border-slate-200">Localização</h3>
                             <div class="grid grid-cols-1 md:grid-cols-3 gap-5">
@@ -265,7 +261,7 @@
                             </div>
                             <div class="flex flex-col gap-1.5">
                                 <label class="text-sm font-bold text-slate-600">Comissão (%)</label>
-                                <MoneyInput v-model="imovel.comissao_percentual" :suffix="'%'" :precision="2" class="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:border-primary-500 focus:ring-2 focus:ring-primary-100 outline-none transition-all text-slate-700 bg-white" />
+                                <MoneyInput v-model="imovel.comissao_percentual" :prefix="''" :suffix="'%'" :precision="2" class="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:border-primary-500 focus:ring-2 focus:ring-primary-100 outline-none transition-all text-slate-700 bg-white" />
                             </div>
                             <div class="flex flex-col gap-1.5">
                                 <label class="text-sm font-bold text-slate-600">Data Captação</label>
@@ -293,8 +289,8 @@
                         </div>
                         
                         <div class="mt-6" v-if="isEditing && imovel.id">
-                            <button type="button" @click="gerarContratoPDF" class="w-full px-4 py-2.5 rounded-lg text-sm font-medium text-slate-600 bg-white border border-slate-300 hover:bg-slate-50 transition-colors cursor-pointer flex items-center justify-center gap-2">
-                                <div class="i-fas-file-pdf text-red-500" /> Gerar Contrato de Autorização
+                            <button type="button" @click="abrirEditorAutorizacao" class="w-full px-4 py-2.5 rounded-lg text-sm font-medium text-slate-600 bg-white border border-slate-300 hover:bg-slate-50 transition-colors cursor-pointer flex items-center justify-center gap-2">
+                                <div class="i-fas-file-contract text-blue-600" /> Editar e Gerar Autorização
                             </button>
                         </div>
                     </div>
@@ -323,7 +319,7 @@
                 <button 
                     type="button" 
                     @click="handleCancel" 
-                    class="px-4 py-2 rounded-md text-sm font-medium text-slate-600 bg-white border border-slate-300 hover:bg-slate-50 transition-all cursor-pointer shadow-sm"
+                    class="px-4 py-2 rounded-md text-sm font-medium text-slate-700 bg-white border border-slate-300 hover:bg-slate-50 transition-all cursor-pointer shadow-sm"
                 >
                     Cancelar
                 </button>
@@ -332,7 +328,7 @@
                     <button 
                         type="button" 
                         @click="handleSaveAndContinue" 
-                        class="px-4 py-2 rounded-md text-sm font-medium text-primary-600 bg-white border border-primary-600 hover:bg-primary-50 transition-all flex items-center gap-2 cursor-pointer shadow-sm" 
+                        class="px-4 py-2 rounded-md text-sm font-medium text-blue-600 bg-white border border-blue-600 hover:bg-blue-50 transition-all flex items-center gap-2 cursor-pointer shadow-sm" 
                         :disabled="isSubmitting"
                     >
                         <div class="i-fas-save" /> Salvar e Continuar
@@ -340,7 +336,7 @@
                     
                     <button 
                         type="submit" 
-                        class="flex items-center justify-center gap-2 px-6 py-2 rounded-md text-sm font-medium text-white bg-primary-600 hover:bg-primary-700 shadow-sm hover:shadow transition-all disabled:opacity-70 disabled:cursor-not-allowed border-none cursor-pointer" 
+                        class="flex items-center justify-center gap-2 px-6 py-2 rounded-md text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 shadow-sm hover:shadow transition-all disabled:opacity-70 disabled:cursor-not-allowed border-none cursor-pointer" 
                         :disabled="isSubmitting"
                     >
                         <div v-if="isSubmitting" class="i-fas-spinner animate-spin" />
@@ -351,7 +347,6 @@
       </div> 
       
       <div class="flex flex-col gap-6">
-            
             <div class="bg-white rounded-xl border border-slate-200 shadow-sm p-5 border-l-4 border-l-primary-500">
                  <div class="mb-4 pb-2 border-b border-slate-100">
                      <h3 class="text-sm font-bold text-slate-700 m-0 flex items-center gap-2">
@@ -425,7 +420,6 @@
                  </div>
                  <p class="text-xs text-slate-400 mt-3 italic">Se desativado, o imóvel não aparecerá no site, independente das outras configurações.</p>
             </div>
-
       </div> 
 
     </form>
@@ -573,22 +567,17 @@ function selectProprietario(cliente: any) {
 }
 function clearProprietarioSelection() { imovel.value.proprietario = null; imovel.value.proprietario_detalhes = null; }
 
-async function gerarContratoPDF() {
+// --- NOVA FUNÇÃO: Salvar e Abrir Editor ---
+async function abrirEditorAutorizacao() {
     if (!imovel.value.id || !imovel.value.proprietario) {
-         alert("Selecione um 'Proprietário' para gerar o contrato."); return;
+         alert("Selecione um 'Proprietário' para editar a autorização."); return;
     }
-    try {
-        const payload = {
-            comissao_percentual: imovel.value.comissao_percentual,
-            data_fim_autorizacao: imovel.value.data_fim_autorizacao,
-            informacoes_adicionais: imovel.value.informacoes_adicionais_autorizacao,
-        };
-        const response = await apiClient.post(`/v1/imoveis/${imovel.value.id}/gerar-autorizacao-pdf/`, payload, { responseType: 'blob' });
-        const url = window.URL.createObjectURL(new Blob([response.data]));
-        const link = document.createElement('a'); link.href = url;
-        link.setAttribute('download', `autorizacao_${imovel.value.codigo_referencia}.pdf`);
-        document.body.appendChild(link); link.click(); link.remove(); window.URL.revokeObjectURL(url);
-    } catch (error) { console.error(error); alert('Erro ao gerar PDF.'); }
+    
+    // Salvar o imóvel antes de abrir o editor para garantir que os dados estejam atualizados no backend
+    const saved = await saveImovel();
+    if (saved) {
+        router.push({ name: 'imovel-editor-autorizacao', params: { id: imovel.value.id } });
+    }
 }
 
 async function handleGerarDescricaoIA() {
@@ -607,8 +596,10 @@ async function saveImovel() {
   Object.keys(payload).forEach(key => { if (key !== 'proprietario' && (payload[key] === null || payload[key] === undefined)) delete payload[key]; });
   
   try {
-    if (isEditing.value) return await apiClient.put(`/v1/imoveis/${imovelId.value}/`, payload);
-    else return await apiClient.post('/v1/imoveis/', payload);
+    let response;
+    if (isEditing.value) response = await apiClient.put(`/v1/imoveis/${imovelId.value}/`, payload);
+    else response = await apiClient.post('/v1/imoveis/', payload);
+    return response;
   } catch (error: any) {
     console.error(error);
     alert('Erro ao salvar. Verifique os campos.');

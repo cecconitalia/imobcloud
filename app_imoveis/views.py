@@ -1,5 +1,23 @@
 # C:\wamp64\www\ImobCloud\app_imoveis\views.py
 
+import os
+import json
+import requests
+import traceback
+import locale
+from decimal import Decimal, InvalidOperation
+from datetime import date, timedelta
+from io import BytesIO
+
+from django.db import models, transaction, OperationalError
+from django.shortcuts import get_object_or_404
+from django.http import HttpResponse, QueryDict, Http404 
+from django.template.loader import render_to_string
+from django.utils import timezone
+from django.db.models import Count, Q, Case, When, Value, CharField, Max, F, ExpressionWrapper, fields, Sum 
+from django.conf import settings
+from django.core.mail import send_mail
+
 from rest_framework import viewsets, status, permissions
 from rest_framework.response import Response
 from rest_framework import filters
@@ -7,30 +25,15 @@ from rest_framework.decorators import action
 from rest_framework.exceptions import PermissionDenied, ValidationError
 from rest_framework.views import APIView
 from rest_framework.generics import ListAPIView, RetrieveAPIView
-from django.db import models, transaction, OperationalError
-from django.shortcuts import get_object_or_404
-from django.http import HttpResponse, QueryDict, Http404 
-from django.template.loader import render_to_string
-from django.utils import timezone
-from django.db.models import Count, Q, Case, When, Value, CharField, Max, F, ExpressionWrapper, fields, Sum 
-from datetime import date, timedelta
-from io import BytesIO
+
 from xhtml2pdf import pisa
-import locale
+import google.generativeai as genai
+from google.api_core import exceptions as google_exceptions
+
 try:
     from num2words import num2words
 except ImportError:
     num2words = None
-
-from decimal import Decimal, InvalidOperation
-import json
-import requests
-import google.generativeai as genai
-from google.api_core import exceptions as google_exceptions
-import os
-from django.conf import settings
-from django.core.mail import send_mail
-import traceback
 
 from .models import Imovel, ImagemImovel, ContatoImovel
 from .serializers import (
@@ -46,7 +49,221 @@ from app_config_ia.models import ModeloDePrompt
 from core.serializers import ImobiliariaPublicSerializer
 
 # ===================================================================
-# VIEWS PÚBLICAS
+# FUNÇÕES AUXILIARES
+# ===================================================================
+
+def traduzir_mes(nome_mes_ingles):
+    mapa = {
+        'January': 'Janeiro', 'February': 'Fevereiro', 'March': 'Março',
+        'April': 'Abril', 'May': 'Maio', 'June': 'Junho',
+        'July': 'Julho', 'August': 'Agosto', 'September': 'Setembro',
+        'October': 'Outubro', 'November': 'Novembro', 'December': 'Dezembro'
+    }
+    return mapa.get(nome_mes_ingles, nome_mes_ingles)
+
+def get_autorizacao_context(imovel):
+    """
+    Gera o contexto de dados para renderizar a autorização de venda/aluguel.
+    """
+    # Tenta configurar locale, mas usa fallback manual para meses se falhar
+    try:
+        locale.setlocale(locale.LC_TIME, 'pt_BR.UTF-8')
+    except locale.Error:
+        try:
+             locale.setlocale(locale.LC_TIME, 'Portuguese_Brazil.1252')
+        except locale.Error:
+             pass 
+
+    hoje = date.today()
+    finalidade_texto = imovel.get_finalidade_display() 
+    valor = imovel.valor_venda if imovel.status == 'A_VENDA' else imovel.valor_aluguel
+    valor = valor or Decimal(0)
+    reais = int(valor)
+    centavos = int((valor - reais) * 100)
+    
+    valor_por_extenso = f"{valor:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
+    if num2words:
+        try:
+            valor_por_extenso_txt = num2words(reais, lang='pt_BR') + " reais"
+            if centavos > 0:
+                 valor_por_extenso_txt += " e " + num2words(centavos, lang='pt_BR') + " centavos"
+            valor_por_extenso = f"{valor_por_extenso} ({valor_por_extenso_txt})"
+        except:
+            pass
+    
+    comissao = imovel.comissao_percentual or Decimal(0)
+    comissao_por_extenso = f"{comissao}%"
+    if num2words:
+        try:
+            comissao_por_extenso_txt = num2words(float(comissao), lang='pt_BR') + " por cento"
+            comissao_por_extenso = f"{comissao}% ({comissao_por_extenso_txt})"
+        except:
+            pass
+
+    proprietario = imovel.proprietario
+    nome_proprietario = ""
+    if proprietario:
+        nome_proprietario = proprietario.razao_social if proprietario.tipo_pessoa == 'JURIDICA' and proprietario.razao_social else proprietario.nome
+
+    # Formatação de Datas Manual para garantir Português
+    mes_hoje = traduzir_mes(hoje.strftime("%B"))
+    
+    data_fim_fmt = "INDETERMINADO"
+    if imovel.data_fim_autorizacao:
+        mes_fim = traduzir_mes(imovel.data_fim_autorizacao.strftime("%B"))
+        data_fim_fmt = f"{imovel.data_fim_autorizacao.day} de {mes_fim} de {imovel.data_fim_autorizacao.year}"
+
+    return {
+        'imovel': imovel,
+        'proprietario': proprietario,
+        'nome_proprietario': nome_proprietario,
+        'imobiliaria': imovel.imobiliaria,
+        'finalidade_texto': finalidade_texto,
+        'valor': valor,
+        'valor_por_extenso': valor_por_extenso,
+        'comissao_percentual': comissao, 
+        'comissao_por_extenso': comissao_por_extenso,
+        'informacoes_adicionais': imovel.informacoes_adicionais_autorizacao, 
+        'data_hoje': hoje,
+        'dia_hoje': hoje.day,
+        'mes_hoje': mes_hoje,
+        'ano_hoje': hoje.year,
+        'data_fim_autorizacao_formatada': data_fim_fmt
+    }
+
+def get_imovel_seguro(request, pk):
+    tenant = getattr(request, 'tenant', None) or getattr(request.user, 'imobiliaria', None)
+    
+    try:
+        if request.user.is_superuser:
+             if tenant:
+                 return Imovel.objects.get(pk=pk, imobiliaria=tenant)
+             else:
+                 return Imovel.objects.get(pk=pk)
+        elif tenant:
+             return Imovel.objects.get(pk=pk, imobiliaria=tenant)
+        else:
+             raise PermissionDenied("Tenant não identificado.")
+    except Imovel.DoesNotExist:
+         raise Http404("Imóvel não encontrado ou não pertence à sua imobiliária.")
+
+# ===================================================================
+# VIEWS DE EDITOR DE AUTORIZAÇÃO
+# ===================================================================
+
+class GetAutorizacaoHtmlView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request, pk, *args, **kwargs):
+        imovel = get_imovel_seguro(request, pk)
+        
+        if imovel.conteudo_html_autorizacao:
+            return HttpResponse(imovel.conteudo_html_autorizacao)
+        
+        context = get_autorizacao_context(imovel)
+        try:
+            html_content = render_to_string('autorizacao_template.html', context)
+        except Exception as e:
+            return HttpResponse(f"<h1>Autorização de Venda/Aluguel</h1><p>Imóvel: {imovel.titulo_anuncio}</p><p>Erro ao carregar template: {str(e)}</p>")
+            
+        return HttpResponse(html_content)
+
+class SalvarAutorizacaoHtmlView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request, pk, *args, **kwargs):
+        imovel = get_imovel_seguro(request, pk)
+        
+        html_content = request.data.get('html_content')
+        if not html_content:
+            return Response({'error': 'Conteúdo HTML não fornecido.'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        imovel.conteudo_html_autorizacao = html_content
+        imovel.save()
+        
+        return Response({'status': 'Autorização salva com sucesso.'}, status=status.HTTP_200_OK)
+
+class VisualizarAutorizacaoPdfView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request, pk, *args, **kwargs):
+        imovel = get_imovel_seguro(request, pk)
+        
+        # 1. Obtém o conteúdo (Banco ou Template)
+        if imovel.conteudo_html_autorizacao:
+            raw_html = imovel.conteudo_html_autorizacao
+        else:
+            context = get_autorizacao_context(imovel)
+            try:
+                raw_html = render_to_string('autorizacao_template.html', context)
+            except:
+                raw_html = f"<p>Erro: Template ausente.</p>"
+
+        # 2. ENVELOPA O HTML PARA CORREÇÃO DE ENCODING (CORREÇÃO AQUI)
+        # O xhtml2pdf precisa da meta tag charset=utf-8 explicita para não usar Latin-1
+        if "<html>" not in raw_html.lower():
+            # Se for fragmento do editor, cria o esqueleto completo
+            full_html = f"""
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+                <style>
+                    @page {{
+                        size: A4;
+                        margin: 2cm;
+                        @frame footer_frame {{
+                            -pdf-frame-content: footerContent;
+                            bottom: 1cm;
+                            margin-left: 2cm;
+                            margin-right: 2cm;
+                            height: 1cm;
+                        }}
+                    }}
+                    body {{
+                        font-family: Helvetica, sans-serif;
+                        font-size: 11pt;
+                        line-height: 1.5;
+                        color: #333333;
+                    }}
+                    h1 {{ font-size: 16pt; text-align: center; color: #000; margin-bottom: 20px; }}
+                    h2 {{ font-size: 13pt; margin-top: 15px; border-bottom: 1px solid #ccc; }}
+                    p {{ text-align: justify; margin-bottom: 10px; }}
+                    ul {{ margin-left: 20px; }}
+                </style>
+            </head>
+            <body>
+                {raw_html}
+                <div id="footerContent" style="text-align: center; font-size: 9pt; color: #777;">
+                    Documento gerado pelo sistema ImobCloud
+                </div>
+            </body>
+            </html>
+            """
+        else:
+            # Se já for HTML, injeta o meta charset se não existir
+            full_html = raw_html
+            if "charset=utf-8" not in full_html.lower():
+                full_html = full_html.replace("<head>", '<head><meta http-equiv="Content-Type" content="text/html; charset=utf-8">')
+
+        # 3. Gera o PDF
+        result = BytesIO()
+        pdf = pisa.pisaDocument(
+            src=BytesIO(full_html.encode("UTF-8")), 
+            dest=result, 
+            encoding='UTF-8'
+        )
+
+        if not pdf.err:
+            response = HttpResponse(result.getvalue(), content_type='application/pdf')
+            filename = f'autorizacao_imovel_{imovel.codigo_referencia or imovel.id}.pdf'
+            response['Content-Disposition'] = f'inline; filename="{filename}"'
+            return response
+        else:
+            return HttpResponse(f"Erro ao gerar o PDF: {pdf.err}", status=500)
+
+# ===================================================================
+# VIEWS PÚBLICAS EXISTENTES
 # ===================================================================
 
 class ImovelPublicListView(ListAPIView):
@@ -96,11 +313,10 @@ class ImovelPublicListView(ListAPIView):
              else:
                  base_queryset = base_queryset.filter(status=status_param)
 
-        # Filtros
         if search:
             base_queryset = base_queryset.filter(
                 Q(titulo_anuncio__icontains=search) |
-                Q(descricao__icontains=search) |
+                Q(descricao_completa__icontains=search) |
                 Q(cidade__icontains=search) |
                 Q(bairro__icontains=search) |
                 Q(codigo_referencia__icontains=search)
@@ -149,7 +365,6 @@ class ImovelIAView(APIView):
 
     def _processar_busca_ia(self, request):
         try:
-            # Tenta pegar 'query' do POST (data) ou do GET (query_params)
             user_query = request.data.get('query') or request.query_params.get('query')
             subdomain_param = request.query_params.get('subdomain', None)
 
@@ -177,7 +392,6 @@ class ImovelIAView(APIView):
                     "imoveis": []
                  }, status=status.HTTP_400_BAD_REQUEST)
 
-            # 1. Obter Chave
             chave_banco = getattr(imobiliaria_obj, 'google_api_key', None)
             chave_env = os.getenv("GOOGLE_API_KEY")
             api_key = str(chave_banco).strip() if chave_banco else chave_env
@@ -190,11 +404,9 @@ class ImovelIAView(APIView):
             
             genai.configure(api_key=api_key)
             
-            # 2. Definir Prompt
             try:
                 prompt_config = ModeloDePrompt.objects.get(em_uso_busca=True)
                 template_prompt = prompt_config.template_do_prompt
-                # Pega o modelo do banco se existir
                 preferred_model = prompt_config.modelo_api if hasattr(prompt_config, 'modelo_api') else None
             except (ModeloDePrompt.DoesNotExist, OperationalError):
                 template_prompt = "Você é um assistente de busca de imóveis. O usuário quer: {{user_query}}"
@@ -222,28 +434,22 @@ class ImovelIAView(APIView):
             search_params = {}
             last_error = ""
 
-            # 3. Lista de Modelos para Tentar (Fallback em cascata)
-            # Tenta com e sem prefixo 'models/' para máxima compatibilidade
             models_to_try = []
             if preferred_model:
                 models_to_try.append(preferred_model)
                 if not preferred_model.startswith('models/'):
                     models_to_try.append(f"models/{preferred_model}")
             
-            # Adiciona modelos padrão conhecidos por funcionar
             defaults = ['models/gemini-2.0-flash', 'gemini-2.0-flash', 'models/gemini-1.5-flash', 'gemini-1.5-flash', 'models/gemini-pro']
             for m in defaults:
                 if m not in models_to_try:
                     models_to_try.append(m)
 
             def try_generate(model_tag):
-                print(f"DEBUG IA: Tentando {model_tag}...")
                 model = genai.GenerativeModel(model_tag)
-                # Tenta forçar JSON mode se suportado
                 try:
                     response = model.generate_content(prompt_final, generation_config={"response_mime_type": "application/json"})
                 except:
-                    # Se falhar (ex: modelo antigo não suporta json mode), tenta normal
                     response = model.generate_content(prompt_final)
                     
                 if not response.parts: raise ValueError("Resposta vazia")
@@ -251,19 +457,15 @@ class ImovelIAView(APIView):
 
             json_text_raw = None
             
-            # Loop de Tentativas
             for model_name in models_to_try:
                 try:
                     json_text_raw = try_generate(model_name)
-                    print(f"SUCESSO com modelo: {model_name}")
-                    break # Se funcionar, para o loop
+                    break 
                 except Exception as e:
                     last_error = str(e)
-                    print(f"FALHA com {model_name}: {e}")
                     continue
 
             if not json_text_raw:
-                 # Retorna o erro detalhado da última tentativa para debug no frontend
                  return Response(
                      {"error": f"Falha na IA. Último erro: {last_error}"}, 
                      status=status.HTTP_503_SERVICE_UNAVAILABLE
@@ -271,7 +473,6 @@ class ImovelIAView(APIView):
 
             try:
                 json_text = json_text_raw.strip()
-                # Limpeza manual de markdown
                 if "```json" in json_text:
                     json_text = json_text.split("```json")[1].split("```")[0].strip()
                 elif "```" in json_text:
@@ -285,9 +486,6 @@ class ImovelIAView(APIView):
                      "imoveis": []
                  }, status=status.HTTP_200_OK)
 
-            # === FILTRAGEM SQL ===
-            # CORREÇÃO CRÍTICA: Alterado de Imovel.Status.DESATIVADO para string 'DESATIVADO'
-            # para evitar AttributeError caso a classe Status não seja acessível desta forma.
             base_queryset = Imovel.objects.filter(
                 imobiliaria=imobiliaria_obj,
                 publicado_no_site=True
@@ -351,8 +549,6 @@ class ImovelIAView(APIView):
             }, status=status.HTTP_200_OK)
             
         except Exception as e:
-            # Captura qualquer erro (incluindo AttributeError ou falha na API) e retorna JSON válido
-            print(f"ERRO CRÍTICO BUSCA IA: {str(e)}")
             traceback.print_exc()
             return Response({"error": f"Erro interno ao processar IA: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
@@ -364,7 +560,7 @@ class ImovelIAView(APIView):
 
 
 # ===================================================================
-# VIEWS INTERNAS
+# VIEWS INTERNAS EXISTENTES
 # ===================================================================
 
 class ImovelViewSet(viewsets.ModelViewSet):
@@ -387,8 +583,6 @@ class ImovelViewSet(viewsets.ModelViewSet):
         if not tenant and hasattr(user, 'imobiliaria'):
             tenant = user.imobiliaria
 
-        print(f"DEBUG IMOVEL: User={user}, Superuser={user.is_superuser}, Tenant={tenant}")
-
         if user.is_superuser:
             if not tenant:
                  base_queryset = Imovel.objects.all()
@@ -401,11 +595,9 @@ class ImovelViewSet(viewsets.ModelViewSet):
 
         status_param = self.request.query_params.get('status', None)
         if status_param:
-             # Correção aqui também: usar string literal se possível ou verificar existência
              if status_param in Imovel.Status.values:
                 base_queryset = base_queryset.filter(status=status_param)
         elif self.action in ['list', 'lista_simples']: 
-             # Correção para segurança:
              base_queryset = base_queryset.exclude(status='DESATIVADO')
 
         finalidade = self.request.query_params.get('finalidade', None) 
@@ -425,8 +617,6 @@ class ImovelViewSet(viewsets.ModelViewSet):
         return base_queryset.order_by('-data_atualizacao')
 
     def perform_create(self, serializer):
-        print(f"DEBUG IMOVEL CREATE: Iniciando cadastro para usuário {self.request.user}")
-        
         tenant = getattr(self.request, 'tenant', None)
         if not tenant and hasattr(self.request.user, 'imobiliaria'):
             tenant = self.request.user.imobiliaria
@@ -436,27 +626,22 @@ class ImovelViewSet(viewsets.ModelViewSet):
                 imobiliaria_id = self.request.data['imobiliaria']
                 imobiliaria_obj = get_object_or_404(Imobiliaria, pk=imobiliaria_id)
                 serializer.save(imobiliaria=imobiliaria_obj)
-                print("DEBUG IMOVEL CREATE: Salvo com imobiliária do formulário.")
                 return
 
             if tenant:
                 serializer.save(imobiliaria=tenant)
-                print("DEBUG IMOVEL CREATE: Salvo com tenant detectado.")
                 return
 
             first_tenant = Imobiliaria.objects.first()
             if first_tenant:
                 serializer.save(imobiliaria=first_tenant)
-                print(f"DEBUG IMOVEL CREATE: Fallback para primeira imobiliária: {first_tenant}")
                 return
             else:
                 raise PermissionDenied("Nenhuma imobiliária cadastrada no sistema.")
 
         elif tenant:
             serializer.save(imobiliaria=tenant)
-            print("DEBUG IMOVEL CREATE: Imóvel salvo com sucesso (usuário comum).")
         else:
-            print("DEBUG IMOVEL CREATE: ERRO - Tenant não identificado.")
             raise PermissionDenied("Não foi possível associar o imóvel a uma imobiliária. Tenant não identificado.")
 
     def perform_update(self, serializer):
@@ -472,7 +657,7 @@ class ImovelViewSet(viewsets.ModelViewSet):
         tenant = getattr(self.request, 'tenant', None) or getattr(self.request.user, 'imobiliaria', None)
         
         if self.request.user.is_superuser or (tenant and instance.imobiliaria == tenant):
-             instance.status = 'DESATIVADO' # String segura
+             instance.status = 'DESATIVADO' 
              instance.publicado_no_site = False
              instance.save()
              return Response(status=status.HTTP_200_OK)
@@ -492,7 +677,6 @@ class ImovelViewSet(viewsets.ModelViewSet):
         contexto.append(f"Status: {imovel.get_status_display()}")
         contexto.append(f"Localização: Bairro {imovel.bairro}, {imovel.cidade} - {imovel.estado}")
         
-        # Correção segura para Status
         STATUS_A_VENDA = 'A_VENDA'
         STATUS_PARA_ALUGAR = 'PARA_ALUGAR'
         
@@ -531,7 +715,6 @@ class ImovelViewSet(viewsets.ModelViewSet):
 
         return "\n".join(contexto)
 
-    # CORREÇÃO: Função renomeada para snake_case
     @action(detail=True, methods=['post', 'get'], url_path='gerar-descricao-ia')
     def gerar_descricao_ia(self, request, pk=None):
         try:
@@ -552,7 +735,6 @@ class ImovelViewSet(viewsets.ModelViewSet):
             
             genai.configure(api_key=api_key)
 
-            # Modelo Padrão: Gemini 2.0 Flash
             model_name = 'gemini-2.0-flash'
             
             try:
@@ -562,7 +744,6 @@ class ImovelViewSet(viewsets.ModelViewSet):
                 if hasattr(prompt_config, 'modelo_api') and prompt_config.modelo_api:
                     model_name = prompt_config.modelo_api.replace("models/", "")
             except Exception:
-                # Se não tem prompt configurado, usa padrão (mas não quebra)
                 template_prompt = "Escreva uma descrição imobiliária com voz {{voz_da_marca}} para: {{imovel_data}}"
         
             voz_da_marca_obj = imovel.imobiliaria.voz_da_marca_preferida
@@ -573,7 +754,6 @@ class ImovelViewSet(viewsets.ModelViewSet):
             prompt_final = template_prompt.replace('{{imovel_data}}', imovel_data)
             prompt_final = prompt_final.replace('{{voz_da_marca}}', voz_da_marca)
 
-            # Lógica de Retry com fallback de modelos
             generated_text = None
             models_to_try = [model_name, 'gemini-2.0-flash', 'gemini-1.5-flash']
             
@@ -739,15 +919,13 @@ class ContatoImovelViewSet(viewsets.ModelViewSet):
     serializer_class = ContatoImovelSerializer
 
     def get_permissions(self):
-        # Permite acesso irrestrito para CRIAR (POST)
         if self.action in ['list', 'retrieve', 'update', 'partial_update', 'destroy', 'arquivar']:
             self.permission_classes = [permissions.IsAuthenticated]
-        else: # create
+        else:
             self.permission_classes = [permissions.AllowAny]
         return super().get_permissions()
 
     def get_queryset(self):
-        # CORREÇÃO: Adicionar select_related('imovel') para popular o imovel_obj no serializer
         base_queryset = ContatoImovel.objects.filter(arquivado=False).select_related('imovel')
         
         user = self.request.user
@@ -763,8 +941,6 @@ class ContatoImovelViewSet(viewsets.ModelViewSet):
 
     @transaction.atomic 
     def perform_create(self, serializer):
-        # VALIDAÇÃO MANUAL DO TELEFONE
-        # Garante que o telefone venha preenchido, caso contrário bloqueia (Erro 400)
         dados = serializer.validated_data
         if not dados.get('telefone'):
              raise ValidationError({"telefone": ["Este campo é obrigatório para o contato."]})
@@ -776,14 +952,12 @@ class ContatoImovelViewSet(viewsets.ModelViewSet):
         cliente_para_oportunidade = None
         oportunidade = None
 
-        # 1. Tentar encontrar ou criar o Cliente (Lead Provisório)
         cliente_por_email = Cliente.objects.filter(imobiliaria=imobiliaria, email__iexact=contato.email).first()
 
         if cliente_por_email:
             cliente_para_oportunidade = cliente_por_email
             
         else:
-            # Cliente novo: cria o registro
             documento_provisorio = f"99999{contato.id:06d}"[:11].ljust(11, '0') 
 
             try:
@@ -804,7 +978,6 @@ class ContatoImovelViewSet(viewsets.ModelViewSet):
                 cliente_para_oportunidade = None 
 
         
-        # 2. Criar a Oportunidade
         if cliente_para_oportunidade:
              oportunidade_existente = Oportunidade.objects.filter(
                  imobiliaria=imobiliaria,
@@ -824,12 +997,8 @@ class ContatoImovelViewSet(viewsets.ModelViewSet):
                      informacoes_adicionais=f"Mensagem do Lead: {contato.mensagem}"
                  )
                  
-                 # 3. Notificação no Painel
                  responsavel = oportunidade.responsavel
                  if not responsavel:
-                     # CORREÇÃO CRÍTICA: Removido .select_related('user') pois causava FieldError.
-                     # Também usamos getattr(admin_perfil, 'user', admin_perfil) para suportar
-                     # tanto se PerfilUsuario for um modelo de perfil (com user) ou o próprio usuário.
                      admin_perfil = PerfilUsuario.objects.filter(
                          imobiliaria=imobiliaria, 
                          is_admin=True
@@ -856,7 +1025,7 @@ class ContatoImovelViewSet(viewsets.ModelViewSet):
             if hasattr(imobiliaria, 'email_contato') and imobiliaria.email_contato:
                 destinatario_email = imobiliaria.email_contato
                 assunto = f"Novo Contato para o Imóvel: {contato.imovel.titulo_anuncio or contato.imovel.logradouro}"
-                base_url_painel = "http://localhost:5173" # Ou a URL de produção
+                base_url_painel = "http://localhost:5173" 
                 link_imovel_painel = f"{base_url_painel}/imoveis/editar/{contato.imovel.id}"
 
                 mensagem_corpo = f"""
@@ -911,157 +1080,22 @@ class ContatoImovelViewSet(viewsets.ModelViewSet):
 class GerarAutorizacaoPDFView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
-    def _get_imovel_data(self, request, imovel_id):
-        tenant = getattr(request, 'tenant', None) or getattr(request.user, 'imobiliaria', None)
-
-        try:
-            if request.user.is_superuser:
-                 if tenant:
-                     imovel = Imovel.objects.get(pk=imovel_id, imobiliaria=tenant)
-                 else:
-                     imovel = Imovel.objects.get(pk=imovel_id)
-            elif tenant:
-                 imovel = Imovel.objects.get(pk=imovel_id, imobiliaria=tenant)
-            else:
-                 raise PermissionDenied("Tenant não identificado para o usuário autenticado.")
-        except Imovel.DoesNotExist:
-             raise Http404("Imóvel não encontrado ou não pertence à sua imobiliária.")
-
-        if not imovel.proprietario:
-            raise ValueError("Erro: O imóvel não possui um proprietário vinculado.")
-        return imovel
-
-    def _processar_pdf(self, request, imovel, comissao, data_fim, info_adicionais):
-        try:
-            locale.setlocale(locale.LC_TIME, 'pt_BR.UTF-8')
-        except locale.Error:
-            try:
-                 locale.setlocale(locale.LC_TIME, 'Portuguese_Brazil.1252')
-            except locale.Error:
-                 pass 
-
-        hoje = date.today()
-        finalidade_texto = imovel.get_finalidade_display() 
-        valor = imovel.valor_venda if imovel.status == 'A_VENDA' else imovel.valor_aluguel
-        valor = valor or Decimal(0)
-        reais = int(valor)
-        centavos = int((valor - reais) * 100)
-        
-        try:
-            if num2words:
-                valor_por_extenso = num2words(reais, lang='pt_BR') + " reais"
-                if centavos > 0:
-                     valor_por_extenso += " e " + num2words(centavos, lang='pt_BR') + " centavos"
-            else:
-                valor_por_extenso = f"{valor:,.2f}"
-        except NotImplementedError:
-             valor_por_extenso = f"{valor:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
-             
-        try:
-            if num2words:
-                comissao_por_extenso = num2words(float(comissao), lang='pt_BR') + " por cento"
-            else:
-                comissao_por_extenso = f"{comissao}%"
-        except NotImplementedError:
-             comissao_por_extenso = f"{comissao}%"
-
-        proprietario = imovel.proprietario
-        nome_proprietario = proprietario.razao_social if proprietario.tipo_pessoa == 'JURIDICA' and proprietario.razao_social else proprietario.nome
-
-        context = {
-            'imovel': imovel,
-            'proprietario': proprietario,
-            'nome_proprietario': nome_proprietario,
-            'imobiliaria': imovel.imobiliaria,
-            'finalidade_texto': finalidade_texto,
-            'valor': valor,
-            'valor_por_extenso': valor_por_extenso,
-            'comissao_percentual': comissao, 
-            'comissao_por_extenso': comissao_por_extenso,
-            'informacoes_adicionais': info_adicionais, 
-            'data_hoje': hoje,
-            'dia_hoje': hoje.day,
-            'mes_hoje': hoje.strftime("%B"),
-            'ano_hoje': hoje.year,
-            'data_fim_autorizacao_formatada': data_fim.strftime("%d de %B de %Y") if data_fim else "INDETERMINADO"
-        }
-        
-        html_string = render_to_string('autorizacao_template.html', context)
-        result = BytesIO()
-        pdf = pisa.pisaDocument(BytesIO(html_string.encode("UTF-8")), result, encoding='UTF-8')
-
-        if not pdf.err:
-            response = HttpResponse(result.getvalue(), content_type='application/pdf')
-            status_texto = imovel.get_status_display().lower().replace(" ", "_")
-            filename = f'autorizacao_{status_texto}_imovel_{imovel.codigo_referencia or imovel.id}.pdf'
-            response['Content-Disposition'] = f'attachment; filename="{filename}"'
-            return response
-        else:
-             return HttpResponse(f"Erro ao gerar o PDF: {pdf.err}", status=500)
-
     def get(self, request, imovel_id, *args, **kwargs):
-        try:
-            imovel = self._get_imovel_data(request, imovel_id)
-            comissao_default = imovel.comissao_percentual or Decimal(0)
-            data_fim_default = imovel.data_fim_autorizacao
-            info_adicionais_default = imovel.informacoes_adicionais_autorizacao or ''
-
-            return self._processar_pdf(
-                request, 
-                imovel, 
-                comissao_default, 
-                data_fim_default, 
-                info_adicionais_default
-            )
-        except Http404:
-             return HttpResponse("Imóvel não encontrado.", status=404)
-        except PermissionDenied as e:
-            # CORREÇÃO DO SYNTAXERROR (4G03 -> 403):
-             return HttpResponse(f"Erro de Permissão: {e}", status=403)
-        except ValueError as e: 
-             return HttpResponse(str(e), status=400)
-        except Exception as e:
-            return HttpResponse(f"Erro interno ao gerar PDF: {e}", status=500)
+        # Esta view agora pode ser usada apenas como fallback ou para gerar direto do modelo antigo
+        # Se quiser usar o novo sistema, o frontend deve chamar VisualizarAutorizacaoPdfView
+        # Mas mantemos para compatibilidade se necessário
+        
+        # Reutilizando a lógica da nova view para evitar duplicação
+        view = VisualizarAutorizacaoPdfView()
+        # Injeta o request na view instanciada
+        view.setup(request, *args, **kwargs)
+        return view.get(request, pk=imovel_id)
 
     def post(self, request, imovel_id, *args, **kwargs):
-        try:
-            imovel = self._get_imovel_data(request, imovel_id)
-            data = request.data
-            
-            comissao = imovel.comissao_percentual or Decimal(0)
-            try:
-                 comissao = Decimal(str(data.get('comissao_percentual', comissao)))
-            except (InvalidOperation, TypeError):
-                 pass 
-                 
-            data_fim = imovel.data_fim_autorizacao 
-            data_fim_str = data.get('data_fim_autorizacao')
-            if data_fim_str:
-                 try:
-                     data_fim = date.fromisoformat(data_fim_str)
-                 except ValueError:
-                     pass 
-                 
-            info_adicionais = data.get(
-                'informacoes_adicionais', 
-                imovel.informacoes_adicionais_autorizacao or ''
-            )
-
-            return self._processar_pdf(
-                request, 
-                imovel, 
-                comissao, 
-                data_fim, 
-                info_adicionais
-            )
-        except Http404:
-             return HttpResponse("Imóvel não encontrado.", status=404)
-        except PermissionDenied as e:
-             return HttpResponse(f"Erro de Permissão: {e}", status=403)
-        except ValueError as e: 
-             return HttpResponse(str(e), status=400)
-        except Exception as e:
-            return HttpResponse(f"Erro interno ao gerar PDF: {e}", status=500)
+        # O POST anterior salvava dados e gerava PDF
+        # Agora o salvamento é via SalvarAutorizacaoHtmlView
+        # Podemos manter isso funcionando redirecionando logicamente ou deprecando
+        return HttpResponse("Use os novos endpoints de editor.", status=400)
 
 
 class AutorizacaoStatusView(APIView):
@@ -1079,7 +1113,6 @@ class AutorizacaoStatusView(APIView):
         limite_30_dias = hoje + timedelta(days=30)
         limite_passado_30_dias = hoje - timedelta(days=30)
 
-        # Correção segura
         base_queryset = Imovel.objects.filter(imobiliaria=tenant).exclude(status='DESATIVADO')
 
         sumario = base_queryset.aggregate(
@@ -1144,13 +1177,7 @@ class ImobiliariaPublicDetailView(RetrieveAPIView):
              print(f"Erro inesperado ao buscar imobiliária: {e}") 
              raise Http404("Erro ao buscar dados da imobiliária.")
 
-# --- INÍCIO DA IMPLEMENTAÇÃO DO RELATÓRIO DE AUTORIZAÇÕES (JSON + PDF) ---
-
 def _get_autorizacao_queryset(tenant, query_params): 
-    """
-    Helper para relatório completo em Paisagem.
-    """
-    # Correção segura
     queryset = Imovel.objects.filter(
         imobiliaria=tenant
     ).exclude(status='DESATIVADO').select_related('proprietario')
@@ -1158,7 +1185,6 @@ def _get_autorizacao_queryset(tenant, query_params):
     today = date.today()
     trinta_dias = today + timedelta(days=30)
     
-    # --- FILTROS (Mantidos iguais) ---
     search = query_params.get('search')
     if search:
         queryset = queryset.filter(
@@ -1190,11 +1216,9 @@ def _get_autorizacao_queryset(tenant, query_params):
         elif status_vigencia == 'A_VENCER':
             queryset = queryset.filter(data_fim_autorizacao__gte=today, data_fim_autorizacao__lte=trinta_dias)
 
-    # Ordenação e Anotação
     dias_timedelta = ExpressionWrapper(F('data_fim_autorizacao') - today, output_field=fields.DurationField())
     queryset = queryset.annotate(dias_restantes=dias_timedelta).order_by('data_fim_autorizacao')
 
-    # --- PROCESSAMENTO DOS DADOS COMPLETOS ---
     data_list = []
     total_imoveis = 0
     total_expirados = 0
@@ -1202,13 +1226,11 @@ def _get_autorizacao_queryset(tenant, query_params):
     total_aluguel_potencial = Decimal(0)
 
     for imovel in queryset:
-        # Dias Restantes
         if imovel.data_fim_autorizacao and imovel.dias_restantes:
              dias_restantes = imovel.dias_restantes.days
         else:
              dias_restantes = 9999 
         
-        # Status Risco
         status_risco = 'Ativo'
         if imovel.data_fim_autorizacao and dias_restantes < 0:
              status_risco = 'Expirado'
@@ -1218,15 +1240,12 @@ def _get_autorizacao_queryset(tenant, query_params):
         
         total_imoveis += 1
         
-        # Somatórios separados
         if imovel.valor_venda: total_venda_potencial += imovel.valor_venda
         if imovel.valor_aluguel: total_aluguel_potencial += imovel.valor_aluguel
         
-        # Formatações de Valor
         def fmt_money(val):
             return f"{val:,.2f}".replace(',', 'X').replace('.', ',').replace('X', '.') if val else "-"
 
-        # Dados do Proprietário
         nome_proprietario = 'N/A'
         telefone_proprietario = '-'
         email_proprietario = '-'
@@ -1237,13 +1256,12 @@ def _get_autorizacao_queryset(tenant, query_params):
             telefone_proprietario = p.telefone or p.celular or '-'
             email_proprietario = p.email or '-'
 
-        # Status Display
         finalidade_display = "Venda" if imovel.status == 'A_VENDA' else "Aluguel"
         if imovel.status not in ['A_VENDA', 'PARA_ALUGAR']:
              finalidade_display = imovel.get_status_display()
 
         data_list.append({
-            'id': imovel.id, # CORREÇÃO: Adicionado ID para o frontend
+            'id': imovel.id, 
             'codigo': imovel.codigo_referencia,
             'titulo': imovel.titulo_anuncio,
             'endereco_resumido': f"{imovel.logradouro or ''}, {imovel.numero or ''}",
@@ -1296,7 +1314,6 @@ class AutorizacaoReportPDFView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def get(self, request, *args, **kwargs):
-        # 1. Definição do Tenant (Imobiliária)
         tenant = getattr(request, 'tenant', None) or getattr(request.user, 'imobiliaria', None)
         
         if not tenant and request.user.is_superuser:
@@ -1305,19 +1322,15 @@ class AutorizacaoReportPDFView(APIView):
         if not tenant:
             return HttpResponse("Erro: Nenhuma imobiliária identificada.", status=400)
 
-        # 2. Busca de Dados (Usando o helper criado anteriormente)
-        # O helper processa todos os filtros: data, texto, tipo e status
         data_structure = _get_autorizacao_queryset(tenant, request.query_params) 
         data = data_structure['list']
         summary = data_structure['summary']
         
-        # 3. Personalização do Título do Relatório (baseado nos filtros)
         titulo_relatorio = "Relatório de Autorizações"
         
         status_vigencia = request.query_params.get('status_vigencia')
         tipo_negocio = request.query_params.get('tipo_negocio')
         
-        # Adiciona sufixo ao título se houver filtros específicos
         if status_vigencia == 'VIGENTE':
             titulo_relatorio += " (Vigentes)"
         elif status_vigencia == 'VENCIDA':
@@ -1330,32 +1343,24 @@ class AutorizacaoReportPDFView(APIView):
         elif tipo_negocio == 'PARA_ALUGAR':
             titulo_relatorio += " - Aluguel"
 
-        # 4. Contexto para o Template
         context = {
             'data': data,
             'summary': summary,
             'titulo_relatorio': titulo_relatorio,
-            # CORREÇÃO: Usa timezone.now() para passar data E hora, permitindo formatação H:i no template
             'data_geracao': timezone.now(), 
             'imobiliaria': tenant,
             'usuario_solicitante': request.user.first_name or request.user.username
         }
 
-        # 5. Renderização do HTML
-        # O Django buscará este arquivo em: app_imoveis/templates/relatorio_autorizacoes_template.html
         html_string = render_to_string('relatorio_autorizacoes_template.html', context)
         
-        # 6. Geração do PDF (xhtml2pdf)
         result = BytesIO()
         pdf = pisa.pisaDocument(BytesIO(html_string.encode("UTF-8")), result, encoding='UTF-8')
 
-        # 7. Retorno do Arquivo
         if not pdf.err:
             response = HttpResponse(result.getvalue(), content_type='application/pdf')
-            # Usa timezone.now() também para o nome do arquivo
             filename = f'relatorio_autorizacoes_{timezone.now().strftime("%Y-%m-%d")}.pdf'
             
-            # 'inline' abre no navegador (nova aba) para visualização antes de imprimir
             response['Content-Disposition'] = f'inline; filename="{filename}"' 
             return response
         else:

@@ -12,6 +12,9 @@ from .views import (
     ImovelIAView,
     AutorizacaoReportView,
     AutorizacaoReportPDFView,
+    GetAutorizacaoHtmlView,       # View Nova
+    SalvarAutorizacaoHtmlView,    # View Nova
+    VisualizarAutorizacaoPdfView, # View Nova
 )
 
 # Cria um router para ViewSets
@@ -21,13 +24,31 @@ router.register(r'imoveis/imagens', ImagemImovelViewSet)
 router.register(r'contatos', ContatoImovelViewSet)
 
 urlpatterns = [
-    # 1. Rota Explícita para a Geração de PDF (Contrato individual de um imóvel)
+    # 1. Rota Antiga/Compatibilidade (Geração Direta sem Editor)
     path(
         'imoveis/<int:imovel_id>/gerar-autorizacao-pdf/', 
         GerarAutorizacaoPDFView.as_view(), 
         name='gerar-autorizacao-pdf'
     ),
     
+    # --- NOVAS ROTAS DO EDITOR DE AUTORIZAÇÃO ---
+    path(
+        'imoveis/<int:pk>/get-autorizacao-html/',
+        GetAutorizacaoHtmlView.as_view(),
+        name='get-autorizacao-html'
+    ),
+    path(
+        'imoveis/<int:pk>/salvar-autorizacao-html/',
+        SalvarAutorizacaoHtmlView.as_view(),
+        name='salvar-autorizacao-html'
+    ),
+    path(
+        'imoveis/<int:pk>/visualizar-autorizacao-pdf/',
+        VisualizarAutorizacaoPdfView.as_view(),
+        name='visualizar-autorizacao-pdf'
+    ),
+    # --------------------------------------------
+
     # 2. Rota do Relatório de Autorizações (JSON - Dados para a tabela)
     path(
         'imoveis/relatorio/autorizacoes/', 
@@ -36,7 +57,6 @@ urlpatterns = [
     ),
     
     # 3. Rota do Relatório Geral de Autorizações (PDF - Botão Imprimir)
-    # CORREÇÃO: Adicionada a rota exata que o frontend está chamando
     path(
         'imoveis/relatorio-geral-autorizacoes/', 
         AutorizacaoReportPDFView.as_view(), 
@@ -44,6 +64,7 @@ urlpatterns = [
     ),
     
     # 4. Rotas automáticas do ViewSet (Cria, Lista, Detalhe, Update, etc.)
+    # ATENÇÃO: O include do router deve vir DEPOIS das rotas manuais específicas de 'imoveis/'
     path('', include(router.urls)),
     
     # --- Rotas Públicas ---

@@ -28,7 +28,7 @@
           <span class="kpi-value">{{ totalAtivas }}</span>
           <span class="kpi-label">Qtd. Ativas</span>
         </div>
-        <div class="kpi-icon"><i class="fas fa-filter"></i></div>
+        <div class="kpi-icon-bg text-orange-500 bg-orange-50"><i class="fas fa-filter"></i></div>
       </div>
 
       <div class="kpi-card green">
@@ -36,7 +36,7 @@
           <span class="kpi-value">{{ taxaFechamento }}%</span>
           <span class="kpi-label">Conversão</span>
         </div>
-        <div class="kpi-icon"><i class="fas fa-chart-line"></i></div>
+        <div class="kpi-icon-bg text-emerald-500 bg-emerald-50"><i class="fas fa-chart-line"></i></div>
       </div>
 
       <div class="kpi-card purple">
@@ -44,7 +44,7 @@
           <span class="kpi-value">{{ probabilidadeMedia }}%</span>
           <span class="kpi-label">Probabilidade</span>
         </div>
-        <div class="kpi-icon"><i class="fas fa-percentage"></i></div>
+        <div class="kpi-icon-bg text-purple-500 bg-purple-50"><i class="fas fa-percentage"></i></div>
       </div>
     </div>
 
@@ -96,7 +96,7 @@
       </div>
 
       <div v-else-if="funilFases.length === 0" class="empty-state-funil">
-          <i class="fas fa-layer-group text-4xl mb-4 text-gray-300"></i>
+          <i class="fas fa-layer-group fa-3x mb-3 text-gray-300"></i>
           <h3>Funil não configurado</h3>
           <p>Nenhuma etapa cadastrada.</p>
       </div>
@@ -138,14 +138,14 @@
                         <h4 class="card-title">{{ op.titulo }}</h4>
                         <div class="card-details">
                             <div class="detail-row" v-if="op.cliente">
-                                <i class="far fa-user text-gray-400"></i>
-                                <span class="truncate">{{ op.cliente.nome_completo || op.cliente_detalhe?.nome || 'Cliente' }}</span>
+                                <i class="far fa-user"></i>
+                                <span class="truncate">{{ op.cliente_detalhe?.nome || op.cliente?.nome || 'Cliente' }}</span>
                             </div>
                         </div>
                         <div class="card-footer">
                             <span class="card-price">{{ formatarValor(op.valor_estimado) }}</span>
                             <div class="card-avatar" v-if="op.responsavel">
-                                {{ op.responsavel.first_name?.charAt(0).toUpperCase() || 'U' }}
+                                {{ getInitials(op.responsavel_nome || op.responsavel.first_name) }}
                             </div>
                         </div>
                     </div>
@@ -162,7 +162,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, computed, watch } from 'vue';
+import { ref, onMounted, computed } from 'vue';
 import { useRouter } from 'vue-router';
 import api from '@/services/api';
 import draggable from 'vuedraggable';
@@ -225,6 +225,11 @@ function getProbabilidadeClass(prob: number | null) {
     return 'bg-red-400';
 }
 
+function getInitials(name: string) {
+    if (!name) return 'U';
+    return name.charAt(0).toUpperCase();
+}
+
 function toggleCardsRecolhidos() { cardsRecolhidos.value = !cardsRecolhidos.value; }
 
 // --- DATA FETCHING ---
@@ -232,18 +237,21 @@ async function fetchData() {
     isLoading.value = true;
     try {
         const resFases = await api.get('/v1/fases-funil/');
-        funilFases.value = resFases.data; 
+        funilFases.value = resFases.data.results || resFases.data; 
 
         const params = {
             search: filtro.value.search || undefined,
             responsavel: filtro.value.responsavel || undefined,
         };
         const resOps = await api.get('/v1/oportunidades/', { params });
-        oportunidades.value = resOps.data;
+        oportunidades.value = resOps.data.results || resOps.data;
 
+        // Extrair lista de corretores únicos das oportunidades carregadas
         const map = new Map();
         oportunidades.value.forEach(op => {
-            if (op.responsavel && !map.has(op.responsavel.id)) map.set(op.responsavel.id, op.responsavel);
+            if (op.responsavel && typeof op.responsavel === 'object') {
+                 if (!map.has(op.responsavel.id)) map.set(op.responsavel.id, op.responsavel);
+            }
         });
         corretores.value = Array.from(map.values());
 
@@ -263,13 +271,17 @@ function distribuirOportunidades() {
     
     const orphans: any[] = [];
     oportunidades.value.forEach(op => {
-        if (op.fase && groups[op.fase]) {
-            groups[op.fase].push(op);
+        // Verifica se 'fase' é um objeto ou ID
+        const faseId = typeof op.fase === 'object' ? op.fase?.id : op.fase;
+        
+        if (faseId && groups[faseId]) {
+            groups[faseId].push(op);
         } else {
             orphans.push(op);
         }
     });
 
+    // Se houver órfãos, coloca na primeira coluna
     if (orphans.length > 0 && funilFases.value.length > 0) {
         const firstId = funilFases.value[0].id;
         groups[firstId] = [...groups[firstId], ...orphans];
@@ -281,6 +293,7 @@ const onFaseChange = async (event: any, novaFaseId: number) => {
     if (event.added) {
         const oportunidadeId = event.added.element.id;
         
+        // Atualiza localmente para feedback instantâneo
         const opIndex = oportunidades.value.findIndex(o => o.id === oportunidadeId);
         if (opIndex !== -1) {
             oportunidades.value[opIndex].fase = novaFaseId;
@@ -292,7 +305,7 @@ const onFaseChange = async (event: any, novaFaseId: number) => {
             await api.patch(`/v1/oportunidades/${oportunidadeId}/`, { fase: novaFaseId }); 
         } catch (error) {
             console.error('Erro ao mover:', error);
-            fetchData(); // Rollback
+            fetchData(); // Reverte em caso de erro
         }
     }
 };
@@ -329,10 +342,13 @@ onMounted(fetchData);
 .page-header { flex: none; margin-bottom: 1.5rem; }
 .header-main { display: flex; justify-content: space-between; align-items: flex-end; }
 .title-area h1 { font-size: 1.5rem; font-weight: 600; color: #1e293b; margin: 0; }
-.breadcrumb { font-size: 0.75rem; color: #64748b; font-weight: 500; text-transform: uppercase; margin-bottom: 4px; }
+.breadcrumb { font-size: 0.75rem; color: #64748b; font-weight: 500; text-transform: uppercase; margin-bottom: 4px; display: flex; align-items: center; gap: 6px; }
+.separator { font-size: 0.6rem; color: #cbd5e1; }
 .actions-area { display: flex; gap: 0.75rem; }
-.btn-primary-thin { background: #2563eb; color: white; padding: 0.5rem 1rem; border-radius: 8px; font-size: 0.875rem; text-decoration: none; display: flex; align-items: center; gap: 0.5rem; transition: background 0.2s; }
-.btn-icon-thin { background: white; border: 1px solid #e2e8f0; width: 36px; height: 36px; border-radius: 8px; color: #64748b; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+.btn-primary-thin { background: #2563eb; color: white; padding: 0.5rem 1rem; border-radius: 8px; font-size: 0.875rem; text-decoration: none; display: flex; align-items: center; gap: 0.5rem; transition: background 0.2s; font-weight: 500; }
+.btn-primary-thin:hover { background: #1d4ed8; }
+.btn-icon-thin { background: white; border: 1px solid #e2e8f0; width: 36px; height: 36px; border-radius: 8px; color: #64748b; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.2s; }
+.btn-icon-thin:hover { border-color: #cbd5e1; background: #f1f5f9; color: #334155; }
 
 /* =========================================================
    2. KPI CARDS
@@ -343,27 +359,19 @@ onMounted(fetchData);
 }
 .kpi-card {
   background: white; border-radius: 12px; padding: 1rem; border: 1px solid #e2e8f0;
-  display: flex; align-items: center; gap: 1rem; box-shadow: 0 1px 2px rgba(0,0,0,0.03);
+  display: flex; align-items: center; gap: 1rem; box-shadow: 0 1px 2px rgba(0,0,0,0.02);
 }
 .kpi-icon-bg {
     width: 48px; height: 48px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 1.25rem; flex-shrink: 0;
 }
 .kpi-content { display: flex; flex-direction: column; }
-.kpi-label { font-size: 0.75rem; color: #64748b; font-weight: 600; text-transform: uppercase; }
-.kpi-value { font-size: 1.25rem; font-weight: 700; line-height: 1.2; }
+.kpi-label { font-size: 0.75rem; color: #64748b; font-weight: 600; text-transform: uppercase; letter-spacing: 0.02em; }
+.kpi-value { font-size: 1.5rem; font-weight: 700; line-height: 1.1; color: #1e293b; }
 
-/* Cores KPI */
-.kpi-card.orange .kpi-value { color: #d97706; }
-.kpi-card.orange .kpi-icon { color: #f59e0b; background: #fffbeb; }
-
-.kpi-card.blue .kpi-value { color: #2563eb; }
-.kpi-card.blue .kpi-icon { color: #3b82f6; background: #eff6ff; }
-
-.kpi-card.green .kpi-value { color: #059669; }
-.kpi-card.green .kpi-icon { color: #10b981; background: #ecfdf5; }
-
-.kpi-card.purple .kpi-value { color: #7c3aed; }
-.kpi-card.purple .kpi-icon { color: #8b5cf6; background: #f5f3ff; }
+/* Cores KPI (Classes Utilitárias Simuladas) */
+.text-orange-500 { color: #f97316; } .bg-orange-50 { background-color: #fff7ed; }
+.text-emerald-500 { color: #10b981; } .bg-emerald-50 { background-color: #ecfdf5; }
+.text-purple-500 { color: #8b5cf6; } .bg-purple-50 { background-color: #f5f3ff; }
 
 /* =========================================================
    3. TOOLBAR
@@ -371,16 +379,25 @@ onMounted(fetchData);
 .toolbar-row {
   background: white; border-radius: 12px; border: 1px solid #e2e8f0; padding: 0.75rem;
   display: flex; gap: 1rem; align-items: center; margin-bottom: 1.5rem; flex: none;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.02);
 }
-.filter-group { display: flex; flex-direction: column; flex: 1; }
+.filter-group { display: flex; flex-direction: column; gap: 0.25rem; flex: 1; }
+.filter-group label { font-size: 0.7rem; font-weight: 600; text-transform: uppercase; color: #64748b; letter-spacing: 0.02em; }
 .search-group { flex: 2; }
 .small-btn { flex: 0 0 auto; }
-.form-control { width: 100%; padding: 0.5rem 0.75rem 0.5rem 2.25rem; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 0.875rem; outline: none; transition: border 0.2s; color: #334155; }
-.input-with-icon { position: relative; }
-.input-with-icon i { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: #94a3b8; }
-.custom-select select { appearance: none; cursor: pointer; padding-right: 2rem; padding-left: 0.75rem; }
-.select-icon { position: absolute; right: 12px; top: 50%; transform: translateY(-50%); color: #94a3b8; pointer-events: none; }
-.btn-toggle { padding: 0.5rem 1rem; border: 1px solid #cbd5e1; background: #f8fafc; border-radius: 8px; color: #475569; font-weight: 500; font-size: 0.875rem; cursor: pointer; display: flex; align-items: center; }
+
+.form-control { width: 100%; padding: 0.5rem 0.75rem 0.5rem 2.25rem; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 0.875rem; outline: none; transition: border 0.2s; color: #334155; background: #fff; box-sizing: border-box; height: 38px; }
+.form-control:focus { border-color: #3b82f6; box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.1); }
+
+.input-with-icon { position: relative; width: 100%; }
+.input-with-icon i { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: #94a3b8; font-size: 0.9rem; }
+
+.custom-select { position: relative; width: 100%; }
+.custom-select select { appearance: none; cursor: pointer; padding-right: 2rem; padding-left: 0.75rem; width: 100%; }
+.select-icon { position: absolute; right: 12px; top: 50%; transform: translateY(-50%); color: #94a3b8; pointer-events: none; font-size: 0.8rem; }
+
+.btn-toggle { padding: 0 1rem; height: 38px; border: 1px solid #cbd5e1; background: #f8fafc; border-radius: 8px; color: #475569; font-weight: 500; font-size: 0.875rem; cursor: pointer; display: flex; align-items: center; gap: 0.5rem; transition: all 0.2s; }
+.btn-toggle:hover { background: #f1f5f9; border-color: #94a3b8; }
 
 /* =========================================================
    4. KANBAN BOARD
@@ -420,33 +437,46 @@ onMounted(fetchData);
     border-top: 4px solid transparent; flex-shrink: 0;
 }
 .header-top { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; margin-bottom: 0.25rem; }
-.column-title { font-weight: 700; font-size: 0.75rem; color: #334155; text-transform: uppercase; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.column-badge { background: #f1f5f9; color: #64748b; font-size: 0.7rem; padding: 2px 8px; border-radius: 12px; font-weight: 700; }
-.column-summary { font-size: 0.75rem; font-weight: 600; color: #059669; text-align: right; }
+.column-title { font-weight: 700; font-size: 0.75rem; color: #334155; text-transform: uppercase; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; letter-spacing: 0.05em; }
+.column-badge { background: #f1f5f9; color: #64748b; font-size: 0.7rem; padding: 2px 8px; border-radius: 12px; font-weight: 700; min-width: 20px; text-align: center; }
+.column-summary { font-size: 0.75rem; font-weight: 600; color: #059669; text-align: right; margin-top: 4px; }
 .column-body { flex: 1; overflow-y: auto; padding: 0.5rem; scrollbar-width: thin; }
 
 /* Cards */
-.draggable-area { min-height: 100%; display: flex; flex-direction: column; gap: 0.75rem; }
+.draggable-area { min-height: 100%; display: flex; flex-direction: column; gap: 0.75rem; padding-bottom: 2rem; }
 .kanban-card {
     background: white; border-radius: 8px; 
     box-shadow: 0 1px 2px rgba(0,0,0,0.04);
     border: 1px solid transparent; border-left: 0;
     cursor: grab; position: relative; overflow: hidden; display: flex;
-    transition: transform 0.2s;
+    transition: transform 0.2s, box-shadow 0.2s;
 }
-.kanban-card:hover { transform: translateY(-2px); box-shadow: 0 8px 16px -4px rgba(0,0,0,0.1); }
+.kanban-card:hover { transform: translateY(-2px); box-shadow: 0 8px 16px -4px rgba(0,0,0,0.1); border-color: #cbd5e1; border-left: 0; }
+.kanban-card:active { cursor: grabbing; }
+
 .card-status-strip { width: 4px; flex-shrink: 0; }
-.card-content { flex: 1; padding: 0.75rem; display: flex; flex-direction: column; gap: 0.5rem; overflow: hidden; }
+.bg-gray-300 { background-color: #cbd5e1; }
+.bg-emerald-500 { background-color: #10b981; }
+.bg-blue-500 { background-color: #3b82f6; }
+.bg-orange-400 { background-color: #fb923c; }
+.bg-red-400 { background-color: #f87171; }
+
+.card-content { flex: 1; padding: 0.75rem; display: flex; flex-direction: column; gap: 0.4rem; overflow: hidden; }
 .card-top { display: flex; justify-content: space-between; align-items: center; font-size: 0.65rem; color: #94a3b8; }
 .card-id { font-weight: 700; opacity: 0.7; }
-.card-title { font-size: 0.875rem; font-weight: 600; color: #1e293b; margin: 0; line-height: 1.3; }
+.card-title { font-size: 0.9rem; font-weight: 600; color: #1e293b; margin: 0; line-height: 1.3; }
 .card-details { display: flex; flex-direction: column; gap: 2px; font-size: 0.75rem; color: #64748b; }
 .detail-row { display: flex; align-items: center; gap: 6px; }
 .detail-row i { width: 14px; text-align: center; font-size: 0.7rem; opacity: 0.7; }
-.card-footer { margin-top: 0.25rem; padding-top: 0.5rem; border-top: 1px solid #f1f5f9; display: flex; justify-content: space-between; align-items: center; }
-.card-price { font-size: 0.85rem; font-weight: 700; color: #059669; }
-.card-avatar { width: 24px; height: 24px; border-radius: 50%; background: #e0f2fe; color: #0369a1; font-size: 0.7rem; font-weight: 700; display: flex; align-items: center; justify-content: center; }
-.sortable-ghost { opacity: 0.3; background: #cbd5e1; border: 2px dashed #94a3b8; }
+.truncate { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+.card-footer { margin-top: 0.4rem; padding-top: 0.5rem; border-top: 1px dashed #f1f5f9; display: flex; justify-content: space-between; align-items: center; }
+.card-price { font-size: 0.8rem; font-weight: 700; color: #059669; }
+.card-avatar { width: 22px; height: 22px; border-radius: 50%; background: #e0f2fe; color: #0369a1; font-size: 0.65rem; font-weight: 700; display: flex; align-items: center; justify-content: center; border: 1px solid #bae6fd; }
+
+.sortable-ghost { opacity: 0.4; background: #f1f5f9; border: 2px dashed #94a3b8; box-shadow: none; }
+.sortable-drag { opacity: 1; transform: rotate(2deg); box-shadow: 0 10px 20px rgba(0,0,0,0.15); z-index: 100; }
+
 .loading-state, .empty-state-funil { height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; color: #94a3b8; }
 .spinner { width: 32px; height: 32px; border: 3px solid #e2e8f0; border-top-color: #2563eb; border-radius: 50%; animation: spin 1s linear infinite; margin-bottom: 1rem; }
 @keyframes spin { 100% { transform: rotate(360deg); } }
@@ -454,8 +484,9 @@ onMounted(fetchData);
 @media (max-width: 768px) {
     .page-container { padding: 1rem; }
     .header-main { flex-direction: column; align-items: flex-start; gap: 1rem; }
-    .actions-area { width: 100%; justify-content: flex-start; }
-    .toolbar-row { flex-direction: column; align-items: stretch; }
+    .actions-area { width: 100%; justify-content: space-between; }
+    .toolbar-row { flex-direction: column; align-items: stretch; height: auto; }
     .kpi-grid { grid-template-columns: 1fr 1fr; }
+    .btn-toggle .btn-label { display: inline; }
 }
 </style>

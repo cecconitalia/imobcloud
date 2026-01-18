@@ -1,7 +1,6 @@
-// frontend/src/router/index.ts
-
 import { createRouter, createWebHistory } from 'vue-router'
 import { useAuthStore } from '@/stores/auth' 
+import { useToast } from 'vue-toast-notification'
 
 // Importações dos layouts
 import DashboardLayout from '@/layouts/DashboardLayout.vue'
@@ -47,11 +46,10 @@ import OportunidadeFormView from '@/views/OportunidadeFormView.vue'
 import PublicacoesView from '@/views/PublicacoesView.vue'
 import RegisterView from '@/views/RegisterView.vue'
 import RelatoriosView from '@/views/RelatoriosView.vue'
-import TarefasKanbanView from '@/views/TarefasKanbanView.vue' // <--- IMPORTADO AQUI
+import TarefasKanbanView from '@/views/TarefasKanbanView.vue'
 import TransacaoFormView from '@/views/TransacaoForm.vue'
 import VisitaFormView from '@/views/VisitaFormView.vue'
 import VisitasView from '@/views/VisitasView.vue'
-// === IMPORTAÇÕES DE VISTORIA ===
 import VistoriasView from '@/views/VistoriasView.vue';
 import VistoriaFormView from '@/views/VistoriaFormView.vue';
 import VistoriaAmbientesView from '@/views/VistoriaAmbientesView.vue';
@@ -65,12 +63,11 @@ import RemessaRetornoView from '@/views/financeiro/RemessaRetornoView.vue'
 import PublicHomeView from '@/views/PublicHomeView.vue'
 import PublicImovelDetailView from '@/views/PublicImovelDetailView.vue'
 
-// View de Configuração Global (NOVA)
+// View de Configuração Global
 import ConfiguracaoSistemaView from '@/views/ConfiguracaoSistemaView.vue'
 
 // ==========================================================
 
-// Adicionar um tipo para a meta das rotas
 declare module 'vue-router' {
     interface RouteMeta {
         requiresAuth?: boolean;
@@ -92,12 +89,8 @@ const router = createRouter({
                 requiresAuth: false
             },
             beforeEnter: (to, from, next) => {
-                // Se estiver num subdomínio (ex: teste.imobhome.com.br), redireciona para /site
-                // para carregar o layout da agência corretamente.
                 const hostname = window.location.hostname;
                 const isSubdomain = hostname.split('.').length > 1 && !hostname.startsWith('www') && !hostname.startsWith('localhost');
-                
-                // Exceção especial para teste.localhost
                 const isLocalhostTest = hostname === 'teste.localhost';
 
                 if (isSubdomain || isLocalhostTest) {
@@ -148,7 +141,7 @@ const router = createRouter({
             meta: { title: 'Acesso Suspenso', requiresAuth: false }
         },
 
-        // --- 4. PAINEL DE GESTÃO (SEM PREFIXO /PAINEL) ---
+        // --- 4. PAINEL DE GESTÃO ---
         {
             path: '/', 
             component: DashboardLayout,
@@ -214,6 +207,13 @@ const router = createRouter({
                     meta: { title: 'Gerenciar Imagens do Imóvel', isAdmin: true }
                 },
                 {
+                    path: 'imoveis/:id/autorizacao-editor',
+                    name: 'imovel-editor-autorizacao',
+                    component: ContratoEditorView,
+                    props: { docType: 'imovel-autorizacao' },
+                    meta: { title: 'Editar Autorização' }
+                },
+                {
                     path: 'clientes',
                     name: 'clientes',
                     component: ClientesView,
@@ -261,7 +261,6 @@ const router = createRouter({
                     component: ContratoEditorView,
                     meta: { title: 'Editar Documento do Contrato' }
                 },
-                // === VISTORIAS ===
                 { 
                     path: 'vistorias', 
                     name: 'vistorias', 
@@ -286,7 +285,6 @@ const router = createRouter({
                     component: VistoriaAmbientesView,
                     meta: { title: 'Executar Vistoria' }
                 },
-                // =================
                 {
                     path: 'visitas',
                     name: 'visitas',
@@ -335,14 +333,12 @@ const router = createRouter({
                     component: CalendarioTarefas,
                     meta: { title: 'Meu Calendário' }
                 },
-                // --- NOVA ROTA KANBAN ---
                 {
                     path: 'tarefas-board',
                     name: 'tarefas-board',
                     component: TarefasKanbanView,
                     meta: { title: 'Quadro de Tarefas' }
                 },
-                // ------------------------
                 {
                     path: 'publicacoes',
                     name: 'publicacoes',
@@ -505,12 +501,12 @@ const router = createRouter({
                     component: RemessaRetornoView,
                     meta: { title: 'Remessa e Retorno', isAdmin: true }
                 },
-                // === CONFIGURAÇÃO GLOBAL (NOVA) ===
+                // === CONFIGURAÇÃO GLOBAL ===
                 {
                     path: 'configuracoes/sistema',
                     name: 'configuracao-sistema',
                     component: ConfiguracaoSistemaView,
-                    meta: { title: 'Configurações do Sistema', isAdmin: true }
+                    meta: { title: 'Configurações do Sistema', isAdmin: true } 
                 },
             ]
         },
@@ -523,56 +519,69 @@ const router = createRouter({
     ]
 })
 
-router.beforeEach((to, from, next) => {
-    // Diagnóstico
+router.beforeEach(async (to, from, next) => {
     console.log(`[Router] Navegando para: ${String(to.name)}, Path: ${to.path}`);
 
     let authStore: any;
-    try {
-        authStore = useAuthStore();
-    } catch (e) {
-        // Ignora
-    }
+    try { authStore = useAuthStore(); } catch (e) { }
+    const toast = useToast();
 
     document.title = `${to.meta.title || 'ImobHome'}`;
 
-    // Verifica se a rota ou a rota pai requer auth
-    const requiresAuth = to.matched.some(record => record.meta.requiresAuth === true);
-    
-    // Recupera dados
-    let isAuthenticated = false;
-    let currentCargo: string | null = null;
-
-    // 1. Tenta pegar do Store
-    if (authStore && authStore.token) {
-        isAuthenticated = true;
-        currentCargo = authStore.userCargo;
-    } else {
-        // 2. Tenta pegar do LocalStorage
+    // Tenta inicializar se não tiver token na store
+    if (authStore && !authStore.token) {
         const token = localStorage.getItem('authToken');
-        isAuthenticated = !!token;
-        currentCargo = localStorage.getItem('userCargo');
+        if (token) {
+            authStore.token = token;
+            // Aguarda carregar dados do usuário para ter as permissões
+            try {
+                await authStore.initialize(); 
+            } catch (e) {
+                console.error("Erro ao inicializar auth:", e);
+            }
+        }
     }
 
-    if (isAuthenticated && authStore && !authStore.token) {
-        authStore.initialize(); 
-    }
+    const isAuthenticated = !!authStore.token;
+    const requiresAuth = to.matched.some(record => record.meta.requiresAuth);
+    
+    // Dados do usuário
+    const currentUser = authStore.user;
+    const isSuperUser = currentUser?.is_superuser || false;
+    const isAdminUser = currentUser?.is_admin || false;
+    const hasAdminAccess = isSuperUser || isAdminUser;
 
-    // --- LÓGICA DE PROTEÇÃO DE ROTAS ---
+    // 1. Bloqueio de Não Autenticados
     if (requiresAuth && !isAuthenticated) {
         next({ name: 'login' });
-    } else if (to.name === 'login' && isAuthenticated) {
+        return;
+    } 
+    
+    // 2. Redirecionar Login se já logado
+    else if ((to.name === 'login' || to.name === 'register') && isAuthenticated) {
         next({ name: 'dashboard' });
-    } else if (isAuthenticated && to.meta.isAdmin) {
-        if (currentCargo === 'ADMIN' || currentCargo === 'SUPERADMIN') {
+        return;
+    } 
+    
+    // 3. Verificação de Permissão de ADMIN
+    else if (isAuthenticated && to.meta.isAdmin) {
+        if (hasAdminAccess) {
             next();
         } else {
-            console.warn(`Acesso negado. Rota exige ADMIN/SUPERADMIN.`);
-            next({ name: 'dashboard' });
+            // AÇÃO DO PROMPT: Redirecionar se não tiver acesso
+            toast.error('Acesso Negado: Você não tem permissão para acessar esta área.');
+            
+            // Se veio do dashboard ou origem vazia, fica onde está ou vai pro dashboard
+            if (from.name === 'dashboard') {
+                next(false);
+            } else {
+                next({ name: 'dashboard' });
+            }
         }
-    } else {
-        next();
+        return;
     }
+
+    next();
 });
 
 export default router;

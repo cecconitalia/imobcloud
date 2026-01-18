@@ -1,226 +1,272 @@
 <template>
-  <div class="page-container-form">
-    <form @submit.prevent="handleSubmit" class="form-card">
-      <div class="form-header">
-        <h2>{{ isEditing ? 'Editar Contrato' : 'Novo Contrato' }}</h2>
-        <router-link :to="{ name: 'contratos' }" class="btn btn-secondary">
-          <i class="fas fa-arrow-left"></i> Voltar para Lista
-        </router-link>
+  <div class="page-container">
+    
+    <header class="page-header">
+      <div class="header-main">
+        <div class="title-area">
+           <nav class="breadcrumb">
+              <span>Gestão</span> 
+              <i class="fas fa-chevron-right separator"></i> 
+              <router-link :to="{ name: 'contratos' }">Contratos</router-link>
+              <i class="fas fa-chevron-right separator"></i>
+              <span class="active">{{ isEditing ? 'Editar' : 'Novo' }}</span>
+           </nav>
+           
+           <h1>{{ isEditing ? 'Editar Contrato' : 'Novo Contrato' }}</h1>
+        </div>
       </div>
+    </header>
 
-      <div v-if="isLoading" class="loading-message">
+    <div v-if="isLoading" class="loading-state">
         <div class="spinner"></div>
-        A carregar dados...
-      </div>
+        <p>Carregando dados do contrato...</p>
+    </div>
+
+    <div v-else-if="error" class="error-banner">
+        <i class="fas fa-exclamation-triangle"></i>
+        <span>{{ error }}</span>
+    </div>
+
+    <form v-else @submit.prevent="handleSubmit" class="main-content-grid">
       
-      <div v-if="error" class="error-message" role="alert">
-        <strong>Erro:</strong> {{ error }}
+      <div class="left-column">
+        <div class="card form-card">
+            
+            <div class="form-section">
+                <h3 class="section-title">
+                    <i class="fas fa-users"></i> Partes do Contrato
+                </h3>
+                
+                <div class="form-grid">
+                    <div class="form-group full-width">
+                        <label>Tipo de Contrato <span class="req">*</span></label>
+                        <div class="tipo-toggle">
+                            <label class="radio-label" :class="{ active: contrato.tipo_contrato === 'ALUGUEL' }">
+                                <input type="radio" value="ALUGUEL" v-model="contrato.tipo_contrato" :disabled="isEditing && contrato.status_contrato !== 'RASCUNHO'" @change="handleTipoChange">
+                                <i class="fas fa-key"></i> Aluguel
+                            </label>
+                            <label class="radio-label" :class="{ active: contrato.tipo_contrato === 'VENDA' }">
+                                <input type="radio" value="VENDA" v-model="contrato.tipo_contrato" :disabled="isEditing && contrato.status_contrato !== 'RASCUNHO'" @change="handleTipoChange">
+                                <i class="fas fa-handshake"></i> Venda
+                            </label>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Proprietário / Locador <span class="req">*</span></label>
+                        <v-select
+                            v-model="contrato.proprietario"
+                            :options="proprietarioOptions" 
+                            :reduce="(option) => option.value"
+                            label="label"
+                            placeholder="Selecione..."
+                            :clearable="false"
+                            :disabled="!contrato.tipo_contrato || isLoadingProprietarios"
+                            class="style-chooser"
+                        >
+                            <template #no-options>
+                                <span v-if="isLoadingProprietarios">Carregando...</span>
+                                <span v-else>Nenhum proprietário encontrado.</span>
+                            </template>
+                        </v-select>
+                        <small v-if="!contrato.proprietario && contrato.tipo_contrato" class="help-text">Necessário para carregar imóveis.</small>
+                    </div>
+
+                    <div class="form-group">
+                        <label>{{ tipoContratoLabel.outraParte }} <span class="req">*</span></label>
+                        <v-select
+                            v-model="contrato.inquilino"
+                            :options="todosClientesOptions"
+                            :reduce="(option) => option.value"
+                            label="label"
+                            placeholder="Selecione..."
+                            :clearable="false"
+                            :disabled="!todosClientesOptions.length"
+                            class="style-chooser"
+                        ></v-select>
+                    </div>
+
+                    <div class="form-group full-width">
+                        <label>Imóvel <span class="req">*</span></label>
+                        <v-select
+                            v-model="contrato.imovel"
+                            :options="imovelOptions"
+                            :reduce="(option) => option.value"
+                            label="label"
+                            placeholder="Selecione o Imóvel"
+                            :clearable="false"
+                            :disabled="!contrato.proprietario || isLoadingImoveis"
+                            class="style-chooser"
+                        >
+                            <template #no-options>
+                                <span v-if="isLoadingImoveis">Carregando...</span>
+                                <span v-else-if="!contrato.proprietario">Selecione o proprietário primeiro.</span>
+                                <span v-else>Nenhum imóvel disponível.</span>
+                            </template>
+                        </v-select>
+                    </div>
+                </div>
+            </div>
+
+            <div v-if="contrato.tipo_contrato === 'ALUGUEL'" class="form-section">
+                <h3 class="section-title">
+                    <i class="fas fa-hand-holding-usd"></i> Termos do Aluguel
+                </h3>
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label>Valor Mensal <span class="req">*</span></label>
+                        <MoneyInput v-model.number="contrato.aluguel" class="form-input" />
+                    </div>
+                    <div class="form-group">
+                        <label>Duração (meses) <span class="req">*</span></label>
+                        <div class="input-wrapper">
+                            <i class="fas fa-hourglass-half input-icon"></i>
+                            <input type="number" v-model.number="contrato.duracao_meses" min="1" class="form-input has-icon">
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>Taxa Adm. (%)</label>
+                        <div class="input-wrapper">
+                            <i class="fas fa-percent input-icon"></i>
+                            <input type="number" v-model.number="contrato.taxa_administracao_percentual" step="0.01" min="0" max="100" class="form-input has-icon">
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>1º Vencimento <span class="req">*</span></label>
+                        <div class="input-wrapper">
+                            <i class="far fa-calendar-alt input-icon"></i>
+                            <input type="date" v-model="contrato.data_primeiro_vencimento" class="form-input has-icon">
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div v-if="contrato.tipo_contrato === 'VENDA'" class="form-section">
+                <h3 class="section-title">
+                    <i class="fas fa-handshake"></i> Termos da Venda
+                </h3>
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label>Valor da Venda <span class="req">*</span></label>
+                        <MoneyInput 
+                            v-model.number="contrato.valor_total" 
+                            class="form-input" 
+                            @change="calcularComissaoValor" 
+                        />
+                    </div>
+                    <div class="form-group">
+                        <label>Data Previsão Pagto. <span class="req">*</span></label>
+                        <div class="input-wrapper">
+                            <i class="far fa-calendar-alt input-icon"></i>
+                            <input type="date" v-model="contrato.data_vencimento_venda" class="form-input has-icon">
+                        </div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>% Comissão</label>
+                        <div class="input-wrapper">
+                            <i class="fas fa-percent input-icon"></i>
+                            <input 
+                                type="number" 
+                                v-model.number="contrato.comissao_venda_percentual" 
+                                @input="calcularComissaoValor" 
+                                step="0.01" min="0" max="100"
+                                class="form-input has-icon"
+                            >
+                        </div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Valor Comissão (R$) <span class="req">*</span></label>
+                        <MoneyInput 
+                            v-model.number="contrato.valor_comissao_acordado" 
+                            class="form-input" 
+                            @change="calcularPercentualComissao"
+                        />
+                    </div>
+                </div>
+            </div>
+
+            <div class="form-section compact-section">
+                <h3 class="section-title">
+                    <i class="far fa-clock"></i> Vigência e Detalhes
+                </h3>
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label>Data Início <span class="req">*</span></label>
+                        <div class="input-wrapper">
+                            <i class="far fa-calendar-check input-icon"></i>
+                            <input 
+                                type="date" 
+                                v-model="contrato.data_inicio" 
+                                :disabled="contrato.tipo_contrato === 'VENDA'"
+                                class="form-input has-icon"
+                            >
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>Data Assinatura <span class="req">*</span></label>
+                        <div class="input-wrapper">
+                            <i class="fas fa-file-signature input-icon"></i>
+                            <input 
+                                type="date" 
+                                v-model="contrato.data_assinatura"
+                                @change="handleDataAssinaturaChange" 
+                                class="form-input has-icon"
+                            >
+                        </div>
+                    </div>
+                    <div class="form-group" v-if="contrato.tipo_contrato === 'ALUGUEL'">
+                        <label>Data Término</label>
+                        <div class="input-wrapper">
+                            <i class="far fa-calendar-times input-icon"></i>
+                            <input type="date" v-model="contrato.data_fim" class="form-input has-icon">
+                        </div>
+                    </div>
+                    
+                    <div class="form-group full-width" v-if="todosClientesOptions.length">
+                        <label>Fiadores</label>
+                        <v-select
+                            v-model="contrato.fiadores"
+                            :options="todosClientesOptions"
+                            :reduce="(option) => option.value"
+                            label="label"
+                            placeholder="Selecione..."
+                            multiple
+                            class="style-chooser"
+                        ></v-select>
+                    </div>
+
+                    <div class="form-group full-width">
+                        <label>Informações Adicionais</label>
+                        <textarea v-model="contrato.informacoes_adicionais" class="form-textarea" rows="3" placeholder="Observações importantes..."></textarea>
+                    </div>
+                </div>
+            </div>
+
+            <div class="form-actions-footer">
+                <router-link :to="{ name: 'contratos' }" class="btn-secondary">Cancelar</router-link>
+                <button type="submit" class="btn-primary" :disabled="isSubmitting">
+                    <i v-if="isSubmitting" class="fas fa-spinner fa-spin"></i>
+                    <span v-else>{{ isEditing ? 'Salvar Contrato' : 'Criar Contrato' }}</span>
+                </button>
+            </div>
+
+        </div>
       </div>
 
-      <div v-if="!isLoading">
-        
-        <fieldset class="form-section">
-          <legend>Partes do Contrato</legend>
-          <div class="form-grid-3col">
-            <div class="form-group">
-              <label for="tipo">Tipo de Contrato *</label>
-              <select 
-                id="tipo" 
-                v-model="contrato.tipo_contrato" 
-                :disabled="isEditing && contrato.status_contrato !== 'RASCUNHO'" 
-                @change="handleTipoChange"
-              >
-                <option value="ALUGUEL">Aluguel</option>
-                <option value="VENDA">Venda</option>
-              </select>
-            </div>
-            
-            <div class="form-group">
-              <label for="proprietario">Proprietário / Locador *</label>
-              <v-select
-                id="proprietario"
-                v-model="contrato.proprietario"
-                :options="proprietarioOptions" 
-                :reduce="(option) => option.value"
-                label="label"
-                placeholder="Selecione o proprietário"
-                :clearable="false"
-                :disabled="!contrato.tipo_contrato || isLoadingProprietarios"
-              >
-                <template #no-options>
-                   <span v-if="isLoadingProprietarios">Carregando...</span>
-                   <span v-else>Nenhum proprietário encontrado.</span>
-                </template>
-              </v-select>
-              <p v-if="!contrato.proprietario && contrato.tipo_contrato" class="help-text">Selecione o proprietário para carregar os imóveis.</p>
-            </div>
-
-            <div class="form-group">
-              <label for="inquilino">{{ tipoContratoLabel.outraParte }} *</label>
-              <v-select
-                id="inquilino"
-                v-model="contrato.inquilino"
-                :options="todosClientesOptions"
-                :reduce="(option) => option.value"
-                label="label"
-                placeholder="Selecione a outra parte"
-                :clearable="false"
-                :disabled="!todosClientesOptions.length"
-              ></v-select>
-            </div>
-          </div>
+      <div class="right-column">
           
-          <div class="form-grid-2col">
-            <div class="form-group">
-              <label for="imovel">Imóvel *</label>
-              <v-select
-                id="imovel"
-                v-model="contrato.imovel"
-                :options="imovelOptions"
-                :reduce="(option) => option.value"
-                label="label"
-                placeholder="Selecione o Imóvel"
-                :clearable="false"
-                :disabled="!contrato.proprietario || isLoadingImoveis"
-              >
-                 <template #no-options>
-                   <span v-if="isLoadingImoveis">Carregando...</span>
-                   <span v-else-if="!contrato.proprietario">Aguardando proprietário...</span>
-                   <span v-else>Nenhum imóvel disponível para este proprietário.</span>
-                </template>
-              </v-select>
-            </div>
-            
-            <div class="form-group">
-              <label for="modelo_contrato">Modelo de Documento</label>
-              <v-select
-                id="modelo_contrato"
-                v-model="contrato.modelo_utilizado"
-                :options="modeloContratoOptions"
-                :reduce="(option) => option.value"
-                label="label"
-                placeholder="Selecione o modelo"
-                :clearable="true"
-                :disabled="!contrato.tipo_contrato || isLoadingModelos"
-              ></v-select>
-              <p class="help-text">
-                (Opcional) Se não selecionar, o modelo padrão será usado.
-              </p>
-            </div>
-          </div>
-        </fieldset>
-
-        <fieldset v-if="contrato.tipo_contrato === 'ALUGUEL'" class="form-section">
-          <legend>Termos do Aluguel</legend>
-          <div class="form-grid-3col">
-            <div class="form-group">
-              <label for="aluguel">Valor do Aluguel (Mensal) *</label>
-              <MoneyInput v-model.number="contrato.aluguel" class="form-input-money" />
-            </div>
-            <div class="form-group">
-              <label for="duracao_meses">Duração (meses) *</label>
-              <input type="number" id="duracao_meses" v-model.number="contrato.duracao_meses" min="1">
-            </div>
-            <div class="form-group">
-              <label for="taxa_adm">Taxa Adm. (%)</label>
-              <input type="number" id="taxa_adm" v-model.number="contrato.taxa_administracao_percentual" step="0.01" min="0" max="100">
-              <p class="help-text">Para repasse ao proprietário.</p>
-            </div>
-          </div>
-          <div class="form-grid-2col">
-            <div class="form-group">
-              <label for="data_primeiro_vencimento">Data do 1º Vencimento *</label>
-              <input type="date" id="data_primeiro_vencimento" v-model="contrato.data_primeiro_vencimento">
-            </div>
-          </div>
-        </fieldset>
-
-        <fieldset v-if="contrato.tipo_contrato === 'VENDA'" class="form-section">
-          <legend>Termos da Venda e Comissão</legend>
-          <div class="form-grid-3col">
-            <div class="form-group">
-              <label for="valor_total">Valor Total da Venda *</label>
-              <MoneyInput 
-                v-model.number="contrato.valor_total" 
-                class="form-input-money" 
-                @change="calcularComissaoValor" 
-              />
-            </div>
-            
-            <div class="form-group">
-              <label for="comissao_venda_percentual">% Comissão (Base)</label>
-              <input 
-                type="number" 
-                id="comissao_venda_percentual" 
-                v-model.number="contrato.comissao_venda_percentual" 
-                @input="calcularComissaoValor" 
-                step="0.01" min="0" max="100"
-              >
-            </div>
-            
-            <div class="form-group">
-              <label for="valor_comissao_acordado">Valor Acordado Comissão (R$) *</label>
-              <MoneyInput 
-                v-model.number="contrato.valor_comissao_acordado" 
-                class="form-input-money" 
-                @change="calcularPercentualComissao"
-              />
-            </div>
-          </div>
-          <div class="form-grid-2col">
-            <div class="form-group">
-                <label for="data_vencimento_venda">Data Venc. Comissão/Quitação *</label>
-                <input type="date" id="data_vencimento_venda" v-model="contrato.data_vencimento_venda">
-            </div>
-          </div>
-        </fieldset>
-
-        <fieldset class="form-section">
-          <legend>Datas e Detalhes Adicionais</legend>
-          <div class="form-grid-3col">
-            <div class="form-group">
-              <label for="data_inicio">Data de Início *</label>
-              <input 
-                type="date" 
-                id="data_inicio" 
-                v-model="contrato.data_inicio" 
-                :disabled="contrato.tipo_contrato === 'VENDA'"
-              >
-            </div>
-            <div class="form-group">
-              <label for="data_assinatura">Data de Assinatura *</label>
-              <input 
-                type="date" 
-                id="data_assinatura" 
-                v-model="contrato.data_assinatura"
-                @change="handleDataAssinaturaChange" 
-              >
-            </div>
-            <div class="form-group" v-if="contrato.tipo_contrato === 'ALUGUEL'">
-              <label for="data_fim">Data de Término (Opcional)</label>
-              <input type="date" id="data_fim" v-model="contrato.data_fim">
-            </div>
-          </div>
-          <div class="form-grid-2col">
-            <div class="form-group" v-if="todosClientesOptions.length">
-                <label for="fiadores">Fiadores (Opcional)</label>
-                <v-select
-                  id="fiadores"
-                  v-model="contrato.fiadores"
-                  :options="todosClientesOptions"
-                  :reduce="(option) => option.value"
-                  label="label"
-                  placeholder="Selecione um ou mais fiadores"
-                  multiple
-                ></v-select>
-            </div>
-            
-            <div class="form-group">
-                <label for="status_contrato">Status do Contrato *</label>
+          <div class="card info-card">
+             <div class="widget-header">
+                 <h3 class="widget-title"><i class="fas fa-file-alt"></i> Status</h3>
+             </div>
+             <div class="form-group">
                 <select 
-                  id="status_contrato" 
                   v-model="contrato.status_contrato" 
                   :disabled="contrato.tipo_contrato === 'VENDA' && contrato.status_contrato !== 'RASCUNHO'"
+                  class="form-select status-select"
+                  :class="getStatusClass(contrato.status_contrato)"
                 >
                   <option value="RASCUNHO">Rascunho</option>
                   <option value="ATIVO">Ativo</option>
@@ -228,26 +274,37 @@
                   <option v-if="isEditing" value="CONCLUIDO">Concluído</option>
                   <option v-if="isEditing" value="CANCELADO">Cancelado</option>
                 </select>
-                <p class="help-text" v-if="contrato.tipo_contrato === 'VENDA' && contrato.status_contrato === 'ATIVO'">
-                    Contrato finalizado. Status bloqueado.
-                </p>
-            </div>
+                <small class="helper-text-widget" v-if="contrato.status_contrato === 'ATIVO'">
+                    Contrato vigente e gerando financeiro.
+                </small>
+                <small class="helper-text-widget" v-if="contrato.status_contrato === 'RASCUNHO'">
+                    Rascunho não gera financeiro.
+                </small>
+             </div>
           </div>
-          <div class="form-group">
-            <label for="informacoes_adicionais">Informações Adicionais</label>
-            <textarea id="informacoes_adicionais" v-model="contrato.informacoes_adicionais"></textarea>
-          </div>
-        </fieldset>
 
-        <div class="form-actions">
-          <button type="submit" class="btn btn-primary" :disabled="isSubmitting">
-            {{ isSubmitting ? 'Salvando...' : (isEditing ? 'Atualizar Contrato' : 'Criar Contrato') }}
-          </button>
-          <button type="button" @click="router.push({ name: 'contratos' })" class="btn btn-light">
-            Cancelar
-          </button>
-        </div>
+          <div class="card info-card">
+             <div class="widget-header">
+                 <h3 class="widget-title"><i class="fas fa-stamp"></i> Configuração</h3>
+             </div>
+             <div class="form-group">
+                <label>Modelo de Documento</label>
+                <v-select
+                    v-model="contrato.modelo_utilizado"
+                    :options="modeloContratoOptions"
+                    :reduce="(option) => option.value"
+                    label="label"
+                    placeholder="Padrão do sistema"
+                    :clearable="true"
+                    :disabled="!contrato.tipo_contrato || isLoadingModelos"
+                    class="style-chooser"
+                ></v-select>
+                <small class="helper-text-widget">Define o template para impressão.</small>
+             </div>
+          </div>
+
       </div>
+
     </form>
   </div>
 </template>
@@ -331,7 +388,7 @@ const modeloContratoOptions = ref<ModeloContratoOption[]>([]);
 
 // Estados de Carregamento
 const isSubmitting = ref(false);
-const isLoading = ref(true); // Bloqueio geral
+const isLoading = ref(true); 
 const isLoadingProprietarios = ref(false); 
 const isLoadingImoveis = ref(false); 
 const isLoadingModelos = ref(false); 
@@ -372,12 +429,10 @@ const handleDataAssinaturaChange = () => {
 }
 
 const handleTipoChange = () => {
-    // Limpa seleções dependentes
     contrato.value.proprietario = null;
     contrato.value.imovel = null;
     contrato.value.modelo_utilizado = null;
     
-    // Reseta valores específicos
     if (contrato.value.tipo_contrato === 'ALUGUEL') {
         contrato.value.valor_total = null;
         contrato.value.duracao_meses = 12;
@@ -386,8 +441,16 @@ const handleTipoChange = () => {
         contrato.value.data_inicio = contrato.value.data_assinatura;
         calcularComissaoValor();
     }
-    
-    // Dispara novas buscas (os watchers farão isso, mas podemos forçar se necessário)
+};
+
+const getStatusClass = (status: string) => {
+    switch (status) {
+        case 'ATIVO': return 'status-active';
+        case 'RASCUNHO': return 'status-draft';
+        case 'CONCLUIDO': return 'status-done';
+        case 'CANCELADO': return 'status-cancelled';
+        default: return '';
+    }
 };
 
 // --- FETCH FUNCTIONS ---
@@ -457,7 +520,6 @@ async function fetchModeloContratoOptions(tipo: string) {
       padrao: m.padrao,
     }));
     
-    // Seleciona padrão se for novo contrato
     if (!isEditing.value && !contrato.value.modelo_utilizado) {
         const padrao = modeloContratoOptions.value.find(o => o.padrao);
         if (padrao) contrato.value.modelo_utilizado = padrao.value;
@@ -474,14 +536,12 @@ async function fetchContrato() {
     const response = await apiClient.get(`/v1/contratos/${contratoId}/`); 
     const data = response.data;
 
-    // Bloqueio de edição para vendas finalizadas
     if (data.status_contrato === 'ATIVO' && data.tipo_contrato === 'VENDA') {
         alert("Contrato de Venda finalizado. Edição bloqueada.");
         router.push({ name: 'contratos' });
         return;
     }
 
-    // Carrega dependências antes de popular o v-model para evitar que watchers limpem os dados
     if (data.tipo_contrato) {
         await fetchProprietarioOptions(data.tipo_contrato);
         await fetchModeloContratoOptions(data.tipo_contrato);
@@ -491,7 +551,6 @@ async function fetchContrato() {
         await fetchImovelOptions(data.tipo_contrato, propId);
     }
 
-    // Popula o objeto contrato
     contrato.value = {
         ...data,
         fiadores: (data.fiadores || []).map((f: any) => (typeof f === 'object' ? f.id : f)),
@@ -515,14 +574,12 @@ async function fetchContrato() {
 // --- WATCHERS ---
 
 watch(() => contrato.value.tipo_contrato, (newTipo, oldTipo) => {
-    // Evita resetar se for o carregamento inicial da edição
     if (isLoading.value && isEditing.value) return;
     
     if (newTipo) {
         fetchProprietarioOptions(newTipo);
         fetchModeloContratoOptions(newTipo);
     }
-    // Se mudou manualmente, limpa os campos dependentes
     if (oldTipo && newTipo !== oldTipo && !isLoading.value) {
         contrato.value.proprietario = null;
         contrato.value.imovel = null;
@@ -530,7 +587,6 @@ watch(() => contrato.value.tipo_contrato, (newTipo, oldTipo) => {
 });
 
 watch(() => contrato.value.proprietario, (newProp, oldProp) => {
-    // Evita resetar se for o carregamento inicial da edição
     if (isLoading.value && isEditing.value) return;
 
     if (newProp && contrato.value.tipo_contrato) {
@@ -539,15 +595,13 @@ watch(() => contrato.value.proprietario, (newProp, oldProp) => {
         imovelOptions.value = [];
     }
     
-    // Limpa imóvel se mudou o proprietário manualmente
     if (oldProp && newProp !== oldProp && !isLoading.value) {
         contrato.value.imovel = null;
     }
 });
 
-// Preenchimento automático de valores ao selecionar imóvel
 watch(() => contrato.value.imovel, (newImovelId) => {
-    if (!newImovelId || isLoading.value) return; // Não sobrescreve no load
+    if (!newImovelId || isLoading.value) return; 
     
     const selected = imovelOptions.value.find(o => o.value === newImovelId);
     if (selected) {
@@ -563,7 +617,6 @@ watch(() => contrato.value.imovel, (newImovelId) => {
 // --- SUBMIT ---
 
 async function handleSubmit() {
-  // Validação Manual para v-selects
   if (!contrato.value.proprietario || !contrato.value.imovel || !contrato.value.inquilino) {
       alert("Por favor, preencha as partes do contrato (Proprietário, Imóvel e Cliente).");
       return;
@@ -575,7 +628,6 @@ async function handleSubmit() {
   try {
     const payload = { ...contrato.value };
     
-    // Limpeza de campos irrelevantes para o tipo
     if (payload.tipo_contrato === 'ALUGUEL') {
         payload.valor_total = null;
         payload.valor_comissao_acordado = null;
@@ -617,7 +669,6 @@ onMounted(async () => {
   if (isEditing.value) {
     await fetchContrato();
   } else {
-    // Inicialização para novo contrato
     if (contrato.value.tipo_contrato) {
         await fetchProprietarioOptions(contrato.value.tipo_contrato);
         await fetchModeloContratoOptions(contrato.value.tipo_contrato);
@@ -629,34 +680,121 @@ onMounted(async () => {
 </script>
 
 <style scoped>
-/* Estilos mantidos conforme original */
-.page-container-form { padding: 0; }
-.form-card { background: white; padding: 20px 30px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05); max-width: 1000px; margin: 1rem auto; }
-.form-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; border-bottom: 1px solid #eee; padding-bottom: 10px; }
-.form-header h2 { font-size: 1.6rem; margin: 0; }
-.form-section { border: 1px solid #dee2e6; border-radius: 6px; padding: 15px; margin-bottom: 20px; background-color: #fcfcfc; }
-.form-section legend { font-size: 1.1rem; font-weight: 600; color: #495057; padding: 0 10px; width: auto; margin-left: -5px; }
-.form-grid-3col { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; margin-bottom: 15px; }
-.form-grid-2col { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px; margin-bottom: 15px; }
-.form-group { display: flex; flex-direction: column; }
-label { font-weight: 600; margin-bottom: 5px; color: #495057; font-size: 0.85rem; }
-input[type="text"], input[type="number"], input[type="date"], select, .form-group textarea, .form-group .form-input-money { width: 100%; padding: 10px 12px; border: 1px solid #ced4da; border-radius: 6px; font-size: 0.9rem; box-sizing: border-box; transition: border-color 0.2s, box-shadow 0.2s; }
-input:disabled, select:disabled { background-color: #e9ecef; cursor: not-allowed; }
-.form-group textarea { resize: vertical; min-height: 80px; }
-.help-text { font-size: 0.75rem; color: #6c757d; margin-top: 5px; }
-:deep(.vs__dropdown-toggle) { padding: 6px 8px; border: 1px solid #ced4da; border-radius: 6px; background: white; min-height: 38px; }
-:deep(.vs__search:focus) { outline: none; }
-:deep(.vs--open .vs__dropdown-toggle) { border-color: #007bff; box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.25); }
-:deep(.vs__selected) { padding: 2px 6px; background-color: #e9ecef; border-color: #e9ecef; color: #495057; border-radius: 4px; font-size: 0.9rem; }
-.form-actions { margin-top: 20px; display: flex; gap: 10px; justify-content: flex-end; }
-.btn { padding: 10px 20px; border-radius: 4px; cursor: pointer; font-weight: 600; transition: background-color 0.3s; text-decoration: none; }
-.btn-primary { background-color: #007bff; color: white; border: none; }
-.btn-primary:hover { background-color: #0056b3; }
-.btn-secondary, .btn-light { background-color: #f8f9fa; color: #495057; border: 1px solid #ced4da; }
-.btn-secondary:hover, .btn-light:hover { background-color: #e2e6ea; }
-.loading-message { text-align: center; padding: 15px; border-radius: 4px; margin-bottom: 15px; background-color: #e9f5ff; color: #007bff; }
-.error-message { background-color: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; padding: 10px 15px; border-radius: 6px; margin-bottom: 20px; font-size: 0.9rem; }
-.spinner { border: 4px solid rgba(0, 0, 0, 0.1); width: 20px; height: 20px; border-radius: 50%; border-left-color: #007bff; display: inline-block; vertical-align: middle; margin-right: 8px; animation: spin 1s ease infinite; }
+/* =========================================================
+   1. GERAL & LAYOUT
+   ========================================================= */
+.page-container {
+  min-height: 100vh;
+  background-color: #fcfcfc;
+  font-family: 'Inter', 'Segoe UI', Roboto, sans-serif;
+  padding: 1.5rem 2.5rem;
+  display: flex; flex-direction: column;
+}
+
+.page-header { margin-bottom: 2rem; }
+.title-area h1 { font-size: 1.5rem; font-weight: 300; color: #1f2937; margin: 0; letter-spacing: -0.02em; }
+.breadcrumb { display: flex; align-items: center; gap: 6px; font-size: 0.7rem; color: #94a3b8; font-weight: 500; text-transform: uppercase; letter-spacing: 0.05em; }
+.breadcrumb a { color: #94a3b8; text-decoration: none; transition: color 0.2s; }
+.breadcrumb a:hover { color: #2563eb; }
+.breadcrumb .separator { font-size: 0.5rem; color: #cbd5e1; }
+.breadcrumb .active { color: #2563eb; font-weight: 700; }
+
+.main-content-grid { 
+    display: grid; grid-template-columns: 1fr 320px; gap: 1.5rem; align-items: start; 
+}
+@media (max-width: 1100px) { .main-content-grid { grid-template-columns: 1fr; } }
+
+/* =========================================================
+   2. CARDS & SEÇÕES
+   ========================================================= */
+.card {
+  background-color: #fff; border-radius: 8px; box-shadow: 0 1px 2px rgba(0,0,0,0.03); 
+  padding: 1.5rem; border: 1px solid #e5e7eb;
+}
+.form-card { min-height: 400px; }
+.info-card { padding: 1.2rem; margin-bottom: 1rem; border-left: 3px solid #e5e7eb; }
+
+.form-section { margin-bottom: 2rem; }
+.section-title {
+    font-size: 1rem; color: #1f2937; margin-bottom: 1.2rem; padding-bottom: 0.5rem;
+    border-bottom: 1px solid #f1f5f9; font-weight: 600; display: flex; align-items: center; gap: 0.6rem;
+}
+.section-title i { color: #2563eb; font-size: 0.9rem; }
+.compact-section { margin-bottom: 0; }
+
+/* Grid de Campos */
+.form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+.form-group { display: flex; flex-direction: column; gap: 0.4rem; }
+.full-width { grid-column: 1 / -1; }
+
+label { font-weight: 500; font-size: 0.85rem; color: #4b5563; }
+.req { color: #ef4444; }
+
+/* Inputs */
+.input-wrapper { position: relative; }
+.input-icon { position: absolute; left: 10px; top: 50%; transform: translateY(-50%); color: #9ca3af; font-size: 0.85rem; pointer-events: none; }
+
+.form-input, .form-select, .form-textarea {
+    width: 100%; padding: 0.6rem 0.75rem; border: 1px solid #d1d5db; border-radius: 6px;
+    font-size: 0.9rem; transition: all 0.2s; background-color: #fff; box-sizing: border-box; color: #1f2937;
+    height: 40px;
+}
+.form-input.has-icon { padding-left: 2.2rem; }
+.form-input:focus, .form-select:focus, .form-textarea:focus { 
+    border-color: #3b82f6; outline: none; box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.1);
+}
+.form-input:disabled { background-color: #f3f4f6; cursor: not-allowed; color: #9ca3af; }
+.form-textarea { resize: vertical; min-height: 80px; font-family: inherit; height: auto; }
+
+/* Select Status Especial */
+.status-select { font-weight: 600; }
+.status-active { color: #16a34a; border-color: #86efac; background-color: #f0fdf4; }
+.status-draft { color: #64748b; border-color: #e2e8f0; background-color: #f8fafc; }
+.status-done { color: #2563eb; border-color: #bfdbfe; background-color: #eff6ff; }
+.status-cancelled { color: #ef4444; border-color: #fecaca; background-color: #fef2f2; }
+
+/* Widget Styles */
+.widget-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; padding-bottom: 0.5rem; border-bottom: 1px solid #f1f5f9; }
+.widget-title { font-size: 0.9rem; font-weight: 600; margin: 0; color: #374151; }
+.helper-text-widget { font-size: 0.75rem; color: #9ca3af; margin-top: 0.3rem; font-style: italic; display: block; }
+
+/* Toggle Tipo Contrato */
+.tipo-toggle { display: flex; gap: 1rem; padding: 0.5rem; background: #f9fafb; border-radius: 8px; border: 1px solid #f3f4f6; width: fit-content; }
+.radio-label {
+    padding: 0.5rem 1rem; border-radius: 6px; cursor: pointer; color: #6b7280; font-size: 0.9rem; font-weight: 500; transition: all 0.2s; display: flex; align-items: center; gap: 0.5rem;
+}
+.radio-label:hover { background: #e5e7eb; }
+.radio-label.active { background: white; color: #2563eb; box-shadow: 0 1px 2px rgba(0,0,0,0.05); font-weight: 600; }
+.radio-label input { display: none; }
+
+/* Footer Actions */
+.form-actions-footer { display: flex; justify-content: flex-end; gap: 0.75rem; margin-top: 2rem; padding-top: 1rem; border-top: 1px solid #f1f5f9; }
+.btn-primary, .btn-secondary { padding: 0.5rem 1.2rem; border-radius: 6px; border: none; font-weight: 500; cursor: pointer; font-size: 0.85rem; display: flex; align-items: center; gap: 0.5rem; transition: all 0.2s; text-decoration: none; }
+.btn-primary { background-color: #2563eb; color: white; box-shadow: 0 1px 2px rgba(37, 99, 235, 0.1); }
+.btn-primary:hover { background-color: #1d4ed8; transform: translateY(-1px); }
+.btn-primary:disabled { opacity: 0.7; cursor: not-allowed; }
+.btn-secondary { background-color: #f8fafc; color: #64748b; border: 1px solid #e2e8f0; }
+.btn-secondary:hover { background-color: #f1f5f9; border-color: #cbd5e1; color: #334155; }
+
+/* Loading & Error */
+.loading-state { text-align: center; padding: 4rem; color: #64748b; }
+.error-banner { 
+    background-color: #fef2f2; border: 1px solid #fecaca; color: #991b1b; 
+    padding: 1rem; border-radius: 6px; margin-bottom: 1.5rem; 
+    display: flex; align-items: center; gap: 0.8rem; font-size: 0.9rem;
+}
+.spinner { border: 3px solid #e2e8f0; border-top: 3px solid #2563eb; border-radius: 50%; width: 32px; height: 32px; animation: spin 0.8s linear infinite; margin: 0 auto 1rem; }
 @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-@media (max-width: 768px) { .form-grid-3col, .form-grid-2col { grid-template-columns: 1fr; } }
+
+/* Estilização v-select para match com form-input */
+:deep(.style-chooser .vs__dropdown-toggle) {
+    height: 40px; border: 1px solid #d1d5db; border-radius: 6px; background: #fff; padding: 0 0 4px 0;
+}
+:deep(.style-chooser.vs--open .vs__dropdown-toggle) { border-color: #3b82f6; box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.1); }
+:deep(.style-chooser .vs__search::placeholder) { color: #9ca3af; font-size: 0.9rem; margin-left: 6px; }
+:deep(.style-chooser .vs__selected) { font-size: 0.9rem; color: #1f2937; margin-top: 6px; margin-left: 6px; }
+:deep(.style-chooser.vs--disabled .vs__dropdown-toggle) { background-color: #f3f4f6; cursor: not-allowed; }
+
+@media (max-width: 1024px) { .page-container { padding: 1rem; } }
+@media (max-width: 640px) { .form-grid { grid-template-columns: 1fr; } }
 </style>

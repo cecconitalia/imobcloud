@@ -28,7 +28,7 @@
         <ul class="nav-list">
           
           <li class="nav-item">
-            <router-link to="/dashboard" class="nav-link" active-class="active">
+            <router-link :to="{ name: 'dashboard' }" class="nav-link" active-class="active">
               <i class="fas fa-th-large nav-icon"></i>
               <span class="nav-label">Visão Geral</span>
             </router-link>
@@ -44,10 +44,10 @@
               <i class="fas fa-chevron-down arrow-icon"></i>
             </div>
             <ul class="submenu-list" :style="{ maxHeight: isMenuOpen('comercial') ? '200px' : '0' }">
-              <li><router-link to="/clientes" active-class="active">Clientes</router-link></li>
-              <li><router-link to="/funil-vendas" active-class="active">Funil de Vendas</router-link></li>
-              <li><router-link to="/visitas" active-class="active">Visitas</router-link></li>
-              <li><router-link to="/contatos" active-class="active">Leads</router-link></li>
+              <li><router-link :to="{ name: 'clientes' }" active-class="active">Clientes</router-link></li>
+              <li><router-link :to="{ name: 'funil-vendas' }" active-class="active">Funil de Vendas</router-link></li>
+              <li><router-link :to="{ name: 'visitas' }" active-class="active">Visitas</router-link></li>
+              <li><router-link :to="{ name: 'contatos' }" active-class="active">Leads (Site)</router-link></li>
             </ul>
           </li>
 
@@ -58,8 +58,8 @@
               <i class="fas fa-chevron-down arrow-icon"></i>
             </div>
             <ul class="submenu-list" :style="{ maxHeight: isMenuOpen('imoveis') ? '150px' : '0' }">
-              <li><router-link to="/imoveis" active-class="active">Listar Imóveis</router-link></li>
-              <li><router-link to="/relatorios/autorizacoes" active-class="active">Autorizações</router-link></li>
+              <li><router-link :to="{ name: 'imoveis' }" active-class="active">Listar Imóveis</router-link></li>
+              <li v-if="isAdmin"><router-link :to="{ name: 'relatorio-autorizacoes' }" active-class="active">Autorizações</router-link></li>
             </ul>
           </li>
 
@@ -70,65 +70,76 @@
               <i class="fas fa-chevron-down arrow-icon"></i>
             </div>
             <ul class="submenu-list" :style="{ maxHeight: isMenuOpen('contratos') ? '150px' : '0' }">
-              <li><router-link to="/contratos" active-class="active">Gerenciar</router-link></li>
-              <li><router-link to="/vistorias" active-class="active">Vistorias</router-link></li>
+              <li><router-link :to="{ name: 'contratos' }" active-class="active">Gerenciar</router-link></li>
+              <li><router-link :to="{ name: 'vistorias' }" active-class="active">Vistorias</router-link></li>
             </ul>
           </li>
 
           <li class="nav-item">
-            <router-link to="/publicacoes" class="nav-link" active-class="active">
+            <router-link :to="{ name: 'publicacoes' }" class="nav-link" active-class="active">
               <i class="fas fa-share-alt nav-icon"></i>
               <span class="nav-label">Publicações</span>
             </router-link>
           </li>
 
-          <li class="nav-section">GESTÃO</li>
-          <li class="divider" v-show="isCollapsed && !isHovered"></li>
-
-          <li class="nav-item-group" :class="{ 'expanded': isMenuOpen('financeiro') }">
-            <div class="nav-link has-submenu" @click="toggleSubmenu('financeiro')">
-              <i class="fas fa-wallet nav-icon"></i>
-              <span class="nav-label">Financeiro</span>
-              <i class="fas fa-chevron-down arrow-icon"></i>
-            </div>
-            <ul class="submenu-list" :style="{ maxHeight: isMenuOpen('financeiro') ? '300px' : '0' }">
-              <li><router-link to="/financeiro/dashboard" active-class="active">Dashboard Fin.</router-link></li>
-              <li><router-link to="/financeiro/contas-a-receber" active-class="active">A Receber</router-link></li>
-              <li><router-link to="/financeiro/contas-a-pagar" active-class="active">A Pagar</router-link></li>
-              <li><router-link to="/financeiro/transacoes" active-class="active">Transações</router-link></li>
-              </ul>
-          </li>
-
           <li class="nav-item">
-            <router-link to="/calendario" class="nav-link" active-class="active">
+            <router-link :to="{ name: 'calendario' }" class="nav-link" active-class="active">
               <i class="fas fa-calendar-check nav-icon"></i>
-              <span class="nav-label">Agenda</span>
+              <span class="nav-label">Minha Agenda</span>
             </router-link>
           </li>
           
           <li class="nav-item">
-            <router-link to="/tarefas-board" class="nav-link" active-class="active">
+            <router-link :to="{ name: 'tarefas-board' }" class="nav-link" active-class="active">
               <i class="fas fa-columns nav-icon"></i>
               <span class="nav-label">Quadro de Tarefas</span>
             </router-link>
           </li>
 
-          <li class="nav-section">SISTEMA</li>
-          <li class="divider" v-show="isCollapsed && !isHovered"></li>
+          <template v-if="isAdmin">
+              <li class="nav-section">GESTÃO</li>
+              <li class="divider" v-show="isCollapsed && !isHovered"></li>
 
-          <li class="nav-item-group" :class="{ 'expanded': isMenuOpen('config') }">
-            <div class="nav-link has-submenu" @click="toggleSubmenu('config')">
-              <i class="fas fa-cogs nav-icon"></i>
-              <span class="nav-label">Configurações</span>
-              <i class="fas fa-chevron-down arrow-icon"></i>
-            </div>
-            <ul class="submenu-list" :style="{ maxHeight: isMenuOpen('config') ? '250px' : '0' }">
-              <li><router-link to="/corretores" active-class="active">Equipe</router-link></li>
-              <li><router-link to="/integracoes" active-class="active">Integrações</router-link></li>
-              <li><router-link to="/financeiro/contas" active-class="active">Contas Bancárias</router-link></li>
-              <li><router-link to="/financeiro/categorias" active-class="active">Categorias</router-link></li>
-            </ul>
-          </li>
+              <li class="nav-item-group" :class="{ 'expanded': isMenuOpen('financeiro') }">
+                <div class="nav-link has-submenu" @click="toggleSubmenu('financeiro')">
+                  <i class="fas fa-wallet nav-icon"></i>
+                  <span class="nav-label">Financeiro</span>
+                  <i class="fas fa-chevron-down arrow-icon"></i>
+                </div>
+                <ul class="submenu-list" :style="{ maxHeight: isMenuOpen('financeiro') ? '300px' : '0' }">
+                  <li><router-link :to="{ name: 'financeiro-dashboard' }" active-class="active">Dashboard Fin.</router-link></li>
+                  <li><router-link :to="{ name: 'contas-a-receber' }" active-class="active">A Receber</router-link></li>
+                  <li><router-link :to="{ name: 'contas-a-pagar' }" active-class="active">A Pagar</router-link></li>
+                  <li><router-link :to="{ name: 'lista-transacoes' }" active-class="active">Transações</router-link></li>
+                  <li><router-link :to="{ name: 'dre' }" active-class="active">Relatório DRE</router-link></li>
+                </ul>
+              </li>
+
+              <li class="nav-item">
+                <router-link :to="{ name: 'relatorios' }" class="nav-link" active-class="active">
+                  <i class="fas fa-chart-pie nav-icon"></i>
+                  <span class="nav-label">Relatórios</span>
+                </router-link>
+              </li>
+
+              <li class="nav-section">SISTEMA</li>
+              <li class="divider" v-show="isCollapsed && !isHovered"></li>
+
+              <li class="nav-item-group" :class="{ 'expanded': isMenuOpen('config') }">
+                <div class="nav-link has-submenu" @click="toggleSubmenu('config')">
+                  <i class="fas fa-cogs nav-icon"></i>
+                  <span class="nav-label">Configurações</span>
+                  <i class="fas fa-chevron-down arrow-icon"></i>
+                </div>
+                <ul class="submenu-list" :style="{ maxHeight: isMenuOpen('config') ? '250px' : '0' }">
+                  <li><router-link :to="{ name: 'corretores' }" active-class="active">Equipe</router-link></li>
+                  <li><router-link :to="{ name: 'integracoes' }" active-class="active">Integrações</router-link></li>
+                  <li><router-link :to="{ name: 'configuracao-sistema' }" active-class="active">Sistema</router-link></li>
+                  <li><router-link :to="{ name: 'lista-contas' }" active-class="active">Contas Bancárias</router-link></li>
+                  <li><router-link :to="{ name: 'lista-categorias' }" active-class="active">Categorias</router-link></li>
+                </ul>
+              </li>
+          </template>
 
         </ul>
       </div>
@@ -171,14 +182,6 @@
                   <span class="user-role-label">{{ userRole }}</span>
                 </div>
                 <div class="account-menu-body">
-                  <button class="menu-item">
-                    <i class="fas fa-user-circle"></i>
-                    <span>Meu Perfil</span>
-                  </button>
-                  <button class="menu-item">
-                    <i class="fas fa-cog"></i>
-                    <span>Preferências</span>
-                  </button>
                   <div class="menu-divider"></div>
                   <button class="menu-item logout" @click="logout">
                     <i class="fas fa-sign-out-alt"></i>
@@ -192,7 +195,7 @@
         </div>
       </header>
 
-      <FinanceiroBanner />
+      <FinanceiroBanner v-if="isAdmin" />
 
       <main class="page-content">
         <router-view v-slot="{ Component }">
@@ -219,34 +222,23 @@ const authStore = useAuthStore();
 
 const currentUser = ref<any>(null);
 
+// --- PERMISSÕES ---
+const isAdmin = computed(() => {
+    const user = currentUser.value || authStore.user;
+    if (!user) return false;
+    return user.is_superuser || user.is_admin || (user.cargo === 'ADMIN');
+});
+
 // --- DADOS DINÂMICOS ROBUSTOS ---
 const tenantName = computed(() => {
-    // 1. Prioridade absoluta: Dados frescos do Backend
-    if (currentUser.value && currentUser.value.imobiliaria_nome) {
-        return currentUser.value.imobiliaria_nome;
-    }
-    
-    // 2. Dados do Store
-    if (authStore.user && authStore.user.imobiliaria_nome) {
-        return authStore.user.imobiliaria_nome;
-    }
-    // Verificação segura para propriedade opcional
-    if ((authStore as any).imobiliariaName && (authStore as any).imobiliariaName !== 'null') {
-        return (authStore as any).imobiliariaName;
-    }
-
-    // 3. Fallback seguro
+    if (currentUser.value && currentUser.value.imobiliaria_nome) return currentUser.value.imobiliaria_nome;
+    if (authStore.user && authStore.user.imobiliaria_nome) return authStore.user.imobiliaria_nome;
     return 'Painel Imobiliário';
 });
 
 const logoUrl = computed(() => {
-    // Tenta pegar a logo do objeto de usuário atualizado
-    if (currentUser.value && currentUser.value.imobiliaria_foto) {
-        return currentUser.value.imobiliaria_foto;
-    }
-    if (authStore.user && authStore.user.imobiliaria_foto) {
-        return authStore.user.imobiliaria_foto;
-    }
+    if (currentUser.value && currentUser.value.imobiliaria_foto) return currentUser.value.imobiliaria_foto;
+    if (authStore.user && authStore.user.imobiliaria_foto) return authStore.user.imobiliaria_foto;
     return null;
 });
 
@@ -274,7 +266,7 @@ const userRole = computed(() => {
     const u = currentUser.value || authStore.user;
     if (u?.is_superuser || u?.is_admin) return 'Administrador';
     if (u?.is_corretor) return 'Corretor';
-    return 'Usuário';
+    return 'Colaborador';
 });
 
 // --- Estados Layout ---
@@ -291,11 +283,6 @@ const BREAKPOINT_MOBILE = 1024;
 function handleSidebarHover(value: boolean) {
   if (window.innerWidth > BREAKPOINT_MOBILE) {
     isHovered.value = value;
-    if (!value && isCollapsed.value) {
-      setTimeout(() => {
-        if (!isHovered.value) { /* Opcional */ }
-      }, 300);
-    }
   }
 }
 
@@ -306,7 +293,7 @@ function handleResize() {
     isCollapsed.value = false; 
   } else {
     if (!userManualOverride.value) {
-      isCollapsed.value = true; 
+      isCollapsed.value = true; // Padrão Desktop Colapsado
     }
   }
 }
@@ -350,11 +337,8 @@ async function fetchUserData() {
         const response = await api.get('/v1/core/usuarios/me/');
         const userData = response.data;
         
-        console.log("Dashboard: Dados atualizados do usuário:", userData);
-        
         currentUser.value = userData;
         
-        // Atualiza a store global para persistência se o método existir
         if ((authStore as any).setUser) {
             (authStore as any).setUser(userData, null, userData.imobiliaria_nome);
         }
@@ -365,7 +349,7 @@ async function fetchUserData() {
 }
 
 onMounted(() => {
-  fetchUserData(); // Garante dados frescos ao montar
+  fetchUserData();
   handleResize();
   window.addEventListener('resize', handleResize);
   window.addEventListener('click', closeMenus);
@@ -439,7 +423,7 @@ onUnmounted(() => {
 
 .brand-wrapper { display: flex; align-items: center; gap: 0.75rem; width: 100%; overflow: hidden; }
 
-/* Ícone de Marca (Placeholder) */
+/* Ícone de Marca */
 .brand-icon-circle {
     width: 40px; height: 40px;
     background: var(--primary-gradient);

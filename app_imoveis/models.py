@@ -177,6 +177,10 @@ class Imovel(models.Model):
     possui_exclusividade = models.BooleanField(default=False, verbose_name="Possui Contrato de Exclusividade?")
     comissao_percentual = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True, verbose_name="Comissão Acordada (%)")
     documento_autorizacao = models.FileField(upload_to='autorizacoes/', blank=True, null=True, verbose_name="Documento de Autorização Assinado")
+    
+    # Campo para armazenar o HTML editado da autorização
+    conteudo_html_autorizacao = models.TextField(blank=True, null=True, verbose_name="Conteúdo HTML da Autorização")
+    
     informacoes_adicionais_autorizacao = models.TextField(blank=True, null=True, verbose_name="Informações Adicionais para o Contrato")
     financiavel = models.BooleanField(default=False, verbose_name="Aceita Financiamento")
     aceita_permuta = models.BooleanField(default=False, verbose_name="Aceita Permuta (Troca)")
@@ -203,7 +207,6 @@ class Imovel(models.Model):
 
     def save(self, *args, **kwargs):
         if not self.codigo_referencia:
-            # Correção: Busca todos os códigos e converte para número no Python para achar o real maior
             codigos = Imovel.objects.values_list('codigo_referencia', flat=True)
             maior_codigo = 0
             
@@ -213,7 +216,6 @@ class Imovel(models.Model):
                     if val > maior_codigo:
                         maior_codigo = val
             
-            # Começa em 1000 se não houver nenhum maior
             novo_codigo = max(maior_codigo + 1, 1000)
             self.codigo_referencia = str(novo_codigo)
 

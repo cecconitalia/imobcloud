@@ -75,7 +75,7 @@
           </div>
         </div>
 
-        <div class="filter-group" style="min-width: 240px;">
+        <div class="filter-group date-range-group">
           <label>Vencimento (De - Até)</label>
           <div class="date-group-row">
             <input type="date" v-model="filters.vencimentoInicio" @change="filterList" class="form-control">
@@ -114,11 +114,11 @@
     <main class="report-main-wrapper">
       <div v-if="isLoading" class="loading-state">
         <div class="spinner"></div>
-        <p>Carregando dados...</p>
+        <p>Atualizando base de dados...</p>
       </div>
 
       <div v-else-if="filteredList.length === 0" class="empty-state">
-        <i class="fas fa-folder-open empty-icon"></i>
+        <i class="fas fa-filter"></i>
         <p>Nenhuma autorização encontrada para os filtros.</p>
       </div>
 
@@ -140,17 +140,19 @@
           <tbody>
             <tr v-for="item in filteredList" :key="item.id">
               <td>
-                <span class="imovel-code">#{{ item.codigo }}</span>
+                <span class="badge-type bg-gray">#{{ item.codigo }}</span>
               </td>
               
               <td>
-                <span class="imovel-addr" :title="item.endereco">
-                    {{ item.endereco }}
-                </span>
+                <div class="cell-content">
+                    <span class="main-text" :title="item.endereco">
+                        {{ item.endereco }}
+                    </span>
+                </div>
               </td>
 
               <td>
-                  <span class="prop-name">{{ item.proprietario }}</span>
+                  <span class="sub-text">{{ item.proprietario }}</span>
               </td>
 
               <td>
@@ -255,13 +257,8 @@ const fetchAutorizacoes = async () => {
   try {
     const response = await api.get('/v1/imoveis/relatorio/autorizacoes/'); 
     
-    // Log para diagnóstico (verifique no console F12 se o campo ID está vindo como 'id', 'pk' ou 'imovel_id')
-    console.log("Dados de Autorizações Recebidos:", response.data);
-
     rawList.value = response.data.map((item: any) => ({
-      // Correção Principal: Tenta buscar id, pk ou imovel_id
       id: item.id || item.pk || item.imovel_id || 0,
-      
       codigo: item.codigo_referencia || item.codigo || '?',
       endereco: item.titulo_anuncio || item.endereco_completo || item.endereco_resumido || 'Endereço não informado',
       proprietario: item.proprietario_nome || item.proprietario || 'N/A',
@@ -352,23 +349,17 @@ const getDaysClass = (days: number) => {
 }
 
 const editAutorizacao = (id: number) => {
-    if (!id) {
-        alert("ID do imóvel inválido.");
-        return;
-    }
+    if (!id) return;
     router.push({ name: 'imovel-editar', params: { id } });
 };
 
 const downloadIndividualPdf = async (id: number) => {
-    if (!id || id === 0) {
-        alert("Erro: ID do imóvel inválido ou não encontrado. Verifique se o imóvel foi salvo corretamente.");
-        return;
-    }
+    if (!id || id === 0) return;
     try {
         const response = await api.get(`/v1/imoveis/${id}/gerar-autorizacao-pdf/`, { responseType: 'blob' });
         window.open(window.URL.createObjectURL(new Blob([response.data], { type: 'application/pdf' })), '_blank');
     } catch { 
-        alert("Erro ao gerar PDF. Verifique se a autorização existe para este imóvel."); 
+        alert("Erro ao gerar PDF."); 
     }
 };
 
@@ -392,7 +383,7 @@ onMounted(fetchAutorizacoes);
 </script>
 
 <style scoped>
-/* CONFIGURAÇÃO GERAL (PADRONIZADO) */
+/* CONFIGURAÇÃO GERAL */
 .page-container {
   min-height: 100vh;
   background-color: #fcfcfc;
@@ -400,20 +391,33 @@ onMounted(fetchAutorizacoes);
   padding: 1.5rem 2.5rem;
 }
 
-/* HEADER DA PÁGINA (PADRONIZADO) */
-.page-header { margin-bottom: 2rem; }
+/* HEADER DA PÁGINA */
+.page-header {
+  margin-bottom: 2rem;
+}
+
 .title-area { display: flex; flex-direction: column; gap: 6px; }
-.title-area h1 { font-size: 1.5rem; font-weight: 300; color: #1f2937; margin: 0; letter-spacing: -0.02em; }
-.breadcrumb { display: flex; align-items: center; gap: 6px; font-size: 0.7rem; color: #94a3b8; font-weight: 500; text-transform: uppercase; letter-spacing: 0.05em; }
+.title-area h1 {
+  font-size: 1.5rem; font-weight: 300; color: #1f2937; margin: 0; letter-spacing: -0.02em;
+}
+
+.breadcrumb {
+  display: flex; align-items: center; gap: 6px;
+  font-size: 0.7rem; color: #94a3b8; font-weight: 500; text-transform: uppercase; letter-spacing: 0.05em;
+}
 .breadcrumb .separator { font-size: 0.5rem; color: #cbd5e1; }
 .breadcrumb .active { color: #2563eb; font-weight: 700; }
-.header-main { display: flex; justify-content: space-between; align-items: flex-end; }
+
+.header-main {
+  display: flex; justify-content: space-between; align-items: flex-end;
+}
+
 .actions-area { display: flex; gap: 0.75rem; }
 
-/* Botões Estilo Fino (PADRONIZADO) */
+/* Botões */
 .btn-primary-thin {
   background: #2563eb; color: white; border: none; padding: 0.5rem 1.2rem;
-  border-radius: 6px; font-weight: 400; font-size: 0.85rem; cursor: pointer; text-decoration: none;
+  border-radius: 6px; font-weight: 400; font-size: 0.85rem; cursor: pointer;
   display: flex; align-items: center; gap: 0.5rem; transition: all 0.2s;
   box-shadow: 0 1px 2px rgba(37, 99, 235, 0.15);
 }
@@ -426,7 +430,7 @@ onMounted(fetchAutorizacoes);
 }
 .btn-icon-thin:hover { border-color: #cbd5e1; color: #2563eb; background: #f8fafc; }
 
-/* KPI GRID (PADRONIZADO) */
+/* KPIS */
 .kpi-grid { 
     display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); 
     gap: 1.25rem; margin-bottom: 2rem; 
@@ -435,8 +439,8 @@ onMounted(fetchAutorizacoes);
 .kpi-card {
   background: white; border-radius: 8px; padding: 1.25rem 1.5rem; border: 1px solid #f0f0f0;
   display: flex; justify-content: space-between; align-items: center;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.02); transition: all 0.2s; position: relative; overflow: hidden;
-  cursor: pointer;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.02); cursor: pointer; transition: all 0.2s;
+  position: relative; overflow: hidden;
 }
 .kpi-card:hover { transform: translateY(-2px); box-shadow: 0 6px 12px rgba(0,0,0,0.04); }
 .kpi-card.active { border: 1px solid; }
@@ -444,21 +448,20 @@ onMounted(fetchAutorizacoes);
 .kpi-content { display: flex; flex-direction: column; }
 .kpi-value { font-size: 1.6rem; font-weight: 300; line-height: 1.1; color: #111; }
 .kpi-label { font-size: 0.7rem; font-weight: 600; text-transform: uppercase; color: #9ca3af; margin-top: 4px; letter-spacing: 0.05em; }
-.kpi-icon { font-size: 1.8rem; opacity: 0.1; position: absolute; right: 1.5rem; bottom: 1rem; }
+.kpi-icon { 
+    font-size: 1.8rem; opacity: 0.1; position: absolute; right: 1.5rem; bottom: 1rem; 
+}
 
 .kpi-card.blue.active { background-color: #f8fbff; border-color: #3b82f6; }
 .kpi-card.blue .kpi-value, .kpi-card.blue .kpi-icon { color: #2563eb; }
-
 .kpi-card.green.active { background-color: #f3fdf8; border-color: #10b981; }
 .kpi-card.green .kpi-value, .kpi-card.green .kpi-icon { color: #059669; }
-
 .kpi-card.orange.active { background-color: #fffdf5; border-color: #f59e0b; }
 .kpi-card.orange .kpi-value, .kpi-card.orange .kpi-icon { color: #d97706; }
+.kpi-card.red.active { background-color: #fff5f5; border-color: #ef4444; }
+.kpi-card.red .kpi-value, .kpi-card.red .kpi-icon { color: #dc2626; }
 
-.kpi-card.red.active { background-color: #fef2f2; border-color: #ef4444; }
-.kpi-card.red .kpi-value, .kpi-card.red .kpi-icon { color: #ef4444; }
-
-/* TOOLBAR (PADRONIZADO) */
+/* TOOLBAR */
 .toolbar-row {
   background-color: #ffffff;
   border-radius: 8px;
@@ -471,6 +474,7 @@ onMounted(fetchAutorizacoes);
 
 .filter-group { flex: 1; display: flex; flex-direction: column; gap: 0.3rem; min-width: 160px; }
 .search-group { flex: 2; min-width: 260px; }
+.date-range-group { flex: 1.5; min-width: 280px; } /* Ajuste específico para datas */
 .small-btn { flex: 0 0 auto; min-width: auto; }
 
 .filter-group label { font-size: 0.65rem; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 0.04em; }
@@ -486,8 +490,9 @@ onMounted(fetchAutorizacoes);
 .input-with-icon .form-control { padding-left: 2.2rem; }
 .form-control:focus { border-color: #3b82f6; box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.1); }
 
-.date-group-row { display: flex; align-items: center; gap: 0.5rem; }
-.date-sep { color: #94a3b8; }
+.date-group-row { display: flex; align-items: center; gap: 0.5rem; width: 100%; }
+.date-group-row .form-control { flex: 1; min-width: 0; }
+.date-sep { color: #94a3b8; font-weight: 500; font-size: 0.9rem; }
 
 .btn-clear {
     width: 38px; height: 38px; border: 1px solid #cbd5e1; background: #f8fafc;
@@ -496,7 +501,7 @@ onMounted(fetchAutorizacoes);
 }
 .btn-clear:hover { background: #fee2e2; color: #ef4444; border-color: #fca5a5; }
 
-/* TABELA E LAYOUT */
+/* TABELA */
 .report-main-wrapper {
   background: white; border-radius: 8px; border: 1px solid #e5e7eb;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.02);
@@ -516,15 +521,18 @@ onMounted(fetchAutorizacoes);
 }
 .report-table tr:hover { background-color: #fcfcfc; }
 
-.imovel-code { font-weight: 700; font-size: 0.75rem; color: #64748b; background: #f1f5f9; padding: 2px 6px; border-radius: 4px; }
-.imovel-addr { font-size: 0.85rem; color: #334155; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 280px; display: block; }
-.prop-name { font-weight: 600; color: #1e293b; font-size: 0.85rem; }
+.cell-content { display: flex; flex-direction: column; }
+.main-text { font-weight: 600; color: #1e293b; font-size: 0.9rem; display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 250px; }
+.sub-text { font-size: 0.85rem; color: #334155; }
 
 .badge-type {
-  font-size: 0.65rem; font-weight: 700; padding: 2px 8px; border-radius: 4px; text-transform: uppercase;
+  font-size: 0.65rem; font-weight: 600; padding: 3px 8px; border-radius: 4px; text-transform: uppercase; letter-spacing: 0.02em; display: inline-block;
 }
-.bg-blue { background: #eff6ff; color: #1d4ed8; }
-.bg-green { background: #f0fdf4; color: #15803d; }
+.bg-purple { background: #f3e8ff; color: #7e22ce; }
+.bg-orange { background: #ffedd5; color: #c2410c; }
+.bg-blue { background: #e0f2fe; color: #0369a1; }
+.bg-green { background: #dcfce7; color: #15803d; }
+.bg-gray { background: #f3f4f6; color: #475569; }
 
 .status-pill {
   display: inline-block; padding: 2px 10px; border-radius: 99px;
@@ -533,14 +541,6 @@ onMounted(fetchAutorizacoes);
 .status-green { background: #dcfce7; color: #15803d; }
 .status-orange { background: #fffbeb; color: #b45309; }
 .status-red { background: #fef2f2; color: #ef4444; }
-
-.text-right { text-align: right; }
-.text-center { text-align: center; }
-.text-muted { color: #94a3b8; }
-.text-red { color: #ef4444; }
-.text-orange { color: #d97706; }
-.text-green { color: #15803d; }
-.font-bold { font-weight: 700; }
 
 .actions-flex { display: flex; gap: 0.5rem; justify-content: flex-end; }
 .btn-action {
@@ -553,8 +553,15 @@ onMounted(fetchAutorizacoes);
 .btn-action.pdf:hover { background-color: #e11d48; color: #fff; }
 .btn-action:disabled { opacity: 0.5; cursor: not-allowed; filter: grayscale(1); }
 
+.text-right { text-align: right; }
+.text-center { text-align: center; }
+.text-muted { color: #94a3b8; }
+.text-red { color: #ef4444; }
+.text-orange { color: #d97706; }
+.text-green { color: #15803d; }
+.font-bold { font-weight: 700; }
+
 .loading-state, .empty-state { text-align: center; padding: 4rem 2rem; color: #64748b; }
-.empty-icon { font-size: 2.5rem; color: #e2e8f0; margin-bottom: 1rem; }
 .spinner {
   border: 3px solid #e2e8f0; border-top: 3px solid #2563eb; border-radius: 50%;
   width: 32px; height: 32px; animation: spin 0.8s linear infinite; margin: 0 auto 1rem;
@@ -566,6 +573,6 @@ onMounted(fetchAutorizacoes);
   .header-main { flex-direction: column; align-items: flex-start; gap: 1rem; }
   .actions-area { width: 100%; justify-content: flex-start; }
   .toolbar-row { flex-direction: column; align-items: stretch; }
-  .filter-group, .search-group { width: 100%; }
+  .filter-group, .search-group, .date-range-group { width: 100%; }
 }
 </style>
