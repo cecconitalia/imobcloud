@@ -79,7 +79,8 @@ declare module 'vue-router' {
 const router = createRouter({
     history: createWebHistory('/'),
     routes: [
-        // --- 1. ROTA RAIZ (HOME PÚBLICA / SAAS) ---
+        // --- 1. ROTA RAIZ (HOME PÚBLICA) ---
+        // Acesso direto, sem redirects malucos
         {
             path: '/',
             name: 'public-home',
@@ -87,21 +88,10 @@ const router = createRouter({
             meta: { 
                 title: 'Início - ImobHome',
                 requiresAuth: false
-            },
-            beforeEnter: (to, from, next) => {
-                const hostname = window.location.hostname;
-                const isSubdomain = hostname.split('.').length > 1 && !hostname.startsWith('www') && !hostname.startsWith('localhost');
-                const isLocalhostTest = hostname === 'teste.localhost';
-
-                if (isSubdomain || isLocalhostTest) {
-                    next('/site');
-                } else {
-                    next();
-                }
             }
         },
 
-        // --- 2. SITE DE IMÓVEIS (SUBDOMÍNIO) ---
+        // --- 2. SITE DE IMÓVEIS (LAYOUT PÚBLICO) ---
         {
             path: '/site',
             component: PublicLayout,
@@ -109,7 +99,7 @@ const router = createRouter({
                 {
                     path: '',
                     name: 'site-home',
-                    component: PublicHomeView,
+                    component: PublicHomeView, // Reutiliza a Home, mas dentro do layout /site se necessário
                     meta: { title: 'Imóveis' }
                 },
                 {
@@ -141,16 +131,14 @@ const router = createRouter({
             meta: { title: 'Acesso Suspenso', requiresAuth: false }
         },
 
-        // --- 4. PAINEL DE GESTÃO ---
+        // --- 4. PAINEL DE GESTÃO (LAYOUT DASHBOARD) ---
         {
             path: '/', 
             component: DashboardLayout,
             meta: { requiresAuth: true },
             children: [
-                {
-                    path: '', 
-                    redirect: '/dashboard'
-                },
+                // Não usamos path: '' aqui para evitar conflito com a Home Pública
+                // O redirect abaixo garante que quem tentar acessar subrotas inválidas vá pro dashboard
                 {
                     path: 'dashboard',
                     name: 'dashboard',
@@ -519,13 +507,18 @@ const router = createRouter({
     ]
 })
 
+// ==========================================================
+// ===== GUARDA DE ROTAS (MIDDLEWARE) =======================
+// ==========================================================
 router.beforeEach(async (to, from, next) => {
-    console.log(`[Router] Navegando para: ${String(to.name)}, Path: ${to.path}`);
+    // Debug para você acompanhar
+    // console.log(`[Router] Navegando para: ${String(to.name)}, Path: ${to.path}`);
 
     let authStore: any;
     try { authStore = useAuthStore(); } catch (e) { }
     const toast = useToast();
 
+    // Atualiza o Título da Página
     document.title = `${to.meta.title || 'ImobHome'}`;
 
     // Tenta inicializar se não tiver token na store
@@ -533,7 +526,6 @@ router.beforeEach(async (to, from, next) => {
         const token = localStorage.getItem('authToken');
         if (token) {
             authStore.token = token;
-            // Aguarda carregar dados do usuário para ter as permissões
             try {
                 await authStore.initialize(); 
             } catch (e) {
@@ -551,13 +543,13 @@ router.beforeEach(async (to, from, next) => {
     const isAdminUser = currentUser?.is_admin || false;
     const hasAdminAccess = isSuperUser || isAdminUser;
 
-    // 1. Bloqueio de Não Autenticados
+    // 1. Bloqueio de Não Autenticados (Vai pro Login)
     if (requiresAuth && !isAuthenticated) {
         next({ name: 'login' });
         return;
     } 
     
-    // 2. Redirecionar Login se já logado
+    // 2. Redirecionar Login se já logado (Vai pro Dashboard)
     else if ((to.name === 'login' || to.name === 'register') && isAuthenticated) {
         next({ name: 'dashboard' });
         return;
@@ -568,10 +560,9 @@ router.beforeEach(async (to, from, next) => {
         if (hasAdminAccess) {
             next();
         } else {
-            // AÇÃO DO PROMPT: Redirecionar se não tiver acesso
             toast.error('Acesso Negado: Você não tem permissão para acessar esta área.');
             
-            // Se veio do dashboard ou origem vazia, fica onde está ou vai pro dashboard
+            // Lógica de retorno seguro
             if (from.name === 'dashboard') {
                 next(false);
             } else {
@@ -581,6 +572,7 @@ router.beforeEach(async (to, from, next) => {
         return;
     }
 
+    // 4. Se não caiu em nenhuma regra, segue o fluxo
     next();
 });
 

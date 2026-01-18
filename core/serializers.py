@@ -60,6 +60,32 @@ class MyTokenObtainPairSerializer(TokenObtainPairSerializer):
 
         return data
 
+# ==============================================================================
+# NOVO SERIALIZER PARA REGISTRO PÚBLICO (RESOLVE O ERRO 404)
+# ==============================================================================
+class PublicRegisterSerializer(serializers.ModelSerializer):
+    """
+    Serializer para cadastro público de novos usuários (Self-service).
+    """
+    password = serializers.CharField(write_only=True)
+
+    class Meta:
+        model = User
+        fields = ('username', 'password', 'email', 'first_name', 'last_name', 'telefone')
+    
+    def create(self, validated_data):
+        # Cria o usuário com senha criptografada
+        user = User.objects.create_user(
+            username=validated_data['username'],
+            email=validated_data.get('email'),
+            password=validated_data['password'],
+            first_name=validated_data.get('first_name', ''),
+            last_name=validated_data.get('last_name', ''),
+            telefone=validated_data.get('telefone', ''),
+            is_active=True # Define se o usuário já nasce ativo
+        )
+        return user
+
 # --- SERIALIZERS PARA AVISO FINANCEIRO ---
 
 class ImobiliariaSerializer(serializers.ModelSerializer):

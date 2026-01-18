@@ -11,7 +11,14 @@ from django.contrib.auth import logout
 
 # Views de Autenticação e API
 from rest_framework_simplejwt.views import TokenRefreshView, TokenObtainPairView
-from core.views import CustomTokenObtainPairView, LogoutView, DashboardStatsView
+
+# IMPORTANTE: Adicionado PublicRegisterView aqui
+from core.views import (
+    CustomTokenObtainPairView, 
+    LogoutView, 
+    DashboardStatsView, 
+    PublicRegisterView 
+)
 
 # Views Públicas (Importadas conforme sua solicitação)
 from app_imoveis.views import (
@@ -55,6 +62,12 @@ urlpatterns = [
     path('admin/', admin.site.urls),
 
     # =========================================================
+    # CORREÇÃO DO ERRO 404 (REGISTRO PÚBLICO)
+    # =========================================================
+    # Esta rota atende exatamente o que o frontend pede: api/v1/public/register/
+    path('api/v1/public/register/', PublicRegisterView.as_view(), name='public_register'),
+
+    # =========================================================
     # ROTAS PÚBLICAS (Sem autenticação necessária)
     # =========================================================
     path('public/imoveis/', ImovelPublicListView.as_view(), name='imovel-public-list'),
@@ -81,7 +94,7 @@ urlpatterns = [
     # /api/v1/clientes/, /api/v1/imoveis/, /api/v1/contratos/
     path('api/v1/', include('app_clientes.urls')),
     path('api/v1/', include('app_imoveis.urls')),
-    path('api/v1/', include('app_contratos.urls')), # Alterado de 'api/v1/contratos/' para 'api/v1/' para evitar duplicidade no path
+    path('api/v1/', include('app_contratos.urls')), 
 
     # --- Módulos Específicos (Com Prefixos) ---
     # Prefixos ajudam a organizar e evitar conflitos de rotas
@@ -97,19 +110,17 @@ urlpatterns = [
     # Auth padrão do DRF (opcional, para testes navegáveis)
     path('api-auth/', include('rest_framework.urls')),
     
-    # Rota pública do site da imobiliária (Renderização Server Side ou API pública extra)
-    path('api/public/', include('ImobCloud.urls_public')),
+    # Rota pública legada (se existir o arquivo, mantive por compatibilidade)
+    # path('api/public/', include('ImobCloud.urls_public')), 
 ]
 
 # =============================================================
 # FRONTEND E ARQUIVOS ESTÁTICOS
 # =============================================================
 
-# Configura arquivos de Mídia (Uploads) apenas em DEBUG
-if settings.DEBUG:
-    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
-    # Adiciona rota estática explícita para garantir carregamento local do build do Vue
-    urlpatterns += static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)
+# Configura arquivos de Mídia (Uploads) apenas em DEBUG ou forçado
+urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
+urlpatterns += static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)
 
 # Rota raiz exata (Home)
 urlpatterns += [

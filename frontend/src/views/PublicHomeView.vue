@@ -195,12 +195,26 @@ const filters = ref({
   valor_max: ''
 });
 
-// --- Computed ---
+// =========================================================================
+// LÓGICA DE DETECÇÃO DE MODO (AGÊNCIA vs SAAS)
+// =========================================================================
 const isAgencyMode = computed(() => {
   const hostname = window.location.hostname;
-  const isSubdomain = hostname.split('.').length > 1 && !hostname.startsWith('www') && !hostname.startsWith('localhost');
-  const isLocalhostTest = hostname === 'teste.localhost';
-  return route.path.startsWith('/site') || isSubdomain || isLocalhostTest;
+  
+  // 1. Se estiver na rota interna /site, é SEMPRE modo agência (preview)
+  if (route.path.startsWith('/site')) return true;
+
+  // 2. Definição dos Domínios "Oficiais" (SaaS/Landing Page)
+  const isLocalhost = hostname === 'localhost' || hostname === '127.0.0.1' || hostname === 'teste.localhost';
+  const isOfficialProduction = hostname === 'imobhome.com.br' || hostname === 'www.imobhome.com.br';
+
+  // Se for Localhost ou o Site Oficial, NÃO é modo agência (mostra Landing Page)
+  if (isLocalhost || isOfficialProduction) {
+    return false;
+  }
+
+  // 3. Caso contrário (ex: cliente.imobhome.com.br), é modo agência
+  return true;
 });
 
 const searchPlaceholder = computed(() => {
@@ -218,6 +232,9 @@ function limparFiltros() {
 }
 
 async function fetchImoveis() {
+  // Se não estiver no modo agência, não busca nada
+  if (!isAgencyMode.value) return;
+
   loading.value = true;
   aiMessage.value = '';
   
@@ -225,10 +242,10 @@ async function fetchImoveis() {
     const hostname = window.location.hostname;
     const parts = hostname.split('.');
     
-    // Identificação do Subdomínio
+    // Identificação do Subdomínio para a API
+    // Se for localhost ou teste, força um subdomínio padrão para não quebrar a busca
     let subdomain = (parts.length > 1 && parts[0] !== 'www') ? parts[0] : 'estilomusical';
-    if (hostname === 'localhost') subdomain = 'estilomusical';
-    if (hostname === 'teste.localhost') subdomain = 'teste';
+    if (hostname.includes('localhost')) subdomain = 'estilomusical'; // Mock para teste local
 
     // ROTA A: Busca com IA
     if (useAI.value && filters.value.search.trim().length > 0) {
@@ -246,8 +263,7 @@ async function fetchImoveis() {
     // ROTA B: Busca Padrão
     } else {
         const params: any = { subdomain: subdomain, publicado: true };
-        // Removemos o envio de 'search' se a caixa estiver escondida/vazia no modo tradicional,
-        // mas mantemos caso o usuário tenha digitado algo antes.
+        
         if (filters.value.search) params.search = filters.value.search; 
         if (filters.value.tipo) params.tipo = filters.value.tipo;
         if (filters.value.status) params.status = filters.value.status;
@@ -267,7 +283,6 @@ async function fetchImoveis() {
     } else {
         aiMessage.value = "Não conseguimos conectar com a busca inteligente agora.";
     }
-    // Em caso de erro na IA, limpa a lista
     if(useAI.value) imoveis.value = [];
   } finally {
     loading.value = false;

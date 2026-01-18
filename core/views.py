@@ -11,6 +11,12 @@ from datetime import timedelta
 from django.shortcuts import get_object_or_404
 from django.contrib.auth import get_user_model
 from django.db.models import Sum, Q
+from django.db import transaction  # <--- IMPORTANTE: Para garantir gravação atômica
+
+# --- Imports para CSRF Fix ---
+from django.views.decorators.csrf import csrf_exempt
+from django.utils.decorators import method_decorator
+# -----------------------------
 
 # --- Imports para Auto-Cadastro e Email ---
 from django.core.mail import send_mail
@@ -34,7 +40,8 @@ from .serializers import (
     CorretorDisplaySerializer,
     NotificacaoSerializer,
     ImobiliariaIntegracaoSerializer,
-    ConfiguracaoGlobalSerializer
+    ConfiguracaoGlobalSerializer,
+    PublicRegisterSerializer
 )
 from rest_framework.decorators import action
 from .permissions import IsAdminOrSuperUser, IsCorretorOrReadOnly
@@ -47,10 +54,8 @@ class MyTokenObtainPairView(TokenObtainPairView):
 class CustomTokenObtainPairView(TokenObtainPairView):
     """
     View de Login personalizada que força a permissão AllowAny.
-    Isso é necessário porque o settings.py bloqueia tudo por padrão (IsSubscriptionActive),
-    então precisamos abrir uma exceção explícita para a tela de login.
     """
-    permission_classes = [AllowAny] # Permite acesso sem token e sem checagem financeira
+    permission_classes = [AllowAny]
     serializer_class = MyTokenObtainPairSerializer
 
 class LogoutView(APIView):
@@ -103,13 +108,8 @@ class CorretorRegistrationViewSet(viewsets.ModelViewSet):
         except Notificacao.DoesNotExist:
             return Response({'error': 'Notificação não encontrada'}, status=404)
 
-    # --- NOVO ENDPOINT PARA CORRIGIR O ERRO 404 NO SELECT DE CORRETORES ---
     @action(detail=False, methods=['get'])
     def lista_corretores_simples(self, request):
-        """
-        Retorna uma lista simplificada de corretores (ID, Nome, Email)
-        para preencher comboboxes no frontend sem carregar dados pesados.
-        """
         queryset = self.filter_queryset(self.get_queryset())
         data = [
             {
@@ -130,7 +130,6 @@ class DashboardStatsView(APIView):
             user = request.user
             imobiliaria = getattr(request, 'tenant', None)
             
-            # --- LÓGICA DE DETECÇÃO DE IMOBILIÁRIA ---
             if not imobiliaria and hasattr(user, 'imobiliaria') and user.imobiliaria:
                 imobiliaria = user.imobiliaria
 
@@ -152,19 +151,16 @@ class DashboardStatsView(APIView):
             if imobiliaria:
                 filter_kwargs['imobiliaria'] = imobiliaria
             
-            # --- 1. IMÓVEIS ---
             try:
                 total_imoveis = Imovel.objects.filter(**filter_kwargs).exclude(status='DESATIVADO').count()
             except Exception: 
                 total_imoveis = 0
             
-            # --- 2. CLIENTES ---
             try:
                 total_clientes = Cliente.objects.filter(**filter_kwargs).count()
             except Exception: 
                 total_clientes = 0
             
-            # --- 3. CONTRATOS ---
             try:
                 total_contratos_ativos = Contrato.objects.filter(
                     imobiliaria=imobiliaria, 
@@ -173,7 +169,6 @@ class DashboardStatsView(APIView):
             except Exception: 
                 total_contratos_ativos = 0
             
-            # --- 4. FINANCEIRO (A Receber 30 dias) ---
             total_a_receber = 0
             try:
                 hoje = timezone.now().date()
@@ -269,55 +264,72 @@ class MarcarNotificacaoLidaView(APIView):
         except Notificacao.DoesNotExist:
             return Response({'error': 'Notificação não encontrada'}, status=404)
 
+# ==============================================================================
+# CADASTRO PÚBLICO COM GARANTIA DE TRANSAÇÃO (ATOMIC)
+# ==============================================================================
+@method_decorator(csrf_exempt, name='dispatch')
 class PublicRegisterView(APIView):
+    """
+    View de cadastro público (SaaS).
+    Cria a Imobiliária, o Subdomínio e o Usuário Admin em uma única transação.
+    """
     permission_classes = [permissions.AllowAny]
 
     def post(self, request, *args, **kwargs):
+        data = request.data
+        nome_completo = data.get('nome')
+        email = data.get('email')
+        nome_imobiliaria = data.get('nome_imobiliaria')
+        telefone = data.get('telefone')
+
+        if not all([nome_completo, email, nome_imobiliaria]):
+            return Response({"error": "Preencha todos os campos obrigatórios."}, status=status.HTTP_400_BAD_REQUEST)
+
+        if User.objects.filter(email=email).exists():
+            return Response({"error": "Este email já está cadastrado."}, status=status.HTTP_400_BAD_REQUEST)
+
         try:
-            data = request.data
-            nome_completo = data.get('nome')
-            email = data.get('email')
-            nome_imobiliaria = data.get('nome_imobiliaria')
-            telefone = data.get('telefone')
+            # O bloco 'atomic' garante que se a criação do usuário falhar, 
+            # a imobiliária também não será salva, evitando dados órfãos.
+            with transaction.atomic():
+                # 1. Gera subdomínio único
+                base_subdomain = slugify(nome_imobiliaria).replace('-', '')
+                if not base_subdomain: base_subdomain = "nova"
+                subdomain = base_subdomain
+                counter = 1
+                while Imobiliaria.objects.filter(subdominio=subdomain).exists():
+                    subdomain = f"{base_subdomain}{counter}"
+                    counter += 1
 
-            if not all([nome_completo, email, nome_imobiliaria]):
-                return Response({"error": "Preencha todos os campos obrigatórios."}, status=status.HTTP_400_BAD_REQUEST)
+                # 2. Cria a imobiliária
+                imobiliaria = Imobiliaria.objects.create(
+                    nome=nome_imobiliaria, 
+                    subdominio=subdomain,
+                    email_contato=email,
+                    telefone=telefone,
+                    status_financeiro='GRATIS'
+                )
 
-            if User.objects.filter(email=email).exists():
-                return Response({"error": "Este email já está cadastrado."}, status=status.HTTP_400_BAD_REQUEST)
+                # 3. Gera senha e prepara dados do usuário
+                senha_gerada = get_random_string(length=10)
+                partes_nome = nome_completo.strip().split(" ")
+                first_name = partes_nome[0]
+                last_name = " ".join(partes_nome[1:]) if len(partes_nome) > 1 else ""
+                
+                # 4. Cria o usuário vinculado à imobiliária
+                user = User.objects.create_user(
+                    username=email, 
+                    email=email, 
+                    password=senha_gerada,
+                    first_name=first_name,
+                    last_name=last_name,
+                    telefone=telefone,
+                    imobiliaria=imobiliaria,
+                    is_admin=True,
+                    is_corretor=True
+                )
 
-            base_subdomain = slugify(nome_imobiliaria).replace('-', '')
-            if not base_subdomain: base_subdomain = "nova"
-            subdomain = base_subdomain
-            counter = 1
-            while Imobiliaria.objects.filter(subdominio=subdomain).exists():
-                subdomain = f"{base_subdomain}{counter}"
-                counter += 1
-
-            imobiliaria = Imobiliaria.objects.create(
-                nome=nome_imobiliaria, 
-                subdominio=subdomain,
-                email_contato=email,
-                telefone=telefone
-            )
-
-            senha_gerada = get_random_string(length=10)
-            partes_nome = nome_completo.strip().split(" ")
-            first_name = partes_nome[0]
-            last_name = " ".join(partes_nome[1:]) if len(partes_nome) > 1 else ""
-            
-            user = User.objects.create_user(
-                username=email, 
-                email=email, 
-                password=senha_gerada,
-                first_name=first_name,
-                last_name=last_name,
-                telefone=telefone,
-                imobiliaria=imobiliaria,
-                is_admin=True,
-                is_corretor=True
-            )
-
+            # --- ENVIO DE EMAIL (Fora do bloco atomic para evitar gargalo no banco) ---
             mensagem_extra = "Verifique seu e-mail para pegar a senha."
             credenciais_temp = {} 
 
@@ -325,18 +337,18 @@ class PublicRegisterView(APIView):
                 remetente = getattr(settings, 'DEFAULT_FROM_EMAIL', 'no-reply@imobhome.com.br')
                 assunto = "Bem-vindo ao ImobHome - Suas Credenciais"
                 msg_corpo = f"""
-                Olá {first_name},
+Olá {first_name},
 
-                Sua conta no ImobHome foi criada com sucesso!
-                
-                Aqui estão seus dados de acesso:
-                -----------------------------------
-                Link: http://localhost:5173/login
-                Usuário: {email}
-                Senha: {senha_gerada}
-                -----------------------------------
-                
-                Seu subdomínio: {subdomain}.imobhome.com.br
+Sua conta no ImobHome foi criada com sucesso!
+
+Aqui estão seus dados de acesso:
+-----------------------------------
+Link: https://imobhome.com.br/login
+Usuário: {email}
+Senha: {senha_gerada}
+-----------------------------------
+
+Seu subdomínio: {subdomain}.imobhome.com.br
                 """
                 send_mail(assunto, msg_corpo, remetente, [email], fail_silently=False)
             except Exception as mail_error:
@@ -353,7 +365,7 @@ class PublicRegisterView(APIView):
 
         except Exception as e:
             traceback.print_exc()
-            return Response({"error": f"Erro interno: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            return Response({"error": f"Erro interno ao gravar dados: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 class ConfiguracaoGlobalView(APIView):
     permission_classes = [IsAdminUser]

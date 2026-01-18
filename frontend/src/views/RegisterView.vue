@@ -22,21 +22,21 @@
     <div class="split-right">
       <div class="login-form-container">
         
-        <div v-if="successStep" class="text-center-success">
+        <div v-if="successStep" class="text-center-success fade-in">
             <div class="success-icon">
                 <i class="fas fa-check"></i>
             </div>
             <h2 class="success-title">Conta Criada!</h2>
             <p class="success-desc">
                 Enviamos sua senha de acesso para <strong>{{ form.email }}</strong>.
-                <br>Verifique sua caixa de entrada (e spam).
+                <br>Verifique sua caixa de entrada (e pasta de spam).
             </p>
             <router-link to="/login" class="btn-submit btn-link">
                 Ir para Login
             </router-link>
         </div>
 
-        <div v-else>
+        <div v-else class="fade-in">
             <div class="form-header">
               <h2>Crie sua conta</h2>
               <p>Já tem uma conta? <router-link to="/login">Fazer Login</router-link></p>
@@ -86,7 +86,7 @@
               </button>
               
               <p class="terms-text">
-                  Ao clicar, você concorda com nossos Termos de Uso. A senha será enviada para o seu e-mail.
+                  Ao clicar, você concorda com nossos Termos de Uso. A senha será gerada e enviada para o seu e-mail.
               </p>
             </form>
         </div>
@@ -98,7 +98,7 @@
 
 <script setup lang="ts">
 import { ref } from 'vue';
-import api from '@/services/api';
+import axios from 'axios';
 
 const isLoading = ref(false);
 const errorMessage = ref('');
@@ -116,15 +116,22 @@ const handleRegister = async () => {
   errorMessage.value = '';
 
   try {
-    // Chama a API Pública criada no backend
-    await api.post('/v1/public/register/', form.value);
+    // IMPORTANTE: URL absoluta para evitar problemas de proxy em produção
+    const response = await axios.post('https://imobhome.com.br/api/v1/public/register/', form.value);
+    
+    // Se o backend enviar a senha na resposta (caso o email falhe)
+    if (response.data.senha_gerada) {
+        console.log("Senha gerada (fallback):", response.data.senha_gerada);
+    }
+    
     successStep.value = true;
   } catch (error: any) {
     console.error('Erro no cadastro:', error);
-    if (error.response && error.response.data && error.response.data.error) {
-        errorMessage.value = error.response.data.error;
+    if (error.response && error.response.data) {
+        // Pega a mensagem de erro vinda do Django
+        errorMessage.value = error.response.data.error || error.response.data.detail || 'Erro ao processar cadastro.';
     } else {
-        errorMessage.value = 'Erro ao processar cadastro. Tente novamente.';
+        errorMessage.value = 'Não foi possível conectar ao servidor. Tente novamente.';
     }
   } finally {
     isLoading.value = false;
@@ -133,7 +140,6 @@ const handleRegister = async () => {
 </script>
 
 <style scoped>
-/* REUTILIZANDO O ESTILO DO LOGIN PARA CONSISTÊNCIA */
 .login-wrapper { display: flex; min-height: 100vh; font-family: 'Inter', sans-serif; }
 
 /* Lado Esquerdo */
@@ -172,10 +178,12 @@ const handleRegister = async () => {
 
 .terms-text { font-size: 0.75rem; color: #9ca3af; text-align: center; margin-top: 1rem; }
 
-/* Estilos de Sucesso */
+/* Sucesso */
 .text-center-success { text-align: center; padding: 2rem 0; }
 .success-icon { width: 80px; height: 80px; background: #dcfce7; color: #16a34a; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 2.5rem; margin: 0 auto 1.5rem; }
 .success-title { font-size: 1.8rem; font-weight: 800; color: #111827; margin-bottom: 0.5rem; }
 .success-desc { color: #4b5563; margin-bottom: 2rem; line-height: 1.6; }
-.btn-link { display: block; text-decoration: none; }
+
+.fade-in { animation: fadeIn 0.5s ease-in-out; }
+@keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
 </style>
