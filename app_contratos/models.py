@@ -1,15 +1,14 @@
-# Em app_contratos/models.py
-
 import logging
 from django.db import models
 from core.models import Imobiliaria
 from app_imoveis.models import Imovel
 from app_clientes.models import Cliente
 from django.utils import timezone
+# FormaPagamento é importado aqui para uso no M2M e ForeignKey
 from app_financeiro.models import FormaPagamento
 from decimal import Decimal 
 from django.core.validators import MinValueValidator, MaxValueValidator
-# CORREÇÃO DE IMPORTS: Usa Categoria e Conta como no original
+# CORREÇÃO DE IMPORTS: Usa Categoria, Conta e Transacao corretamente
 from app_financeiro.models import Transacao, Categoria, Conta 
 from dateutil.relativedelta import relativedelta
 from django.db.models import Q, UniqueConstraint
@@ -20,7 +19,7 @@ logger = logging.getLogger(__name__)
 
 
 # ==========================================================
-# === MODELO: ModeloContrato (Inalterado)                ===
+# === MODELO: ModeloContrato (Template)                  ===
 # ==========================================================
 class ModeloContrato(models.Model):
     class TipoContrato(models.TextChoices):
@@ -70,9 +69,11 @@ class ModeloContrato(models.Model):
 
     def __str__(self):
         return f"{self.nome} ({self.get_tipo_contrato_display()}) - {self.imobiliaria.nome}"
+
+
 # ==========================================================
-
-
+# === MODELO: Contrato (Core)                            ===
+# ==========================================================
 class Contrato(models.Model):
     
     class TipoContrato(models.TextChoices):
@@ -225,6 +226,10 @@ class Contrato(models.Model):
     
     @transaction.atomic
     def gerar_financeiro_aluguel(self):
+        """
+        Gera as transações de aluguel no financeiro.
+        Cria Conta e Categoria se não existirem para evitar erros.
+        """
         imobiliaria = self.imobiliaria
         if not self.aluguel or not self.duracao_meses or not self.data_primeiro_vencimento:
              logger.error(f"ERRO ALUGUEL: Contrato {self.id} sem Valor/Duração/Data do 1º Vencimento. Geração ignorada.")
@@ -238,6 +243,7 @@ class Contrato(models.Model):
         data_base_vencimento = self.data_primeiro_vencimento
         duracao = self.duracao_meses
         
+        # 1. Busca ou Cria Categoria
         try:
              categoria_aluguel = Categoria.objects.get(imobiliaria=imobiliaria, nome='Receita de Aluguel')
         except Categoria.DoesNotExist:
@@ -247,7 +253,7 @@ class Contrato(models.Model):
              logger.error(f"ERRO CRÍTICO ALUGUEL: Falha ao obter/criar Categoria de Aluguel. Erro: {e}")
              return False
 
-        # === CORREÇÃO: Garante que exista uma conta padrão para não falhar silenciosamente ===
+        # 2. Busca ou Cria Conta Padrão (CORREÇÃO CRÍTICA)
         conta_padrao = Conta.objects.filter(imobiliaria=imobiliaria).first()
         if not conta_padrao:
              logger.warning(f"AVISO ALUGUEL: Nenhuma Conta encontrada. Criando 'Conta Principal' automaticamente.")
@@ -257,6 +263,7 @@ class Contrato(models.Model):
                  logger.error(f"ERRO CRÍTICO ALUGUEL: Falha ao criar Conta Padrão. Erro: {e}")
                  return False
         
+        # 3. Loop de Geração
         for i in range(duracao):
              data_parcela = data_base_vencimento + relativedelta(months=i)
              
@@ -266,7 +273,7 @@ class Contrato(models.Model):
              
              descricao = f"Aluguel {i+1}/{duracao} - Ref: {ref_str} (Venc: {venc_str})"
              
-             # Cria Pagamento (Modelo Antigo)
+             # Cria Pagamento (Modelo Antigo - Legado/Backup)
              Pagamento.objects.create(
                  contrato=self,
                  data_vencimento=data_parcela,
@@ -294,7 +301,11 @@ class Contrato(models.Model):
         return True
 
     def criar_transacao_comissao(self):
+        """
+        Gera a transação de comissão de venda no financeiro.
+        """
         descricao_base = f"Comissão Venda #{self.id}: {self.imovel.logradouro}"
+        
         if Transacao.objects.filter(contrato=self, tipo='RECEITA', descricao__startswith=f"Comissão Venda #{self.id}").exists():
             logger.warning(f"AVISO VENDA: Lançamento de comissão para Contrato {self.id} já existe. Ignorando.")
             return False
@@ -308,7 +319,7 @@ class Contrato(models.Model):
             categoria_comissao, created = Categoria.objects.get_or_create(
                 imobiliaria=self.imobiliaria,
                 nome='Comissão de Venda', 
-                tipo='RECEITA'
+                defaults={'tipo': 'RECEITA'}
             )
             if created:
                 logger.info(f"AVISO VENDA: Categoria 'Comissão de Venda' (RECEITA) criada automaticamente.")
@@ -317,9 +328,9 @@ class Contrato(models.Model):
             return False
             
         data_base = timezone.now().date()
-        data_vencimento = self.data_vencimento_venda 
+        data_vencimento = self.data_vencimento_venda or data_base
         
-        # === CORREÇÃO: Garante conta padrão ===
+        # Garante conta padrão
         conta_padrao = Conta.objects.filter(imobiliaria=self.imobiliaria).first()
         if not conta_padrao:
              logger.warning(f"AVISO VENDA: Nenhuma Conta encontrada. Criando 'Conta Principal' automaticamente.")
@@ -379,6 +390,9 @@ class Contrato(models.Model):
         return f"Contrato de {self.get_tipo_contrato_display()} - {self.imovel.logradouro} ({self.imobiliaria.nome})"
 
 
+# ==========================================================
+# === MODELO: Pagamento (Legado/Controle Simples)        ===
+# ==========================================================
 class Pagamento(models.Model):
     STATUS_PAGAMENTO_CHOICES = [
         ('PENDENTE', 'Pendente'),
@@ -398,12 +412,15 @@ class Pagamento(models.Model):
         blank=True,
         verbose_name="Forma de Pagamento Recebida"
     )
+    
     class Meta:
         verbose_name = "Pagamento"
         verbose_name_plural = "Pagamentos"
         ordering = ['data_vencimento']
+        
     def __str__(self):
         return f"Pagamento de {self.valor} para o contrato #{self.contrato.id} com vencimento em {self.data_vencimento}"
+        
     @property
     def esta_atrasado(self):
         return timezone.now().date() > self.data_vencimento and self.status == 'PENDENTE'

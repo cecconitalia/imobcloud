@@ -1,174 +1,3 @@
-<template>
-  <div v-if="isAgencyMode" class="agency-home fade-in">
-    
-    <div class="agency-hero">
-      <div class="hero-overlay"></div>
-      <div class="container hero-container">
-        <span class="hero-badge">
-            <i class="fas fa-sparkles"></i> Nova Busca Inteligente
-        </span>
-        <h2 class="agency-title">Qual o imóvel dos seus sonhos?</h2>
-        <p class="agency-subtitle">Descreva o que você procura e nossa IA encontra para você.</p>
-        
-        <div class="search-wrapper">
-          <div v-if="useAI" class="search-box glass-effect" :class="{ 'ai-active': useAI }">
-            <div class="input-icon">
-                <i class="fas" :class="useAI ? 'fa-robot' : 'fa-search'"></i>
-            </div>
-            <input 
-              type="text" 
-              v-model="filters.search" 
-              :placeholder="searchPlaceholder" 
-              @keyup.enter="fetchImoveis"
-              :disabled="loading"
-            >
-            <button @click="fetchImoveis" class="btn-search" :disabled="loading">
-              <span v-if="loading && useAI" class="typing-dots">Pensando...</span>
-              <span v-else-if="loading">Buscando...</span>
-              <span v-else>Buscar</span>
-            </button>
-          </div>
-
-          <div class="ai-toggle-wrapper">
-            <label class="toggle-switch">
-                <input type="checkbox" v-model="useAI">
-                <span class="slider round"></span>
-            </label>
-            <span class="toggle-label" :class="{ 'active': useAI }">
-                Ativar Inteligência Artificial
-            </span>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <div v-if="!useAI" class="filters-section container">
-        <div class="filters-bar slide-up">
-            <div class="filters-scroll">
-                <div class="filter-group">
-                    <i class="fas fa-home filter-icon"></i>
-                    <select v-model="filters.tipo" class="form-select">
-                        <option value="">Tipo de Imóvel</option>
-                        <option value="CASA">Casa</option>
-                        <option value="APARTAMENTO">Apartamento</option>
-                        <option value="TERRENO">Terreno</option>
-                        <option value="SALA_COMERCIAL">Sala Comercial</option>
-                        <option value="GALPAO">Galpão</option>
-                        <option value="RURAL">Rural</option>
-                    </select>
-                </div>
-
-                <div class="filter-group">
-                    <i class="fas fa-key filter-icon"></i>
-                    <select v-model="filters.status" class="form-select">
-                        <option value="">Operação</option>
-                        <option value="A_VENDA">Comprar</option>
-                        <option value="PARA_ALUGAR">Alugar</option>
-                    </select>
-                </div>
-
-                <div class="filter-group small">
-                    <select v-model="filters.quartos_min" class="form-select">
-                        <option value="">Quartos</option>
-                        <option value="1">1+</option>
-                        <option value="2">2+</option>
-                        <option value="3">3+</option>
-                        <option value="4">4+</option>
-                    </select>
-                </div>
-
-                <div class="filter-group money-group">
-                    <span class="currency">R$</span>
-                    <input type="number" v-model="filters.valor_min" placeholder="Mínimo" class="form-input">
-                </div>
-                <div class="separator">-</div>
-                <div class="filter-group money-group">
-                    <span class="currency">R$</span>
-                    <input type="number" v-model="filters.valor_max" placeholder="Máximo" class="form-input">
-                </div>
-                
-                <button @click="fetchImoveis" class="btn-filter-apply" title="Aplicar Filtros">
-                    <i class="fas fa-check"></i>
-                </button>
-            </div>
-        </div>
-    </div>
-
-    <div class="container listings-section">
-      
-      <div v-if="aiMessage" class="ai-feedback fade-in-up">
-        <div class="ai-avatar">
-            <i class="fas fa-magic"></i>
-        </div>
-        <div class="ai-content">
-            <strong>Assistente Virtual:</strong>
-            <p>{{ aiMessage }}</p>
-        </div>
-        <button @click="aiMessage = ''" class="close-feedback"><i class="fas fa-times"></i></button>
-      </div>
-
-      <div v-if="loading" class="imoveis-grid">
-        <div v-for="n in 6" :key="n" class="skeleton-card">
-            <div class="skeleton-image"></div>
-            <div class="skeleton-content">
-                <div class="skeleton-line title"></div>
-                <div class="skeleton-line subtitle"></div>
-                <div class="skeleton-line price"></div>
-            </div>
-        </div>
-      </div>
-
-      <div v-else-if="imoveis.length === 0" class="empty-state fade-in">
-        <div class="empty-icon">
-            <i class="fas fa-search-location"></i>
-        </div>
-        <h3>Nenhum imóvel encontrado</h3>
-        <p>Tente mudar os filtros ou fazer uma nova busca com a IA.</p>
-        <button class="btn-reset" @click="limparFiltros">Limpar Filtros</button>
-      </div>
-
-      <div v-else class="imoveis-grid fade-in">
-        <ImovelPublicCard 
-          v-for="imovel in imoveis" 
-          :key="imovel.id" 
-          :imovel="imovel" 
-        />
-      </div>
-
-    </div>
-
-    <a href="https://wa.me/5511999999999" target="_blank" class="floating-whatsapp" title="Fale conosco">
-        <i class="fab fa-whatsapp"></i>
-    </a>
-
-  </div>
-
-  <div v-else class="landing-page">
-    <nav class="navbar" :class="{ 'scrolled': isScrolled }">
-      <div class="container nav-content">
-        <div class="logo" @click="scrollTo('top')">
-          <div class="logo-icon"><i class="fas fa-laptop-house"></i></div>
-          <span class="logo-text">Imob<span class="highlight">Home</span></span>
-        </div>
-        <div class="nav-actions">
-          <router-link to="/login" class="btn-login">Entrar</router-link>
-          <router-link to="/cadastro" class="btn-cta-small">Criar Conta</router-link>
-        </div>
-      </div>
-    </nav>
-
-    <section id="top" class="hero-section">
-      <div class="container hero-content">
-        <h1 class="hero-title">Gestão Imobiliária <span class="gradient-text">Simples</span></h1>
-        <p class="hero-subtitle">O sistema ideal para corretores e pequenas imobiliárias.</p>
-        <div class="hero-buttons">
-          <router-link to="/cadastro" class="btn-hero-primary">Começar Agora</router-link>
-        </div>
-      </div>
-    </section>
-  </div>
-</template>
-
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted, computed } from 'vue';
 import { useRoute } from 'vue-router';
@@ -179,9 +8,9 @@ const route = useRoute();
 
 // --- Estados ---
 const isScrolled = ref(false);
-const imoveis = ref([]);
+const imoveis = ref<any[]>([]);
 const loading = ref(false);
-const useAI = ref(false); // Inicia desativado por padrão
+const useAI = ref(false);
 const aiMessage = ref('');
 
 // Filtros
@@ -195,101 +24,61 @@ const filters = ref({
   valor_max: ''
 });
 
-// =========================================================================
-// LÓGICA DE DETECÇÃO DE MODO (AGÊNCIA vs SAAS)
-// =========================================================================
+// --- Lógica de Detecção de Modo ---
 const isAgencyMode = computed(() => {
   const hostname = window.location.hostname;
-  
-  // 1. Se estiver na rota interna /site, é SEMPRE modo agência (preview)
   if (route.path.startsWith('/site')) return true;
-
-  // 2. Definição dos Domínios "Oficiais" (SaaS/Landing Page)
   const isLocalhost = hostname === 'localhost' || hostname === '127.0.0.1' || hostname === 'teste.localhost';
   const isOfficialProduction = hostname === 'imobhome.com.br' || hostname === 'www.imobhome.com.br';
-
-  // Se for Localhost ou o Site Oficial, NÃO é modo agência (mostra Landing Page)
-  if (isLocalhost || isOfficialProduction) {
-    return false;
-  }
-
-  // 3. Caso contrário (ex: cliente.imobhome.com.br), é modo agência
-  return true;
+  return !(isLocalhost || isOfficialProduction);
 });
 
 const searchPlaceholder = computed(() => {
-    return useAI.value 
-        ? "Ex: Casa de praia com 4 suítes e piscina..." 
-        : "Busque por cidade, bairro ou código...";
+  return useAI.value 
+    ? "Ex: Casa moderna com 3 suítes perto do metrô..." 
+    : "Cidade, bairro ou código do imóvel...";
 });
 
 // --- Métodos ---
 function limparFiltros() {
-    filters.value = {
-        search: '', tipo: '', status: '', quartos_min: '', vagas_min: '', valor_min: '', valor_max: ''
-    };
-    fetchImoveis();
+  filters.value = {
+    search: '', tipo: '', status: '', quartos_min: '', vagas_min: '', valor_min: '', valor_max: ''
+  };
+  fetchImoveis();
 }
 
 async function fetchImoveis() {
-  // Se não estiver no modo agência, não busca nada
   if (!isAgencyMode.value) return;
-
   loading.value = true;
   aiMessage.value = '';
   
   try {
     const hostname = window.location.hostname;
     const parts = hostname.split('.');
-    
-    // Identificação do Subdomínio para a API
-    // Se for localhost ou teste, força um subdomínio padrão para não quebrar a busca
     let subdomain = (parts.length > 1 && parts[0] !== 'www') ? parts[0] : 'estilomusical';
-    if (hostname.includes('localhost')) subdomain = 'estilomusical'; // Mock para teste local
+    if (hostname.includes('localhost')) subdomain = 'estilomusical';
 
-    // ROTA A: Busca com IA
     if (useAI.value && filters.value.search.trim().length > 0) {
-        const response = await publicApiClient.post('/public/imoveis/busca-ia/', {
-            query: filters.value.search
-        }, { 
-            params: { subdomain: subdomain } 
-        });
-        
-        imoveis.value = response.data.imoveis || [];
-        if (response.data.mensagem) {
-            aiMessage.value = response.data.mensagem;
-        }
-
-    // ROTA B: Busca Padrão
+      const response = await publicApiClient.post('/public/imoveis/busca-ia/', {
+        query: filters.value.search
+      }, { params: { subdomain } });
+      
+      imoveis.value = response.data.imoveis || [];
+      aiMessage.value = response.data.mensagem || '';
     } else {
-        const params: any = { subdomain: subdomain, publicado: true };
-        
-        if (filters.value.search) params.search = filters.value.search; 
-        if (filters.value.tipo) params.tipo = filters.value.tipo;
-        if (filters.value.status) params.status = filters.value.status;
-        if (filters.value.quartos_min) params.quartos_min = filters.value.quartos_min;
-        if (filters.value.vagas_min) params.vagas_min = filters.value.vagas_min;
-        if (filters.value.valor_min) params.valor_min = filters.value.valor_min;
-        if (filters.value.valor_max) params.valor_max = filters.value.valor_max;
-
-        const response = await publicApiClient.get('/public/imoveis/', { params });
-        imoveis.value = response.data.results || response.data;
+      const params: any = { subdomain, publicado: true, ...filters.value };
+      const response = await publicApiClient.get('/public/imoveis/', { params });
+      imoveis.value = response.data.results || response.data;
     }
-
   } catch (error: any) {
-    console.error("Erro ao buscar imóveis", error);
-    if (error.response && error.response.data && error.response.data.error) {
-        aiMessage.value = `⚠️ ${error.response.data.error}`;
-    } else {
-        aiMessage.value = "Não conseguimos conectar com a busca inteligente agora.";
-    }
+    console.error("Erro na busca:", error);
+    aiMessage.value = error.response?.data?.error ? `⚠️ ${error.response.data.error}` : "Erro ao conectar com a busca inteligente.";
     if(useAI.value) imoveis.value = [];
   } finally {
     loading.value = false;
   }
 }
 
-// Scroll Handler
 const handleScroll = () => { isScrolled.value = window.scrollY > 20; };
 const scrollTo = (id: string) => { document.getElementById(id)?.scrollIntoView({ behavior: 'smooth' }); };
 
@@ -303,229 +92,241 @@ onUnmounted(() => {
 });
 </script>
 
-<style scoped>
-/* ========================================= */
-/* ESTILOS MODERNOS (IMOBCLOUD 2.0)          */
-/* ========================================= */
+<template>
+  <div v-if="isAgencyMode" class="min-h-screen bg-slate-50 font-sans animate-fade-in">
+    
+    <div class="relative min-h-[550px] flex items-center justify-center pt-24 pb-32 px-4 text-center rounded-b-[40px] overflow-hidden bg-[url('https://images.unsplash.com/photo-1600585154340-be6199f7a09f?auto=format&fit=crop&q=80')] bg-cover bg-center">
+      <div class="absolute inset-0 bg-gradient-to-b from-indigo-950/80 to-indigo-900/95 z-1"></div>
+      
+      <div class="relative z-10 max-w-4xl w-full">
+        <span class="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white/10 backdrop-blur-md border border-white/20 text-indigo-200 text-sm font-semibold mb-6 animate-bounce-in">
+          <i class="i-mdi-sparkles text-yellow-400"></i> Busca Inteligente Ativada
+        </span>
+        
+        <h2 class="text-4xl md:text-6xl font-extrabold text-white mb-4 leading-tight">
+          Onde começa o seu <span class="text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 to-purple-400">novo capítulo?</span>
+        </h2>
+        <p class="text-lg md:text-xl text-slate-300 mb-10 max-w-2xl mx-auto">
+          Encontre o imóvel ideal através de nossa curadoria digital ou descreva seus desejos para nossa IA.
+        </p>
+        
+        <div class="max-w-3xl mx-auto">
+          <div 
+            class="bg-white p-2 rounded-2xl md:rounded-full flex flex-col md:flex-row items-center shadow-2xl transition-all duration-300 border-4"
+            :class="useAI ? 'border-purple-500/50 shadow-purple-500/20' : 'border-white/10'"
+          >
+            <div class="flex items-center flex-1 w-full px-4">
+              <i class="text-xl mr-3" :class="[useAI ? 'i-mdi-robot-outline text-purple-600' : 'i-mdi-magnify text-slate-400']"></i>
+              <input 
+                type="text" 
+                v-model="filters.search" 
+                :placeholder="searchPlaceholder" 
+                class="w-full py-4 bg-transparent border-none outline-none text-slate-800 text-lg placeholder:text-slate-400"
+                @keyup.enter="fetchImoveis"
+                :disabled="loading"
+              >
+            </div>
+            
+            <button 
+              @click="fetchImoveis" 
+              class="w-full md:w-auto px-10 py-4 rounded-xl md:rounded-full font-bold text-white transition-all active:scale-95 disabled:opacity-70 flex items-center justify-center gap-2"
+              :class="useAI ? 'bg-gradient-to-r from-purple-600 to-indigo-600 hover:shadow-lg hover:shadow-purple-500/40' : 'bg-slate-900 hover:bg-slate-800'"
+              :disabled="loading"
+            >
+              <div v-if="loading" class="i-mdi-loading animate-spin text-xl"></div>
+              <span>{{ loading ? (useAI ? 'Analisando...' : 'Buscando...') : 'Encontrar' }}</span>
+            </button>
+          </div>
 
-/* HERO SECTION */
-.agency-hero {
-  position: relative;
-  background-image: url('https://images.unsplash.com/photo-1564013799919-ab600027ffc6?auto=format&fit=crop&q=80'); /* Imagem Placeholder */
-  background-size: cover;
-  background-position: center;
-  padding: 6rem 1.5rem 8rem;
-  color: white;
-  text-align: center;
-  border-radius: 0 0 30px 30px;
-  overflow: hidden;
-  margin-bottom: -40px; /* Para a barra de filtros sobrepor */
-}
+          <div class="mt-6 flex items-center justify-center gap-3">
+            <button 
+              @click="useAI = !useAI"
+              class="group flex items-center gap-2 cursor-pointer select-none"
+            >
+              <div 
+                class="w-12 h-6 rounded-full relative transition-colors duration-300"
+                :class="useAI ? 'bg-purple-600' : 'bg-white/20'"
+              >
+                <div 
+                  class="absolute top-1 left-1 bg-white w-4 h-4 rounded-full transition-transform duration-300"
+                  :class="useAI ? 'translate-x-6' : ''"
+                ></div>
+              </div>
+              <span class="text-sm font-medium transition-colors" :class="useAI ? 'text-white' : 'text-slate-400'">
+                Usar Busca com Inteligência Artificial
+              </span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
 
-.hero-overlay {
-    position: absolute;
-    top: 0; left: 0; width: 100%; height: 100%;
-    background: linear-gradient(180deg, rgba(30,27,75,0.7) 0%, rgba(30,27,75,0.9) 100%);
-    z-index: 1;
-}
+    <div v-if="!useAI" class="max-w-7xl mx-auto px-4 -mt-12 relative z-20">
+      <div class="bg-white rounded-2xl shadow-xl border border-slate-100 p-4 md:p-6">
+        <div class="flex flex-wrap items-center gap-4">
+          
+          <div class="flex-1 min-w-[200px] relative">
+            <select v-model="filters.tipo" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-slate-700 outline-none focus:border-indigo-500 transition-colors appearance-none">
+              <option value="">Tipo de Imóvel</option>
+              <option value="CASA">Casa</option>
+              <option value="APARTAMENTO">Apartamento</option>
+              <option value="TERRENO">Terreno</option>
+              <option value="SALA_COMERCIAL">Sala Comercial</option>
+            </select>
+            <div class="absolute right-4 top-1/2 -translate-y-1/2 i-mdi-chevron-down pointer-events-none text-slate-400"></div>
+          </div>
 
-.hero-container { position: relative; z-index: 2; max-width: 800px; margin: 0 auto; }
+          <div class="flex-1 min-w-[150px] relative">
+            <select v-model="filters.status" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-slate-700 outline-none focus:border-indigo-500 transition-colors appearance-none">
+              <option value="">Transação</option>
+              <option value="A_VENDA">Comprar</option>
+              <option value="PARA_ALUGAR">Alugar</option>
+            </select>
+            <div class="absolute right-4 top-1/2 -translate-y-1/2 i-mdi-chevron-down pointer-events-none text-slate-400"></div>
+          </div>
 
-.hero-badge {
-    background: rgba(255, 255, 255, 0.15);
-    backdrop-filter: blur(5px);
-    padding: 6px 16px;
-    border-radius: 50px;
-    font-size: 0.85rem;
-    font-weight: 600;
-    color: #e9d5ff;
-    border: 1px solid rgba(255, 255, 255, 0.2);
-    display: inline-block;
-    margin-bottom: 1.5rem;
-}
+          <div class="w-full md:w-auto flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-xl px-3 py-1">
+            <span class="text-xs font-bold text-slate-400 ml-2">R$</span>
+            <input type="number" v-model="filters.valor_min" placeholder="Mínimo" class="w-24 bg-transparent py-2 outline-none text-sm text-slate-700">
+            <span class="text-slate-300">|</span>
+            <input type="number" v-model="filters.valor_max" placeholder="Máximo" class="w-24 bg-transparent py-2 outline-none text-sm text-slate-700">
+          </div>
 
-.agency-title {
-  font-size: 3rem;
-  font-weight: 800;
-  margin-bottom: 1rem;
-  line-height: 1.2;
-  text-shadow: 0 2px 10px rgba(0,0,0,0.3);
-}
+          <button @click="fetchImoveis" class="bg-indigo-600 text-white w-12 h-12 rounded-xl flex items-center justify-center hover:bg-indigo-700 transition-colors shadow-lg shadow-indigo-200 active:scale-90">
+            <i class="i-mdi-filter-variant text-xl"></i>
+          </button>
+        </div>
+      </div>
+    </div>
 
-.agency-subtitle {
-  font-size: 1.2rem;
-  color: #cbd5e1;
-  margin-bottom: 3rem;
-  font-weight: 400;
-}
+    <main class="max-w-7xl mx-auto px-4 py-12">
+      
+      <div v-if="aiMessage" class="mb-10 bg-gradient-to-r from-purple-50 to-indigo-50 border border-purple-100 rounded-2xl p-6 flex gap-4 items-start shadow-sm animate-fade-in-up">
+        <div class="bg-purple-600 p-3 rounded-xl text-white shadow-lg">
+          <i class="i-mdi-robot text-2xl"></i>
+        </div>
+        <div class="flex-1">
+          <h4 class="font-bold text-purple-900 mb-1">Dica da nossa IA:</h4>
+          <p class="text-slate-700 leading-relaxed">{{ aiMessage }}</p>
+        </div>
+        <button @click="aiMessage = ''" class="text-slate-400 hover:text-slate-600 p-1">
+          <i class="i-mdi-close"></i>
+        </button>
+      </div>
 
-/* SEARCH BOX */
-.search-box {
-  background: white;
-  padding: 8px;
-  border-radius: 100px;
-  display: flex;
-  align-items: center;
-  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2);
-  transition: all 0.4s ease;
-  border: 4px solid rgba(255,255,255,0.1);
-}
+      <div v-if="loading" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+        <div v-for="n in 6" :key="n" class="bg-white rounded-3xl overflow-hidden shadow-sm border border-slate-100">
+          <div class="w-full h-64 bg-slate-200 animate-pulse"></div>
+          <div class="p-6 space-y-4">
+            <div class="h-6 bg-slate-200 rounded w-3/4 animate-pulse"></div>
+            <div class="h-4 bg-slate-200 rounded w-1/2 animate-pulse"></div>
+            <div class="h-8 bg-slate-200 rounded w-1/3 animate-pulse pt-4"></div>
+          </div>
+        </div>
+      </div>
 
-.search-box.ai-active {
-    border-color: #a855f7;
-    box-shadow: 0 0 30px rgba(168, 85, 247, 0.4);
-}
+      <div v-else-if="imoveis.length === 0" class="py-20 text-center">
+        <div class="inline-flex items-center justify-center w-24 h-24 rounded-full bg-slate-100 text-slate-300 mb-6">
+          <i class="i-mdi-home-search text-5xl"></i>
+        </div>
+        <h3 class="text-2xl font-bold text-slate-800 mb-2">Ops! Nenhum imóvel por aqui</h3>
+        <p class="text-slate-500 mb-8">Não encontramos nada com esses critérios. Que tal tentar uma nova frase na busca com IA?</p>
+        <button @click="limparFiltros" class="px-8 py-3 bg-white border border-slate-200 rounded-xl font-bold text-indigo-600 hover:bg-slate-50 transition-colors">
+          Ver todos os imóveis
+        </button>
+      </div>
 
-.input-icon {
-    padding-left: 20px;
-    color: #94a3b8;
-    font-size: 1.2rem;
-}
+      <div v-else class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+        <ImovelPublicCard 
+          v-for="imovel in imoveis" 
+          :key="imovel.id" 
+          :imovel="imovel"
+          class="hover:-translate-y-2 transition-transform duration-300"
+        />
+      </div>
+    </main>
 
-.search-box input {
-  flex: 1;
-  border: none;
-  padding: 16px;
-  font-size: 1.1rem;
-  outline: none;
-  color: #1e293b;
-  background: transparent;
-}
+    <a href="https://wa.me/5511999999999" target="_blank" class="fixed bottom-8 right-8 w-16 h-16 bg-green-500 text-white rounded-full flex items-center justify-center text-3xl shadow-2xl shadow-green-500/40 hover:scale-110 transition-transform z-50 animate-bounce-in">
+      <i class="i-mdi-whatsapp"></i>
+    </a>
 
-.btn-search {
-  background: linear-gradient(135deg, #4f46e5 0%, #4338ca 100%);
-  color: white;
-  border: none;
-  padding: 14px 32px;
-  border-radius: 50px;
-  font-weight: 600;
-  font-size: 1rem;
-  cursor: pointer;
-  transition: transform 0.2s;
-}
-.search-box.ai-active .btn-search {
-    background: linear-gradient(135deg, #9333ea 0%, #7c3aed 100%);
-}
-.btn-search:hover { transform: scale(1.05); }
+  </div>
 
-/* TOGGLE IA */
-.ai-toggle-wrapper {
-    margin-top: 1.5rem;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 10px;
-}
-.toggle-switch { position: relative; width: 50px; height: 28px; display: inline-block; }
-.toggle-switch input { opacity: 0; width: 0; height: 0; }
-.slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: rgba(255,255,255,0.2); transition: .4s; border-radius: 34px; }
-.slider:before { position: absolute; content: ""; height: 20px; width: 20px; left: 4px; bottom: 4px; background-color: white; transition: .4s; border-radius: 50%; }
-input:checked + .slider { background-color: #a855f7; }
-input:checked + .slider:before { transform: translateX(22px); }
-.toggle-label { color: rgba(255,255,255,0.8); font-size: 0.95rem; font-weight: 500; cursor: pointer; }
-.toggle-label.active { color: white; text-shadow: 0 0 10px #a855f7; }
+  <div v-else class="min-h-screen bg-white font-sans">
+    <nav 
+      class="fixed top-0 w-full z-100 transition-all duration-300 h-20 flex items-center"
+      :class="isScrolled ? 'bg-white/80 backdrop-blur-lg shadow-md' : 'bg-transparent'"
+    >
+      <div class="max-w-7xl mx-auto w-full px-6 flex justify-between items-center">
+        <div class="flex items-center gap-2 cursor-pointer group" @click="scrollTo('top')">
+          <div class="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center text-white group-hover:rotate-12 transition-transform">
+            <i class="i-mdi-laptop-house text-2xl"></i>
+          </div>
+          <span class="text-2xl font-black text-slate-900 tracking-tight">Imob<span class="text-indigo-600">Home</span></span>
+        </div>
+        <div class="flex items-center gap-4 md:gap-8">
+          <router-link to="/login" class="font-bold text-slate-600 hover:text-indigo-600 transition-colors">Entrar</router-link>
+          <router-link to="/cadastro" class="bg-slate-900 text-white px-6 py-2.5 rounded-xl font-bold hover:bg-indigo-600 transition-all active:scale-95 shadow-lg shadow-slate-200">
+            Experimentar Grátis
+          </router-link>
+        </div>
+      </div>
+    </nav>
 
-/* FILTROS */
-.filters-section { position: relative; z-index: 10; margin-bottom: 3rem; }
-.filters-bar {
-    background: white;
-    border-radius: 16px;
-    padding: 1.5rem;
-    box-shadow: 0 15px 30px -10px rgba(0,0,0,0.1);
-    border: 1px solid #f1f5f9;
-}
-.filters-scroll { display: flex; gap: 1rem; overflow-x: auto; padding-bottom: 5px; align-items: center; }
-.filters-scroll::-webkit-scrollbar { height: 4px; }
-.filters-scroll::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+    <section id="top" class="pt-40 pb-20 px-6">
+      <div class="max-w-5xl mx-auto text-center">
+        <h1 class="text-5xl md:text-7xl font-black text-slate-900 mb-8 leading-tight">
+          Sua imobiliária no <br>
+          <span class="text-transparent bg-clip-text bg-gradient-to-r from-indigo-600 to-purple-600 italic">piloto automático.</span>
+        </h1>
+        <p class="text-xl text-slate-500 mb-12 max-w-2xl mx-auto leading-relaxed">
+          Gestão de leads com IA, publicação automática em redes sociais e site próprio incluso. Tudo em um só lugar.
+        </p>
+        <div class="flex flex-col md:flex-row justify-center gap-4">
+          <router-link to="/cadastro" class="px-10 py-5 bg-indigo-600 text-white rounded-2xl font-black text-lg hover:bg-indigo-700 hover:shadow-2xl hover:shadow-indigo-200 transition-all active:scale-95">
+            Começar Agora — É Grátis
+          </router-link>
+          <button class="px-10 py-5 bg-white text-slate-900 border-2 border-slate-100 rounded-2xl font-black text-lg hover:bg-slate-50 transition-all">
+            Ver Demonstração
+          </button>
+        </div>
+        
+        <div class="mt-20 relative px-4 md:px-0">
+          <div class="bg-slate-900 rounded-3xl p-2 shadow-3xl">
+             <img src="https://images.unsplash.com/photo-1460925895917-afdab827c52f?auto=format&fit=crop&q=80" class="rounded-2xl opacity-90" alt="ImobCloud Dashboard">
+          </div>
+          <div class="absolute -bottom-6 -right-6 md:right-12 bg-white p-4 rounded-2xl shadow-xl border border-slate-100 hidden md:block">
+            <div class="flex items-center gap-3">
+              <div class="w-10 h-10 rounded-full bg-green-100 text-green-600 flex items-center justify-center">
+                <i class="i-mdi-trending-up"></i>
+              </div>
+              <div>
+                <p class="text-xs text-slate-400 font-bold uppercase">Novos Leads</p>
+                <p class="text-lg font-black text-slate-900">+124% este mês</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </div>
+</template>
 
-.filter-group { position: relative; display: flex; align-items: center; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; padding: 0 10px; min-width: 160px; transition: border 0.3s; }
-.filter-group:focus-within { border-color: #4f46e5; background: white; }
-.filter-icon { color: #94a3b8; margin-right: 8px; font-size: 0.9rem; }
-.form-select, .form-input { border: none; background: transparent; padding: 12px 5px; width: 100%; font-size: 0.95rem; color: #334155; outline: none; cursor: pointer; }
-.separator { color: #cbd5e1; font-weight: bold; }
-.money-group { min-width: 120px; }
-.currency { color: #64748b; font-size: 0.85rem; font-weight: 600; }
-
-.btn-filter-apply {
-    background: #1e293b; color: white; width: 45px; height: 45px; border-radius: 10px; border: none; cursor: pointer; flex-shrink: 0; display: flex; align-items: center; justify-content: center; font-size: 1.1rem; transition: background 0.3s;
-}
-.btn-filter-apply:hover { background: #4f46e5; }
-
-/* AI FEEDBACK */
-.ai-feedback {
-    background: linear-gradient(135deg, #fff 0%, #f3e8ff 100%);
-    border: 1px solid #e9d5ff;
-    border-radius: 16px;
-    padding: 1.5rem;
-    display: flex;
-    gap: 1.5rem;
-    align-items: start;
-    box-shadow: 0 10px 20px -5px rgba(147, 51, 234, 0.1);
-    margin-bottom: 2rem;
-}
-.ai-avatar {
-    width: 48px; height: 48px; background: #9333ea; color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 1.2rem; flex-shrink: 0; box-shadow: 0 5px 15px rgba(147, 51, 234, 0.3);
-}
-.ai-content p { margin: 4px 0 0; color: #475569; line-height: 1.5; }
-.close-feedback { background: none; border: none; color: #94a3b8; cursor: pointer; font-size: 1.1rem; }
-
-/* LISTINGS & SKELETON */
-.imoveis-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
-    gap: 2rem;
-    padding-bottom: 4rem;
-}
-
-/* Skeleton Loading CSS */
-.skeleton-card { background: white; border-radius: 16px; overflow: hidden; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); height: 420px; }
-.skeleton-image { width: 100%; height: 220px; background: #e2e8f0; animation: pulse 1.5s infinite; }
-.skeleton-content { padding: 1.5rem; display: flex; flex-direction: column; gap: 10px; }
-.skeleton-line { height: 16px; background: #e2e8f0; border-radius: 4px; animation: pulse 1.5s infinite; }
-.skeleton-line.title { width: 80%; height: 24px; }
-.skeleton-line.subtitle { width: 60%; }
-.skeleton-line.price { width: 40%; height: 20px; margin-top: 10px; }
-
-@keyframes pulse { 0% { opacity: 0.6; } 50% { opacity: 1; } 100% { opacity: 0.6; } }
-
-/* EMPTY STATE */
-.empty-state { text-align: center; padding: 4rem 1rem; color: #64748b; }
-.empty-icon { font-size: 4rem; color: #cbd5e1; margin-bottom: 1.5rem; }
-.btn-reset { margin-top: 1.5rem; background: white; border: 1px solid #e2e8f0; padding: 10px 20px; border-radius: 8px; color: #4f46e5; font-weight: 600; cursor: pointer; }
-.btn-reset:hover { border-color: #4f46e5; }
-
-/* WHATSAPP FLOAT */
-.floating-whatsapp {
-    position: fixed; bottom: 30px; right: 30px; background: #25d366; color: white; width: 60px; height: 60px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 2rem; box-shadow: 0 10px 20px rgba(37, 211, 102, 0.3); z-index: 999; transition: transform 0.3s;
-}
-.floating-whatsapp:hover { transform: scale(1.1) rotate(10deg); }
-
-/* ANIMATIONS */
-.fade-in { animation: fadeIn 0.5s ease-out; }
-.slide-up { animation: slideUp 0.6s ease-out; }
-.fade-in-up { animation: fadeInUp 0.5s ease-out; }
+<style>
+/* Estilos globais necessários para as animações base */
+.animate-fade-in { animation: fadeIn 0.6s ease-out; }
+.animate-fade-in-up { animation: fadeInUp 0.6s ease-out forwards; }
+.animate-bounce-in { animation: bounceIn 0.8s cubic-bezier(0.68, -0.55, 0.265, 1.55); }
 
 @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
-@keyframes slideUp { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
-@keyframes fadeInUp { from { transform: translateY(10px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
-
-/* SAAS Styles (Mantendo o básico para não quebrar) */
-.landing-page { font-family: 'Inter', sans-serif; }
-.navbar { position: fixed; top: 0; width: 100%; height: 80px; background: white; z-index: 100; display: flex; align-items: center; padding: 0 2rem; box-shadow: 0 2px 10px rgba(0,0,0,0.05); }
-.nav-content { width: 100%; max-width: 1200px; margin: 0 auto; display: flex; justify-content: space-between; align-items: center; }
-.logo { font-weight: bold; font-size: 1.5rem; color: #1e1b4b; cursor: pointer; }
-.btn-login { color: #4f46e5; font-weight: 600; margin-right: 20px; text-decoration: none; }
-.btn-cta-small { background: #4f46e5; color: white; padding: 10px 20px; border-radius: 8px; text-decoration: none; font-weight: 600; }
-.hero-section { padding-top: 150px; text-align: center; }
-.gradient-text { background: linear-gradient(to right, #4f46e5, #9333ea); -webkit-background-clip: text; color: transparent; }
-.hero-title { font-size: 3.5rem; margin-bottom: 20px; }
-.btn-hero-primary { background: #4f46e5; color: white; padding: 15px 30px; border-radius: 10px; text-decoration: none; font-size: 1.2rem; display: inline-block; margin-top: 20px; }
-
-/* Responsive adjustments */
-@media (max-width: 768px) {
-    .agency-title { font-size: 2rem; }
-    .search-box { flex-direction: column; padding: 15px; border-radius: 20px; }
-    .search-box input { width: 100%; text-align: center; margin: 10px 0; }
-    .btn-search { width: 100%; }
+@keyframes fadeInUp { 
+  from { opacity: 0; transform: translateY(20px); } 
+  to { opacity: 1; transform: translateY(0); } 
+}
+@keyframes bounceIn {
+  0% { opacity: 0; transform: scale(0.3); }
+  50% { opacity: 1; transform: scale(1.05); }
+  70% { transform: scale(0.9); }
+  100% { transform: scale(1); }
 }
 </style>

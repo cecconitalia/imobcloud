@@ -5,11 +5,11 @@
       <div class="header-main">
         <div class="title-area">
            <nav class="breadcrumb">
-              <span>Gestão</span> 
-              <i class="fas fa-chevron-right separator"></i> 
-              <router-link :to="{ name: 'contratos' }">Contratos</router-link>
-              <i class="fas fa-chevron-right separator"></i>
-              <span class="active">{{ isEditing ? 'Editar' : 'Novo' }}</span>
+             <span>Gestão</span> 
+             <i class="fas fa-chevron-right separator"></i> 
+             <router-link :to="{ name: 'contratos' }">Contratos</router-link>
+             <i class="fas fa-chevron-right separator"></i>
+             <span class="active">{{ isEditing ? 'Editar' : 'Novo' }}</span>
            </nav>
            
            <h1>{{ isEditing ? 'Editar Contrato' : 'Novo Contrato' }}</h1>
@@ -57,7 +57,7 @@
                         <v-select
                             v-model="contrato.proprietario"
                             :options="proprietarioOptions" 
-                            :reduce="(option) => option.value"
+                            :reduce="(option: any) => option.value"
                             label="label"
                             placeholder="Selecione..."
                             :clearable="false"
@@ -77,7 +77,7 @@
                         <v-select
                             v-model="contrato.inquilino"
                             :options="todosClientesOptions"
-                            :reduce="(option) => option.value"
+                            :reduce="(option: any) => option.value"
                             label="label"
                             placeholder="Selecione..."
                             :clearable="false"
@@ -91,7 +91,7 @@
                         <v-select
                             v-model="contrato.imovel"
                             :options="imovelOptions"
-                            :reduce="(option) => option.value"
+                            :reduce="(option: any) => option.value"
                             label="label"
                             placeholder="Selecione o Imóvel"
                             :clearable="false"
@@ -220,7 +220,7 @@
                         <label>Data Término</label>
                         <div class="input-wrapper">
                             <i class="far fa-calendar-times input-icon"></i>
-                            <input type="date" v-model="contrato.data_fim" class="form-input has-icon">
+                            <input type="date" v-model="contrato.data_fim" @change="handleDataFimChange" class="form-input has-icon">
                         </div>
                     </div>
                     
@@ -229,7 +229,7 @@
                         <v-select
                             v-model="contrato.fiadores"
                             :options="todosClientesOptions"
-                            :reduce="(option) => option.value"
+                            :reduce="(option: any) => option.value"
                             label="label"
                             placeholder="Selecione..."
                             multiple
@@ -292,7 +292,7 @@
                 <v-select
                     v-model="contrato.modelo_utilizado"
                     :options="modeloContratoOptions"
-                    :reduce="(option) => option.value"
+                    :reduce="(option: any) => option.value"
                     label="label"
                     placeholder="Padrão do sistema"
                     :clearable="true"
@@ -314,6 +314,7 @@ import { ref, onMounted, computed, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import apiClient from '@/services/api';
 import vSelect from 'vue-select';
+import 'vue-select/dist/vue-select.css';
 import MoneyInput from '@/components/MoneyInput.vue'; 
 import { format } from 'date-fns';
 
@@ -399,6 +400,43 @@ const tipoContratoLabel = computed(() => {
     ? { principal: 'Comprador', outraParte: 'Comprador' } 
     : { principal: 'Inquilino', outraParte: 'Inquilino' };
 });
+
+// --- SMART SYNC DATAS (RESTAURADO) ---
+
+const addMonths = (dateStr: string, months: number): string => {
+  if (!dateStr) return '';
+  const d = new Date(dateStr);
+  d.setMonth(d.getMonth() + months);
+  return d.toISOString().split('T')[0];
+};
+
+const diffMonths = (startStr: string, endStr: string): number => {
+  if (!startStr || !endStr) return 0;
+  const start = new Date(startStr);
+  const end = new Date(endStr);
+  let months = (end.getFullYear() - start.getFullYear()) * 12;
+  months -= start.getMonth();
+  months += end.getMonth();
+  return months <= 0 ? 0 : months;
+};
+
+// 1. Mudou Início ou Duração -> Recalcula Fim
+watch(
+  [() => contrato.value.data_inicio, () => contrato.value.duracao_meses],
+  ([newInicio, newDuracao]) => {
+    if (newInicio && newDuracao && contrato.value.tipo_contrato === 'ALUGUEL') {
+       contrato.value.data_fim = addMonths(newInicio, Number(newDuracao));
+    }
+  }
+);
+
+// 2. Mudou Fim (evento manual) -> Recalcula Duração
+const handleDataFimChange = () => {
+  if (contrato.value.data_inicio && contrato.value.data_fim) {
+    const meses = diffMonths(contrato.value.data_inicio, contrato.value.data_fim);
+    contrato.value.duracao_meses = meses;
+  }
+};
 
 // --- LÓGICA DE NEGÓCIO ---
 
