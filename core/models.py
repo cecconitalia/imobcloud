@@ -1,5 +1,4 @@
-# core/models.py
-
+import uuid
 from django.db import models
 from django.conf import settings
 from django.contrib.auth.models import AbstractUser
@@ -7,7 +6,7 @@ from app_config_ia.models import OpcaoVozDaMarca
 from django.utils import timezone
 from datetime import timedelta
 
-# --- NOVO MODELO: CONFIGURAÇÃO GLOBAL (Substitui parte do .env) ---
+# --- NOVO MODELO: CONFIGURAÇÃO GLOBAL ---
 class ConfiguracaoGlobal(models.Model):
     """
     Armazena configurações do sistema que antes ficavam no .env.
@@ -62,9 +61,58 @@ class Plano(models.Model):
         return f"{self.nome} - R$ {self.valor}"
 
 class Imobiliaria(models.Model):
-    nome = models.CharField(max_length=255, unique=True)
-    subdominio = models.CharField(max_length=255, unique=True)
-    email_contato = models.EmailField(max_length=254, blank=True, null=True, verbose_name="Email para Notificações")
+    # Enums para Escolhas
+    TIPO_PESSOA_CHOICES = [
+        ('PJ', 'Pessoa Jurídica'),
+        ('PF', 'Pessoa Física'),
+    ]
+    
+    STATUS_CHOICES = [
+        ('ATIVA', 'Ativa'),
+        ('SUSPENSA', 'Suspensa'),
+        ('INATIVA', 'Inativa'),
+    ]
+
+    TIPO_CRECI_CHOICES = [
+        ('JURIDICO', 'Jurídico'),
+        ('FISICO', 'Físico'),
+    ]
+
+    UF_CHOICES = [
+        ('AC', 'Acre'), ('AL', 'Alagoas'), ('AP', 'Amapá'), ('AM', 'Amazonas'), ('BA', 'Bahia'),
+        ('CE', 'Ceará'), ('DF', 'Distrito Federal'), ('ES', 'Espírito Santo'), ('GO', 'Goiás'),
+        ('MA', 'Maranhão'), ('MT', 'Mato Grosso'), ('MS', 'Mato Grosso do Sul'), ('MG', 'Minas Gerais'),
+        ('PA', 'Pará'), ('PB', 'Paraíba'), ('PR', 'Paraná'), ('PE', 'Pernambuco'), ('PI', 'Piauí'),
+        ('RJ', 'Rio de Janeiro'), ('RN', 'Rio Grande do Norte'), ('RS', 'Rio Grande do Sul'),
+        ('RO', 'Rondônia'), ('RR', 'Roraima'), ('SC', 'Santa Catarina'), ('SP', 'São Paulo'),
+        ('SE', 'Sergipe'), ('TO', 'Tocantins')
+    ]
+
+    # --- 1. IDENTIFICAÇÃO DA IMOBILIÁRIA ---
+    
+    # UUID: Agora definido como unique=True e obrigatório (sem null=True)
+    uuid = models.UUIDField(default=uuid.uuid4, editable=False, unique=True, verbose_name="ID Interno (UUID)")
+    
+    # Campos legados
+    nome = models.CharField(max_length=255, unique=True, verbose_name="Nome (Sistema)")
+    subdominio = models.CharField(max_length=255, unique=True, verbose_name="Subdomínio")
+    
+    # Novos campos de identificação
+    nome_fantasia = models.CharField("Nome Fantasia", max_length=255, blank=True, null=True)
+    razao_social = models.CharField("Razão Social", max_length=255, blank=True, null=True)
+    tipo_pessoa = models.CharField("Tipo de Pessoa", max_length=2, choices=TIPO_PESSOA_CHOICES, default='PJ')
+    
+    # Unificando CNPJ/CPF em um campo principal
+    cnpj_cpf = models.CharField("CNPJ / CPF", max_length=20, blank=True, null=True, unique=True)
+    cnpj = models.CharField(max_length=18, blank=True, null=True, verbose_name="CNPJ (Legado)") # Mantido para compatibilidade
+    
+    inscricao_estadual = models.CharField("Inscrição Estadual", max_length=50, blank=True, null=True)
+    inscricao_municipal = models.CharField("Inscrição Municipal", max_length=50, blank=True, null=True)
+    data_fundacao = models.DateField("Data de Fundação", blank=True, null=True)
+    natureza_juridica = models.CharField("Natureza Jurídica", max_length=100, blank=True, null=True)
+    cnae_principal = models.CharField("CNAE Principal", max_length=20, blank=True, null=True)
+    cnae_secundarios = models.TextField("CNAEs Secundários", blank=True, null=True)
+    status = models.CharField("Status da Empresa", max_length=20, choices=STATUS_CHOICES, default='ATIVA')
     
     # Identidade Visual
     foto_perfil = models.ImageField(
@@ -73,17 +121,69 @@ class Imobiliaria(models.Model):
         blank=True, 
         verbose_name="Logo da Imobiliária"
     )
-    
-    cnpj = models.CharField(max_length=18, blank=True, null=True, verbose_name="CNPJ")
-    creci = models.CharField(max_length=20, blank=True, null=True, verbose_name="CRECI")
 
-    telefone = models.CharField(max_length=20, blank=True, null=True, verbose_name="Telefone de Contato")
-    facebook_user_access_token = models.CharField(max_length=512, blank=True, null=True, verbose_name="Token de Acesso do Usuário FB")
+    # --- 2. DADOS DE CONTATO ---
+    email_contato = models.EmailField(max_length=254, blank=True, null=True, verbose_name="Email Principal (Notificações)")
+    email_financeiro = models.EmailField("E-mail Financeiro", blank=True, null=True)
+    email_suporte = models.EmailField("E-mail Suporte", blank=True, null=True)
     
+    telefone_fixo = models.CharField("Telefone Fixo", max_length=20, blank=True, null=True)
+    # Campo 'telefone' legado mapeado para Celular/Principal
+    telefone = models.CharField(max_length=20, blank=True, null=True, verbose_name="Telefone (Legado/Celular)")
+    telefone_celular = models.CharField("Telefone Celular", max_length=20, blank=True, null=True)
+    whatsapp = models.CharField("WhatsApp", max_length=20, blank=True, null=True)
+    
+    website = models.URLField("Website", blank=True, null=True)
+    instagram = models.URLField("Instagram", blank=True, null=True)
+    facebook = models.URLField("Facebook", blank=True, null=True)
+    linkedin = models.URLField("LinkedIn", blank=True, null=True)
+    outros_links = models.TextField("Outros Links Sociais", blank=True, null=True)
+
+    # Redes Sociais (Integração Legada)
+    facebook_user_access_token = models.CharField(max_length=512, blank=True, null=True, verbose_name="Token de Acesso do Usuário FB")
     facebook_page_id = models.CharField(max_length=255, blank=True, null=True, verbose_name="ID da Página do Facebook")
     facebook_page_access_token = models.CharField(max_length=512, blank=True, null=True, verbose_name="Token de Acesso da Página do Facebook")
     instagram_business_account_id = models.CharField(max_length=255, blank=True, null=True, verbose_name="ID da Conta Business do Instagram")
 
+    # --- 3. ENDEREÇO COMERCIAL ---
+    cep = models.CharField("CEP", max_length=10, blank=True, null=True)
+    logradouro = models.CharField("Logradouro", max_length=255, blank=True, null=True)
+    numero = models.CharField("Número", max_length=20, blank=True, null=True)
+    complemento = models.CharField("Complemento", max_length=100, blank=True, null=True)
+    bairro = models.CharField("Bairro", max_length=100, blank=True, null=True)
+    cidade = models.CharField("Cidade", max_length=100, blank=True, null=True)
+    estado = models.CharField("Estado", max_length=2, choices=UF_CHOICES, blank=True, null=True)
+    pais = models.CharField("País", max_length=50, default='Brasil', blank=True, null=True)
+    regiao_administrativa = models.CharField("Região Administrativa", max_length=100, blank=True, null=True)
+    latitude = models.DecimalField(max_digits=9, decimal_places=6, blank=True, null=True)
+    longitude = models.DecimalField(max_digits=9, decimal_places=6, blank=True, null=True)
+
+    # --- 4. RESPONSÁVEL LEGAL ---
+    responsavel_nome = models.CharField("Nome do Responsável", max_length=255, blank=True, null=True)
+    responsavel_cpf = models.CharField("CPF do Responsável", max_length=14, blank=True, null=True)
+    responsavel_rg = models.CharField("RG do Responsável", max_length=20, blank=True, null=True)
+    responsavel_orgao_emissor = models.CharField("Órgão Emissor", max_length=20, blank=True, null=True)
+    responsavel_data_nascimento = models.DateField("Data de Nascimento", blank=True, null=True)
+    responsavel_cargo = models.CharField("Cargo", max_length=100, blank=True, null=True)
+    responsavel_email = models.EmailField("E-mail do Responsável", blank=True, null=True)
+    responsavel_telefone = models.CharField("Telefone do Responsável", max_length=20, blank=True, null=True)
+    responsavel_whatsapp = models.CharField("WhatsApp do Responsável", max_length=20, blank=True, null=True)
+    responsavel_assinatura = models.ImageField("Assinatura Digital", upload_to='imobiliarias/assinaturas/', blank=True, null=True)
+    responsavel_documento = models.FileField("Documento de Identificação", upload_to='imobiliarias/documentos/', blank=True, null=True)
+
+    # --- 5. CRECI E REGULAMENTAÇÃO ---
+    creci_numero = models.CharField("Número do CRECI", max_length=20, blank=True, null=True)
+    # Mantém campo 'creci' legado para compatibilidade
+    creci = models.CharField(max_length=20, blank=True, null=True, verbose_name="CRECI (Legado)")
+    
+    creci_uf = models.CharField("UF do CRECI", max_length=2, choices=UF_CHOICES, blank=True, null=True)
+    creci_tipo = models.CharField("Tipo de CRECI", max_length=20, choices=TIPO_CRECI_CHOICES, default='JURIDICO')
+    creci_situacao = models.CharField("Situação do CRECI", max_length=50, default='Ativo', blank=True, null=True)
+    creci_validade = models.DateField("Validade do CRECI", blank=True, null=True)
+    creci_documento = models.FileField("Documento CRECI (Upload)", upload_to='imobiliarias/creci/', blank=True, null=True)
+    outros_registros = models.TextField("Outros Registros Profissionais", blank=True, null=True)
+
+    # --- CONFIGURAÇÕES DE SISTEMA ---
     google_gemini_api_key = models.CharField(
         max_length=255, 
         blank=True, 
@@ -108,6 +208,7 @@ class Imobiliaria(models.Model):
     )
     
     data_cadastro = models.DateTimeField(auto_now_add=True, verbose_name="Data de Cadastro")
+    updated_at = models.DateTimeField(auto_now=True, verbose_name="Última Atualização")
 
     # --- CAMPOS FINANCEIROS (SAAS) ---
     plano_contratado = models.ForeignKey(Plano, on_delete=models.SET_NULL, null=True, blank=True, verbose_name="Plano Atual")
@@ -165,10 +266,39 @@ class Imobiliaria(models.Model):
                 self.save(update_fields=['status_financeiro'])
 
     class Meta:
+        verbose_name = "Imobiliária"
         verbose_name_plural = "Imobiliárias"
+        ordering = ['nome_fantasia', 'nome']
 
     def __str__(self):
-        return f"{self.nome} ({self.get_status_financeiro_display()})"
+        # Prioriza Nome Fantasia, depois Razão Social, depois Nome antigo
+        nome_display = self.nome_fantasia or self.razao_social or self.nome
+        return f"{nome_display} ({self.get_status_financeiro_display()})"
+
+    @property
+    def endereco_completo(self):
+        """
+        Retorna o endereço formatado numa string única.
+        Útil para documentos e exibição no frontend.
+        """
+        partes = []
+        if self.logradouro:
+            partes.append(self.logradouro)
+        if self.numero:
+            partes.append(f"nº {self.numero}")
+        if self.complemento:
+            partes.append(self.complemento)
+        if self.bairro:
+            partes.append(f"- {self.bairro}")
+        if self.cidade and self.estado:
+            partes.append(f"{self.cidade}/{self.estado}")
+        elif self.cidade:
+            partes.append(self.cidade)
+        
+        if self.cep:
+            partes.append(f"CEP: {self.cep}")
+            
+        return ", ".join(partes)
 
 class PerfilUsuario(AbstractUser): 
     imobiliaria = models.ForeignKey(

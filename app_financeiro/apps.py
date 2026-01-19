@@ -1,11 +1,9 @@
-# app_financeiro/apps.py
-
 from django.apps import AppConfig
 
 class AppFinanceiroConfig(AppConfig):
     default_auto_field = 'django.db.models.BigAutoField'
     name = 'app_financeiro'
+    verbose_name = 'Gestão Financeira'
 
     def ready(self):
-        # Esta linha é essencial para "ligar" os gatilhos automáticos
-        import app_financeiro.signals
+        import app_financeiro.signals  # Importação crucial para ativar os signals

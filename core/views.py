@@ -1,17 +1,18 @@
-# C:\wamp64\www\ImobCloud\core\views.py
-
 from rest_framework_simplejwt.views import TokenObtainPairView
-from rest_framework import viewsets
+from rest_framework import viewsets, status, permissions
 from rest_framework.views import APIView
 from rest_framework.response import Response
+from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated, AllowAny, IsAdminUser
-from rest_framework import status, permissions 
+from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
+from rest_framework_simplejwt.tokens import RefreshToken
+
 from django.utils import timezone
 from datetime import timedelta
 from django.shortcuts import get_object_or_404
 from django.contrib.auth import get_user_model
 from django.db.models import Sum, Q
-from django.db import transaction  # <--- IMPORTANTE: Para garantir gravação atômica
+from django.db import transaction  # Importante para atomicidade
 
 # --- Imports para CSRF Fix ---
 from django.views.decorators.csrf import csrf_exempt
@@ -27,8 +28,6 @@ import traceback
 import os
 # ------------------------------------------
 
-from rest_framework_simplejwt.tokens import RefreshToken
-
 from app_imoveis.models import Imovel
 from app_clientes.models import Cliente
 from app_contratos.models import Contrato, Pagamento
@@ -41,9 +40,10 @@ from .serializers import (
     NotificacaoSerializer,
     ImobiliariaIntegracaoSerializer,
     ConfiguracaoGlobalSerializer,
-    PublicRegisterSerializer
+    PublicRegisterSerializer,
+    ImobiliariaSerializer, # Novo serializer completo
+    PerfilUsuarioSerializer
 )
-from rest_framework.decorators import action
 from .permissions import IsAdminOrSuperUser, IsCorretorOrReadOnly
 
 User = get_user_model()
@@ -69,6 +69,63 @@ class LogoutView(APIView):
             return Response(status=status.HTTP_205_RESET_CONTENT)
         except Exception as e:
             return Response(status=status.HTTP_400_BAD_REQUEST)
+
+# ==============================================================================
+# VIEWSETS DE IMOBILIÁRIA E CONFIGURAÇÃO (NOVOS)
+# ==============================================================================
+
+class ImobiliariaViewSet(viewsets.ModelViewSet):
+    queryset = Imobiliaria.objects.all()
+    serializer_class = ImobiliariaSerializer
+    permission_classes = [IsAuthenticated]
+    parser_classes = (MultiPartParser, FormParser, JSONParser) # Necessário para upload de logo
+
+    @action(detail=False, methods=['get', 'patch', 'put'])
+    def me(self, request):
+        """
+        Retorna ou atualiza a imobiliária do usuário logado.
+        Endpoint: /api/v1/core/imobiliarias/me/
+        """
+        # Verifica se o usuário tem imobiliária vinculada
+        if not hasattr(request.user, 'imobiliaria') or not request.user.imobiliaria:
+            return Response(
+                {"detail": "Usuário não possui imobiliária vinculada."}, 
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+        imobiliaria = request.user.imobiliaria
+
+        if request.method == 'GET':
+            serializer = self.get_serializer(imobiliaria)
+            return Response(serializer.data)
+
+        elif request.method in ['PATCH', 'PUT']:
+            # Permite atualização parcial (PATCH) ou total (PUT)
+            partial = request.method == 'PATCH'
+            serializer = self.get_serializer(imobiliaria, data=request.data, partial=partial)
+            serializer.is_valid(raise_exception=True)
+            serializer.save()
+            return Response(serializer.data)
+
+class ConfiguracaoGlobalViewSet(viewsets.ReadOnlyModelViewSet):
+    """
+    Retorna as configurações públicas do sistema (Logo, Título, etc).
+    """
+    queryset = ConfiguracaoGlobal.objects.all()
+    serializer_class = ConfiguracaoGlobalSerializer
+    permission_classes = [] # Pode ser público se necessário (AllowAny implícito se vazio e não setado default)
+
+    def list(self, request, *args, **kwargs):
+        # Garante retornar sempre o primeiro registro (Singleton)
+        config = ConfiguracaoGlobal.objects.first()
+        if not config:
+            return Response({})
+        serializer = self.get_serializer(config)
+        return Response(serializer.data)
+
+# ==============================================================================
+# FIM DOS NOVOS VIEWSETS
+# ==============================================================================
 
 class CorretorRegistrationViewSet(viewsets.ModelViewSet):
     serializer_class = CorretorRegistrationSerializer
@@ -137,6 +194,7 @@ class DashboardStatsView(APIView):
                 imobiliaria = user.perfil.imobiliaria
 
             if not imobiliaria:
+                # Tenta pegar pelo subdomínio padrão se não achar no user
                 imobiliaria = Imobiliaria.objects.filter(subdominio='imobhome').first()
                 if not imobiliaria:
                     imobiliaria = Imobiliaria.objects.first()
@@ -368,6 +426,7 @@ Seu subdomínio: {subdomain}.imobhome.com.br
             return Response({"error": f"Erro interno ao gravar dados: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 class ConfiguracaoGlobalView(APIView):
+    # View legada (mantida para evitar quebra, mas o ViewSet é preferível)
     permission_classes = [IsAdminUser]
 
     def get(self, request):

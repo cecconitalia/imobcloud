@@ -1,5 +1,3 @@
-# C:\wamp64\www\ImobCloud\core\urls.py
-
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
 from .views import (
@@ -9,38 +7,44 @@ from .views import (
     PublicRegisterView,
     MarcarNotificacaoLidaView,
     MinhasNotificacoesView,
-    ConfiguracaoGlobalView
+    ConfiguracaoGlobalView,
+    # Novos ViewSets
+    ImobiliariaViewSet,
+    ConfiguracaoGlobalViewSet
 )
 
 # Configuração do Router
 router = DefaultRouter()
-# Registra 'usuarios'. A URL final será /api/v1/core/usuarios/
-# O router gera automaticamente endpoints como:
-# - GET /usuarios/me/ (Perfil do usuário logado)
-# - GET /usuarios/minhas-notificacoes/ (Notificações do usuário)
+
+# Registra 'usuarios'. URL: /api/v1/core/usuarios/
 router.register(r'usuarios', CorretorRegistrationViewSet, basename='usuario')
+
+# Registra 'imobiliarias'. URL: /api/v1/core/imobiliarias/
+# Isso habilita o endpoint: /api/v1/core/imobiliarias/me/
+router.register(r'imobiliarias', ImobiliariaViewSet, basename='imobiliaria')
+
+# Registra configuração global (somente leitura via viewset, ou use a view manual abaixo)
+router.register(r'config-publica', ConfiguracaoGlobalViewSet, basename='config-publica')
 
 urlpatterns = [
     # --- Rotas Específicas (Manuais) ---
 
-    # Notificações (Endpoints manuais caso não use via ViewSet)
+    # Notificações
     path('usuarios/marcar-notificacao-lida/<int:pk>/', MarcarNotificacaoLidaView.as_view(), name='marcar-notificacao-lida'),
     path('minhas-notificacoes/', MinhasNotificacoesView.as_view(), name='minhas-notificacoes-manual'),
     
-    # Estatísticas do Dashboard (Rota auxiliar para chamadas diretas ao core)
+    # Estatísticas do Dashboard
     path('stats/', DashboardStatsView.as_view(), name='dashboard_stats_core'),
     
     # Integrações por Tenant (Facebook/Instagram)
     path('integracoes/redes-sociais/', IntegracaoRedesSociaisView.as_view(), name='integracoes-redes-sociais'),
     
-    # Configuração Global (Substituição de variáveis de ambiente via painel)
+    # Configuração Global (Edição via painel admin/superuser)
     path('configuracao-global/', ConfiguracaoGlobalView.as_view(), name='configuracao-global'),
 
-    # Cadastro Público (Rota de Registro via Core)
-    # Nota: A rota principal usada pelo frontend está mapeada no urls.py raiz,
-    # mas mantemos esta aqui como fallback acessível via /api/v1/core/public-register/
+    # Cadastro Público (SaaS)
     path('public-register/', PublicRegisterView.as_view(), name='public-register'),
     
-    # --- Router (Deve ficar por último para não engolir rotas manuais) ---
+    # --- Router (Fica por último) ---
     path('', include(router.urls)),
 ]

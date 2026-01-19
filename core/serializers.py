@@ -1,5 +1,3 @@
-# C:\wamp64\www\ImobCloud\core\serializers.py
-
 from rest_framework import serializers
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 from django.contrib.auth import get_user_model
@@ -38,17 +36,21 @@ class MyTokenObtainPairSerializer(TokenObtainPairSerializer):
         # Dados da Imobiliária (Acessando diretamente no User)
         if hasattr(self.user, 'imobiliaria') and self.user.imobiliaria:
             data['subdomain'] = self.user.imobiliaria.subdominio
-            data['imobiliaria_name'] = self.user.imobiliaria.nome
+            # Usa nome fantasia ou razão social ou nome sistema
+            data['imobiliaria_name'] = str(self.user.imobiliaria)
             data['imobiliaria_id'] = self.user.imobiliaria.id
             
             # --- CORREÇÃO DO ERRO 500 ---
-            # Verifica se o campo 'foto' ou 'logo' existe antes de acessar
+            # Verifica se o campo 'foto_perfil' existe (novo nome) ou 'logo' (antigo)
             data['imobiliaria_foto'] = None
             
-            # Tenta 'foto'
-            if hasattr(self.user.imobiliaria, 'foto') and self.user.imobiliaria.foto:
+            # Tenta 'foto_perfil' (Novo padrão)
+            if hasattr(self.user.imobiliaria, 'foto_perfil') and self.user.imobiliaria.foto_perfil:
+                 data['imobiliaria_foto'] = self.user.imobiliaria.foto_perfil.url
+            # Tenta 'foto' (Antigo)
+            elif hasattr(self.user.imobiliaria, 'foto') and self.user.imobiliaria.foto:
                  data['imobiliaria_foto'] = self.user.imobiliaria.foto.url
-            # Tenta 'logo' como fallback (caso o nome do campo seja diferente)
+            # Tenta 'logo' (Fallback)
             elif hasattr(self.user.imobiliaria, 'logo') and self.user.imobiliaria.logo:
                  data['imobiliaria_foto'] = self.user.imobiliaria.logo.url
 
@@ -86,28 +88,26 @@ class PublicRegisterSerializer(serializers.ModelSerializer):
         )
         return user
 
-# --- SERIALIZERS PARA AVISO FINANCEIRO ---
+# --- SERIALIZERS PARA AVISO FINANCEIRO E CADASTRO COMPLETO ---
 
 class ImobiliariaSerializer(serializers.ModelSerializer):
     """
-    Serializer completo da imobiliária, incluindo campos financeiros
-    para o frontend verificar bloqueios e avisos.
+    Serializer completo da imobiliária, incluindo TODOS os campos novos
+    (Identificação, Contato, Endereço, Responsável, CRECI, Financeiro).
     """
+    endereco_completo = serializers.ReadOnlyField()
+
     class Meta:
         model = Imobiliaria
-        fields = [
-            'id', 'nome', 'subdominio', 'email_contato', 'cnpj', 'creci', 
-            'telefone', 'cor_primaria', 'voz_da_marca_preferida',
-            # Campos Financeiros Importantes para o Frontend:
-            'status_financeiro', 'data_vencimento_atual', 'plano_contratado'
-        ]
+        fields = '__all__' # Expõe todos os campos novos criados no models.py
+        # Isso garante que o frontend receba uuid, cnpj_cpf, logradouro, responsavel_nome, etc.
 
 class PerfilUsuarioSerializer(serializers.ModelSerializer):
     """
     Serializer principal do usuário logado (/me).
     Aninha os dados da imobiliária para facilitar o acesso no frontend.
     """
-    # Aninha os dados da imobiliária
+    # Aninha os dados da imobiliária completos
     imobiliaria_detalhes = ImobiliariaSerializer(source='imobiliaria', read_only=True)
     
     # Campo calculado para exibir o nome completo ou username
@@ -198,7 +198,7 @@ class CorretorDisplaySerializer(serializers.ModelSerializer):
     cargo = serializers.SerializerMethodField()
     imobiliaria_nome = serializers.CharField(source='imobiliaria.nome', read_only=True)
     
-    # Campo de detalhes financeiros da imobiliária
+    # Campo de detalhes financeiros e cadastrais da imobiliária
     imobiliaria_detalhes = ImobiliariaSerializer(source='imobiliaria', read_only=True)
 
     class Meta:
@@ -226,9 +226,17 @@ class ImobiliariaIntegracaoSerializer(serializers.ModelSerializer):
         ]
         
 class ImobiliariaPublicSerializer(serializers.ModelSerializer):
+    """
+    Usado para exibir dados públicos da imobiliária (site, footer, cabeçalho).
+    """
     class Meta:
         model = Imobiliaria
-        fields = ['nome', 'cor_primaria']
+        fields = [
+            'nome', 'nome_fantasia', 'cor_primaria', 'foto_perfil', 
+            'telefone', 'telefone_celular', 'whatsapp', 'email_contato',
+            'logradouro', 'numero', 'bairro', 'cidade', 'estado', 'creci',
+            'facebook', 'instagram', 'linkedin', 'website', 'endereco_completo'
+        ]
 
 class ConfiguracaoGlobalSerializer(serializers.ModelSerializer):
     class Meta:

@@ -15004,3 +15004,709 @@ Not Found: /favicon.ico
 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
 Bad Request: /api/v1/public/register/
 Forbidden: /api/v1/core/usuarios/minhas-notificacoes/
+Not Found: /favicon.ico
+Unauthorized: /api/v1/token/
+Need a valid file name!
+'<img src="/media/assinaturas_visitas/assinatura_Wj81vpd.png" class="signature-img" alt="Assinatura Cliente"/>'
+Need a valid file name!
+'<img src="/media/assinaturas_visitas/assinatura.png" class="signature-img" alt="Assinatura Corretor"/>'
+Not Found: /favicon.ico
+Need a valid file name!
+'<img src="/media/assinaturas_visitas/assinatura_Wj81vpd.png" class="signature-img" alt="Assinatura Cliente"/>'
+Need a valid file name!
+'<img src="/media/assinaturas_visitas/assinatura.png" class="signature-img" alt="Assinatura Corretor"/>'
+Not Found: /favicon.ico
+Need a valid file name!
+'<img src="/media/assinaturas_visitas/assinatura_Wj81vpd.png" class="signature-img" alt="Assinatura Cliente"/>'
+Need a valid file name!
+'<img src="/media/assinaturas_visitas/assinatura.png" class="signature-img" alt="Assinatura Corretor"/>'
+Not Found: /favicon.ico
+Need a valid file name!
+'<img src="/media/assinaturas_visitas/assinatura_5F8925R.png" class="signature-img" alt="Assinatura Cliente"/>'
+Need a valid file name!
+'<img src="/media/assinaturas_visitas/assinatura_6WIS6Cg.png" class="signature-img" alt="Assinatura Corretor"/>'
+Need a valid file name!
+'<img src="/media/assinaturas_visitas/assinatura_5F8925R.png" class="signature-img" alt="Assinatura Cliente"/>'
+Need a valid file name!
+'<img src="/media/assinaturas_visitas/assinatura_6WIS6Cg.png" class="signature-img" alt="Assinatura Corretor"/>'
+Method Not Allowed: /api/v1/core/usuarios/marcar-notificacoes-lidas/
+Internal Server Error: /api/v1/visitas/2/pdf/
+Traceback (most recent call last):
+  File "/usr/local/lib/python3.12/site-packages/django/core/handlers/exception.py", line 55, in inner
+    response = get_response(request)
+               ^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/django/core/handlers/base.py", line 197, in _get_response
+    response = wrapped_callback(request, *callback_args, **callback_kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/contextlib.py", line 81, in inner
+    return func(*args, **kwds)
+           ^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/django/views/decorators/csrf.py", line 65, in _view_wrapper
+    return view_func(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/django/views/generic/base.py", line 104, in view
+    return self.dispatch(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/rest_framework/views.py", line 509, in dispatch
+    response = self.handle_exception(exc)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/rest_framework/views.py", line 469, in handle_exception
+    self.raise_uncaught_exception(exc)
+  File "/usr/local/lib/python3.12/site-packages/rest_framework/views.py", line 480, in raise_uncaught_exception
+    raise exc
+  File "/usr/local/lib/python3.12/site-packages/rest_framework/views.py", line 506, in dispatch
+    response = handler(request, *args, **kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/app/app_clientes/views.py", line 855, in get
+    pdf = pisa.pisaDocument(BytesIO(html_string.encode("UTF-8")), result, encoding='UTF-8')
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/xhtml2pdf/document.py", line 116, in pisaDocument
+    context = pisaStory(src, path, link_callback, debug, default_css, xhtml,
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/xhtml2pdf/document.py", line 68, in pisaStory
+    pisaParser(src, context, default_css, xhtml, encoding, xml_output)
+  File "/usr/local/lib/python3.12/site-packages/xhtml2pdf/parser.py", line 794, in pisaParser
+    context.parseCSS()
+  File "/usr/local/lib/python3.12/site-packages/xhtml2pdf/context.py", line 539, in parseCSS
+    self.css = self.cssParser.parse(self.cssText)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/xhtml2pdf/w3c/cssParser.py", line 443, in parse
+    src, stylesheet = self._parseStylesheet(src)
+                      ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/xhtml2pdf/w3c/cssParser.py", line 545, in _parseStylesheet
+    src, atResults = self._parseAtKeyword(src)
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/xhtml2pdf/w3c/cssParser.py", line 665, in _parseAtKeyword
+    src, result = self._parseAtPage(src)
+                  ^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/xhtml2pdf/w3c/cssParser.py", line 778, in _parseAtPage
+    stylesheetElements.extend(atResults)
+TypeError: 'NotImplementedType' object is not iterable
+Not Found: /favicon.ico
+Not Found: /favicon.ico
+Internal Server Error: /api/v1/visitas/3/pdf/
+Traceback (most recent call last):
+  File "/usr/local/lib/python3.12/site-packages/django/template/base.py", line 875, in _resolve_lookup
+    current = current[bit]
+              ~~~~~~~^^^^^
+TypeError: 'Visita' object is not subscriptable
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/usr/local/lib/python3.12/site-packages/django/template/base.py", line 885, in _resolve_lookup
+    current = getattr(current, bit)
+              ^^^^^^^^^^^^^^^^^^^^^
+AttributeError: 'Visita' object has no attribute 'imovel'. Did you mean: 'imoveis'?
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/usr/local/lib/python3.12/site-packages/django/template/base.py", line 891, in _resolve_lookup
+    current = current[int(bit)]
+                      ^^^^^^^^
+ValueError: invalid literal for int() with base 10: 'imovel'
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/usr/local/lib/python3.12/site-packages/django/core/handlers/exception.py", line 55, in inner
+    response = get_response(request)
+               ^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/django/core/handlers/base.py", line 197, in _get_response
+    response = wrapped_callback(request, *callback_args, **callback_kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/contextlib.py", line 81, in inner
+    return func(*args, **kwds)
+           ^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/django/views/decorators/csrf.py", line 65, in _view_wrapper
+    return view_func(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/django/views/generic/base.py", line 104, in view
+    return self.dispatch(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/rest_framework/views.py", line 509, in dispatch
+    response = self.handle_exception(exc)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/rest_framework/views.py", line 469, in handle_exception
+    self.raise_uncaught_exception(exc)
+  File "/usr/local/lib/python3.12/site-packages/rest_framework/views.py", line 480, in raise_uncaught_exception
+    raise exc
+  File "/usr/local/lib/python3.12/site-packages/rest_framework/views.py", line 506, in dispatch
+    response = handler(request, *args, **kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/app/app_clientes/views.py", line 853, in get
+    html_string = render_to_string('relatorio_visita_template.html', context)
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/django/template/loader.py", line 62, in render_to_string
+    return template.render(context, request)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/django/template/backends/django.py", line 61, in render
+    return self.template.render(context)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/django/template/base.py", line 171, in render
+    return self._render(context)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/django/template/base.py", line 163, in _render
+    return self.nodelist.render(context)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/django/template/base.py", line 1000, in render
+    return SafeString("".join([node.render_annotated(context) for node in self]))
+                               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/django/template/base.py", line 961, in render_annotated
+    return self.render(context)
+           ^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/django/template/base.py", line 1059, in render
+    output = self.filter_expression.resolve(context)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/django/template/base.py", line 731, in resolve
+    arg_vals.append(arg.resolve(context))
+                    ^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/django/template/base.py", line 842, in resolve
+    value = self._resolve_lookup(context)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/django/template/base.py", line 898, in _resolve_lookup
+    raise VariableDoesNotExist(
+django.template.base.VariableDoesNotExist: Failed lookup for key [imovel] in <Visita: Visita de Maira de Oliveira Gomes (Imobiliária Teste) em 2026-01-19 16:13:00+00:00>
+Not Found: /favicon.ico
+Internal Server Error: /api/v1/visitas/3/pdf/
+Traceback (most recent call last):
+  File "/usr/local/lib/python3.12/site-packages/django/template/base.py", line 875, in _resolve_lookup
+    current = current[bit]
+              ~~~~~~~^^^^^
+TypeError: 'Visita' object is not subscriptable
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/usr/local/lib/python3.12/site-packages/django/template/base.py", line 885, in _resolve_lookup
+    current = getattr(current, bit)
+              ^^^^^^^^^^^^^^^^^^^^^
+AttributeError: 'Visita' object has no attribute 'imovel'. Did you mean: 'imoveis'?
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/usr/local/lib/python3.12/site-packages/django/template/base.py", line 891, in _resolve_lookup
+    current = current[int(bit)]
+                      ^^^^^^^^
+ValueError: invalid literal for int() with base 10: 'imovel'
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/usr/local/lib/python3.12/site-packages/django/core/handlers/exception.py", line 55, in inner
+    response = get_response(request)
+               ^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/django/core/handlers/base.py", line 197, in _get_response
+    response = wrapped_callback(request, *callback_args, **callback_kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/contextlib.py", line 81, in inner
+    return func(*args, **kwds)
+           ^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/django/views/decorators/csrf.py", line 65, in _view_wrapper
+    return view_func(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/django/views/generic/base.py", line 104, in view
+    return self.dispatch(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/rest_framework/views.py", line 509, in dispatch
+    response = self.handle_exception(exc)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/rest_framework/views.py", line 469, in handle_exception
+    self.raise_uncaught_exception(exc)
+  File "/usr/local/lib/python3.12/site-packages/rest_framework/views.py", line 480, in raise_uncaught_exception
+    raise exc
+  File "/usr/local/lib/python3.12/site-packages/rest_framework/views.py", line 506, in dispatch
+    response = handler(request, *args, **kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/app/app_clientes/views.py", line 853, in get
+    html_string = render_to_string('relatorio_visita_template.html', context)
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/django/template/loader.py", line 62, in render_to_string
+    return template.render(context, request)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/django/template/backends/django.py", line 61, in render
+    return self.template.render(context)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/django/template/base.py", line 171, in render
+    return self._render(context)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/django/template/base.py", line 163, in _render
+    return self.nodelist.render(context)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/django/template/base.py", line 1000, in render
+    return SafeString("".join([node.render_annotated(context) for node in self]))
+                               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/django/template/base.py", line 961, in render_annotated
+    return self.render(context)
+           ^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/django/template/base.py", line 1059, in render
+    output = self.filter_expression.resolve(context)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/django/template/base.py", line 731, in resolve
+    arg_vals.append(arg.resolve(context))
+                    ^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/django/template/base.py", line 842, in resolve
+    value = self._resolve_lookup(context)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/django/template/base.py", line 898, in _resolve_lookup
+    raise VariableDoesNotExist(
+django.template.base.VariableDoesNotExist: Failed lookup for key [imovel] in <Visita: Visita de Maira de Oliveira Gomes (Imobiliária Teste) em 2026-01-19 16:13:00+00:00>
+Not Found: /favicon.ico
+Internal Server Error: /api/v1/visitas/3/pdf/
+Traceback (most recent call last):
+  File "/usr/local/lib/python3.12/site-packages/django/template/base.py", line 875, in _resolve_lookup
+    current = current[bit]
+              ~~~~~~~^^^^^
+TypeError: 'Imovel' object is not subscriptable
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/usr/local/lib/python3.12/site-packages/django/template/base.py", line 885, in _resolve_lookup
+    current = getattr(current, bit)
+              ^^^^^^^^^^^^^^^^^^^^^
+AttributeError: 'Imovel' object has no attribute 'tipo_imovel'. Did you mean: 'TipoImovel'?
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/usr/local/lib/python3.12/site-packages/django/template/base.py", line 891, in _resolve_lookup
+    current = current[int(bit)]
+                      ^^^^^^^^
+ValueError: invalid literal for int() with base 10: 'tipo_imovel'
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/usr/local/lib/python3.12/site-packages/django/core/handlers/exception.py", line 55, in inner
+    response = get_response(request)
+               ^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/django/core/handlers/base.py", line 197, in _get_response
+    response = wrapped_callback(request, *callback_args, **callback_kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/contextlib.py", line 81, in inner
+    return func(*args, **kwds)
+           ^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/django/views/decorators/csrf.py", line 65, in _view_wrapper
+    return view_func(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/django/views/generic/base.py", line 104, in view
+    return self.dispatch(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/rest_framework/views.py", line 509, in dispatch
+    response = self.handle_exception(exc)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/rest_framework/views.py", line 469, in handle_exception
+    self.raise_uncaught_exception(exc)
+  File "/usr/local/lib/python3.12/site-packages/rest_framework/views.py", line 480, in raise_uncaught_exception
+    raise exc
+  File "/usr/local/lib/python3.12/site-packages/rest_framework/views.py", line 506, in dispatch
+    response = handler(request, *args, **kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/app/app_clientes/views.py", line 853, in get
+    html_string = render_to_string('relatorio_visita_template.html', context)
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/django/template/loader.py", line 62, in render_to_string
+    return template.render(context, request)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/django/template/backends/django.py", line 61, in render
+    return self.template.render(context)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/django/template/base.py", line 171, in render
+    return self._render(context)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/django/template/base.py", line 163, in _render
+    return self.nodelist.render(context)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/django/template/base.py", line 1000, in render
+    return SafeString("".join([node.render_annotated(context) for node in self]))
+                               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/django/template/base.py", line 961, in render_annotated
+    return self.render(context)
+           ^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/django/template/defaulttags.py", line 241, in render
+    nodelist.append(node.render_annotated(context))
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/django/template/base.py", line 961, in render_annotated
+    return self.render(context)
+           ^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/django/template/base.py", line 1059, in render
+    output = self.filter_expression.resolve(context)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/django/template/base.py", line 731, in resolve
+    arg_vals.append(arg.resolve(context))
+                    ^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/django/template/base.py", line 842, in resolve
+    value = self._resolve_lookup(context)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/django/template/base.py", line 898, in _resolve_lookup
+    raise VariableDoesNotExist(
+django.template.base.VariableDoesNotExist: Failed lookup for key [tipo_imovel] in <Imovel: #1000 - Casa 0010 0>
+Not Found: /favicon.ico
+Internal Server Error: /api/v1/visitas/3/pdf/
+Traceback (most recent call last):
+  File "/usr/local/lib/python3.12/site-packages/django/template/base.py", line 875, in _resolve_lookup
+    current = current[bit]
+              ~~~~~~~^^^^^
+TypeError: 'Imovel' object is not subscriptable
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/usr/local/lib/python3.12/site-packages/django/template/base.py", line 885, in _resolve_lookup
+    current = getattr(current, bit)
+              ^^^^^^^^^^^^^^^^^^^^^
+AttributeError: 'Imovel' object has no attribute 'tipo_imovel'. Did you mean: 'TipoImovel'?
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/usr/local/lib/python3.12/site-packages/django/template/base.py", line 891, in _resolve_lookup
+    current = current[int(bit)]
+                      ^^^^^^^^
+ValueError: invalid literal for int() with base 10: 'tipo_imovel'
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/usr/local/lib/python3.12/site-packages/django/core/handlers/exception.py", line 55, in inner
+    response = get_response(request)
+               ^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/django/core/handlers/base.py", line 197, in _get_response
+    response = wrapped_callback(request, *callback_args, **callback_kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/contextlib.py", line 81, in inner
+    return func(*args, **kwds)
+           ^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/django/views/decorators/csrf.py", line 65, in _view_wrapper
+    return view_func(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/django/views/generic/base.py", line 104, in view
+    return self.dispatch(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/rest_framework/views.py", line 509, in dispatch
+    response = self.handle_exception(exc)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/rest_framework/views.py", line 469, in handle_exception
+    self.raise_uncaught_exception(exc)
+  File "/usr/local/lib/python3.12/site-packages/rest_framework/views.py", line 480, in raise_uncaught_exception
+    raise exc
+  File "/usr/local/lib/python3.12/site-packages/rest_framework/views.py", line 506, in dispatch
+    response = handler(request, *args, **kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/app/app_clientes/views.py", line 853, in get
+    html_string = render_to_string('relatorio_visita_template.html', context)
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/django/template/loader.py", line 62, in render_to_string
+    return template.render(context, request)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/django/template/backends/django.py", line 61, in render
+    return self.template.render(context)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/django/template/base.py", line 171, in render
+    return self._render(context)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/django/template/base.py", line 163, in _render
+    return self.nodelist.render(context)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/django/template/base.py", line 1000, in render
+    return SafeString("".join([node.render_annotated(context) for node in self]))
+                               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/django/template/base.py", line 961, in render_annotated
+    return self.render(context)
+           ^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/django/template/defaulttags.py", line 241, in render
+    nodelist.append(node.render_annotated(context))
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/django/template/base.py", line 961, in render_annotated
+    return self.render(context)
+           ^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/django/template/base.py", line 1059, in render
+    output = self.filter_expression.resolve(context)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/django/template/base.py", line 731, in resolve
+    arg_vals.append(arg.resolve(context))
+                    ^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/django/template/base.py", line 842, in resolve
+    value = self._resolve_lookup(context)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/django/template/base.py", line 898, in _resolve_lookup
+    raise VariableDoesNotExist(
+django.template.base.VariableDoesNotExist: Failed lookup for key [tipo_imovel] in <Imovel: #1000 - Casa 0010 0>
+Not Found: /favicon.ico
+Not Found: /favicon.ico
+Not Found: /favicon.ico
+Not Found: /favicon.ico
+Not Found: /favicon.ico
+Not Found: /favicon.ico
+Internal Server Error: /api/v1/visitas/2/pdf/
+Traceback (most recent call last):
+  File "/usr/local/lib/python3.12/site-packages/django/template/base.py", line 875, in _resolve_lookup
+    current = current[bit]
+              ~~~~~~~^^^^^
+  File "/usr/local/lib/python3.12/site-packages/django/template/context.py", line 83, in __getitem__
+    raise KeyError(key)
+KeyError: 'tenant'
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/usr/local/lib/python3.12/site-packages/django/template/base.py", line 881, in _resolve_lookup
+    if isinstance(current, BaseContext) and getattr(
+                                            ^^^^^^^^
+AttributeError: type object 'Context' has no attribute 'tenant'
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/usr/local/lib/python3.12/site-packages/django/template/base.py", line 891, in _resolve_lookup
+    current = current[int(bit)]
+                      ^^^^^^^^
+ValueError: invalid literal for int() with base 10: 'tenant'
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/usr/local/lib/python3.12/site-packages/django/core/handlers/exception.py", line 55, in inner
+    response = get_response(request)
+               ^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/django/core/handlers/base.py", line 197, in _get_response
+    response = wrapped_callback(request, *callback_args, **callback_kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/contextlib.py", line 81, in inner
+    return func(*args, **kwds)
+           ^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/django/views/decorators/csrf.py", line 65, in _view_wrapper
+    return view_func(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/django/views/generic/base.py", line 104, in view
+    return self.dispatch(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/rest_framework/views.py", line 509, in dispatch
+    response = self.handle_exception(exc)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/rest_framework/views.py", line 469, in handle_exception
+    self.raise_uncaught_exception(exc)
+  File "/usr/local/lib/python3.12/site-packages/rest_framework/views.py", line 480, in raise_uncaught_exception
+    raise exc
+  File "/usr/local/lib/python3.12/site-packages/rest_framework/views.py", line 506, in dispatch
+    response = handler(request, *args, **kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/app/app_clientes/views.py", line 853, in get
+    html_string = render_to_string('relatorio_visita_template.html', context)
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/django/template/loader.py", line 62, in render_to_string
+    return template.render(context, request)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/django/template/backends/django.py", line 61, in render
+    return self.template.render(context)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/django/template/base.py", line 171, in render
+    return self._render(context)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/django/template/base.py", line 163, in _render
+    return self.nodelist.render(context)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/django/template/base.py", line 1000, in render
+    return SafeString("".join([node.render_annotated(context) for node in self]))
+                               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/django/template/base.py", line 961, in render_annotated
+    return self.render(context)
+           ^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/django/template/defaulttags.py", line 546, in render
+    values = {key: val.resolve(context) for key, val in self.extra_context.items()}
+                   ^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/django/template/base.py", line 731, in resolve
+    arg_vals.append(arg.resolve(context))
+                    ^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/django/template/base.py", line 842, in resolve
+    value = self._resolve_lookup(context)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/django/template/base.py", line 898, in _resolve_lookup
+    raise VariableDoesNotExist(
+django.template.base.VariableDoesNotExist: Failed lookup for key [tenant] in [{'True': True, 'False': False, 'None': None}, {'visita': <Visita: Visita de Cristiano (Imobiliária Teste) em 2026-01-17 00:34:00+00:00>, 'cliente': <Cliente: Cristiano (Imobiliária Teste)>, 'imobiliaria': <Imobiliaria: Imobiliária Teste (Período de Teste)>, 'imoveis': <QuerySet [<Imovel: #1000 - Casa 0010 0>]>, 'data_impressao': datetime.datetime(2026, 1, 19, 12, 57, 31, 409456, tzinfo=datetime.timezone.utc), 'corretor': <PerfilUsuario: Perfil de teste (Administrador / Corretor)>, 'logo_b64': None, 'assinatura_corretor_b64': 'data:image/png;base64,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', 'assinatura_cliente_b64': 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAcoAAADaCAYAAAAmPQLzAAAQAElEQVR4AezdCXRkVZnA8e97SbrpRhiXUcDuVJpFSFUroq1CV6WxcUBFR/EMgqjggogb48JhcRuWkVFAOOocdA7gjo4C46COwhEVGjoVaKVVtiSNLJ1Ksys4A/SS5d35bi1JJSTppFJVqVfvX+fdevdt9937u5X66r1XeRUIDwQQQAABBBCYVoBAOS0NCxBAAAEEEBAhUEbpVUBdEUAAAQTqLkCgrDs5O0QAAQQQiJIAgTJKvUVdoyRAXRFAoEkECJRN0pE0AwEEEECgNgIEytq4UioCCERJgLoiMIMAgXIGHBYhgAACCCBAoOQ1gAACCCAQJYG615VAWXdydogAAgggECUBAmWUeou6IoAAAgjUXYBAOQ9yNkUAAQQQaH4BAmXz9zEtRAABBBCYhwCBch54bBolAeqKAAIIVCZAoKzMja0QQAABBGIiQKCMSUfTTASiJEBdEWgkAQJlI/UGdUEAAQQQaDgBAmXDdQkVQgABBKIk0Px1JVA2fx/TQgQQQACBeQgQKOeBx6YIIIAAAs0v0EyBsvl7ixYigAACCNRdgEBZd3J2iAACCCAQJQECZZR6q5nqSlsQQACBiAgQKCPSUVQTAQQQQGBhBAiUC+POXhGIkgB1RSDWAgTKWHc/jUcAAQQQ2JkAgXJnQixHAAEEoiRAXasuQKCsOikFIoAAAgg0kwCBspl6k7YggAACCFRdoIaBsup1pUAEEEAAAQTqLkCgrDs5O0QAAQQQiJIAgTJKvVXDulI0AggggMDUAgTKqV2YiwACCCCAQF6AQJln4AmBKAlQVwQQqKcAgbKe2uwLAQQQQCByAgTKyHUZFUYAgSgJUNfoCxAoo9+HtAABBBBAoIYCBMoa4lI0AggggECUBKauK4FyahfmIoAAAgggkBcgUOYZeEIAAQQQQGBqAQLl1C4LPZf9I4AAAgg0iACBskE6gmoggAACCDSmAIGyMfuFWkVJgLoigEBTCxAom7p7aRwCCCCAwHwFCJTzFWR7BBCIkgB1RWDOAgTKOZOxAQIIIIBAnAQIlHHqbdqKAAIIREmgQepKoGyQjqAaCCCAAAKNKUCgbMx+oVYIIIAAAg0iQKCcVUewEgIIIIBAXAUIlHHtedqNAAIIIDArAQLlrJhYKUoC1BUBBBCopgCBspqalIUAAggg0HQCBMqm61IahECUBKgrAo0vQKBs/D6ihggggAACCyhAoFxAfHaNAAIIREkgrnUlUMa152k3AggggMCsBAiUs2JiJQQQQACBuApEM1DGtbdoNwIIIIBA3QUIlHUnZ4cIIIAAAlESIFBGqbeiWVdqjQACCERagEAZ6e6j8ggggAACtRYgUNZamPIRiJIAdUUAgWcJECifRcIMBBBAAAEExgUIlOMW5BBAAIEoCVDXOgkQKOsEzW4QQAABBKIpQKCMZr9RawQQQACBOglUJVDWqa7sBgEEEEAAgboLECjrTs4OEUAAAQSiJECgjFJvVaWuFIIAAgggMBcBAuVctFgXAQQQQCB2AgTK2HU5DY6SAHVFAIGFFyBQLnwfUAMEEEAAgQYWIFA2cOdQNQQQiJIAdW1WAQJls/Ys7UIAAQQQqIoAgbIqjBSCAAIIIBAlgbnUlUA5Fy3WRQABBBCInQCBMnZdToMRQAABBOYiQKCci1Yt1qVMBBBAAIGGFiBQNnT3UDkEEEAAgYUWIFAudA9EfP/tnZkbE8nMk34c8abMpvqs02AC+6QyiURn5gf2GnTFdMWyzq79l++/elmDVZXqRFiAQBnhzlvoqi87cO1yFVlj9XiuqjvUxgwI1Fzg+fsdvLsFx/cmOtNXjTjpE5V3l+30+BZ1m4KWYEsilbmvo3N1umwZWQQqEiBQVsTGRl6gZWjoJHuTavF5ER0QHgjUWKCjM330c1pbn7DX3XdF9Rjb3VJLUw9O9nESXDj1QuYiMHsBAuXsrVhzsoDq2aVZodMTS3nGCNRKwKmeICrFD2cy9nAi14ioBUX3WxGxSXv2gwqnYL0DaV4CBMp58cV340Sqy3+aLwHcu6W/e11pgjECNRSYHPjuFNH3Du7Rdmyur/vMXF/P4RKMvFTGHyvGs+QaWKChq0agbOjuaeDKheF4oFR3QwPXlKo1icA++6z6O2tKeRDcHmx75lALkN+XdetGbFl+yN29odcyX7WUHxKd6XPyGZ4QqFCAQFkhXJw3W5FMHyeF60N5Bieaymd4QqCGAqOLd/m4Fb+LpfygTtZt3vynv+UnJj8597+lWRrohlKeMQKVCBAoJ6kxuXMBJ8FnJqzl5PEJ00wgUAMBJ+6EsmKHXKDfLpuekHUqLyzNcCO6qZRnjEAlAgTKStRivc0xLfaG9ZJyAhXhdVQOQr7qAnsn0x0iOv66c3L7jtal18q0D31LcdHm3D3d9xfzjBCoSIA3uIrY4rvR3skHl1vrl1gaG+wU2PfHJuqaYWdxEbALkBYox1urIuc/esf1z4zPGc91pDJH2vJ2P8c+1N3qxyQE5iNAoJyPXgy3DUVXTm72iOhdk+cxjUBVBULdWl5eKG738unyvNOg/H96eW2W45CvSIBAWRFbfDeyT+jl3zr0EMN77rrtAZ8hITCTwHyWLRXx1xlHS2UEos8p5SePW3Tor+PzJgbY8fnkEJi9QDD7VVkTAf+f3JqY6OA2b9y4cXjiPKYQqK7Apk3Zp6zEsQ9kTmR/m97pEOizb04gPBCYowCBco5gcV/drv3sVm5g0w+VT5NHoHYCOjRWtrrMWH5SRsPWxaVZFlB9gC1NMp61ACuWCxAoyzXI71TATr2OlK/EG1G5BvlaCSRWrknZ+QxLhT2o6o8KuWc/D7sJ1y+ffPYazEFgbgIEyrl5xX7twOkj5QhOlNOu5SDkayMwOnpsecEDvdmLyqfL84GMXx5QCf9cvow8ApUIBJVsVMdt2FWDCYTq7iyvUuBkwr+KlC8jXx2B9mT684lk5ikbH1edEqNXilN9banWTmTm+wo72UeKj62ymEBZtGBUuQCBsnK7WG4ZuuAP5Q0PVcZuKVY+n3x1BPY9MP0iFT3LSvPf8jzCxrEcVN09pYaryFqZ4eFUXl5cfN/jveueLuYZIVCxAIGyYrp4bvhgf7f/hD729Xt70xr/yaN4ktS01cND+q+2gzZLEkw67e3nxSWp01Lw803eyXVHPdCvZEeet/sxCYH5ChAo5ysYv+2dqJSf+rJYKTxqIGCnW48w6w+VinYisf0GZyju+SUHGz9veWfXDEeVrtPW8cPd/omEwHwFCJTzFYzl9u6msWar7DWWJ1M1geUHrPFHRVfkC1Qp/EJGIP5npqRKj0gVoxpM+PJOIOFHp2rAss7XvMDm5+/aY0fg/ZZnQGDeAgTKeRPGrwCnOn6LMCfln/Tjh1GDFic6u04OgtD/NNQedrj+uDjXnd+Nk3eKHBPLU9253u7LzOIreQf/pHrMVL8z2RK0/YNf7JNzZa9TP4OEQIUCBMoK4eK82eIdu//K2l+4nZiT3V+8atVSm2aogkAimT5D1F1qRfkvST0t4t5vp1x/aNN+6OhIPvxWn4ljGnX68wntVj3bguVViVTX+I+Ih7JvaZ0R1+Jve1eajPaY2i+oAIFyQfmjufN7771uh715r8/XXqWlbfviQ4THvAXaV2YsCOoFhYK0TzR420Bfzy8XD//dNTYvf30ydC5t+VgOW/q719nR9dUTGm9HljbPgmXmhvx1y0AOEns4J7c/dM+6v1iWAYF5CxAo500YzwLUyY1jLR/VsdNdY/PIzEnggAMyu2ko/kjSDiLlhqFhfW2ud/1vfSH+g4mNBy2J/cFOvim9nx2blOvvOdYC48Rg6Vvv5LBA3Y3ixD5siDnphH9j8quQEKhUwP7u5rIp6yJQENBAfl/IiYQqsT3KKRnMd7xd9WtWxp6WttqHkPMeuXf945YvH3b1E04lP/b5uKZ8sFQ9VmTiXaKk8PCnrMWpe12iM/OD9mTm9x2prosTqa5z2u2I/YWptf7/UQtr8ozALAUIlLOEYrWJAttbd73Z5uTv+6oiq/fb78ixG1HbfIY5CCRWrknZG/vx+U1UrhrYlB0/Ws/PzD/5b3NaRmP5ZR5r+IQh19t9tR11+28G/9oWPGFp8tAhKu+21+arnHOn2lHo2RrKz5a44acSyYzzqSOZ2ZRIZX6eSKa/2pHKnLYimTlE1q5tnVwQ0wgQKJv4NVDLpj16x/XPWPl/suSHxcOtf1vlM6QKBFx4iW3VZmnTNmn7ZxtPGFKp1CKbUTwScpOPNG1RPAd/1J3ry75+aDjodKIfM4WpAqbNnnpwIvuLk7eI6Cecky+HIrckHh3OcdQpPCYJECgngTA5FwGXLa3ttGVNKc949gLLV3a90d6sD7MtttqRz/lT3XLtaXneS2w5wzQCPmAOtS39ni0uffv6TguC60TcH22eH2zSj2aV9loSjhwwqzVZKTYCBMrYdHX1G2qntfxpr0LB6t5QyPA8F4EgdOcV1pfHBvuXFW4wUJxRGrnQLSvlbfywJYZJAouHnn6XzcpfnxSnnx3syx6W6+t5pR1xqqWgJZRO0eBwJ+7ztt5XVdxNPlm+21LhX51ERlXcj3L93XwRyFAYxgUIlOMW5OYoMLx0h7+WtiO/mZM1++13cP6OKPlpnnYq0L7S/zuI+FPWO5wLPyxydekNe8K2GsjYEY46mdPpxQkFNe9EoKqn5JuncqMFul/k82VPD2zKbvLfIh7s6/m3XF/2UwN9PWt9svwaS62WfEBttXk+4M7lCLRsL2SbVYBA2aw9W4d2PbRx41Zxcpntyr+xtO5Y1HK05RlmKxDKp/KrqvQM9t9yfT4/xZPhdozNDvS+sTyZvEDHyvRaM/Jf7AnV6Q35mTV+ovh4CRAo49XfVW+tSvhjK/RRS6KiH/Bj0s4FVqTSB6mIv7H3DnH6RbELapamHFSCl0rpEbrCfV9L04zFhfqZIsNA0DJ8eTHPCIGqCRAoq0YZz4IG+m/pEdH7xT+cZIo38/ZTpGkEEi/rel7otHR998+5vu7fTLNqYbZzmUJGRMOwV3iMCbSvTL/aJg63NCKi5zxw14b8hzbhgcCYwPwzBMr5G8a+BKfOfwnF3qhEWgJn19piTzITgMpI6O8s8/e2khMNPmnjaYc991vzQltYuslA+ILdhnI2zVAUCEL5bDG7ZdTJrcU8IwSqKhBUtTQKi6XAYG/2Mjvvut433ok7cUVq7Z4+T3q2QCKZ/oqIFm75p3KB/4KJzPBobR3xllpcJXh8aAk3dihiJFKZlfZJ4202GYq4Kx/s777H8gwIVF2AQFl10mkLbOYF/ksUPyk2cLFzwycU84zKBBLJrjNF9BPiH04uzfVmP+ezMyVt1a3ly5cMufyRe/m82OadnFFs+xMathbuk1ucwQiBagoQKKupGeOyhpdu+441/15L4kROXb589RKfJxUEOlJdJ9pRj//Sjs3Qnhfuut3fgceOhGxyhiEYWFp1kwAADxVJREFUbp2wzjan/lTsDFvEY9HeybT/JnDxA5luGNh08wPxaDmtXAgBAuVCqDfhPv2/iqio/4Q/bM3bs2W34N02ju5QxZq3p9JHOef+w4r0f2+bRlqC4zZu3OidbNbMw9aWYMIt68K2UX9tc+aNYrB0tHDLOvVNDZz80I9JCNRKwP/h1qpsyo2ZwEBf98+syXdZ8keVpTvO+MnYpo5k18fU6U8NYJGI/q5V5fUP3XVz/iezZBaP4i3txn5XUUPdZxabNfUqxS84+Xu7+nZeubm/+0c+Q0KgVgIEylrJxrPcUEX8jwz71u+RSHUd4zNxTO0vTe+bSGZuc+L8Dc/FTkdfE2xrfe39vdlKvrU6dks1C7rpOHqWt3lR26i/trvUUB8LXeCP1MsXk0eg6gIEyqqTxrvA0SD8uoj+UvzDuQuXr1y9n8/GKAXtnelTdVRvtzb729PZyF0w2Jd9++bN67bbxNwHpz8Z20jlXXH+SbPE/l12RF24XZ0L5Ddb+tf7n3sb4yGDQC0ECJS1UI1xmVvuvuUJO6z8QpFgReD09GK+6UfFo8j7VPVia6z/38e7NJTX5fp6Pm3TE76UY9OzHrYFrf9pK+e/KGXjFwy1PXWsjeM5tOT/B9X/JucTKsG3Rey40p4YIiQQwaoSKCPYaY1e5S293RvEuXPz9XR6cqIzfU4+36RPKw5a+1y7FvkNHVUfzFaIyDN2CvqskaXbDx7YlPU3jrdZlQ/565SB87dpGyqUEhbuEVuYiM2zncq206z6SmtwKE5/sLP/QbX1GBCoigCBsiqMFDJZYFuw6CK7LrcuP1/17GYMlivyATJzerhj6K9O3Eek8LiqpWVk34G+7Bf8N4ELs+b/rKPuIStlkSUb9BWJZJe/bZvl4zEkUplzraWluz7dHoajF9o0AwJ1EYhxoKyLb2x34o+CApXxNzMLlh3JtD+FGHmT5clDX9KeTH8r3DH8sH0YsDaq/zv6i1M5NNeXfUct7jc6kL+nrvgj1ryfBWb/hZZ8vtmf/DVfcXJWsZ1/C9zoP22555YHi9OMEKi5gP8Dr/lO2EE8BQZ6s9eNnYI1Aif6zvZk1zeWd3b5X82wOdEa/D+5J5KZHwcyeo+Knmi1L/xQsMiXt2nb3oO92fxt/Gx+TQZ14XtLBavI2mY8Si+1rzROdGbOKl7z9bMeUXPf3H/rZj9BQqBeAgTKeknHdD+5/p5zxOmHSs1XO0XZou6tpenZjhdyvcTK9NstQN48KurfoN9RrMtWp+5iGdV97SjyDH8EXZxfs1H+qLJ07dfvxY7SE6m0v8OPn2q65IOkqPhTrqIij9vr6OSBvu7Svx81XXtpUOMKECgbt2+apma5/u7LRHXsm5pO5FMWeG5LJFdfWPzn8UZra9CR6joxkcr8l9Vzi4Tqf+1jTbGSO0Tc19ranB1B9pyWu6e78BNjxYW1HgUSftf2cbelwuD0362e30msXJMqzIj+86pVq9rM/QopBklr0fYwkJPsdfQ/lmdAoO4CBMq6k8dzh7ne7qvLT8OawiqR4PRFbeFj9qbo2pOZARv/1NJX2pPpzy1fufr5tk6tB7X9vCbR2XVyezJzie37ejuKedTGo865b4mTo60Cyyz5YcgfQbaE8vJcX88n77uj5zE/s97Jn3YMnZ5i+/Vf7rGRDU7eJ2F4dyLZdX5j/I+lVPx48apVSx/fusvlVsDxlvwwYh+s3jd4d/bnfoKEwEIIECgXQj2m+yychnX+VNr4m3zRQkUSlj3K0idV9LwgDP5qActZGrJkR5+ZX9v4QUv/Z+n69mTmmxbUPm35IzpSmSM7kuk3+yMRn0+kus6x+Rd2JLvOSyS7Nlh+fXsyc20imf6+jW+x5YOJZOYOS6HtZ4Oou1RF/C3RjrCjmBdZHUqDs+msip5iK+412Ntz2gObsptKCxdqvKW/e52d7l3mRNbJhIc7c2jRUz9bvnL1aybMjsjEss6u/Vu3LrnNqjt2LdY+XH10sC97pc1jQGDBBAiUC0Yfzx37YDk0HBzknPpfG7H3+p06tNkaqywdbunFlnazdISKfMCC2Jcsf71zcq0T/YUdiQz5vL25nm3zTy98M9T5oNFl6x8poifY+BBbvlxEXmZp8jBqM26zcr8rdqq4VWVFrjfbZdfFvu5vpGDLGmpwQXi0BuKvUY7/9JZzb/DB3z4EXJ7I38Wmoao8bWU6OtOrWwJ3nYhLFlf6o4Yt+9jrxR9dFmcxqoUAZe5cgEC5cyPWqLLAI/euf3ywv/tEC5h7iP+ij+q54sSfWnu6yruarrjQFjxqwfBXovIlLRwxHmxHaa2WXm3B8f05O1Vc4X1Zrej6DD54D9ydvaRF3H4W/P111PIdnyQtrt8C5h8SyfQZdh1zZfnCRsn7YJ5IZr7nVHvsNbBPvl72WhhpaTmKn87Ka/DUAAIEygbohLhWwQfMXH/3ZRaUzsn1Z4+yILVb4Eb3DpweZgHsw+IDqCV1epqfpyJvVpU3WTpdnXxRRH+p4m4SkTstOUt+2GGZW/18G3/Ll+ECOcpvH7pg7aLh3Xex/bRY2tP2+8Zcb/azxSPG3/mNo5ge6OsZyPX3HGfXVd9g9X/SUmnwR+OvENELLAjdZaedN1lQujyR7DqzvTP9vhUr1pb+vUXq+fCnyNuTa96WsFPhFsz9F5PeU9z/0ypyxqKR3Y+dyy+sFLdlhEDNBBonUNasiRQcJQH/ZZXN/hpcb/bSXG/3OT4N9Hdf7OcN9GWvHejNXmfpooH+7Odyfd3/ONDXszbXlz3QUmBJLe1i17RW+/k2Pslv778I4rff0r/+pnvvvW5HlDzmUNdwsL/n+h1tu7Y7FX8zgrGf5iqVYUFof8ufZKc3z1fV74RLhrclkpmtlh7o6MxcZ+PvtSfTH+lIdn3Mrv+elUilP96RzJzUnkoflUhlukSO8fdYtSJmNyzff/WyRCp9fMcB6dclOlef3JHqutj28ZA/Ra4SXiN2KlxEisFae0LVw62Pv9zEfWTNZYiiAIEyir1GnRGYRuDRO65/ZrA3+8VgW1u7qrzJjqq/bqv6I24bTTkssbkrLLi+0cbvUdFv2LXdS0TlXHH6Ndv+cvW/p+lkfSL50IgFuict3W+pJ5Hs6rXxw5YesIB6q439l6/8tB+7oCXYYmVc4QL9rWhwqR3xnmr72MtSaXjGyv9vFXnzc/SJw/L3CC4tYYxAAwkQKBuoMyJUFara4AKbN6/bbkfe19lR9Sl2lH3gaNtIu4r7FxG93Mb+dPUfRSS0NNfhubbB3pZWS+GLN3tafoUFvINt7Ac/7cdTJb+/jeLkUlv/uEXDu7/A6ne0HUVe29vbW7zh+1SbMQ+BhRUgUC6sP3tHoC4CD96xYYudjj4v19d9so396epX5vqybSrBKjui+6DYtWARudIH0VISlZ9YUDvf5n/T0m8s+TsT2Wjmwcrb4MuwQHqBWLnOBRfZEevpFqw7bJ+vyvVnP2wB8kpOsc7syNLGESBQNk5fUBMEaiMwfanhQN/6P9gR3Tf9tdxcX/Y4H0RLKdebfbsFtc/Y/A9aOsLS3pZUW0ZT/stRk5MFwna/3Mo7xJeR6+v5dM6uMw/2rz/dTgdf5IP19FVhCQKNK0CgbNy+oWYINKTAwF239m3u7143OREIG7K7qFQVBAiUVUCkCAQQQKBKAhTTgAIEygbsFKqEAAIIINA4AgTKxukLaoIAAggg0IAC0wbKBqwrVUIAAQQQQKDuAgTKupOzQwQQQACBKAkQKKPUW9PWlQUIIIAAArUSIFDWSpZyEUAAAQSaQoBA2RTdSCOiJEBdEUAgWgIEymj1F7VFAAEEEKizAIGyzuDsDgEEoiRAXREQIVDyKkAAAQQQQGAGAQLlDDgsQgABBBCIjkCtakqgrJUs5SKAAAIINIUAgbIpupFGIIAAAgjUSoBAWQtZykQAAQQQaBoBAmXTdCUNQQABBBCohQCBshaqlBklAeqKAAIIzChAoJyRh4UIIIAAAnEXIFDG/RVA+xGIkgB1RWABBAiUC4DOLhFAAAEEoiNAoIxOX1FTBBBAIEoCTVNXAmXTdCUNQQABBBCohQCBshaqlIkAAggg0DQCsQiUTdNbNAQBBBBAoO4CBMq6k7NDBBBAAIEoCRAoo9RbsagrjUQAAQQaS4BA2Vj9QW0QQAABBBpMgEDZYB1CdRCIkgB1RSAOAgTKOPQybUQAAQQQqFiAQFkxHRsigAACURKgrpUKECgrlWM7BBBAAIFYCBAoY9HNNBIBBBBAoFKBhQiUldaV7RBAAAEEEKi7AIGy7uTsEAEEEEAgSgIEyij11kLUlX0igAACMRcgUMb8BUDzEUAAAQRmFiBQzuzDUgSiJEBdEUCgBgIEyhqgUiQCCCCAQPMIECibpy9pCQIIREmAukZGgEAZma6ioggggAACCyFAoFwIdfaJAAIIIBAZgUAkMnWloggggAACCNRdgCPKupOzQwQQQACBKAkQKKPUWyJCdRFAAAEE6itAoKyvN3tDAAEEEIiYAIEyYh1GdaMkQF0RQKAZBAiUzdCLtAEBBBBAoGYCBMqa0VIwAghESYC6IjCdAIFyOhnmI4AAAgggYAIESkNgQAABBBCIkkB960qgrK83e0MAAQQQiJgAgTJiHUZ1EUAAAQTqK0CgnJ83WyOAAAIINLkAgbLJO5jmIYAAAgjMT4BAOT8/to6SAHVFAAEEKhAgUFaAxiYIIIAAAvERIFDGp69pKQJREqCuCDSMAIGyYbqCiiCAAAIINKIAgbIRe4U6IYAAAlESaPK6EiibvINpHgIIIIDA/AQIlPPzY2sEEEAAgSYXaLJA2eS9RfMQQAABBOouQKCsOzk7RAABBBCIkgCBMkq91WR1pTkIIIBAFAQIlFHoJeqIAAIIILBgAgTKBaNnxwhESYC6IhBfAQJlfPueliOAAAIIzEKAQDkLJFZBAAEEoiRAXasrQKCsrielIYAAAgg0mQCBssk6lOYggAACCFRXoLaBsrp1pTQEEEAAAQTqLkCgrDs5O0QAAQQQiJIAgTJKvVXbulI6AggggMAUAgTKKVCYhQACCCCAQEmAQFmSYIxAlASoKwII1E2AQFk3anaEAAIIIBBFAQJlFHuNOiOAQJQEqGvEBQiUEe9Aqo8AAgggUFuB/wcAAP//HeoFiwAAAAZJREFUAwDOQrsPxGDBFwAAAABJRU5ErkJggg=='}]
+Not Found: /favicon.ico
+Internal Server Error: /api/v1/visitas/2/pdf/
+Traceback (most recent call last):
+  File "/usr/local/lib/python3.12/site-packages/django/template/base.py", line 875, in _resolve_lookup
+    current = current[bit]
+              ~~~~~~~^^^^^
+TypeError: 'Imobiliaria' object is not subscriptable
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/usr/local/lib/python3.12/site-packages/django/template/base.py", line 885, in _resolve_lookup
+    current = getattr(current, bit)
+              ^^^^^^^^^^^^^^^^^^^^^
+AttributeError: 'Imobiliaria' object has no attribute 'celular'
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/usr/local/lib/python3.12/site-packages/django/template/base.py", line 891, in _resolve_lookup
+    current = current[int(bit)]
+                      ^^^^^^^^
+ValueError: invalid literal for int() with base 10: 'celular'
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/usr/local/lib/python3.12/site-packages/django/core/handlers/exception.py", line 55, in inner
+    response = get_response(request)
+               ^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/django/core/handlers/base.py", line 197, in _get_response
+    response = wrapped_callback(request, *callback_args, **callback_kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/contextlib.py", line 81, in inner
+    return func(*args, **kwds)
+           ^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/django/views/decorators/csrf.py", line 65, in _view_wrapper
+    return view_func(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/django/views/generic/base.py", line 104, in view
+    return self.dispatch(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/rest_framework/views.py", line 509, in dispatch
+    response = self.handle_exception(exc)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/rest_framework/views.py", line 469, in handle_exception
+    self.raise_uncaught_exception(exc)
+  File "/usr/local/lib/python3.12/site-packages/rest_framework/views.py", line 480, in raise_uncaught_exception
+    raise exc
+  File "/usr/local/lib/python3.12/site-packages/rest_framework/views.py", line 506, in dispatch
+    response = handler(request, *args, **kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/app/app_clientes/views.py", line 853, in get
+    html_string = render_to_string('relatorio_visita_template.html', context)
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/django/template/loader.py", line 62, in render_to_string
+    return template.render(context, request)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/django/template/backends/django.py", line 61, in render
+    return self.template.render(context)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/django/template/base.py", line 171, in render
+    return self._render(context)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/django/template/base.py", line 163, in _render
+    return self.nodelist.render(context)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/django/template/base.py", line 1000, in render
+    return SafeString("".join([node.render_annotated(context) for node in self]))
+                               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/django/template/base.py", line 961, in render_annotated
+    return self.render(context)
+           ^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/django/template/defaulttags.py", line 548, in render
+    return self.nodelist.render(context)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/django/template/base.py", line 1000, in render
+    return SafeString("".join([node.render_annotated(context) for node in self]))
+                               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/django/template/base.py", line 961, in render_annotated
+    return self.render(context)
+           ^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/django/template/base.py", line 1059, in render
+    output = self.filter_expression.resolve(context)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/django/template/base.py", line 731, in resolve
+    arg_vals.append(arg.resolve(context))
+                    ^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/django/template/base.py", line 842, in resolve
+    value = self._resolve_lookup(context)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/django/template/base.py", line 898, in _resolve_lookup
+    raise VariableDoesNotExist(
+django.template.base.VariableDoesNotExist: Failed lookup for key [celular] in <Imobiliaria: Imobiliária Teste (Período de Teste)>
+Not Found: /favicon.ico
+Not Found: /favicon.ico
+Could not reverse url from auth.user
+Could not reverse url from auth.user
+Could not reverse url from auth.user
+Could not reverse url from auth.user
+Could not reverse url from auth.user
+Could not reverse url from auth.user
+Could not reverse url from auth.user
+Could not reverse url from auth.user
+Could not reverse url from auth.user
+Could not reverse url from auth.user
+Could not reverse url from auth.user
+Could not reverse url from auth.user
+Could not reverse url from auth.user
+Could not reverse url from auth.user
+Could not reverse url from auth.user
+Could not reverse url from auth.user
+Could not reverse url from auth.user
+Could not reverse url from auth.user
+Could not reverse url from auth.user
+Not Found: /favicon.ico
+Not Found: /favicon.ico
+Unauthorized: /api/v1/core/usuarios/minhas-notificacoes/
+Could not reverse url from auth.user
+Could not reverse url from auth.user
+Could not reverse url from auth.user
+Could not reverse url from auth.user
+Could not reverse url from auth.user
+Could not reverse url from auth.user
+Could not reverse url from auth.user
+Could not reverse url from auth.user
+Could not reverse url from auth.user
+Could not reverse url from auth.user
+Could not reverse url from auth.user
+Could not reverse url from auth.user
+Could not reverse url from auth.user
+Could not reverse url from auth.user
+Could not reverse url from auth.user
+Could not reverse url from auth.user
+Could not reverse url from auth.user
+Could not reverse url from auth.user
+Could not reverse url from auth.user
+Could not reverse url from auth.user
+Could not reverse url from auth.user
+Could not reverse url from auth.user
+Could not reverse url from auth.user
+Forbidden: /api/v1/core/configuracao-global/
+Not Found: /api/api/v1/core/imobiliarias/me/
+Not Found: /api/api/v1/core/imobiliarias/me/
+Not Found: /api/api/v1/core/imobiliarias/me/
+Not Found: /favicon.ico
+Could not reverse url from auth.user
+Could not reverse url from auth.user
+Could not reverse url from auth.user
+Could not reverse url from auth.user
+Could not reverse url from auth.user
+Could not reverse url from auth.user
+Could not reverse url from auth.user
+Could not reverse url from auth.user
+Could not reverse url from auth.user
+Could not reverse url from auth.user
+Could not reverse url from auth.user
+Could not reverse url from auth.user
+Could not reverse url from auth.user
+Could not reverse url from auth.user
+Could not reverse url from auth.user
+Could not reverse url from auth.user
+Could not reverse url from auth.user
+Could not reverse url from auth.user
+Could not reverse url from auth.user
+Could not reverse url from auth.user
+Could not reverse url from auth.user
+Could not reverse url from auth.user
+Could not reverse url from auth.user
+Could not reverse url from auth.user
+Could not reverse url from auth.user
+Bad Request: /api/v1/core/imobiliarias/me/
+Not Found: /api/v1/core/imobiliarias/me/
+Not Found: /favicon.ico
+Bad Request: /api/v1/core/imobiliarias/me/
+Bad Request: /api/v1/core/imobiliarias/me/
+Not Found: /favicon.ico
+Could not reverse url from auth.user
+Could not reverse url from auth.user
+Could not reverse url from auth.user
+Could not reverse url from auth.user
+Could not reverse url from auth.user
+Bad Request: /api/v1/core/imobiliarias/me/
