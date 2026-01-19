@@ -2,7 +2,6 @@ import uuid
 from django.db import models
 from django.conf import settings
 from django.contrib.auth.models import AbstractUser
-from app_config_ia.models import OpcaoVozDaMarca
 from django.utils import timezone
 from datetime import timedelta
 
@@ -19,8 +18,8 @@ class ConfiguracaoGlobal(models.Model):
     # EMAIL (SMTP)
     email_host = models.CharField(max_length=255, default="smtp.gmail.com", verbose_name="Host SMTP")
     email_port = models.IntegerField(default=587, verbose_name="Porta SMTP")
-    email_host_user = models.CharField(max_length=255, verbose_name="Usuário SMTP (Email)")
-    email_host_password = models.CharField(max_length=255, verbose_name="Senha SMTP (App Password)")
+    email_host_user = models.CharField(max_length=255, blank=True, null=True, verbose_name="Usuário SMTP (Email)")
+    email_host_password = models.CharField(max_length=255, blank=True, null=True, verbose_name="Senha SMTP (App Password)")
     default_from_email = models.CharField(max_length=255, default="ImobHome <noreply@imobhome.com.br>", verbose_name="Remetente Padrão")
 
     # INTEGRAÇÕES GOOGLE
@@ -119,8 +118,10 @@ class Imobiliaria(models.Model):
         upload_to='imobiliarias_logos/', 
         null=True, 
         blank=True, 
-        verbose_name="Logo da Imobiliária"
+        verbose_name="Logo da Imobiliária (Principal)"
     )
+    # Campo legado mantido para compatibilidade
+    logo = models.ImageField(upload_to='logos/', blank=True, null=True, verbose_name="Logo (Legado)")
 
     # --- 2. DADOS DE CONTATO ---
     email_contato = models.EmailField(max_length=254, blank=True, null=True, verbose_name="Email Principal (Notificações)")
@@ -192,8 +193,9 @@ class Imobiliaria(models.Model):
         help_text="Chave de acesso para o serviço Gemini/Google AI."
     )
 
+    # Uso de string para evitar Circular Import com app_config_ia
     voz_da_marca_preferida = models.ForeignKey(
-        OpcaoVozDaMarca,
+        'app_config_ia.OpcaoVozDaMarca',
         on_delete=models.SET_NULL,
         null=True,
         blank=True,
@@ -314,6 +316,15 @@ class PerfilUsuario(AbstractUser):
 
     creci = models.CharField(max_length=20, blank=True, null=True, verbose_name="CRECI")
     telefone = models.CharField(max_length=20, blank=True, null=True, verbose_name="Telefone")
+    
+    # Campo obrigatório para resolver o erro no Serializer
+    foto_perfil = models.ImageField(
+        upload_to='usuarios_fotos/', 
+        blank=True, 
+        null=True, 
+        verbose_name="Foto de Perfil"
+    )
+
     endereco_logradouro = models.CharField(max_length=255, blank=True, null=True, verbose_name="Logradouro")
     endereco_numero = models.CharField(max_length=10, blank=True, null=True, verbose_name="Número")
     endereco_bairro = models.CharField(max_length=100, blank=True, null=True, verbose_name="Bairro")

@@ -1,618 +1,462 @@
 <script setup lang="ts">
-import { ref, onMounted, reactive } from 'vue';
+import { ref, onMounted, reactive, computed, watch } from 'vue';
 import api from '../services/api';
 import Swal from 'sweetalert2';
 
-// --- ESTADO E CONFIGURAÇÃO ---
+// --- INTERFACES & ESTADO ---
+interface Imobiliaria {
+  id: string;
+  nome_fantasia: string;
+  razao_social: string;
+  cnpj: string;
+  creci: string;
+  tipo_pessoa: string;
+  logo: string | null;
+  cor_primaria: string;
+  voz_da_marca_preferida: string;
+  email_contato: string;
+  telefone: string;
+  telefone_celular: string;
+  whatsapp: string;
+  website: string;
+  cep: string;
+  logradouro: string;
+  numero: string;
+  complemento: string;
+  bairro: string;
+  cidade: string;
+  estado: string;
+  responsavel_nome: string;
+  responsavel_cpf: string;
+  responsavel_email: string;
+  responsavel_telefone: string;
+  facebook: string;
+  instagram: string;
+  linkedin: string;
+  facebook_page_access_token: string;
+  facebook_user_access_token: string;
+  instagram_business_account_id: string;
+  google_gemini_api_key: string;
+}
+
+const imobiliaria = reactive<Imobiliaria>({
+  id: '',
+  nome_fantasia: '', razao_social: '', cnpj: '', creci: '', tipo_pessoa: 'PJ',
+  logo: null, cor_primaria: '#3b82f6', voz_da_marca_preferida: 'formal',
+  email_contato: '', telefone: '', telefone_celular: '', whatsapp: '', website: '',
+  cep: '', logradouro: '', numero: '', complemento: '', bairro: '', cidade: '', estado: '',
+  responsavel_nome: '', responsavel_cpf: '', responsavel_email: '', responsavel_telefone: '',
+  facebook: '', instagram: '', linkedin: '',
+  facebook_page_access_token: '', facebook_user_access_token: '',
+  instagram_business_account_id: '', google_gemini_api_key: ''
+});
+
+const activeTab = ref('geral');
 const loading = ref(false);
 const saving = ref(false);
-const activeTab = ref('empresa'); // Abas: empresa, contato, juridico, sistema
+const searchingCep = ref(false);
+const logoFile = ref<File | null>(null);
+const logoPreview = ref<string | null>(null);
+const fileInput = ref<HTMLInputElement | null>(null);
 
-// --- DADOS DO FORMULÁRIO (Espelho do Serializer Django) ---
-const form = reactive({
-  // Identificação
-  nome_fantasia: '',
-  razao_social: '',
-  tipo_pessoa: 'PJ',
-  cnpj_cpf: '',
-  inscricao_estadual: '',
-  inscricao_municipal: '',
-  data_fundacao: '',
-  natureza_juridica: '',
-  cnae_principal: '',
-  status: 'ATIVA',
+const tabs = [
+  { id: 'geral', label: 'Geral & Identidade', icon: 'i-mdi-domain' },
+  { id: 'contato', label: 'Endereço & Contato', icon: 'i-mdi-map-marker' },
+  { id: 'config', label: 'Integrações & IA', icon: 'i-mdi-cogs' },
+];
 
-  // Contato
-  email_contato: '',
-  email_financeiro: '',
-  email_suporte: '',
-  telefone_fixo: '',
-  telefone_celular: '',
-  whatsapp: '',
-  website: '',
-  instagram: '',
-  facebook: '',
-  linkedin: '',
+const voiceOptions = [
+  { value: 'formal', label: 'Formal', desc: 'Sério e jurídico.', icon: 'i-mdi-briefcase' },
+  { value: 'casual', label: 'Casual', desc: 'Leve e amigável.', icon: 'i-mdi-emoticon-happy' },
+  { value: 'entusiasta', label: 'Vibrante', desc: 'Alta energia.', icon: 'i-mdi-rocket' },
+  { value: 'luxuoso', label: 'Luxuoso', desc: 'Sofisticado.', icon: 'i-mdi-diamond' },
+];
 
-  // Endereço
-  cep: '',
-  logradouro: '',
-  numero: '',
-  complemento: '',
-  bairro: '',
-  cidade: '',
-  estado: '',
-  pais: 'Brasil',
-  latitude: '',
-  longitude: '',
+// --- MÁSCARAS ---
+const maskCnpj = (v: string) => v.replace(/\D/g, '').substring(0, 14).replace(/^(\d{2})(\d)/, '$1.$2').replace(/^(\d{2})\.(\d{3})(\d)/, '$1.$2.$3').replace(/\.(\d{3})(\d)/, '.$1/$2').replace(/(\d{4})(\d)/, '$1-$2');
+const maskCpf = (v: string) => v.replace(/\D/g, '').substring(0, 11).replace(/(\d{3})(\d)/, '$1.$2').replace(/(\d{3})(\d)/, '$1.$2').replace(/(\d{3})(\d{1,2})$/, '$1-$2');
+const maskPhone = (v: string) => { let r = v.replace(/\D/g, "").substring(0, 11); return r.length > 10 ? r.replace(/^(\d{2})(\d{5})(\d{4})/, '($1) $2-$3') : r.replace(/^(\d{2})(\d{4})(\d{0,4})/, '($1) $2-$3'); };
+const maskCep = (v: string) => v.replace(/\D/g, '').substring(0, 8).replace(/^(\d{5})(\d)/, '$1-$2');
 
-  // Responsável Legal
-  responsavel_nome: '',
-  responsavel_cpf: '',
-  responsavel_rg: '',
-  responsavel_orgao_emissor: '',
-  responsavel_data_nascimento: '',
-  responsavel_cargo: '',
-  responsavel_email: '',
-  responsavel_telefone: '',
-  responsavel_whatsapp: '',
+watch(() => imobiliaria.cnpj, (v) => { if(v) imobiliaria.cnpj = maskCnpj(v) });
+watch(() => imobiliaria.responsavel_cpf, (v) => { if(v) imobiliaria.responsavel_cpf = maskCpf(v) });
+watch(() => imobiliaria.telefone, (v) => { if(v) imobiliaria.telefone = maskPhone(v) });
+watch(() => imobiliaria.whatsapp, (v) => { if(v) imobiliaria.whatsapp = maskPhone(v) });
+watch(() => imobiliaria.cep, (v) => { if(v) imobiliaria.cep = maskCep(v) });
 
-  // CRECI e Regulamentação
-  creci_numero: '',
-  creci_uf: '',
-  creci_tipo: 'JURIDICO',
-  creci_situacao: 'Ativo',
-  creci_validade: '',
-  outros_registros: '',
-
-  // Sistema & Configurações
-  cor_primaria: '#007bff',
-  google_gemini_api_key: '',
-  voz_da_marca_preferida: null,
-  
-  // URLs de arquivos existentes (apenas leitura para mostrar links)
-  foto_perfil: null as string | null,
-  responsavel_assinatura: null as string | null,
-  responsavel_documento: null as string | null,
-  creci_documento: null as string | null,
-});
-
-// --- CONTROLE DE ARQUIVOS (UPLOADS) ---
-const files = reactive({
-  foto_perfil: null as File | null,
-  responsavel_assinatura: null as File | null,
-  responsavel_documento: null as File | null,
-  creci_documento: null as File | null,
-});
-
-const previewLogo = ref<string | null>(null);
-
-// --- MÉTODOS ---
-
-// 1. Carregar Dados da API
-const fetchImobiliaria = async () => {
+// --- LÓGICA ---
+onMounted(async () => {
   loading.value = true;
   try {
-    const response = await api.get('v1/core/imobiliarias/me/');
-    const data = response.data;
-
-    // Popula o formulário com os dados recebidos
-    Object.keys(form).forEach(key => {
-      if (data[key] !== undefined && data[key] !== null) {
-        // @ts-ignore
-        form[key] = data[key];
-      }
-    });
-
-    // Preview da Logo existente
-    if (form.foto_perfil) {
-      previewLogo.value = form.foto_perfil;
-    }
-
-  } catch (error: any) {
-    console.error("Erro ao carregar dados:", error);
-    if (error.response && error.response.status === 404) {
-      Swal.fire({
-        icon: 'info',
-        title: 'Bem-vindo!',
-        text: 'Preencha os dados abaixo para configurar sua imobiliária.'
-      });
-    } else {
-      Swal.fire('Erro', 'Não foi possível carregar as configurações.', 'error');
-    }
+    const { data } = await api.get('/v1/core/imobiliarias/me/');
+    Object.assign(imobiliaria, data);
+    if (imobiliaria.logo) logoPreview.value = imobiliaria.logo;
+    if (!imobiliaria.cor_primaria) imobiliaria.cor_primaria = '#3b82f6';
+  } catch (error) {
+    console.error(error);
+    Swal.fire('Erro', 'Não foi possível carregar os dados.', 'error');
   } finally {
     loading.value = false;
   }
+});
+
+const handleFileUpload = (event: Event) => {
+  const target = event.target as HTMLInputElement;
+  if (target.files?.[0]) {
+    const file = target.files[0];
+    if (file.size > 2 * 1024 * 1024) return Swal.fire('Erro', 'Imagem muito grande (Max 2MB).', 'warning');
+    logoFile.value = file;
+    const reader = new FileReader();
+    reader.onload = (e) => logoPreview.value = e.target?.result as string;
+    reader.readAsDataURL(file);
+  }
 };
 
-// 2. Buscar CEP (ViaCEP)
 const buscarCep = async () => {
-  const cepLimpo = form.cep.replace(/\D/g, '');
+  const cepLimpo = imobiliaria.cep.replace(/\D/g, '');
   if (cepLimpo.length !== 8) return;
-
+  searchingCep.value = true;
   try {
     const res = await fetch(`https://viacep.com.br/ws/${cepLimpo}/json/`);
     const data = await res.json();
     if (!data.erro) {
-      form.logradouro = data.logradouro;
-      form.bairro = data.bairro;
-      form.cidade = data.localidade;
-      form.estado = data.uf;
-      // Focar no número após buscar
-      document.getElementById('numero')?.focus();
-    } else {
-      // Toast de erro discreto
-      const Toast = Swal.mixin({ toast: true, position: 'top-end', showConfirmButton: false, timer: 3000 });
-      Toast.fire({ icon: 'error', title: 'CEP não encontrado' });
+      imobiliaria.logradouro = data.logradouro;
+      imobiliaria.bairro = data.bairro;
+      imobiliaria.cidade = data.localidade;
+      imobiliaria.estado = data.uf;
     }
-  } catch (e) {
-    console.error('Erro CEP', e);
+  } finally {
+    searchingCep.value = false;
   }
 };
 
-// 3. Manipular Upload de Arquivos
-const handleFileUpload = (event: Event, fieldName: keyof typeof files) => {
-  const input = event.target as HTMLInputElement;
-  if (input.files && input.files[0]) {
-    files[fieldName] = input.files[0];
-
-    // Se for a logo, atualiza o preview visual
-    if (fieldName === 'foto_perfil') {
-      previewLogo.value = URL.createObjectURL(input.files[0]);
-    }
-  }
-};
-
-// 4. Salvar Dados (FormData)
-const saveImobiliaria = async () => {
+const salvar = async () => {
   saving.value = true;
   try {
-    const formData = new FormData();
-
-    // Adiciona campos de texto
-    Object.keys(form).forEach(key => {
-      // Ignora campos de URL de arquivo (só enviamos se tiver novo arquivo no 'files')
-      if (['foto_perfil', 'responsavel_assinatura', 'responsavel_documento', 'creci_documento'].includes(key)) return;
-      
-      // @ts-ignore
-      const value = form[key];
-      if (value !== null && value !== undefined) {
-        formData.append(key, value as string);
-      }
-    });
-
-    // Adiciona arquivos se houver novos uploads
-    Object.keys(files).forEach(key => {
-      // @ts-ignore
-      const file = files[key];
-      if (file) {
-        formData.append(key, file);
-      }
-    });
-
-    // Envia para o backend (PATCH para atualização parcial)
-    // Se for a primeira vez (404 no load), o backend deve tratar ou usamos POST em outra lógica, 
-    // mas o ViewSet 'me' geralmente aceita PUT/PATCH se o user já estiver criado.
-    // Se o usuário não tiver imobiliária, o ideal seria o backend criar.
-    // *Assumindo que o usuário JÁ FOI vinculado a uma imobiliária (conforme passo anterior)*
-    
-    await api.patch('v1/core/imobiliarias/me/', formData, {
-      headers: { 'Content-Type': 'multipart/form-data' }
-    });
-
-    Swal.fire({
-      icon: 'success',
-      title: 'Sucesso!',
-      text: 'Dados da imobiliária atualizados.',
-      timer: 2000,
-      showConfirmButton: false
-    });
-    
-    // Recarrega para atualizar links de arquivos
-    fetchImobiliaria();
-
-  } catch (error) {
-    console.error(error);
-    Swal.fire('Erro', 'Falha ao salvar as alterações. Verifique os dados.', 'error');
+    await api.patch('/v1/core/imobiliarias/me/', { ...imobiliaria, logo: undefined });
+    if (logoFile.value) {
+      const fd = new FormData();
+      fd.append('logo', logoFile.value);
+      await api.patch('/v1/core/imobiliarias/me/', fd, { headers: { 'Content-Type': 'multipart/form-data' }});
+    }
+    Swal.fire({ icon: 'success', title: 'Salvo!', text: 'Dados da empresa atualizados.', timer: 1500, showConfirmButton: false });
+  } catch (e) {
+    Swal.fire('Erro', 'Falha ao salvar alterações.', 'error');
   } finally {
     saving.value = false;
   }
 };
 
-onMounted(() => {
-  fetchImobiliaria();
-});
+const headerPreviewStyle = computed(() => ({
+  backgroundColor: imobiliaria.cor_primaria,
+  color: getContrastYIQ(imobiliaria.cor_primaria)
+}));
+
+function getContrastYIQ(hex: string){
+  if (!hex) return 'black';
+  hex = hex.replace("#", "");
+  const r = parseInt(hex.substr(0,2),16), g = parseInt(hex.substr(2,2),16), b = parseInt(hex.substr(4,2),16);
+  return (((r*299)+(g*587)+(b*114))/1000) >= 128 ? 'black' : 'white';
+}
 </script>
 
 <template>
-  <div class="p-6 max-w-7xl mx-auto">
+  <div class="min-h-screen bg-gray-50 dark:bg-gray-900 transition-colors duration-300 p-4 md:p-8">
     
-    <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
+    <div class="max-w-6xl mx-auto mb-8 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 animate-fade-in-down">
       <div>
-        <h1 class="text-2xl font-bold text-gray-800 flex items-center gap-2">
-          <i class="i-mdi-domain text-blue-600"></i>
-          Configuração da Imobiliária
+        <h1 class="text-2xl font-bold text-gray-800 dark:text-white flex items-center gap-3">
+          <div class="w-10 h-10 rounded-xl bg-white dark:bg-gray-800 flex items-center justify-center shadow-sm border border-gray-100 dark:border-gray-700 text-primary-600">
+            <i class="i-mdi-cog text-xl" />
+          </div>
+          Configurações do Sistema
         </h1>
-        <p class="text-gray-500 text-sm mt-1">Gerencie os dados cadastrais, fiscais, responsáveis e aparências do sistema.</p>
+        <p class="text-sm text-gray-500 dark:text-gray-400 mt-1 ml-14">Personalize a identidade e os recursos da sua empresa.</p>
       </div>
-      
+
       <button 
-        @click="saveImobiliaria" 
-        :disabled="saving"
-        class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2.5 rounded-lg shadow-sm transition-all flex items-center gap-2 font-medium disabled:opacity-70 disabled:cursor-not-allowed"
+        @click="salvar" 
+        :disabled="saving || loading"
+        class="flex items-center gap-2 px-6 py-3 bg-primary-600 hover:bg-primary-700 text-white font-semibold rounded-xl shadow-lg shadow-primary-600/20 transition-all duration-200 active:scale-95 disabled:opacity-70 disabled:cursor-not-allowed"
       >
-        <i v-if="saving" class="i-mdi-loading animate-spin text-lg"></i>
-        <i v-else class="i-mdi-content-save text-lg"></i>
+        <i v-if="saving" class="i-mdi-loading animate-spin text-lg" />
+        <i v-else class="i-mdi-content-save-check text-lg" />
         <span>{{ saving ? 'Salvando...' : 'Salvar Alterações' }}</span>
       </button>
     </div>
 
-    <div v-if="loading" class="flex flex-col items-center justify-center py-20 bg-white rounded-xl shadow-sm">
-      <div class="i-mdi-loading animate-spin text-5xl text-blue-600 mb-4"></div>
-      <p class="text-gray-500">Carregando informações da empresa...</p>
-    </div>
-
-    <div v-else class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-      
-      <div class="flex overflow-x-auto border-b border-gray-200 bg-gray-50/50">
+    <div class="max-w-6xl mx-auto mb-6">
+      <div class="inline-flex p-1 bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 gap-1">
         <button 
-          v-for="tab in [
-            { id: 'empresa', label: 'Dados da Empresa', icon: 'i-mdi-office-building' },
-            { id: 'contato', label: 'Endereço & Contato', icon: 'i-mdi-map-marker-radius' },
-            { id: 'juridico', label: 'Jurídico & Responsável', icon: 'i-mdi-gavel' },
-            { id: 'sistema', label: 'Sistema & Integrações', icon: 'i-mdi-cogs' }
-          ]" 
+          v-for="tab in tabs" 
           :key="tab.id"
           @click="activeTab = tab.id"
-          class="px-6 py-4 text-sm font-medium transition-all flex items-center gap-2 border-b-2 whitespace-nowrap hover:bg-white focus:outline-none"
+          class="flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-medium transition-all"
           :class="activeTab === tab.id 
-            ? 'border-blue-600 text-blue-700 bg-white' 
-            : 'border-transparent text-gray-500 hover:text-gray-700'"
+            ? 'bg-primary-50 dark:bg-primary-900/30 text-primary-700 dark:text-primary-300 ring-1 ring-primary-200 dark:ring-primary-700' 
+            : 'text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700'"
         >
-          <i :class="tab.icon" class="text-lg"></i>
+          <i :class="tab.icon" class="text-lg" />
           {{ tab.label }}
         </button>
       </div>
+    </div>
 
-      <div class="p-6 md:p-8">
+    <div v-if="loading" class="max-w-6xl mx-auto h-96 bg-gray-200 dark:bg-gray-800 rounded-2xl animate-pulse"></div>
 
-        <div v-show="activeTab === 'empresa'" class="grid grid-cols-1 lg:grid-cols-12 gap-8 animate-fade-in">
-          
-          <div class="lg:col-span-3 flex flex-col items-center space-y-4">
-            <div class="relative group">
-              <div class="w-48 h-48 rounded-full border-4 border-white shadow-lg bg-gray-100 overflow-hidden flex items-center justify-center">
-                <img v-if="previewLogo" :src="previewLogo" class="w-full h-full object-cover" />
-                <div v-else class="text-gray-400 flex flex-col items-center">
-                  <i class="i-mdi-image-plus text-4xl mb-2"></i>
-                  <span class="text-xs">Sem Logo</span>
+    <div v-else class="max-w-6xl mx-auto animate-fade-in-up">
+      
+      <div v-show="activeTab === 'geral'" class="space-y-6">
+        
+        <div class="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-sm border border-gray-200 dark:border-gray-700">
+          <div class="flex items-center gap-2 mb-6 border-b border-gray-100 dark:border-gray-700 pb-2">
+            <span class="p-1.5 rounded-lg bg-blue-50 text-blue-600"><i class="i-mdi-palette" /></span>
+            <h2 class="text-lg font-bold text-gray-800 dark:text-white">Identidade Visual</h2>
+          </div>
+
+          <div class="flex flex-col md:flex-row gap-8 items-start">
+            <div class="flex-shrink-0 flex flex-col items-center gap-3">
+              <div 
+                class="relative group w-32 h-32 rounded-2xl border-2 border-dashed border-gray-300 dark:border-gray-600 hover:border-primary-500 hover:bg-primary-50 dark:hover:bg-primary-900/10 transition-all cursor-pointer flex items-center justify-center overflow-hidden bg-gray-50 dark:bg-gray-900"
+                @click="fileInput?.click()"
+              >
+                <img v-if="logoPreview" :src="logoPreview" class="w-full h-full object-contain p-2" />
+                <div v-else class="flex flex-col items-center text-gray-400">
+                  <i class="i-mdi-image-plus text-3xl mb-1" />
+                  <span class="text-[10px] uppercase font-bold">Logo</span>
+                </div>
+                <div class="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                  <i class="i-mdi-pencil text-white text-2xl" />
                 </div>
               </div>
-              <label class="absolute bottom-2 right-2 bg-blue-600 text-white p-2 rounded-full cursor-pointer shadow-md hover:bg-blue-700 transition-colors" title="Alterar Logo">
-                <i class="i-mdi-camera text-lg"></i>
-                <input type="file" accept="image/*" class="hidden" @change="(e) => handleFileUpload(e, 'foto_perfil')" />
-              </label>
-            </div>
-            <p class="text-xs text-gray-500 text-center px-4">
-              Recomendado: Imagem quadrada (PNG/JPG), máx 2MB. Essa imagem será usada em relatórios e no site.
-            </p>
-          </div>
-
-          <div class="lg:col-span-9 grid grid-cols-1 md:grid-cols-2 gap-5">
-            <div class="col-span-2 md:col-span-1">
-              <label class="form-label">Nome Fantasia <span class="text-red-500">*</span></label>
-              <input v-model="form.nome_fantasia" type="text" class="form-input" placeholder="Ex: ImobHome Soluções" />
-            </div>
-            <div class="col-span-2 md:col-span-1">
-              <label class="form-label">Razão Social</label>
-              <input v-model="form.razao_social" type="text" class="form-input" />
+              <input ref="fileInput" type="file" class="hidden" accept="image/*" @change="handleFileUpload" />
+              <p class="text-xs text-gray-400 text-center w-32">PNG/JPG até 2MB</p>
             </div>
 
-            <div class="col-span-1">
-              <label class="form-label">Tipo de Pessoa</label>
-              <select v-model="form.tipo_pessoa" class="form-select">
-                <option value="PJ">Pessoa Jurídica (CNPJ)</option>
-                <option value="PF">Pessoa Física (CPF)</option>
-              </select>
-            </div>
-            <div class="col-span-1">
-              <label class="form-label">CNPJ / CPF</label>
-              <input v-model="form.cnpj_cpf" type="text" class="form-input" placeholder="Apenas números" />
-            </div>
-
-            <div class="col-span-1">
-              <label class="form-label">Inscrição Estadual</label>
-              <input v-model="form.inscricao_estadual" type="text" class="form-input" />
-            </div>
-            <div class="col-span-1">
-              <label class="form-label">Inscrição Municipal</label>
-              <input v-model="form.inscricao_municipal" type="text" class="form-input" />
-            </div>
-
-            <div class="col-span-1">
-              <label class="form-label">Data de Fundação</label>
-              <input v-model="form.data_fundacao" type="date" class="form-input" />
-            </div>
-            <div class="col-span-1">
-              <label class="form-label">Status da Empresa</label>
-              <select v-model="form.status" class="form-select">
-                <option value="ATIVA">Ativa</option>
-                <option value="SUSPENSA">Suspensa</option>
-                <option value="INATIVA">Inativa</option>
-              </select>
-            </div>
-
-            <div class="col-span-2">
-              <label class="form-label">CNAE Principal</label>
-              <input v-model="form.cnae_principal" type="text" class="form-input" placeholder="Código da atividade econômica" />
-            </div>
-          </div>
-        </div>
-
-        <div v-show="activeTab === 'contato'" class="grid grid-cols-1 lg:grid-cols-2 gap-8 animate-fade-in">
-          
-          <div class="bg-gray-50 p-5 rounded-lg border border-gray-200">
-            <h3 class="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
-              <i class="i-mdi-map-marker text-blue-600"></i> Endereço Comercial
-            </h3>
-            
-            <div class="grid grid-cols-3 gap-4">
-              <div class="col-span-1">
-                <label class="form-label">CEP</label>
-                <input v-model="form.cep" @blur="buscarCep" type="text" class="form-input" placeholder="00000-000" />
-              </div>
-              <div class="col-span-2 flex items-end">
-                <button type="button" @click="buscarCep" class="text-sm text-blue-600 hover:text-blue-800 font-medium mb-2.5 underline">
-                  Buscar CEP
-                </button>
-              </div>
-
-              <div class="col-span-3">
-                <label class="form-label">Logradouro</label>
-                <input v-model="form.logradouro" type="text" class="form-input" />
-              </div>
-
-              <div class="col-span-1">
-                <label class="form-label">Número</label>
-                <input v-model="form.numero" id="numero" type="text" class="form-input" />
-              </div>
-              <div class="col-span-2">
-                <label class="form-label">Complemento</label>
-                <input v-model="form.complemento" type="text" class="form-input" />
-              </div>
-
-              <div class="col-span-1">
-                <label class="form-label">Bairro</label>
-                <input v-model="form.bairro" type="text" class="form-input" />
-              </div>
-              <div class="col-span-1">
-                <label class="form-label">Cidade</label>
-                <input v-model="form.cidade" type="text" class="form-input" />
-              </div>
-              <div class="col-span-1">
-                <label class="form-label">UF</label>
-                <input v-model="form.estado" type="text" class="form-input uppercase" maxlength="2" />
-              </div>
-            </div>
-          </div>
-
-          <div class="space-y-6">
-            <div class="bg-gray-50 p-5 rounded-lg border border-gray-200">
-              <h3 class="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
-                <i class="i-mdi-phone text-green-600"></i> Contatos Principais
-              </h3>
-              
-              <div class="space-y-4">
+            <div class="flex-1 w-full space-y-5">
+              <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
                 <div>
-                  <label class="form-label">E-mail Principal</label>
-                  <input v-model="form.email_contato" type="email" class="form-input" />
-                </div>
-                <div class="grid grid-cols-2 gap-4">
-                  <div>
-                    <label class="form-label">E-mail Financeiro</label>
-                    <input v-model="form.email_financeiro" type="email" class="form-input" />
-                  </div>
-                  <div>
-                    <label class="form-label">E-mail Suporte</label>
-                    <input v-model="form.email_suporte" type="email" class="form-input" />
-                  </div>
-                </div>
-                <div class="grid grid-cols-2 gap-4">
-                  <div>
-                    <label class="form-label">Telefone Fixo</label>
-                    <input v-model="form.telefone_fixo" type="tel" class="form-input" />
-                  </div>
-                  <div>
-                    <label class="form-label">WhatsApp / Celular</label>
-                    <input v-model="form.whatsapp" type="tel" class="form-input" />
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div class="bg-gray-50 p-5 rounded-lg border border-gray-200">
-              <h3 class="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
-                <i class="i-mdi-web text-purple-600"></i> Presença Digital
-              </h3>
-              <div class="grid grid-cols-2 gap-4">
-                <div class="col-span-2">
-                  <label class="form-label">Website</label>
-                  <input v-model="form.website" type="url" placeholder="https://" class="form-input" />
-                </div>
-                <div>
-                  <label class="form-label">Instagram</label>
-                  <div class="flex">
-                    <span class="inline-flex items-center px-3 rounded-l-md border border-r-0 border-gray-300 bg-gray-100 text-gray-500">@</span>
-                    <input v-model="form.instagram" type="text" class="form-input !rounded-l-none" />
+                  <label class="label-std">Cor do Sistema</label>
+                  <div class="flex items-center gap-3 p-1.5 border border-gray-200 dark:border-gray-600 rounded-xl bg-gray-50 dark:bg-gray-900">
+                    <input type="color" v-model="imobiliaria.cor_primaria" class="w-10 h-10 rounded-lg cursor-pointer border-0 p-0" />
+                    <input type="text" v-model="imobiliaria.cor_primaria" class="bg-transparent uppercase font-mono text-sm outline-none w-full" maxlength="7" />
                   </div>
                 </div>
                 <div>
-                  <label class="form-label">Facebook</label>
-                  <input v-model="form.facebook" type="text" class="form-input" placeholder="URL completa" />
+                  <label class="label-std">Preview do Topo</label>
+                  <div class="h-[54px] rounded-xl shadow-inner flex items-center px-4 gap-3 transition-colors" :style="headerPreviewStyle">
+                    <div class="w-8 h-8 rounded-full bg-white/20 backdrop-blur-md flex items-center justify-center">
+                      <i class="i-mdi-domain text-current" />
+                    </div>
+                    <span class="font-bold text-sm tracking-wide">{{ imobiliaria.nome_fantasia || 'Nome da Empresa' }}</span>
+                  </div>
                 </div>
               </div>
             </div>
           </div>
         </div>
 
-        <div v-show="activeTab === 'juridico'" class="grid grid-cols-1 lg:grid-cols-2 gap-8 animate-fade-in">
-          
-          <div class="bg-gray-50 p-5 rounded-lg border border-gray-200">
-            <h3 class="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
-              <i class="i-mdi-account-tie text-blue-600"></i> Responsável Legal
-            </h3>
-            
-            <div class="grid grid-cols-2 gap-4">
-              <div class="col-span-2">
-                <label class="form-label">Nome Completo</label>
-                <input v-model="form.responsavel_nome" type="text" class="form-input" />
-              </div>
-              <div>
-                <label class="form-label">CPF</label>
-                <input v-model="form.responsavel_cpf" type="text" class="form-input" />
-              </div>
-              <div>
-                <label class="form-label">RG</label>
-                <input v-model="form.responsavel_rg" type="text" class="form-input" />
-              </div>
-              <div>
-                <label class="form-label">Órgão Emissor</label>
-                <input v-model="form.responsavel_orgao_emissor" type="text" class="form-input" />
-              </div>
-              <div>
-                <label class="form-label">Data Nasc.</label>
-                <input v-model="form.responsavel_data_nascimento" type="date" class="form-input" />
-              </div>
-              <div class="col-span-2">
-                <label class="form-label">E-mail Pessoal</label>
-                <input v-model="form.responsavel_email" type="email" class="form-input" />
-              </div>
-            </div>
-
-            <div class="mt-6 pt-4 border-t border-gray-200">
-              <h4 class="text-sm font-bold text-gray-700 mb-3">Documentos do Responsável</h4>
-              
-              <div class="grid grid-cols-2 gap-4">
-                <div class="col-span-1">
-                  <label class="block text-xs font-medium text-gray-700 mb-1">Assinatura Digital</label>
-                  <input type="file" @change="(e) => handleFileUpload(e, 'responsavel_assinatura')" class="block w-full text-xs text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"/>
-                  <a v-if="form.responsavel_assinatura" :href="form.responsavel_assinatura" target="_blank" class="text-xs text-blue-600 underline mt-1 block">Ver atual</a>
-                </div>
-
-                <div class="col-span-1">
-                  <label class="block text-xs font-medium text-gray-700 mb-1">Doc. Identificação (PDF/IMG)</label>
-                  <input type="file" @change="(e) => handleFileUpload(e, 'responsavel_documento')" class="block w-full text-xs text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"/>
-                  <a v-if="form.responsavel_documento" :href="form.responsavel_documento" target="_blank" class="text-xs text-blue-600 underline mt-1 block">Ver atual</a>
-                </div>
-              </div>
-            </div>
+        <div class="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-sm border border-gray-200 dark:border-gray-700">
+          <div class="flex items-center gap-2 mb-6 border-b border-gray-100 dark:border-gray-700 pb-2">
+            <span class="p-1.5 rounded-lg bg-emerald-50 text-emerald-600"><i class="i-mdi-card-account-details" /></span>
+            <h2 class="text-lg font-bold text-gray-800 dark:text-white">Dados da Empresa</h2>
           </div>
-
-          <div class="bg-gray-50 p-5 rounded-lg border border-gray-200 h-fit">
-            <h3 class="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
-              <i class="i-mdi-certificate text-yellow-600"></i> CRECI e Regulamentação
-            </h3>
-            
-            <div class="space-y-4">
-              <div class="grid grid-cols-2 gap-4">
-                <div>
-                  <label class="form-label">Número CRECI</label>
-                  <input v-model="form.creci_numero" type="text" class="form-input" />
-                </div>
-                <div>
-                  <label class="form-label">UF</label>
-                  <input v-model="form.creci_uf" type="text" class="form-input uppercase" maxlength="2" />
-                </div>
+          
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div class="md:col-span-2">
+              <label class="label-std">Nome Fantasia <span class="text-red-500">*</span></label>
+              <div class="relative">
+                <input v-model="imobiliaria.nome_fantasia" type="text" class="input-std pl-10" placeholder="Nome comercial da imobiliária" />
+                <i class="i-mdi-store absolute left-3 top-3 text-gray-400 text-lg" />
               </div>
-
-              <div class="grid grid-cols-2 gap-4">
-                <div>
-                  <label class="form-label">Tipo de Inscrição</label>
-                  <select v-model="form.creci_tipo" class="form-select">
-                    <option value="JURIDICO">Jurídico (PJ)</option>
-                    <option value="FISICO">Físico (PF)</option>
-                  </select>
-                </div>
-                <div>
-                  <label class="form-label">Situação</label>
-                  <input v-model="form.creci_situacao" type="text" class="form-input" />
-                </div>
-              </div>
-
-              <div>
-                <label class="form-label">Validade</label>
-                <input v-model="form.creci_validade" type="date" class="form-input" />
-              </div>
-
-              <div class="pt-2">
-                <label class="block text-sm font-medium text-gray-700 mb-1">Cópia do CRECI (Upload)</label>
-                <div class="flex items-center gap-3">
-                  <input type="file" @change="(e) => handleFileUpload(e, 'creci_documento')" class="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-yellow-50 file:text-yellow-700 hover:file:bg-yellow-100"/>
-                </div>
-                <a v-if="form.creci_documento" :href="form.creci_documento" target="_blank" class="text-xs text-blue-600 underline mt-1 block">Visualizar documento atual</a>
-              </div>
+            </div>
+            <div>
+              <label class="label-std">Razão Social</label>
+              <input v-model="imobiliaria.razao_social" type="text" class="input-std" placeholder="Razão Social Ltda" />
+            </div>
+            <div>
+              <label class="label-std">CNPJ</label>
+              <input v-model="imobiliaria.cnpj" type="text" class="input-std" placeholder="00.000.000/0000-00" maxlength="18" />
+            </div>
+            <div>
+              <label class="label-std">CRECI Jurídico</label>
+              <input v-model="imobiliaria.creci" type="text" class="input-std" placeholder="J-12345" />
+            </div>
+            <div>
+              <label class="label-std">Responsável Legal (Nome)</label>
+              <input v-model="imobiliaria.responsavel_nome" type="text" class="input-std" />
             </div>
           </div>
         </div>
-
-        <div v-show="activeTab === 'sistema'" class="grid grid-cols-1 lg:grid-cols-2 gap-8 animate-fade-in">
-          
-          <div class="bg-gray-50 p-5 rounded-lg border border-gray-200">
-            <h3 class="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
-              <i class="i-mdi-palette text-pink-600"></i> Personalização
-            </h3>
-            
-            <div class="mb-4">
-              <label class="form-label">Cor Primária do Site</label>
-              <div class="flex items-center gap-3">
-                <input v-model="form.cor_primaria" type="color" class="h-12 w-20 p-1 border border-gray-300 rounded shadow-sm cursor-pointer" />
-                <div>
-                  <span class="text-sm font-medium text-gray-700 block">Cor selecionada</span>
-                  <span class="text-xs text-gray-500">{{ form.cor_primaria }}</span>
-                </div>
-              </div>
-              <p class="text-xs text-gray-500 mt-2">Esta cor será utilizada em botões, links e destaques no seu site público.</p>
-            </div>
-          </div>
-
-          <div class="bg-gray-50 p-5 rounded-lg border border-gray-200">
-            <h3 class="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
-              <i class="i-mdi-robot text-indigo-600"></i> Inteligência Artificial
-            </h3>
-            
-            <div class="mb-4">
-              <label class="form-label">Chave API Google Gemini</label>
-              <input v-model="form.google_gemini_api_key" type="password" class="form-input" placeholder="sk-..." />
-              <p class="text-xs text-gray-500 mt-1">
-                Necessária para geração automática de descrições de imóveis e atendimento via IA.
-                <a href="https://aistudio.google.com/app/apikey" target="_blank" class="text-blue-600 underline">Obter chave</a>
-              </p>
-            </div>
-          </div>
-        </div>
-
       </div>
+
+      <div v-show="activeTab === 'contato'" class="space-y-6">
+        <div class="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-sm border border-gray-200 dark:border-gray-700">
+          <h2 class="text-lg font-bold text-gray-800 dark:text-white mb-6">Canais de Contato</h2>
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div class="md:col-span-1">
+              <label class="label-std">Email Oficial</label>
+              <div class="relative">
+                <input v-model="imobiliaria.email_contato" type="email" class="input-std pl-10" />
+                <i class="i-mdi-email absolute left-3 top-3 text-gray-400" />
+              </div>
+            </div>
+            <div>
+              <label class="label-std">Telefone Fixo</label>
+              <input v-model="imobiliaria.telefone" type="tel" class="input-std" />
+            </div>
+            <div>
+              <label class="label-std">WhatsApp</label>
+              <input v-model="imobiliaria.whatsapp" type="tel" class="input-std" />
+            </div>
+            <div class="md:col-span-3">
+              <label class="label-std">Website</label>
+              <div class="relative">
+                <input v-model="imobiliaria.website" type="url" class="input-std pl-10" placeholder="https://" />
+                <i class="i-mdi-web absolute left-3 top-3 text-gray-400" />
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-sm border border-gray-200 dark:border-gray-700">
+          <div class="flex justify-between items-center mb-6">
+            <h2 class="text-lg font-bold text-gray-800 dark:text-white">Endereço</h2>
+            <div v-if="searchingCep" class="text-xs text-primary-600 flex items-center gap-1 animate-pulse">
+              <i class="i-mdi-loading animate-spin" /> Buscando...
+            </div>
+          </div>
+          
+          <div class="grid grid-cols-1 md:grid-cols-4 gap-5">
+            <div class="md:col-span-1">
+              <label class="label-std">CEP</label>
+              <div class="relative">
+                <input v-model="imobiliaria.cep" @blur="buscarCep" type="text" class="input-std pl-10" placeholder="00000-000" maxlength="9" />
+                <i class="i-mdi-magnify absolute left-3 top-3 text-gray-400" />
+              </div>
+            </div>
+            <div class="md:col-span-2">
+              <label class="label-std">Logradouro</label>
+              <input v-model="imobiliaria.logradouro" type="text" class="input-std" />
+            </div>
+            <div class="md:col-span-1">
+              <label class="label-std">Número</label>
+              <input v-model="imobiliaria.numero" type="text" class="input-std" />
+            </div>
+            <div class="md:col-span-2">
+              <label class="label-std">Complemento</label>
+              <input v-model="imobiliaria.complemento" type="text" class="input-std" />
+            </div>
+            <div class="md:col-span-1">
+              <label class="label-std">Bairro</label>
+              <input v-model="imobiliaria.bairro" type="text" class="input-std" />
+            </div>
+            <div class="md:col-span-1">
+              <label class="label-std">Cidade/UF</label>
+              <div class="flex gap-2">
+                <input v-model="imobiliaria.cidade" type="text" class="input-std flex-1" />
+                <input v-model="imobiliaria.estado" type="text" class="input-std w-14 text-center uppercase" maxlength="2" />
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div v-show="activeTab === 'config'" class="space-y-6">
+        
+        <div class="bg-gradient-to-br from-purple-50 to-white dark:from-gray-800 dark:to-gray-800/50 rounded-2xl p-6 shadow-sm border border-purple-100 dark:border-gray-700">
+          <h2 class="text-lg font-bold text-gray-800 dark:text-white mb-4 flex items-center gap-2">
+            <i class="i-mdi-robot text-purple-600" /> Inteligência Artificial
+          </h2>
+          
+          <div class="grid grid-cols-1 gap-6">
+            <div>
+              <label class="label-std text-purple-800 dark:text-purple-300">Google Gemini API Key</label>
+              <div class="relative">
+                <input v-model="imobiliaria.google_gemini_api_key" type="password" class="input-std pl-10 border-purple-200 focus:border-purple-500 focus:ring-purple-500/20" placeholder="sk-..." />
+                <i class="i-mdi-key absolute left-3 top-3 text-purple-400" />
+              </div>
+              <p class="text-xs text-gray-500 mt-1">Necessário para descrições automáticas e chatbot.</p>
+            </div>
+
+            <div>
+              <label class="label-std mb-2 block">Tom de Voz da IA</label>
+              <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+                <div 
+                  v-for="opt in voiceOptions" :key="opt.value"
+                  @click="imobiliaria.voz_da_marca_preferida = opt.value"
+                  class="border rounded-xl p-3 cursor-pointer transition-all hover:shadow-md text-center bg-white dark:bg-gray-800"
+                  :class="imobiliaria.voz_da_marca_preferida === opt.value 
+                    ? 'border-purple-500 ring-1 ring-purple-500 text-purple-700 dark:text-purple-300 bg-purple-50 dark:bg-purple-900/20' 
+                    : 'border-gray-200 dark:border-gray-700'"
+                >
+                  <i :class="opt.icon + ' text-2xl mb-1'" />
+                  <div class="text-xs font-bold">{{ opt.label }}</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-sm border border-gray-200 dark:border-gray-700">
+          <h2 class="text-lg font-bold text-gray-800 dark:text-white mb-6">Integrações Sociais</h2>
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div>
+              <label class="label-std">Facebook Page Token</label>
+              <input v-model="imobiliaria.facebook_page_access_token" type="password" class="input-std" />
+            </div>
+            <div>
+              <label class="label-std">Instagram Business ID</label>
+              <input v-model="imobiliaria.instagram_business_account_id" type="text" class="input-std" />
+            </div>
+            <div>
+              <label class="label-std">Link Facebook</label>
+              <input v-model="imobiliaria.facebook" type="url" class="input-std" placeholder="facebook.com/..." />
+            </div>
+            <div>
+              <label class="label-std">Link Instagram</label>
+              <input v-model="imobiliaria.instagram" type="url" class="input-std" placeholder="instagram.com/..." />
+            </div>
+          </div>
+        </div>
+      </div>
+
     </div>
   </div>
 </template>
 
 <style scoped>
-/* Classes utilitárias personalizadas para inputs */
-.form-label {
-  @apply block text-sm font-medium text-gray-700 mb-1;
-}
-.form-input {
-  @apply w-full border-gray-300 rounded-lg shadow-sm focus:ring-blue-500 focus:border-blue-500 text-sm py-2 px-3;
-}
-.form-select {
-  @apply w-full border-gray-300 rounded-lg shadow-sm focus:ring-blue-500 focus:border-blue-500 text-sm py-2 px-3 bg-white;
+/* ESTILO DOS INPUTS - Estilo "Edit Form" Moderno */
+.label-std {
+  @apply block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1.5 ml-0.5;
 }
 
-/* Animação simples */
-.animate-fade-in {
-  animation: fadeIn 0.3s ease-in-out;
+.input-std {
+  @apply w-full rounded-xl border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-900 text-gray-800 dark:text-white px-4 py-2.5 text-sm outline-none transition-all placeholder:text-gray-400 shadow-sm;
 }
-@keyframes fadeIn {
-  from { opacity: 0; transform: translateY(5px); }
+
+.input-std:focus {
+  @apply border-primary-500 ring-2 ring-primary-500/20;
+}
+
+.input-std:hover:not(:focus) {
+  @apply border-gray-300 dark:border-gray-500;
+}
+
+/* ANIMAÇÕES */
+.animate-fade-in-up {
+  animation: fadeInUp 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+.animate-fade-in-down {
+  animation: fadeInDown 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes fadeInDown {
+  from { opacity: 0; transform: translateY(-10px); }
   to { opacity: 1; transform: translateY(0); }
 }
 </style>

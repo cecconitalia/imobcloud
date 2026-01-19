@@ -28,9 +28,13 @@ import traceback
 import os
 # ------------------------------------------
 
-from app_imoveis.models import Imovel
-from app_clientes.models import Cliente
-from app_contratos.models import Contrato, Pagamento
+# Imports dos Apps (com tratamento de erro caso o app não esteja instalado)
+try:
+    from app_imoveis.models import Imovel
+    from app_clientes.models import Cliente
+    from app_contratos.models import Contrato, Pagamento
+except ImportError:
+    pass
 
 from .models import PerfilUsuario, Imobiliaria, Notificacao, ConfiguracaoGlobal
 from .serializers import (
@@ -47,6 +51,10 @@ from .serializers import (
 from .permissions import IsAdminOrSuperUser, IsCorretorOrReadOnly
 
 User = get_user_model()
+
+# ==============================================================================
+# AUTHENTICATION VIEWS
+# ==============================================================================
 
 class MyTokenObtainPairView(TokenObtainPairView):
     serializer_class = MyTokenObtainPairSerializer
@@ -71,14 +79,27 @@ class LogoutView(APIView):
             return Response(status=status.HTTP_400_BAD_REQUEST)
 
 # ==============================================================================
-# VIEWSETS DE IMOBILIÁRIA E CONFIGURAÇÃO (NOVOS)
+# VIEWSETS DE IMOBILIÁRIA E CONFIGURAÇÃO
 # ==============================================================================
 
 class ImobiliariaViewSet(viewsets.ModelViewSet):
+    """
+    ViewSet para gerenciar dados da Imobiliária.
+    Inclui suporte para upload de arquivos (Logo).
+    """
     queryset = Imobiliaria.objects.all()
     serializer_class = ImobiliariaSerializer
     permission_classes = [IsAuthenticated]
-    parser_classes = (MultiPartParser, FormParser, JSONParser) # Necessário para upload de logo
+    parser_classes = (MultiPartParser, FormParser, JSONParser) 
+
+    def get_queryset(self):
+        # Retorna apenas a imobiliária do usuário logado (Tenant Isolation)
+        user = self.request.user
+        if hasattr(user, 'imobiliaria') and user.imobiliaria:
+            return Imobiliaria.objects.filter(id=user.imobiliaria.id)
+        if user.is_superuser:
+            return Imobiliaria.objects.all()
+        return Imobiliaria.objects.none()
 
     @action(detail=False, methods=['get', 'patch', 'put'])
     def me(self, request):
@@ -100,7 +121,6 @@ class ImobiliariaViewSet(viewsets.ModelViewSet):
             return Response(serializer.data)
 
         elif request.method in ['PATCH', 'PUT']:
-            # Permite atualização parcial (PATCH) ou total (PUT)
             partial = request.method == 'PATCH'
             serializer = self.get_serializer(imobiliaria, data=request.data, partial=partial)
             serializer.is_valid(raise_exception=True)
@@ -113,7 +133,7 @@ class ConfiguracaoGlobalViewSet(viewsets.ReadOnlyModelViewSet):
     """
     queryset = ConfiguracaoGlobal.objects.all()
     serializer_class = ConfiguracaoGlobalSerializer
-    permission_classes = [] # Pode ser público se necessário (AllowAny implícito se vazio e não setado default)
+    permission_classes = [AllowAny] 
 
     def list(self, request, *args, **kwargs):
         # Garante retornar sempre o primeiro registro (Singleton)
@@ -124,7 +144,7 @@ class ConfiguracaoGlobalViewSet(viewsets.ReadOnlyModelViewSet):
         return Response(serializer.data)
 
 # ==============================================================================
-# FIM DOS NOVOS VIEWSETS
+# GESTÃO DE USUÁRIOS E NOTIFICAÇÕES
 # ==============================================================================
 
 class CorretorRegistrationViewSet(viewsets.ModelViewSet):
@@ -173,11 +193,51 @@ class CorretorRegistrationViewSet(viewsets.ModelViewSet):
                 'id': u.id, 
                 'nome_completo': u.get_full_name() or u.username,
                 'first_name': u.first_name,
-                'email': u.email
+                'email': u.email,
+                'foto': u.foto_perfil.url if u.foto_perfil else None
             } 
             for u in queryset
         ]
         return Response(data)
+
+class PerfilUsuarioViewSet(viewsets.ModelViewSet):
+    serializer_class = PerfilUsuarioSerializer 
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        user = self.request.user
+        if user.is_superuser:
+            return User.objects.all()
+        if hasattr(user, 'imobiliaria') and user.imobiliaria:
+            return User.objects.filter(imobiliaria=user.imobiliaria)
+        return User.objects.filter(id=user.id)
+
+    @action(detail=False, methods=['get', 'put', 'patch'])
+    def me(self, request):
+        """
+        Endpoint específico para manipular o próprio usuário logado.
+        """
+        user = request.user
+        if request.method == 'GET':
+            serializer = self.get_serializer(user)
+            return Response(serializer.data)
+        
+        elif request.method in ['PUT', 'PATCH']:
+            partial = request.method == 'PATCH'
+            serializer = self.get_serializer(user, data=request.data, partial=partial)
+            serializer.is_valid(raise_exception=True)
+            serializer.save()
+            return Response(serializer.data)
+
+    def perform_create(self, serializer):
+        if self.request.user.imobiliaria:
+            serializer.save(imobiliaria=self.request.user.imobiliaria)
+        else:
+            serializer.save()
+
+# ==============================================================================
+# DASHBOARD E STATS
+# ==============================================================================
 
 class DashboardStatsView(APIView):
     permission_classes = [IsAuthenticated]
@@ -187,17 +247,14 @@ class DashboardStatsView(APIView):
             user = request.user
             imobiliaria = getattr(request, 'tenant', None)
             
+            # Fallback para encontrar a imobiliária
             if not imobiliaria and hasattr(user, 'imobiliaria') and user.imobiliaria:
                 imobiliaria = user.imobiliaria
 
-            if not imobiliaria and hasattr(user, 'perfil') and user.perfil:
-                imobiliaria = user.perfil.imobiliaria
-
-            if not imobiliaria:
-                # Tenta pegar pelo subdomínio padrão se não achar no user
+            # Fallback final (não recomendado em prod, mas útil para testes locais)
+            if not imobiliaria and not user.is_superuser:
+                # Tenta pegar pelo subdomínio padrão
                 imobiliaria = Imobiliaria.objects.filter(subdominio='imobhome').first()
-                if not imobiliaria:
-                    imobiliaria = Imobiliaria.objects.first()
 
             if not imobiliaria and not user.is_superuser:
                 return Response({
@@ -209,16 +266,19 @@ class DashboardStatsView(APIView):
             if imobiliaria:
                 filter_kwargs['imobiliaria'] = imobiliaria
             
+            # Contagem de Imóveis
             try:
                 total_imoveis = Imovel.objects.filter(**filter_kwargs).exclude(status='DESATIVADO').count()
             except Exception: 
                 total_imoveis = 0
             
+            # Contagem de Clientes
             try:
                 total_clientes = Cliente.objects.filter(**filter_kwargs).count()
             except Exception: 
                 total_clientes = 0
             
+            # Contratos Ativos
             try:
                 total_contratos_ativos = Contrato.objects.filter(
                     imobiliaria=imobiliaria, 
@@ -227,6 +287,7 @@ class DashboardStatsView(APIView):
             except Exception: 
                 total_contratos_ativos = 0
             
+            # Financeiro a Receber (Próximos 30 dias)
             total_a_receber = 0
             try:
                 hoje = timezone.now().date()
@@ -256,6 +317,7 @@ class DashboardStatsView(APIView):
             return Response({
                 'total_imoveis': 0, 'total_clientes': 0,
                 'total_contratos_ativos': 0, 'total_a_receber_30d': 0,
+                'error': str(e)
             })
     
 class IntegracaoRedesSociaisView(APIView):
@@ -263,44 +325,33 @@ class IntegracaoRedesSociaisView(APIView):
     serializer_class = ImobiliariaIntegracaoSerializer
 
     def get(self, request, *args, **kwargs):
-        imobiliaria = request.tenant
+        imobiliaria = request.user.imobiliaria
+        if not imobiliaria:
+             return Response({"error": "Imobiliária não encontrada."}, status=404)
+             
         if not (request.user.is_superuser or request.user.is_admin):
             return Response({"error": "Acesso não autorizado."}, status=status.HTTP_403_FORBIDDEN)
+            
         serializer = self.serializer_class(imobiliaria)
         return Response(serializer.data)
 
     def put(self, request, *args, **kwargs):
-        imobiliaria = request.tenant
+        imobiliaria = request.user.imobiliaria
+        if not imobiliaria:
+             return Response({"error": "Imobiliária não encontrada."}, status=404)
+
         if not (request.user.is_superuser or request.user.is_admin):
             return Response({"error": "Acesso não autorizado."}, status=status.HTTP_403_FORBIDDEN)
+            
         serializer = self.serializer_class(imobiliaria, data=request.data, partial=True)
         if serializer.is_valid():
             serializer.save()
             return Response({"success": "Credenciais salvas com sucesso!"})
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-class PerfilUsuarioViewSet(viewsets.ModelViewSet):
-    serializer_class = CorretorDisplaySerializer 
-
-    def get_queryset(self):
-        user = self.request.user
-        if user.is_superuser:
-            return User.objects.all()
-        if hasattr(user, 'imobiliaria') and user.imobiliaria:
-            return User.objects.filter(imobiliaria=user.imobiliaria)
-        return User.objects.filter(id=user.id)
-
-    def get_object(self):
-        pk = self.kwargs.get('pk')
-        if pk == 'me':
-            return self.request.user
-        return super().get_object()
-
-    def perform_create(self, serializer):
-        if self.request.user.imobiliaria:
-            serializer.save(imobiliaria=self.request.user.imobiliaria)
-        else:
-            serializer.save()
+# ==============================================================================
+# NOTIFICAÇÕES (Views Adicionais)
+# ==============================================================================
 
 class MinhasNotificacoesView(APIView):
     permission_classes = [IsAuthenticated]
@@ -361,7 +412,8 @@ class PublicRegisterView(APIView):
 
                 # 2. Cria a imobiliária
                 imobiliaria = Imobiliaria.objects.create(
-                    nome=nome_imobiliaria, 
+                    nome_fantasia=nome_imobiliaria, # Usando nome_fantasia conforme model
+                    razao_social=nome_imobiliaria,
                     subdominio=subdomain,
                     email_contato=email,
                     telefone=telefone,

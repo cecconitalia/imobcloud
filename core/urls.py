@@ -8,43 +8,58 @@ from .views import (
     MarcarNotificacaoLidaView,
     MinhasNotificacoesView,
     ConfiguracaoGlobalView,
-    # Novos ViewSets
     ImobiliariaViewSet,
-    ConfiguracaoGlobalViewSet
+    ConfiguracaoGlobalViewSet,
+    PerfilUsuarioViewSet
 )
 
-# Configuração do Router
+# ==============================================================================
+# CONFIGURAÇÃO DO ROUTER (DRF)
+# ==============================================================================
 router = DefaultRouter()
 
-# Registra 'usuarios'. URL: /api/v1/core/usuarios/
+# Gerenciamento de Usuários (Corretores/Admins)
+# URL Base: /api/v1/core/usuarios/
+# Inclui actions como: /usuarios/me/, /usuarios/minhas-notificacoes/
 router.register(r'usuarios', CorretorRegistrationViewSet, basename='usuario')
 
-# Registra 'imobiliarias'. URL: /api/v1/core/imobiliarias/
-# Isso habilita o endpoint: /api/v1/core/imobiliarias/me/
+# Perfil do Usuário (Alternativa focada no próprio usuário e edição de perfil)
+# URL Base: /api/v1/core/perfil/
+router.register(r'perfil', PerfilUsuarioViewSet, basename='perfil')
+
+# Gerenciamento da Imobiliária (Tenant)
+# URL Base: /api/v1/core/imobiliarias/
+# Endpoint Principal: /api/v1/core/imobiliarias/me/ (Edição da própria empresa)
 router.register(r'imobiliarias', ImobiliariaViewSet, basename='imobiliaria')
 
-# Registra configuração global (somente leitura via viewset, ou use a view manual abaixo)
+# Configurações Públicas (Logo, Título do Sistema)
+# URL Base: /api/v1/core/config-publica/
 router.register(r'config-publica', ConfiguracaoGlobalViewSet, basename='config-publica')
 
+# ==============================================================================
+# URL PATTERNS
+# ==============================================================================
 urlpatterns = [
-    # --- Rotas Específicas (Manuais) ---
+    # --- Funcionalidades Específicas (Views Manuais) ---
 
-    # Notificações
+    # Notificações (Endpoints diretos para facilitar integração)
     path('usuarios/marcar-notificacao-lida/<int:pk>/', MarcarNotificacaoLidaView.as_view(), name='marcar-notificacao-lida'),
     path('minhas-notificacoes/', MinhasNotificacoesView.as_view(), name='minhas-notificacoes-manual'),
     
-    # Estatísticas do Dashboard
+    # Dashboard e Estatísticas
     path('stats/', DashboardStatsView.as_view(), name='dashboard_stats_core'),
     
-    # Integrações por Tenant (Facebook/Instagram)
+    # Integrações (Facebook/Instagram/Gemini)
     path('integracoes/redes-sociais/', IntegracaoRedesSociaisView.as_view(), name='integracoes-redes-sociais'),
     
-    # Configuração Global (Edição via painel admin/superuser)
+    # Configuração Global (Legado/Manutenção - Edição via superuser)
     path('configuracao-global/', ConfiguracaoGlobalView.as_view(), name='configuracao-global'),
 
-    # Cadastro Público (SaaS)
+    # Cadastro Público (SaaS - Self Service)
+    # Permite criar Imobiliária + Usuário Admin sem autenticação
     path('public-register/', PublicRegisterView.as_view(), name='public-register'),
     
-    # --- Router (Fica por último) ---
+    # --- Router (Endpoints Automáticos) ---
+    # É importante ficar por último para não sobrescrever rotas específicas
     path('', include(router.urls)),
 ]
