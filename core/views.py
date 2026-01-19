@@ -12,7 +12,7 @@ from datetime import timedelta
 from django.shortcuts import get_object_or_404
 from django.contrib.auth import get_user_model
 from django.db.models import Sum, Q
-from django.db import transaction  # Importante para atomicidade
+from django.db import transaction
 
 # --- Imports para CSRF Fix ---
 from django.views.decorators.csrf import csrf_exempt
@@ -36,7 +36,7 @@ try:
 except ImportError:
     pass
 
-from .models import PerfilUsuario, Imobiliaria, Notificacao, ConfiguracaoGlobal
+from .models import PerfilUsuario, Imobiliaria, Notificacao, ConfiguracaoGlobal, Plano
 from .serializers import (
     MyTokenObtainPairSerializer, 
     CorretorRegistrationSerializer, 
@@ -45,8 +45,9 @@ from .serializers import (
     ImobiliariaIntegracaoSerializer,
     ConfiguracaoGlobalSerializer,
     PublicRegisterSerializer,
-    ImobiliariaSerializer, # Novo serializer completo
-    PerfilUsuarioSerializer
+    ImobiliariaSerializer,
+    PerfilUsuarioSerializer,
+    PlanoSerializer
 )
 from .permissions import IsAdminOrSuperUser, IsCorretorOrReadOnly
 
@@ -84,12 +85,13 @@ class LogoutView(APIView):
 
 class ImobiliariaViewSet(viewsets.ModelViewSet):
     """
-    ViewSet para gerenciar dados da Imobiliária.
-    Inclui suporte para upload de arquivos (Logo).
+    ViewSet para gerenciar dados da Imobiliária (Tenant).
+    Inclui suporte para upload de arquivos (Logo, Foto) e endpoint dedicado 'minha-imobiliaria'.
     """
     queryset = Imobiliaria.objects.all()
     serializer_class = ImobiliariaSerializer
     permission_classes = [IsAuthenticated]
+    # Habilita suporte a upload de arquivos (multipart/form-data)
     parser_classes = (MultiPartParser, FormParser, JSONParser) 
 
     def get_queryset(self):
@@ -101,35 +103,49 @@ class ImobiliariaViewSet(viewsets.ModelViewSet):
             return Imobiliaria.objects.all()
         return Imobiliaria.objects.none()
 
-    @action(detail=False, methods=['get', 'patch', 'put'])
-    def me(self, request):
+    @action(detail=False, methods=['get', 'patch', 'put'], url_path='minha-imobiliaria')
+    def minha_imobiliaria(self, request):
         """
-        Retorna ou atualiza a imobiliária do usuário logado.
-        Endpoint: /api/v1/core/imobiliarias/me/
+        Endpoint simplificado para o frontend obter/atualizar 
+        os dados da imobiliária do usuário logado.
+        URL: /api/v1/core/imobiliarias/minha-imobiliaria/
         """
-        # Verifica se o usuário tem imobiliária vinculada
-        if not hasattr(request.user, 'imobiliaria') or not request.user.imobiliaria:
-            return Response(
-                {"detail": "Usuário não possui imobiliária vinculada."}, 
-                status=status.HTTP_404_NOT_FOUND
-            )
+        try:
+            # 1. Verifica vínculo
+            if not hasattr(request.user, 'imobiliaria') or not request.user.imobiliaria:
+                return Response(
+                    {"detail": "Usuário não possui imobiliária vinculada."}, 
+                    status=status.HTTP_404_NOT_FOUND
+                )
 
-        imobiliaria = request.user.imobiliaria
+            imobiliaria = request.user.imobiliaria
 
-        if request.method == 'GET':
-            serializer = self.get_serializer(imobiliaria)
-            return Response(serializer.data)
+            # 2. Retorna dados (GET)
+            if request.method == 'GET':
+                serializer = self.get_serializer(imobiliaria)
+                return Response(serializer.data)
 
-        elif request.method in ['PATCH', 'PUT']:
+            # 3. Atualiza dados (PATCH/PUT)
             partial = request.method == 'PATCH'
+            
             serializer = self.get_serializer(imobiliaria, data=request.data, partial=partial)
-            serializer.is_valid(raise_exception=True)
-            serializer.save()
-            return Response(serializer.data)
+            
+            if serializer.is_valid():
+                serializer.save()
+                return Response(serializer.data)
+            
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+        except Exception as e:
+            traceback.print_exc()
+            return Response(
+                {"detail": f"Erro interno ao processar dados da imobiliária: {str(e)}"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
 
 class ConfiguracaoGlobalViewSet(viewsets.ReadOnlyModelViewSet):
     """
-    Retorna as configurações públicas do sistema (Logo, Título, etc).
+    Retorna as configurações públicas do sistema (Logo do SaaS, Título, etc).
     """
     queryset = ConfiguracaoGlobal.objects.all()
     serializer_class = ConfiguracaoGlobalSerializer
@@ -142,6 +158,11 @@ class ConfiguracaoGlobalViewSet(viewsets.ReadOnlyModelViewSet):
             return Response({})
         serializer = self.get_serializer(config)
         return Response(serializer.data)
+
+class PlanoViewSet(viewsets.ReadOnlyModelViewSet):
+    queryset = Plano.objects.filter(ativo=True)
+    serializer_class = PlanoSerializer
+    permission_classes = [permissions.AllowAny]
 
 # ==============================================================================
 # GESTÃO DE USUÁRIOS E NOTIFICAÇÕES
@@ -203,6 +224,7 @@ class CorretorRegistrationViewSet(viewsets.ModelViewSet):
 class PerfilUsuarioViewSet(viewsets.ModelViewSet):
     serializer_class = PerfilUsuarioSerializer 
     permission_classes = [IsAuthenticated]
+    parser_classes = (MultiPartParser, FormParser, JSONParser)
 
     def get_queryset(self):
         user = self.request.user
@@ -216,6 +238,7 @@ class PerfilUsuarioViewSet(viewsets.ModelViewSet):
     def me(self, request):
         """
         Endpoint específico para manipular o próprio usuário logado.
+        Permite atualizar perfil, senha e foto.
         """
         user = request.user
         if request.method == 'GET':
@@ -236,6 +259,26 @@ class PerfilUsuarioViewSet(viewsets.ModelViewSet):
             serializer.save()
 
 # ==============================================================================
+# NOTIFICAÇÕES (ViewSet Completo)
+# ==============================================================================
+
+class NotificacaoViewSet(viewsets.ModelViewSet):
+    """
+    ViewSet completo para notificações.
+    Permite listar, criar e marcar como lida.
+    """
+    serializer_class = NotificacaoSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        return Notificacao.objects.filter(destinatario=self.request.user).order_by('-data_criacao')
+
+    @action(detail=False, methods=['post'], url_path='marcar-todas-lidas')
+    def marcar_todas_lidas(self, request):
+        self.get_queryset().filter(lida=False).update(lida=True)
+        return Response(status=status.HTTP_200_OK)
+
+# ==============================================================================
 # DASHBOARD E STATS
 # ==============================================================================
 
@@ -243,7 +286,22 @@ class DashboardStatsView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request, format=None):
+        # Estrutura completa esperada pelo Frontend
+        data = {
+            'oportunidades_ativas': 0,
+            'tarefas_pendentes': 0,
+            'receita_mes': 0,
+            'imoveis_ativos': 0,
+            'financeiro_previsto_entrada': 0,
+            'financeiro_previsto_saida': 0,
+            'tarefas_hoje': [],
+            'funil_resumo': [],
+            'proximas_visitas': [],
+            'total_oportunidades': 0
+        }
+
         try:
+            print("--- INICIANDO CARGA DO DASHBOARD ---") # Debug
             user = request.user
             imobiliaria = getattr(request, 'tenant', None)
             
@@ -251,76 +309,177 @@ class DashboardStatsView(APIView):
             if not imobiliaria and hasattr(user, 'imobiliaria') and user.imobiliaria:
                 imobiliaria = user.imobiliaria
 
-            # Fallback final (não recomendado em prod, mas útil para testes locais)
+            # Se não encontrar imobiliária e não for superuser, retorna zerado
             if not imobiliaria and not user.is_superuser:
-                # Tenta pegar pelo subdomínio padrão
-                imobiliaria = Imobiliaria.objects.filter(subdominio='imobhome').first()
+                print("--- SEM IMOBILIÁRIA VINCULADA ---")
+                return Response(data)
 
-            if not imobiliaria and not user.is_superuser:
-                return Response({
-                    'total_imoveis': 0, 'total_clientes': 0,
-                    'total_contratos_ativos': 0, 'total_a_receber_30d': 0,
-                })
+            print(f"Imobiliária Ativa: {imobiliaria} (ID: {imobiliaria.id})") # Debug
 
-            filter_kwargs = {}
-            if imobiliaria:
-                filter_kwargs['imobiliaria'] = imobiliaria
+            hoje = timezone.now().date()
+            inicio_mes = hoje.replace(day=1)
             
-            # Contagem de Imóveis
+            # --- 1. IMÓVEIS ---
             try:
-                total_imoveis = Imovel.objects.filter(**filter_kwargs).exclude(status='DESATIVADO').count()
-            except Exception: 
-                total_imoveis = 0
-            
-            # Contagem de Clientes
+                from app_imoveis.models import Imovel
+                qs_imoveis = Imovel.objects.all()
+                if imobiliaria:
+                    qs_imoveis = qs_imoveis.filter(imobiliaria=imobiliaria)
+                
+                data['imoveis_ativos'] = qs_imoveis.exclude(status='DESATIVADO').count()
+                print(f"Imóveis: {data['imoveis_ativos']}") # Debug
+            except Exception as e:
+                print(f"Erro Imóveis: {e}")
+
+            # --- 2. CLIENTES, OPORTUNIDADES E FUNIL ---
             try:
-                total_clientes = Cliente.objects.filter(**filter_kwargs).count()
-            except Exception: 
-                total_clientes = 0
-            
-            # Contratos Ativos
-            try:
-                total_contratos_ativos = Contrato.objects.filter(
-                    imobiliaria=imobiliaria, 
-                    status_contrato='ATIVO'
-                ).count()
-            except Exception: 
-                total_contratos_ativos = 0
-            
-            # Financeiro a Receber (Próximos 30 dias)
-            total_a_receber = 0
-            try:
-                hoje = timezone.now().date()
-                trinta_dias = hoje + timedelta(days=30)
+                from app_clientes.models import Oportunidade, Tarefa, Visita
+                
+                # --- OPORTUNIDADES ---
+                qs_ops = Oportunidade.objects.all()
+                if imobiliaria:
+                    qs_ops = qs_ops.filter(imobiliaria=imobiliaria)
+                
+                # Debug: Total bruto antes de filtrar
+                print(f"Total Bruto Oportunidades: {qs_ops.count()}")
+
+                # KPI: Oportunidades Ativas
+                # Removemos 'GANHO', 'PERDIDO', 'ganho', 'perdido' para garantir
+                ops_ativas = qs_ops.exclude(fase__in=['GANHO', 'PERDIDO', 'ganho', 'perdido', 'Ganho', 'Perdido'])
+                data['oportunidades_ativas'] = ops_ativas.count()
+                data['total_oportunidades'] = ops_ativas.count()
+                
+                print(f"Oportunidades Ativas: {data['oportunidades_ativas']}") # Debug
+
+                # Gráfico: Resumo do Funil
+                funil_data = ops_ativas.values('fase').annotate(total=Count('id')).order_by('fase')
+                
+                fase_labels = {
+                    'LEAD': 'Leads',
+                    'QUALIFICACAO': 'Qualificação',
+                    'VISITA': 'Visita',
+                    'PROPOSTA': 'Proposta',
+                    'NEGOCIACAO': 'Negociação'
+                }
+                
+                funil_resumo = []
+                for item in funil_data:
+                    fase_cod = item['fase']
+                    # Adiciona mesmo se não tiver label, para debug
+                    titulo = fase_labels.get(fase_cod, fase_cod)
+                    funil_resumo.append({'titulo': titulo, 'total': item['total']})
+                
+                data['funil_resumo'] = funil_resumo
+
+                # --- TAREFAS ---
+                # Filtro inicial: Status Pendente
+                qs_tarefas = Tarefa.objects.filter(status='PENDENTE')
                 
                 if imobiliaria:
-                    pagamentos_qs = Pagamento.objects.filter(
-                        contrato__imobiliaria=imobiliaria,
-                        status='PENDENTE',
-                        data_vencimento__gte=hoje, 
-                        data_vencimento__lte=trinta_dias
-                    )
-                    soma = pagamentos_qs.aggregate(Sum('valor'))['valor__sum']
-                    total_a_receber = soma if soma else 0
-            except Exception:
-                total_a_receber = 0
+                    # CORREÇÃO: Filtra tarefas onde o cliente pertence à imob OU o responsável pertence à imob
+                    # Isso pega tarefas internas que não têm cliente vinculado
+                    qs_tarefas = qs_tarefas.filter(
+                        Q(cliente__imobiliaria=imobiliaria) | 
+                        Q(responsavel__imobiliaria=imobiliaria)
+                    ).distinct()
 
-            return Response({
-                'total_imoveis': total_imoveis,
-                'total_clientes': total_clientes,
-                'total_contratos_ativos': total_contratos_ativos,
-                'total_a_receber_30d': total_a_receber,
-            })
+                # Se for corretor (não admin), vê apenas as suas
+                if not user.is_superuser and not user.is_admin:
+                    qs_tarefas = qs_tarefas.filter(responsavel=user)
+                
+                data['tarefas_pendentes'] = qs_tarefas.count()
+                print(f"Tarefas Pendentes: {data['tarefas_pendentes']}") # Debug
+
+                # Lista: Tarefas de Hoje
+                tarefas_hoje = qs_tarefas.filter(data_vencimento__date=hoje).order_by('data_vencimento')[:5]
+                data['tarefas_hoje'] = [
+                    {
+                        'id': t.id,
+                        'titulo': t.titulo,
+                        'data_vencimento': t.data_vencimento,
+                        'cliente_nome': str(t.cliente) if t.cliente else "Interno"
+                    } for t in tarefas_hoje
+                ]
+
+                # --- VISITAS ---
+                qs_visitas = Visita.objects.filter(data__gte=timezone.now(), status='AGENDADA')
+                if imobiliaria:
+                    # Tenta filtrar por cliente da imobiliária ou imóvel da imobiliária
+                    qs_visitas = qs_visitas.filter(
+                        Q(cliente__imobiliaria=imobiliaria) | 
+                        Q(imovel__imobiliaria=imobiliaria)
+                    ).distinct()
+
+                if not user.is_superuser and not user.is_admin:
+                     qs_visitas = qs_visitas.filter(corretor=user)
+                
+                visitas_prox = qs_visitas.order_by('data')[:5]
+                data['proximas_visitas'] = [
+                    {
+                        'id': v.id,
+                        'data': v.data,
+                        # Verifica relacionamentos com segurança (ManyMany ou ForeignKey)
+                        'imovel_titulo': str(v.imoveis.first()) if hasattr(v, 'imoveis') and v.imoveis.exists() else (str(v.imovel) if hasattr(v, 'imovel') and v.imovel else "Não informado"),
+                        'imovel_id': v.imoveis.first().id if hasattr(v, 'imoveis') and v.imoveis.exists() else (v.imovel.id if hasattr(v, 'imovel') and v.imovel else 0),
+                        'cliente_nome': str(v.cliente) if v.cliente else 'Cliente'
+                    } for v in visitas_prox
+                ]
+
+            except Exception as e:
+                print(f"Erro App Clientes: {e}")
+                traceback.print_exc()
+            
+            # --- 3. FINANCEIRO ---
+            try:
+                from app_financeiro.models import Transacao
+                
+                qs_fin = Transacao.objects.all()
+                if imobiliaria:
+                    qs_fin = qs_fin.filter(imobiliaria=imobiliaria)
+
+                # Receita do Mês
+                receita = qs_fin.filter(
+                    tipo='RECEITA', 
+                    status='PAGO', 
+                    data_pagamento__gte=inicio_mes
+                ).aggregate(Sum('valor'))['valor__sum']
+                data['receita_mes'] = receita if receita else 0
+
+                # Previsões
+                entradas_prev = qs_fin.filter(
+                    tipo='RECEITA',
+                    status='PENDENTE',
+                    data_vencimento__gte=inicio_mes,
+                    data_vencimento__month=hoje.month
+                ).aggregate(Sum('valor'))['valor__sum']
+                data['financeiro_previsto_entrada'] = entradas_prev if entradas_prev else 0
+
+                saidas_prev = qs_fin.filter(
+                    tipo='DESPESA',
+                    status='PENDENTE',
+                    data_vencimento__gte=inicio_mes,
+                    data_vencimento__month=hoje.month
+                ).aggregate(Sum('valor'))['valor__sum']
+                data['financeiro_previsto_saida'] = saidas_prev if saidas_prev else 0
+                
+                print(f"Receita Mês: {data['receita_mes']}") # Debug
+
+            except ImportError:
+                pass
+            except Exception as e:
+                print(f"Erro Financeiro: {e}")
+
+            print("--- DASHBOARD FINALIZADO COM SUCESSO ---")
+            return Response(data)
 
         except Exception as e:
             traceback.print_exc()
-            return Response({
-                'total_imoveis': 0, 'total_clientes': 0,
-                'total_contratos_ativos': 0, 'total_a_receber_30d': 0,
-                'error': str(e)
-            })
+            return Response(data)
     
 class IntegracaoRedesSociaisView(APIView):
+    """
+    View específica para salvar chaves de integração via POST/PUT.
+    """
     permission_classes = [IsAuthenticated]
     serializer_class = ImobiliariaIntegracaoSerializer
 
@@ -350,7 +509,7 @@ class IntegracaoRedesSociaisView(APIView):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 # ==============================================================================
-# NOTIFICAÇÕES (Views Adicionais)
+# VIEWS MANUAIS DE NOTIFICAÇÃO (Mantidas para compatibilidade)
 # ==============================================================================
 
 class MinhasNotificacoesView(APIView):

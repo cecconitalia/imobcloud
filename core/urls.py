@@ -10,7 +10,9 @@ from .views import (
     ConfiguracaoGlobalView,
     ImobiliariaViewSet,
     ConfiguracaoGlobalViewSet,
-    PerfilUsuarioViewSet
+    PerfilUsuarioViewSet,
+    NotificacaoViewSet,
+    PlanoViewSet
 )
 
 # ==============================================================================
@@ -18,23 +20,30 @@ from .views import (
 # ==============================================================================
 router = DefaultRouter()
 
-# Gerenciamento de Usuários (Corretores/Admins)
+# Gerenciamento da Imobiliária (Tenant)
+# URL Base: /api/v1/core/imobiliarias/
+# Action: /api/v1/core/imobiliarias/minha-imobiliaria/ (Configurações do Sistema)
+router.register(r'imobiliarias', ImobiliariaViewSet, basename='imobiliaria')
+
+# Gerenciamento de Usuários (Corretores/Admins) - Visão Administrativa
 # URL Base: /api/v1/core/usuarios/
-# Inclui actions como: /usuarios/me/, /usuarios/minhas-notificacoes/
 router.register(r'usuarios', CorretorRegistrationViewSet, basename='usuario')
 
-# Perfil do Usuário (Alternativa focada no próprio usuário e edição de perfil)
+# Perfil do Usuário Logado - Visão Pessoal
 # URL Base: /api/v1/core/perfil/
 router.register(r'perfil', PerfilUsuarioViewSet, basename='perfil')
 
-# Gerenciamento da Imobiliária (Tenant)
-# URL Base: /api/v1/core/imobiliarias/
-# Endpoint Principal: /api/v1/core/imobiliarias/me/ (Edição da própria empresa)
-router.register(r'imobiliarias', ImobiliariaViewSet, basename='imobiliaria')
-
 # Configurações Públicas (Logo, Título do Sistema)
-# URL Base: /api/v1/core/config-publica/
-router.register(r'config-publica', ConfiguracaoGlobalViewSet, basename='config-publica')
+# URL Base: /api/v1/core/configuracoes-globais/
+router.register(r'configuracoes-globais', ConfiguracaoGlobalViewSet, basename='config-global')
+
+# Notificações
+# URL Base: /api/v1/core/notificacoes/
+router.register(r'notificacoes', NotificacaoViewSet, basename='notificacao')
+
+# Planos e Assinaturas
+# URL Base: /api/v1/core/planos/
+router.register(r'planos', PlanoViewSet, basename='plano')
 
 # ==============================================================================
 # URL PATTERNS
@@ -42,7 +51,7 @@ router.register(r'config-publica', ConfiguracaoGlobalViewSet, basename='config-p
 urlpatterns = [
     # --- Funcionalidades Específicas (Views Manuais) ---
 
-    # Notificações (Endpoints diretos para facilitar integração)
+    # Notificações (Endpoints diretos)
     path('usuarios/marcar-notificacao-lida/<int:pk>/', MarcarNotificacaoLidaView.as_view(), name='marcar-notificacao-lida'),
     path('minhas-notificacoes/', MinhasNotificacoesView.as_view(), name='minhas-notificacoes-manual'),
     
@@ -52,14 +61,13 @@ urlpatterns = [
     # Integrações (Facebook/Instagram/Gemini)
     path('integracoes/redes-sociais/', IntegracaoRedesSociaisView.as_view(), name='integracoes-redes-sociais'),
     
-    # Configuração Global (Legado/Manutenção - Edição via superuser)
+    # Configuração Global (Legado/Manutenção)
     path('configuracao-global/', ConfiguracaoGlobalView.as_view(), name='configuracao-global'),
 
     # Cadastro Público (SaaS - Self Service)
-    # Permite criar Imobiliária + Usuário Admin sem autenticação
     path('public-register/', PublicRegisterView.as_view(), name='public-register'),
     
     # --- Router (Endpoints Automáticos) ---
-    # É importante ficar por último para não sobrescrever rotas específicas
+    # O include do router deve ficar por último para não interceptar rotas manuais específicas
     path('', include(router.urls)),
 ]

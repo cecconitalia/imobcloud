@@ -43,7 +43,7 @@ from .serializers import (
     ImagemImovelSerializer,
     ImovelSimplificadoSerializer 
 )
-from core.models import Imobiliaria, PerfilUsuario, Notificacao
+from core.models import Imobiliaria, PerfilUsuario, Notificacao, ConfiguracaoGlobal
 from app_clientes.models import Cliente, Oportunidade 
 from app_config_ia.models import ModeloDePrompt
 from core.serializers import ImobiliariaPublicSerializer
@@ -65,7 +65,6 @@ def get_autorizacao_context(imovel):
     """
     Gera o contexto de dados para renderizar a autorização de venda/aluguel.
     """
-    # Tenta configurar locale, mas usa fallback manual para meses se falhar
     try:
         locale.setlocale(locale.LC_TIME, 'pt_BR.UTF-8')
     except locale.Error:
@@ -105,7 +104,6 @@ def get_autorizacao_context(imovel):
     if proprietario:
         nome_proprietario = proprietario.razao_social if proprietario.tipo_pessoa == 'JURIDICA' and proprietario.razao_social else proprietario.nome
 
-    # Formatação de Datas Manual para garantir Português
     mes_hoje = traduzir_mes(hoje.strftime("%B"))
     
     data_fim_fmt = "INDETERMINADO"
@@ -189,7 +187,6 @@ class VisualizarAutorizacaoPdfView(APIView):
     def get(self, request, pk, *args, **kwargs):
         imovel = get_imovel_seguro(request, pk)
         
-        # 1. Obtém o conteúdo (Banco ou Template)
         if imovel.conteudo_html_autorizacao:
             raw_html = imovel.conteudo_html_autorizacao
         else:
@@ -199,10 +196,7 @@ class VisualizarAutorizacaoPdfView(APIView):
             except:
                 raw_html = f"<p>Erro: Template ausente.</p>"
 
-        # 2. ENVELOPA O HTML PARA CORREÇÃO DE ENCODING (CORREÇÃO AQUI)
-        # O xhtml2pdf precisa da meta tag charset=utf-8 explicita para não usar Latin-1
         if "<html>" not in raw_html.lower():
-            # Se for fragmento do editor, cria o esqueleto completo
             full_html = f"""
             <!DOCTYPE html>
             <html>
@@ -241,12 +235,10 @@ class VisualizarAutorizacaoPdfView(APIView):
             </html>
             """
         else:
-            # Se já for HTML, injeta o meta charset se não existir
             full_html = raw_html
             if "charset=utf-8" not in full_html.lower():
                 full_html = full_html.replace("<head>", '<head><meta http-equiv="Content-Type" content="text/html; charset=utf-8">')
 
-        # 3. Gera o PDF
         result = BytesIO()
         pdf = pisa.pisaDocument(
             src=BytesIO(full_html.encode("UTF-8")), 
@@ -392,7 +384,17 @@ class ImovelIAView(APIView):
                     "imoveis": []
                  }, status=status.HTTP_400_BAD_REQUEST)
 
-            chave_banco = getattr(imobiliaria_obj, 'google_api_key', None)
+            # --- CORREÇÃO AQUI: Tenta buscar google_gemini_api_key primeiro, depois google_api_key global ---
+            chave_banco = getattr(imobiliaria_obj, 'google_gemini_api_key', None)
+            if not chave_banco:
+                 # Tenta buscar nas configurações globais
+                 try:
+                     config = ConfiguracaoGlobal.objects.first()
+                     if config:
+                         chave_banco = config.google_api_key
+                 except:
+                     pass
+            
             chave_env = os.getenv("GOOGLE_API_KEY")
             api_key = str(chave_banco).strip() if chave_banco else chave_env
 
@@ -440,7 +442,8 @@ class ImovelIAView(APIView):
                 if not preferred_model.startswith('models/'):
                     models_to_try.append(f"models/{preferred_model}")
             
-            defaults = ['models/gemini-2.0-flash', 'gemini-2.0-flash', 'models/gemini-1.5-flash', 'gemini-1.5-flash', 'models/gemini-pro']
+            # Priorizando 1.5-flash
+            defaults = ['models/gemini-1.5-flash', 'gemini-1.5-flash', 'models/gemini-2.0-flash', 'gemini-2.0-flash', 'models/gemini-pro']
             for m in defaults:
                 if m not in models_to_try:
                     models_to_try.append(m)
@@ -723,19 +726,31 @@ class ImovelViewSet(viewsets.ModelViewSet):
              return Response({"error": f"Imóvel não encontrado: {e}"}, status=status.HTTP_404_NOT_FOUND)
 
         try:
-            api_key = getattr(imovel.imobiliaria, 'google_api_key', None)
+            # CORREÇÃO: Tenta pegar a chave correta 'google_gemini_api_key' da imobiliária
+            api_key = getattr(imovel.imobiliaria, 'google_gemini_api_key', None)
+            
+            # Se não tiver, tenta a configuração global
+            if not api_key:
+                try:
+                    config = ConfiguracaoGlobal.objects.first()
+                    if config:
+                        api_key = config.google_api_key
+                except:
+                    pass
+
+            # Por fim, tenta do ambiente
             if not api_key:
                 api_key = os.getenv("GOOGLE_API_KEY")
 
             if not api_key:
                 return Response(
-                    {"error": "Chave de API da Google não configurada na imobiliária deste imóvel. Cadastre-a no Admin."},
-                    status=status.HTTP_500_INTERNAL_SERVER_ERROR
+                    {"error": "Chave de API do Google (Gemini) não configurada. Configure na Imobiliária ou nas Configurações Globais."},
+                    status=status.HTTP_400_BAD_REQUEST
                 )
             
             genai.configure(api_key=api_key)
 
-            model_name = 'gemini-2.0-flash'
+            model_name = 'gemini-1.5-flash'
             
             try:
                 prompt_config = ModeloDePrompt.objects.get(em_uso_descricao=True)
@@ -755,8 +770,10 @@ class ImovelViewSet(viewsets.ModelViewSet):
             prompt_final = prompt_final.replace('{{voz_da_marca}}', voz_da_marca)
 
             generated_text = None
-            models_to_try = [model_name, 'gemini-2.0-flash', 'gemini-1.5-flash']
+            # Prioriza 1.5-flash que é mais estável
+            models_to_try = ['gemini-1.5-flash', model_name, 'gemini-2.0-flash', 'gemini-1.0-pro']
             
+            errors = []
             for m_tag in models_to_try:
                 try:
                     model = genai.GenerativeModel(m_tag)
@@ -765,11 +782,11 @@ class ImovelViewSet(viewsets.ModelViewSet):
                         generated_text = response.parts[0].text
                         break
                 except Exception as e:
-                    print(f"Erro ao gerar descrição com {m_tag}: {e}")
+                    errors.append(f"{m_tag}: {str(e)}")
                     continue
 
             if not generated_text:
-                 raise ValueError("Todos os modelos falharam ao gerar a descrição.")
+                 raise ValueError(f"Todos os modelos falharam ao gerar a descrição. Detalhes: {'; '.join(errors)}")
 
             generated_text = generated_text.strip().lstrip('```markdown').lstrip('```').rstrip('```').strip()
             

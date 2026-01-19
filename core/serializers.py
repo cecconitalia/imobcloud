@@ -3,7 +3,7 @@ from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Group, Permission
 from django.db import transaction
-from core.models import PerfilUsuario, Notificacao, Imobiliaria, ConfiguracaoGlobal
+from .models import PerfilUsuario, Notificacao, Imobiliaria, ConfiguracaoGlobal, Plano
 
 # Obtém o modelo de usuário ativo (PerfilUsuario)
 User = get_user_model()
@@ -22,29 +22,41 @@ class PermissionSerializer(serializers.ModelSerializer):
         fields = ['id', 'name', 'codename']
 
 # ==============================================================================
-# SERIALIZERS DA IMOBILIÁRIA
+# SERIALIZERS DA IMOBILIÁRIA (TENANT)
 # ==============================================================================
 class ImobiliariaSerializer(serializers.ModelSerializer):
     """
-    Serializer completo da imobiliária, incluindo TODOS os campos.
-    Usado para exibir detalhes nas configurações e no contexto do usuário.
+    Serializer completo da imobiliária.
+    Inclui campos de identidade visual, endereço, configurações de IA, Redes Sociais e Responsável.
     """
-    # Garante que a URL da imagem completa seja retornada
+    # Garante o retorno da URL completa e permite upload/null
     foto_perfil = serializers.ImageField(required=False, allow_null=True)
-    # Campo 'logo' mantido para compatibilidade, se necessário
     logo = serializers.ImageField(required=False, allow_null=True)
-    # Endereço completo (Property no model)
+    
+    # Campo calculado (property no model)
     endereco_completo = serializers.ReadOnlyField()
 
     class Meta:
         model = Imobiliaria
-        fields = '__all__'
-        read_only_fields = ['id', 'uuid', 'data_criacao', 'updated_at']
+        fields = [
+            'id', 'uuid', 'nome_fantasia', 'razao_social', 'cnpj', 'creci', 'tipo_pessoa',
+            'logo', 'foto_perfil', 'cor_primaria', 'subdominio', 'voz_da_marca_preferida',
+            'email_contato', 'telefone', 'telefone_celular', 'whatsapp', 'website',
+            'cep', 'logradouro', 'numero', 'complemento', 'bairro', 'cidade', 'estado',
+            'responsavel_nome', 'responsavel_cpf', 'responsavel_email', 'responsavel_telefone',
+            'facebook', 'instagram', 'linkedin',
+            'facebook_app_id', 'facebook_app_secret', 
+            'facebook_page_id', 'facebook_page_access_token', 'facebook_user_access_token',
+            'instagram_business_account_id',
+            'google_gemini_api_key',
+            'data_cadastro', 'endereco_completo'  # CORRIGIDO: data_criacao -> data_cadastro
+        ]
+        read_only_fields = ['id', 'uuid', 'data_cadastro', 'subdominio'] # CORRIGIDO: data_criacao -> data_cadastro
 
 class ImobiliariaPublicSerializer(serializers.ModelSerializer):
     """
-    Usado para exibir dados públicos da imobiliária (site, footer, cabeçalho).
-    Filtra dados sensíveis (tokens, chaves API).
+    Usado para exibir dados públicos da imobiliária (site, footer).
+    Remove dados sensíveis (tokens, chaves API).
     """
     class Meta:
         model = Imobiliaria
@@ -57,7 +69,8 @@ class ImobiliariaPublicSerializer(serializers.ModelSerializer):
 
 class ImobiliariaIntegracaoSerializer(serializers.ModelSerializer):
     """
-    Serializer focado apenas nas chaves de integração e tokens sociais.
+    Serializer específico para atualizar apenas as chaves de integração.
+    Usado na view IntegracaoRedesSociaisView.
     """
     class Meta:
         model = Imobiliaria
@@ -70,61 +83,57 @@ class ImobiliariaIntegracaoSerializer(serializers.ModelSerializer):
         ]
 
 # ==============================================================================
-# JWT TOKEN CUSTOMIZADO
+# JWT TOKEN CUSTOMIZADO (LOGIN)
 # ==============================================================================
 class MyTokenObtainPairSerializer(TokenObtainPairSerializer):
     """
-    Personaliza o serializer de token para adicionar o subdomínio da imobiliária,
-    o cargo e o nome do utilizador na resposta do login.
+    Personaliza a resposta do token JWT para incluir informações
+    essenciais do usuário e do tenant (imobiliária) no login.
     """
     def validate(self, attrs):
-        # Valida e autentica o usuário (self.user é definido aqui)
         data = super().validate(attrs)
 
-        # Adiciona o nome do usuário para ser usado no frontend
-        # Tenta pegar o primeiro nome, senão usa o username
+        # Adiciona dados básicos do usuário
         data['user_name'] = self.user.first_name or self.user.username
         data['user_id'] = self.user.id
         data['email'] = self.user.email
+        data['foto_perfil'] = self.user.foto_perfil.url if self.user.foto_perfil else None
 
-        # Lógica para determinar o cargo (Acessando campos diretamente no User)
+        # Determina o cargo/role
         cargo = 'USER'
-        
         if self.user.is_superuser:
-             cargo = 'SUPERADMIN'
+            cargo = 'SUPERADMIN'
         elif self.user.is_admin:
-             cargo = 'ADMIN'
+            cargo = 'ADMIN'
         elif self.user.is_corretor:
-             cargo = 'CORRETOR'
-             
+            cargo = 'CORRETOR'
         data['cargo'] = cargo
 
-        # Dados da Imobiliária (Acessando diretamente no User)
+        # Dados da Imobiliária (Tenant)
         if hasattr(self.user, 'imobiliaria') and self.user.imobiliaria:
-            data['subdomain'] = self.user.imobiliaria.subdominio
-            # Usa nome fantasia ou razão social ou nome sistema
-            data['imobiliaria_name'] = str(self.user.imobiliaria)
-            data['imobiliaria_id'] = self.user.imobiliaria.id
+            imob = self.user.imobiliaria
+            data['subdomain'] = imob.subdominio
+            data['imobiliaria_name'] = imob.nome_fantasia or imob.nome_fantasia
+            data['imobiliaria_id'] = imob.id
+            data['imobiliaria_cor'] = imob.cor_primaria
             
-            # --- CORREÇÃO DO ERRO 500 E COMPATIBILIDADE DE IMAGEM ---
-            data['imobiliaria_foto'] = None
-            
+            # Lógica segura para imagem da empresa (Foto Perfil > Logo > None)
+            imobiliaria_foto = None
             try:
-                # Tenta 'foto_perfil' (Novo padrão) se existir no objeto e não for nulo
-                if hasattr(self.user.imobiliaria, 'foto_perfil') and self.user.imobiliaria.foto_perfil:
-                     data['imobiliaria_foto'] = self.user.imobiliaria.foto_perfil.url
-                # Tenta 'logo' (Fallback comum) se existir no objeto e não for nulo
-                elif hasattr(self.user.imobiliaria, 'logo') and self.user.imobiliaria.logo:
-                     data['imobiliaria_foto'] = self.user.imobiliaria.logo.url
+                if imob.foto_perfil:
+                    imobiliaria_foto = imob.foto_perfil.url
+                elif imob.logo:
+                    imobiliaria_foto = imob.logo.url
             except Exception:
-                # Se falhar ao pegar URL (ex: arquivo não encontrado), define como None para não quebrar o login
-                data['imobiliaria_foto'] = None
-
+                pass # Evita erro 500 se o arquivo físico não existir
+            
+            data['imobiliaria_foto'] = imobiliaria_foto
         else:
             data['subdomain'] = None
             data['imobiliaria_name'] = 'Administração' if self.user.is_superuser else 'Sem Empresa'
             data['imobiliaria_id'] = None
             data['imobiliaria_foto'] = None
+            data['imobiliaria_cor'] = '#3B82F6' # Azul padrão
 
         return data
 
@@ -133,16 +142,11 @@ class MyTokenObtainPairSerializer(TokenObtainPairSerializer):
 # ==============================================================================
 class PerfilUsuarioSerializer(serializers.ModelSerializer):
     """
-    Serializer principal do usuário logado (/me).
-    Aninha os dados da imobiliária para facilitar o acesso no frontend.
+    Serializer principal do usuário (/me).
+    Aninha detalhes da imobiliária para uso no frontend store.
     """
-    # Aninha os dados da imobiliária completos
     imobiliaria_detalhes = ImobiliariaSerializer(source='imobiliaria', read_only=True)
-    
-    # Campo calculado para exibir o nome completo
     nome_completo = serializers.SerializerMethodField()
-    
-    # Mantendo compatibilidade com código antigo do frontend
     imobiliaria_nome = serializers.CharField(source='imobiliaria.nome_fantasia', read_only=True)
     
     groups = GroupSerializer(many=True, read_only=True)
@@ -168,7 +172,7 @@ class PerfilUsuarioSerializer(serializers.ModelSerializer):
 
 class PublicRegisterSerializer(serializers.ModelSerializer):
     """
-    Serializer para cadastro público de novos usuários (Self-service).
+    Serializer para cadastro público (Self-service).
     """
     password = serializers.CharField(write_only=True, min_length=8)
 
@@ -177,7 +181,6 @@ class PublicRegisterSerializer(serializers.ModelSerializer):
         fields = ('username', 'password', 'email', 'first_name', 'last_name', 'telefone')
     
     def create(self, validated_data):
-        # Cria o usuário com senha criptografada usando o manager do User
         user = User.objects.create_user(
             username=validated_data['username'],
             email=validated_data.get('email'),
@@ -185,19 +188,17 @@ class PublicRegisterSerializer(serializers.ModelSerializer):
             first_name=validated_data.get('first_name', ''),
             last_name=validated_data.get('last_name', ''),
             telefone=validated_data.get('telefone', ''),
-            is_active=True # Define se o usuário já nasce ativo
+            is_active=True
         )
         return user
 
 class CorretorRegistrationSerializer(serializers.ModelSerializer):
     """
-    Serializer para criação e atualização de usuários pelo Admin (CRUD de usuários).
+    Serializer para CRUD de usuários pelo Admin.
     """
     password = serializers.CharField(write_only=True, min_length=8, required=False)
-    # Define os campos booleanos com valores padrão caso não sejam enviados
     is_admin = serializers.BooleanField(required=False, default=False)
     is_corretor = serializers.BooleanField(required=False, default=True)
-    # Garante que o campo de imagem seja aceito
     foto_perfil = serializers.ImageField(required=False, allow_null=True)
 
     class Meta:
@@ -215,13 +216,15 @@ class CorretorRegistrationSerializer(serializers.ModelSerializer):
     @transaction.atomic
     def create(self, validated_data):
         password = validated_data.pop('password', None)
+        # Extrai booleans com defaults
         is_admin = validated_data.pop('is_admin', False)
         is_corretor = validated_data.pop('is_corretor', True)
         
+        # Define a imobiliária baseada no contexto da requisição (Tenant atual)
         imobiliaria = None
         request = self.context.get('request')
-        if request and hasattr(request, 'tenant'):
-            imobiliaria = request.tenant
+        if request and hasattr(request, 'user') and request.user.imobiliaria:
+            imobiliaria = request.user.imobiliaria
 
         user = User(**validated_data)
         if password:
@@ -245,12 +248,11 @@ class CorretorRegistrationSerializer(serializers.ModelSerializer):
 
 class CorretorDisplaySerializer(serializers.ModelSerializer):
     """
-    Serializer leve para listagens de corretores/usuários.
+    Serializer leve para listagens de equipe.
     """
     cargo = serializers.SerializerMethodField()
     imobiliaria_nome = serializers.CharField(source='imobiliaria.nome_fantasia', read_only=True)
     nome_completo = serializers.SerializerMethodField()
-    # Garante que o campo de imagem seja serializado corretamente
     foto_perfil = serializers.ImageField(read_only=True, required=False, allow_null=True)
 
     class Meta:
@@ -271,7 +273,7 @@ class CorretorDisplaySerializer(serializers.ModelSerializer):
         return f"{obj.first_name} {obj.last_name}".strip() or obj.username
 
 # ==============================================================================
-# OUTROS SERIALIZERS (Notificações, Configurações)
+# OUTROS SERIALIZERS (Notificações, Configurações, Planos)
 # ==============================================================================
 class NotificacaoSerializer(serializers.ModelSerializer):
     data_criacao_formatada = serializers.SerializerMethodField()
@@ -286,4 +288,9 @@ class NotificacaoSerializer(serializers.ModelSerializer):
 class ConfiguracaoGlobalSerializer(serializers.ModelSerializer):
     class Meta:
         model = ConfiguracaoGlobal
+        fields = '__all__'
+
+class PlanoSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Plano
         fields = '__all__'

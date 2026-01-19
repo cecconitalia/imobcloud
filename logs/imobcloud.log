@@ -17153,3 +17153,128 @@ Unauthorized: /api/v1/core/usuarios/minhas-notificacoes/
 Unauthorized: /api/v1/core/imobiliarias/me/
 Unauthorized: /api/v1/core/usuarios/me/
 Unauthorized: /api/v1/core/usuarios/me/
+Not Found: /api/core/imobiliarias/minha-imobiliaria/
+Not Found: /api/core/imobiliarias/minha-imobiliaria/
+Not Found: /api/core/imobiliarias/minha-imobiliaria/
+Not Found: /favicon.ico
+Not Found: /api/core/imobiliarias/minha-imobiliaria/
+Not Found: /api/core/imobiliarias/minha-imobiliaria/
+Not Found: /favicon.ico
+Unauthorized: /api/v1/core/usuarios/minhas-notificacoes/
+Unauthorized: /api/v1/core/usuarios/me/
+Unauthorized: /api/v1/core/usuarios/me/
+Unauthorized: /api/v1/core/stats/
+Internal Server Error: /api/v1/core/imobiliarias/minha-imobiliaria/
+Internal Server Error: /api/v1/core/imobiliarias/minha-imobiliaria/
+Internal Server Error: /api/v1/core/imobiliarias/minha-imobiliaria/
+Traceback (most recent call last):
+  File "/usr/local/lib/python3.12/site-packages/django/core/handlers/exception.py", line 55, in inner
+    response = get_response(request)
+               ^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/django/core/handlers/base.py", line 220, in _get_response
+    response = response.render()
+               ^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/django/template/response.py", line 114, in render
+    self.content = self.rendered_content
+                   ^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/rest_framework/response.py", line 70, in rendered_content
+    ret = renderer.render(self.data, accepted_media_type, context)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/rest_framework/renderers.py", line 723, in render
+    context = self.get_context(data, accepted_media_type, renderer_context)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/rest_framework/renderers.py", line 694, in get_context
+    'put_form': self.get_rendered_html_form(data, view, 'PUT', request),
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/rest_framework/renderers.py", line 510, in get_rendered_html_form
+    return self.render_form_for_serializer(serializer)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/rest_framework/renderers.py", line 518, in render_form_for_serializer
+    serializer.data,
+    ^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/rest_framework/serializers.py", line 555, in data
+    ret = super().data
+          ^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/rest_framework/serializers.py", line 257, in data
+    self._data = self.get_initial()
+                 ^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/rest_framework/serializers.py", line 405, in get_initial
+    for field in self.fields.values()
+                 ^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/django/utils/functional.py", line 47, in __get__
+    res = instance.__dict__[self.name] = self.func(instance)
+                                         ^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/rest_framework/serializers.py", line 356, in fields
+    for key, value in self.get_fields().items():
+                      ^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/rest_framework/serializers.py", line 1076, in get_fields
+    field_class, field_kwargs = self.build_field(
+                                ^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/rest_framework/serializers.py", line 1222, in build_field
+    return self.build_unknown_field(field_name, model_class)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/rest_framework/serializers.py", line 1340, in build_unknown_field
+    raise ImproperlyConfigured(
+django.core.exceptions.ImproperlyConfigured: Field name `data_criacao` is not valid for model `Imobiliaria`.
+Not Found: /favicon.ico
+Could not reverse url from auth.user
+Could not reverse url from auth.user
+Could not reverse url from auth.user
+Could not reverse url from auth.user
+Service Unavailable: /api/v1/imoveis/1/gerar-descricao-ia/
+Service Unavailable: /api/v1/imoveis/1/gerar-descricao-ia/
+Not Found: /favicon.ico
+Service Unavailable: /api/v1/imoveis/1/gerar-descricao-ia/
+Service Unavailable: /api/v1/imoveis/1/gerar-descricao-ia/
+Service Unavailable: /api/v1/imoveis/1/gerar-descricao-ia/
+Not Found: /favicon.ico
+Service Unavailable: /api/v1/imoveis/1/gerar-descricao-ia/
+Service Unavailable: /api/v1/imoveis/1/gerar-descricao-ia/
+Not Found: /favicon.ico
+Could not reverse url from auth.user
+Could not reverse url from auth.user
+Could not reverse url from auth.user
+Could not reverse url from auth.user
+Could not reverse url from auth.user
+Could not reverse url from auth.user
+Could not reverse url from auth.user
+Could not reverse url from auth.user
+Could not reverse url from auth.user
+Could not reverse url from auth.user
+Could not reverse url from auth.user
+Could not reverse url from auth.user
+Could not reverse url from auth.user
+Could not reverse url from auth.user
+Could not reverse url from auth.user
+Could not reverse url from auth.user
+Could not reverse url from auth.user
+Could not reverse url from auth.user
+Could not reverse url from auth.user
+Could not reverse url from auth.user
+Could not reverse url from auth.user
+Could not reverse url from auth.user
+Could not reverse url from auth.user
+Could not reverse url from auth.user
+Could not reverse url from auth.user
+Could not reverse url from auth.user
+Could not reverse url from auth.user
+Could not reverse url from auth.user
+Could not reverse url from auth.user
+Could not reverse url from auth.user
+Could not reverse url from auth.user
+Could not reverse url from auth.user
+Could not reverse url from auth.user
+Could not reverse url from auth.user
+Could not reverse url from auth.user
+Could not reverse url from auth.user
+Could not reverse url from auth.user
+Could not reverse url from auth.user
+Could not reverse url from auth.user
+Could not reverse url from auth.user
+Could not reverse url from auth.user
+Could not reverse url from auth.user
+Could not reverse url from auth.user
+Could not reverse url from auth.user
+Could not reverse url from auth.user
+Could not reverse url from auth.user
+Unauthorized: /api/v1/core/usuarios/minhas-notificacoes/

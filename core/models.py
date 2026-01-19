@@ -143,6 +143,8 @@ class Imobiliaria(models.Model):
     # Redes Sociais (Integração Legada)
     facebook_user_access_token = models.CharField(max_length=512, blank=True, null=True, verbose_name="Token de Acesso do Usuário FB")
     facebook_page_id = models.CharField(max_length=255, blank=True, null=True, verbose_name="ID da Página do Facebook")
+    facebook_app_id = models.CharField(max_length=255, blank=True, null=True, verbose_name="ID do Aplicativo do Facebook")
+    facebook_app_secret = models.CharField(max_length=255, blank=True, null=True, verbose_name="Segredo do Aplicativo do Facebook")
     facebook_page_access_token = models.CharField(max_length=512, blank=True, null=True, verbose_name="Token de Acesso da Página do Facebook")
     instagram_business_account_id = models.CharField(max_length=255, blank=True, null=True, verbose_name="ID da Conta Business do Instagram")
 
@@ -194,12 +196,10 @@ class Imobiliaria(models.Model):
     )
 
     # Uso de string para evitar Circular Import com app_config_ia
-    voz_da_marca_preferida = models.ForeignKey(
-        'app_config_ia.OpcaoVozDaMarca',
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-        help_text="A voz da marca que a IA usará para as publicações desta imobiliária."
+    voz_da_marca_preferida = models.TextField(
+        blank=True, 
+        null=True, 
+        help_text="A voz da marca que a IA usará para as publicações desta imobiliária (Ex: Formal, Casual, Luxuoso)."
     )
     
     cor_primaria = models.CharField(

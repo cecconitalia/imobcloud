@@ -1,179 +1,10 @@
-<template>
-  <div class="page-container">
-    
-    <header class="dash-header">
-      <div class="welcome-area">
-        <h1>Olá, {{ firstName }}! <span class="wave">👋</span></h1>
-        <p class="subtitle">{{ currentDate }} &bull; {{ userRoleLabel }}</p>
-      </div>
-      
-      <div class="header-actions">
-        <router-link :to="{ name: 'clientes' }" class="btn-quick action-green" title="Gerenciar Clientes">
-            <i class="fas fa-users"></i> <span class="hide-mobile">Clientes</span>
-        </router-link>
-        
-        <router-link :to="{ name: 'funil-vendas' }" class="btn-quick action-blue" title="Ver Funil de Vendas">
-            <i class="fas fa-filter"></i> <span class="hide-mobile">Funil</span>
-        </router-link>
-
-        <button @click="refreshData" class="btn-icon-refresh" title="Atualizar Dashboard">
-            <i class="fas fa-sync-alt" :class="{ 'fa-spin': isLoading }"></i>
-        </button>
-      </div>
-    </header>
-
-    <div v-if="isLoading && !stats" class="loading-skeleton">
-        <div class="skeleton-card" v-for="i in 4" :key="i"></div>
-    </div>
-
-    <div v-else class="dashboard-content">
-        
-        <section class="kpi-grid">
-            
-            <div class="kpi-card" @click="$router.push({ name: 'funil-vendas' })" style="cursor: pointer;">
-                <div class="kpi-icon bg-blue-soft"><i class="fas fa-filter text-blue"></i></div>
-                <div class="kpi-data">
-                    <span class="kpi-value">{{ stats?.oportunidades_ativas || 0 }}</span>
-                    <span class="kpi-label">Negócios no Funil</span>
-                </div>
-            </div>
-
-            <div class="kpi-card" @click="$router.push({ name: 'tarefas-board' })" style="cursor: pointer;">
-                <div class="kpi-icon bg-orange-soft"><i class="fas fa-tasks text-orange"></i></div>
-                <div class="kpi-data">
-                    <span class="kpi-value">{{ stats?.tarefas_pendentes || 0 }}</span>
-                    <span class="kpi-label">Tarefas Pendentes</span>
-                </div>
-            </div>
-
-            <div v-if="canViewFinance" class="kpi-card" @click="$router.push({ name: 'financeiro-dashboard' })" style="cursor: pointer;">
-                <div class="kpi-icon bg-green-soft"><i class="fas fa-dollar-sign text-green"></i></div>
-                <div class="kpi-data">
-                    <span class="kpi-value">{{ formatCurrency(stats?.receita_mes || 0) }}</span>
-                    <span class="kpi-label">Receita (Mês Atual)</span>
-                </div>
-            </div>
-
-            <div v-if="canViewImoveis" class="kpi-card" @click="$router.push({ name: 'imoveis' })" style="cursor: pointer;">
-                <div class="kpi-icon bg-purple-soft"><i class="fas fa-home text-purple"></i></div>
-                <div class="kpi-data">
-                    <span class="kpi-value">{{ stats?.imoveis_ativos || 0 }}</span>
-                    <span class="kpi-label">Imóveis Ativos</span>
-                </div>
-            </div>
-        </section>
-
-        <div class="main-grid">
-            
-            <div class="grid-column">
-                
-                <div class="widget-card">
-                    <div class="widget-header">
-                        <h3><i class="fas fa-check-circle text-orange"></i> Minhas Tarefas de Hoje</h3>
-                        <router-link :to="{ name: 'tarefas-board' }" class="link-small">Ver todas</router-link>
-                    </div>
-                    <div class="widget-body">
-                        <div v-if="!stats?.tarefas_hoje?.length" class="empty-widget">
-                            <i class="far fa-smile"></i>
-                            <p>Tudo em dia! Nenhuma tarefa para hoje.</p>
-                        </div>
-                        <ul v-else class="task-list">
-                            <li v-for="task in stats.tarefas_hoje" :key="task.id" class="task-item">
-                                <div class="task-check"></div>
-                                <div class="task-info">
-                                    <span class="task-title">{{ task.titulo }}</span>
-                                    <span class="task-meta">{{ formatTime(task.data_vencimento) }} &bull; {{ task.cliente_nome }}</span>
-                                </div>
-                            </li>
-                        </ul>
-                    </div>
-                </div>
-
-                <div v-if="canViewFinance" class="widget-card mt-4">
-                    <div class="widget-header">
-                        <h3><i class="fas fa-chart-line text-green"></i> Desempenho Financeiro</h3>
-                        <router-link :to="{ name: 'financeiro-dashboard' }" class="link-small">Detalhes</router-link>
-                    </div>
-                    <div class="widget-body finance-summary">
-                        <div class="fin-row">
-                            <span>Entradas Previstas</span>
-                            <span class="fin-val text-green">{{ formatCurrency(stats?.financeiro_previsto_entrada || 0) }}</span>
-                        </div>
-                        <div class="fin-row">
-                            <span>Saídas Previstas</span>
-                            <span class="fin-val text-red">{{ formatCurrency(stats?.financeiro_previsto_saida || 0) }}</span>
-                        </div>
-                        <div class="fin-divider"></div>
-                        <div class="fin-row total">
-                            <span>Saldo Projetado</span>
-                            <span class="fin-val">{{ formatCurrency((stats?.financeiro_previsto_entrada || 0) - (stats?.financeiro_previsto_saida || 0)) }}</span>
-                        </div>
-                    </div>
-                </div>
-
-            </div>
-
-            <div class="grid-column">
-                
-                <div class="widget-card">
-                    <div class="widget-header">
-                        <h3><i class="fas fa-filter text-blue"></i> Funil de Vendas</h3>
-                        <router-link :to="{ name: 'funil-vendas' }" class="link-small">Abrir Quadro</router-link>
-                    </div>
-                    <div class="widget-body">
-                        <div class="funnel-chart">
-                            <div v-for="(fase, index) in stats?.funil_resumo || []" :key="index" class="funnel-row">
-                                <div class="funnel-label">{{ fase.titulo }}</div>
-                                <div class="funnel-bar-container">
-                                    <div class="funnel-bar" :style="{ width: calculatePercent(fase.total, stats.total_oportunidades) + '%' }"></div>
-                                    <span class="funnel-count">{{ fase.total }}</span>
-                                </div>
-                            </div>
-                            <div v-if="!stats?.funil_resumo?.length" class="empty-widget">
-                                <p>Nenhuma oportunidade ativa.</p>
-                                <router-link :to="{ name: 'oportunidade-nova' }" class="btn-link-sm">Criar Oportunidade</router-link>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="widget-card mt-4">
-                    <div class="widget-header">
-                        <h3><i class="fas fa-map-marker-alt text-purple"></i> Próximas Visitas</h3>
-                        <router-link :to="{ name: 'visitas' }" class="link-small">Agenda</router-link>
-                    </div>
-                    <div class="widget-body">
-                        <div v-if="!stats?.proximas_visitas?.length" class="empty-widget">
-                            <p>Nenhuma visita agendada.</p>
-                        </div>
-                        <div v-else class="visit-list">
-                            <div v-for="visita in stats.proximas_visitas" :key="visita.id" class="visit-item">
-                                <div class="visit-date">
-                                    <span class="day">{{ getDay(visita.data) }}</span>
-                                    <span class="month">{{ getMonth(visita.data) }}</span>
-                                </div>
-                                <div class="visit-details">
-                                    <strong>{{ visita.imovel_titulo || 'Imóvel #' + visita.imovel_id }}</strong>
-                                    <span>{{ visita.cliente_nome }}</span>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-            </div>
-        </div>
-
-    </div>
-  </div>
-</template>
-
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue';
 import api from '@/services/api';
 import { useAuthStore } from '@/stores/auth';
 import { format, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import BaseStatCard from '../components/BaseStatCard.vue';
 
 const authStore = useAuthStore();
 const isLoading = ref(false);
@@ -229,17 +60,23 @@ const formatCurrency = (val: any) => {
 
 const formatTime = (dateStr: string) => {
     if(!dateStr) return '';
-    return format(parseISO(dateStr), 'HH:mm');
+    try {
+        return format(parseISO(dateStr), 'HH:mm');
+    } catch (e) { return '--:--'; }
 };
 
 const getDay = (dateStr: string) => {
     if(!dateStr) return '';
-    return format(parseISO(dateStr), 'dd');
+    try {
+        return format(parseISO(dateStr), 'dd');
+    } catch (e) { return '00'; }
 };
 
 const getMonth = (dateStr: string) => {
     if(!dateStr) return '';
-    return format(parseISO(dateStr), 'MMM', { locale: ptBR }).toUpperCase();
+    try {
+        return format(parseISO(dateStr), 'MMM', { locale: ptBR }).toUpperCase();
+    } catch (e) { return 'MES'; }
 };
 
 const calculatePercent = (val: number, total: number) => {
@@ -252,141 +89,250 @@ onMounted(() => {
 });
 </script>
 
+<template>
+  <div class="p-6 md:p-8 min-h-screen bg-gray-50 dark:bg-gray-900 transition-colors duration-300">
+    
+    <header class="mb-8 flex flex-col md:flex-row justify-between items-start md:items-end gap-4 animate-fade-in-down">
+      <div>
+        <h1 class="text-2xl md:text-3xl font-bold text-gray-800 dark:text-gray-100 flex items-center gap-2">
+          Olá, {{ firstName }}! <span class="animate-wave inline-block origin-bottom-right text-3xl">👋</span>
+        </h1>
+        <p class="text-sm text-gray-500 dark:text-gray-400 mt-1 font-medium flex items-center gap-2">
+          <div class="i-mdi-calendar text-blue-500"></div>
+          {{ currentDate }} &bull; {{ userRoleLabel }}
+        </p>
+      </div>
+      
+      <div class="flex gap-3 w-full md:w-auto">
+        <router-link :to="{ name: 'clientes' }" class="flex-1 md:flex-none flex items-center justify-center gap-2 px-4 py-2.5 bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl font-semibold shadow-sm transition-all hover:-translate-y-0.5 text-sm no-underline">
+           <div class="i-mdi-account-group text-lg"></div>
+           <span class="hidden md:inline">Clientes</span>
+        </router-link>
+        
+        <router-link :to="{ name: 'funil-vendas' }" class="flex-1 md:flex-none flex items-center justify-center gap-2 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-semibold shadow-sm transition-all hover:-translate-y-0.5 text-sm no-underline">
+           <div class="i-mdi-filter text-lg"></div>
+           <span class="hidden md:inline">Funil</span>
+        </router-link>
+
+        <button @click="refreshData" class="w-10 h-10 md:w-auto md:px-4 md:h-auto flex items-center justify-center gap-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors shadow-sm">
+            <div class="i-mdi-refresh text-xl" :class="{ 'animate-spin': isLoading }"></div>
+        </button>
+      </div>
+    </header>
+
+    <div v-if="isLoading && !stats" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 animate-pulse">
+        <div class="h-32 bg-gray-200 dark:bg-gray-800 rounded-2xl" v-for="i in 4" :key="i"></div>
+    </div>
+
+    <div v-else class="space-y-8 animate-fade-in-up">
+        
+        <section class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+            
+            <BaseStatCard
+                title="Negócios no Funil"
+                :value="stats?.oportunidades_ativas || 0"
+                icon="i-mdi-filter"
+                color="blue"
+                trend="Funil Ativo"
+                trend-direction="neutral"
+                @click="$router.push({ name: 'funil-vendas' })"
+                class="cursor-pointer hover:ring-2 hover:ring-blue-500/50"
+            />
+
+            <BaseStatCard
+                title="Tarefas Pendentes"
+                :value="stats?.tarefas_pendentes || 0"
+                icon="i-mdi-calendar-check"
+                color="amber"
+                trend="Prioridade Alta"
+                trend-direction="down"
+                @click="$router.push({ name: 'tarefas-board' })"
+                class="cursor-pointer hover:ring-2 hover:ring-amber-500/50"
+            />
+
+            <BaseStatCard v-if="canViewFinance"
+                title="Receita (Mês)"
+                :value="stats?.receita_mes || 0"
+                :is-money="true"
+                icon="i-mdi-currency-usd"
+                color="emerald"
+                trend="Entradas Confirmadas"
+                trend-direction="up"
+                @click="$router.push({ name: 'financeiro-dashboard' })"
+                class="cursor-pointer hover:ring-2 hover:ring-emerald-500/50"
+            />
+
+            <BaseStatCard v-if="canViewImoveis"
+                title="Imóveis Ativos"
+                :value="stats?.imoveis_ativos || 0"
+                icon="i-mdi-home-city"
+                color="purple"
+                trend="Disponíveis no Site"
+                trend-direction="neutral"
+                @click="$router.push({ name: 'imoveis' })"
+                class="cursor-pointer hover:ring-2 hover:ring-purple-500/50"
+            />
+        </section>
+
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            
+            <div class="lg:col-span-2 space-y-8">
+                
+                <div class="bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 shadow-sm overflow-hidden">
+                    <div class="p-5 border-b border-gray-100 dark:border-gray-700 flex justify-between items-center bg-gray-50/50 dark:bg-gray-800/50">
+                        <h3 class="font-bold text-gray-800 dark:text-gray-100 flex items-center gap-2">
+                            <div class="i-mdi-check-circle text-amber-500"></div> 
+                            Minhas Tarefas de Hoje
+                        </h3>
+                        <router-link :to="{ name: 'tarefas-board' }" class="text-xs font-bold text-blue-600 hover:underline uppercase tracking-wide no-underline">Ver Todas</router-link>
+                    </div>
+                    
+                    <div class="p-0">
+                        <div v-if="!stats?.tarefas_hoje?.length" class="flex flex-col items-center justify-center py-10 text-gray-400">
+                            <div class="i-mdi-emoticon-happy-outline text-5xl mb-3 opacity-50"></div>
+                            <p class="text-sm font-medium">Tudo em dia! Nenhuma tarefa para hoje.</p>
+                        </div>
+                        
+                        <ul v-else class="divide-y divide-gray-100 dark:divide-gray-700 m-0 p-0 list-none">
+                            <li v-for="task in stats.tarefas_hoje" :key="task.id" class="p-4 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors flex items-start gap-3 group cursor-pointer" @click="$router.push({ name: 'tarefas-board' })">
+                                <div class="mt-1 w-5 h-5 rounded-full border-2 border-gray-300 dark:border-gray-600 group-hover:border-blue-500 transition-colors flex-shrink-0"></div>
+                                <div class="flex-1 min-w-0">
+                                    <span class="block text-sm font-semibold text-gray-800 dark:text-gray-200 group-hover:text-blue-600 transition-colors truncate">{{ task.titulo }}</span>
+                                    <div class="flex items-center gap-2 mt-1 text-xs text-gray-500">
+                                        <span class="bg-gray-100 dark:bg-gray-700 px-2 py-0.5 rounded text-gray-600 dark:text-gray-300 whitespace-nowrap">{{ formatTime(task.data_vencimento) }}</span>
+                                        <span v-if="task.cliente_nome" class="truncate">&bull; {{ task.cliente_nome }}</span>
+                                    </div>
+                                </div>
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div v-if="canViewFinance" class="bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 shadow-sm overflow-hidden">
+                    <div class="p-5 border-b border-gray-100 dark:border-gray-700 flex justify-between items-center bg-gray-50/50 dark:bg-gray-800/50">
+                        <h3 class="font-bold text-gray-800 dark:text-gray-100 flex items-center gap-2">
+                            <div class="i-mdi-chart-line text-emerald-500"></div> 
+                            Fluxo Financeiro (Previsão)
+                        </h3>
+                        <router-link :to="{ name: 'financeiro-dashboard' }" class="text-xs font-bold text-blue-600 hover:underline uppercase tracking-wide no-underline">Detalhes</router-link>
+                    </div>
+                    <div class="p-6 grid grid-cols-1 sm:grid-cols-3 gap-6 divide-y sm:divide-y-0 sm:divide-x divide-gray-100 dark:divide-gray-700">
+                        <div class="text-center sm:text-left">
+                            <p class="text-xs font-bold text-gray-500 uppercase mb-1">Entradas</p>
+                            <p class="text-lg font-bold text-emerald-600">{{ formatCurrency(stats?.financeiro_previsto_entrada || 0) }}</p>
+                        </div>
+                        <div class="text-center sm:text-left pt-4 sm:pt-0 sm:pl-6">
+                            <p class="text-xs font-bold text-gray-500 uppercase mb-1">Saídas</p>
+                            <p class="text-lg font-bold text-rose-600">{{ formatCurrency(stats?.financeiro_previsto_saida || 0) }}</p>
+                        </div>
+                        <div class="text-center sm:text-left pt-4 sm:pt-0 sm:pl-6">
+                            <p class="text-xs font-bold text-gray-500 uppercase mb-1">Saldo Projetado</p>
+                            <p class="text-xl font-bold text-gray-800 dark:text-white">
+                                {{ formatCurrency((stats?.financeiro_previsto_entrada || 0) - (stats?.financeiro_previsto_saida || 0)) }}
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+
+            <div class="space-y-8">
+                
+                <div class="bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 shadow-sm p-6">
+                    <div class="flex justify-between items-center mb-6">
+                        <h3 class="font-bold text-gray-800 dark:text-gray-100 flex items-center gap-2">
+                            <div class="i-mdi-filter-variant text-blue-500"></div> Funil
+                        </h3>
+                        <router-link :to="{ name: 'funil-vendas' }" class="text-xs font-bold text-blue-600 hover:underline no-underline">ABRIR</router-link>
+                    </div>
+
+                    <div v-if="!stats?.funil_resumo?.length" class="text-center py-8 text-gray-400 text-sm">
+                        Nenhuma oportunidade ativa.
+                        <router-link :to="{ name: 'oportunidade-nova' }" class="block mt-2 text-blue-600 font-bold hover:underline no-underline">Criar Nova</router-link>
+                    </div>
+
+                    <div v-else class="space-y-4">
+                        <div v-for="(fase, index) in stats.funil_resumo" :key="index">
+                            <div class="flex justify-between text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">
+                                <span>{{ fase.titulo }}</span>
+                                <span class="font-bold text-gray-800 dark:text-white">{{ fase.total }}</span>
+                            </div>
+                            <div class="w-full bg-gray-100 dark:bg-gray-700 rounded-full h-2.5 overflow-hidden">
+                                <div class="bg-blue-500 h-2.5 rounded-full transition-all duration-1000 ease-out" 
+                                     :style="{ width: calculatePercent(fase.total, stats.total_oportunidades) + '%' }"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 shadow-sm p-6">
+                    <div class="flex justify-between items-center mb-6">
+                        <h3 class="font-bold text-gray-800 dark:text-gray-100 flex items-center gap-2">
+                            <div class="i-mdi-map-marker-path text-purple-500"></div> Visitas
+                        </h3>
+                        <router-link :to="{ name: 'visitas' }" class="text-xs font-bold text-blue-600 hover:underline no-underline">AGENDA</router-link>
+                    </div>
+
+                    <div v-if="!stats?.proximas_visitas?.length" class="text-center py-8 text-gray-400 text-sm">
+                        Nenhuma visita agendada.
+                    </div>
+
+                    <div v-else class="space-y-4">
+                        <div v-for="visita in stats.proximas_visitas" :key="visita.id" class="flex items-center gap-4 group cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700/50 p-2 rounded-xl transition-colors -mx-2" @click="$router.push({ name: 'visitas' })">
+                            <div class="w-12 h-12 bg-purple-50 dark:bg-purple-900/20 rounded-xl flex flex-col items-center justify-center text-purple-600 dark:text-purple-400 border border-purple-100 dark:border-purple-800 flex-shrink-0">
+                                <span class="text-xs font-bold uppercase leading-none">{{ getMonth(visita.data) }}</span>
+                                <span class="text-lg font-bold leading-none mt-0.5">{{ getDay(visita.data) }}</span>
+                            </div>
+                            <div class="flex-1 min-w-0">
+                                <p class="text-sm font-bold text-gray-800 dark:text-white truncate group-hover:text-purple-600 transition-colors">
+                                    {{ visita.imovel_titulo || 'Imóvel #' + visita.imovel_id }}
+                                </p>
+                                <p class="text-xs text-gray-500 truncate flex items-center gap-1">
+                                    <div class="i-mdi-account text-gray-400"></div> {{ visita.cliente_nome }}
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </div>
+  </div>
+</template>
+
 <style scoped>
-.page-container {
-  min-height: 100vh;
-  background-color: #f4f7f6;
-  font-family: 'Inter', 'Segoe UI', Roboto, sans-serif;
-  padding: 1.5rem 2.5rem;
+.animate-wave {
+  animation: wave 2.5s infinite;
+  display: inline-block;
 }
 
-/* HEADER */
-.dash-header {
-    display: flex; justify-content: space-between; align-items: flex-end;
-    margin-bottom: 2rem;
-}
-.welcome-area h1 { font-size: 1.8rem; color: #1e293b; font-weight: 700; margin: 0; display: flex; align-items: center; gap: 10px; }
-.wave { font-size: 1.5rem; animation: wave 2s infinite; display: inline-block; transform-origin: 70% 70%; }
-.subtitle { color: #64748b; font-size: 0.9rem; margin-top: 5px; font-weight: 500; text-transform: capitalize; }
-
-.header-actions { display: flex; gap: 10px; }
-
-.btn-quick {
-    padding: 0.6rem 1.2rem; border-radius: 8px; font-weight: 600; font-size: 0.85rem;
-    text-decoration: none; display: flex; align-items: center; gap: 8px; transition: transform 0.2s;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.05); color: white;
-}
-.btn-quick:hover { transform: translateY(-2px); }
-.action-green { background: linear-gradient(135deg, #10b981, #059669); }
-.action-blue { background: linear-gradient(135deg, #3b82f6, #2563eb); }
-
-.btn-icon-refresh {
-    width: 40px; height: 40px; border-radius: 8px; border: 1px solid #e2e8f0;
-    background: white; color: #64748b; cursor: pointer; display: flex; align-items: center; justify-content: center;
-    transition: all 0.2s;
-}
-.btn-icon-refresh:hover { background: #f8fafc; color: #2563eb; border-color: #cbd5e1; }
-
-/* KPI GRID */
-.kpi-grid {
-    display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-    gap: 1.5rem; margin-bottom: 2rem;
+.animate-fade-in-down {
+  animation: fadeInDown 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
-.kpi-card {
-    background: white; border-radius: 12px; padding: 1.5rem;
-    display: flex; align-items: center; gap: 1.2rem;
-    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05); border: 1px solid #f1f5f9;
-    transition: transform 0.2s;
+.animate-fade-in-up {
+  animation: fadeInUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
-.kpi-card:hover { transform: translateY(-3px); box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.08); }
 
-.kpi-icon {
-    width: 50px; height: 50px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 1.4rem;
+@keyframes wave {
+  0% { transform: rotate(0deg); }
+  10% { transform: rotate(14deg); }
+  20% { transform: rotate(-8deg); }
+  30% { transform: rotate(14deg); }
+  40% { transform: rotate(-4deg); }
+  50% { transform: rotate(10deg); }
+  60% { transform: rotate(0deg); }
+  100% { transform: rotate(0deg); }
 }
-.kpi-data { display: flex; flex-direction: column; }
-.kpi-value { font-size: 1.5rem; font-weight: 700; color: #1e293b; line-height: 1.1; }
-.kpi-label { font-size: 0.75rem; font-weight: 600; color: #94a3b8; text-transform: uppercase; margin-top: 4px; }
 
-/* Colors Utility */
-.bg-blue-soft { background: #eff6ff; } .text-blue { color: #3b82f6; }
-.bg-green-soft { background: #f0fdf4; } .text-green { color: #10b981; }
-.bg-orange-soft { background: #fff7ed; } .text-orange { color: #f59e0b; }
-.bg-purple-soft { background: #f5f3ff; } .text-purple { color: #8b5cf6; }
-.text-red { color: #ef4444; }
-
-/* MAIN GRID */
-.main-grid { display: grid; grid-template-columns: 1.5fr 1fr; gap: 1.5rem; }
-
-.widget-card {
-    background: white; border-radius: 12px; border: 1px solid #e2e8f0;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.02); overflow: hidden; display: flex; flex-direction: column;
+@keyframes fadeInDown {
+  from { opacity: 0; transform: translateY(-20px); }
+  to { opacity: 1; transform: translateY(0); }
 }
-.mt-4 { margin-top: 1.5rem; }
 
-.widget-header {
-    padding: 1.2rem 1.5rem; border-bottom: 1px solid #f1f5f9;
-    display: flex; justify-content: space-between; align-items: center;
-}
-.widget-header h3 { font-size: 1rem; color: #334155; margin: 0; font-weight: 600; display: flex; align-items: center; gap: 8px; }
-.link-small { font-size: 0.8rem; color: #3b82f6; text-decoration: none; font-weight: 500; }
-.link-small:hover { text-decoration: underline; }
-
-.widget-body { padding: 1.5rem; }
-
-/* TAREFAS LIST */
-.task-list { list-style: none; padding: 0; margin: 0; }
-.task-item { display: flex; align-items: flex-start; gap: 12px; padding-bottom: 12px; margin-bottom: 12px; border-bottom: 1px dashed #f1f5f9; }
-.task-item:last-child { border-bottom: none; margin-bottom: 0; padding-bottom: 0; }
-.task-check { width: 18px; height: 18px; border: 2px solid #cbd5e1; border-radius: 50%; margin-top: 3px; cursor: pointer; }
-.task-info { display: flex; flex-direction: column; }
-.task-title { font-size: 0.9rem; color: #334155; font-weight: 500; }
-.task-meta { font-size: 0.75rem; color: #94a3b8; margin-top: 2px; }
-
-/* FINANCE SUMMARY */
-.finance-summary { display: flex; flex-direction: column; gap: 10px; }
-.fin-row { display: flex; justify-content: space-between; font-size: 0.9rem; color: #475569; }
-.fin-val { font-weight: 600; font-family: monospace; font-size: 1rem; }
-.fin-divider { height: 1px; background: #e2e8f0; margin: 5px 0; }
-.fin-row.total { color: #1e293b; font-weight: 700; font-size: 1.1rem; }
-
-/* FUNNEL CHART */
-.funnel-row { margin-bottom: 12px; }
-.funnel-label { font-size: 0.8rem; color: #64748b; margin-bottom: 4px; font-weight: 500; }
-.funnel-bar-container { display: flex; align-items: center; gap: 10px; }
-.funnel-bar {
-    height: 10px; background: linear-gradient(90deg, #3b82f6, #93c5fd); border-radius: 10px;
-    min-width: 5px; transition: width 1s ease-out;
-}
-.funnel-count { font-size: 0.8rem; font-weight: 700; color: #334155; }
-.btn-link-sm { font-size: 0.8rem; color: #2563eb; font-weight: 600; text-decoration: none; margin-top: 0.5rem; display: inline-block; }
-
-/* VISITS LIST */
-.visit-list { display: flex; flex-direction: column; gap: 12px; }
-.visit-item { display: flex; align-items: center; gap: 12px; }
-.visit-date {
-    background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 6px 10px;
-    display: flex; flex-direction: column; align-items: center; min-width: 50px;
-}
-.visit-date .day { font-size: 1.1rem; font-weight: 700; color: #1e293b; line-height: 1; }
-.visit-date .month { font-size: 0.65rem; font-weight: 600; color: #64748b; margin-top: 2px; }
-.visit-details { display: flex; flex-direction: column; }
-.visit-details strong { font-size: 0.9rem; color: #334155; }
-.visit-details span { font-size: 0.8rem; color: #64748b; }
-
-.empty-widget { text-align: center; color: #94a3b8; padding: 1rem 0; }
-.empty-widget i { font-size: 2rem; margin-bottom: 0.5rem; opacity: 0.5; }
-
-/* SKELETON LOADING */
-.loading-skeleton { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1.5rem; margin-top: 2rem; }
-.skeleton-card { height: 120px; background: #e2e8f0; border-radius: 12px; animation: pulse 1.5s infinite; }
-
-@keyframes wave { 0% { transform: rotate(0deg); } 10% { transform: rotate(14deg); } 20% { transform: rotate(-8deg); } 30% { transform: rotate(14deg); } 40% { transform: rotate(-4deg); } 50% { transform: rotate(10deg); } 60% { transform: rotate(0deg); } 100% { transform: rotate(0deg); } }
-@keyframes pulse { 0% { opacity: 0.6; } 50% { opacity: 0.8; } 100% { opacity: 0.6; } }
-
-@media (max-width: 1024px) {
-    .page-container { padding: 1rem; }
-    .main-grid { grid-template-columns: 1fr; }
-    .hide-mobile { display: none; }
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 </style>

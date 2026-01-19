@@ -88,13 +88,13 @@ watch(() => imobiliaria.cep, (v) => { if(v) imobiliaria.cep = maskCep(v) });
 onMounted(async () => {
   loading.value = true;
   try {
-    const { data } = await api.get('/v1/core/imobiliarias/me/');
+    const { data } = await api.get('/v1/core/imobiliarias/minha-imobiliaria/');
     Object.assign(imobiliaria, data);
     if (imobiliaria.logo) logoPreview.value = imobiliaria.logo;
     if (!imobiliaria.cor_primaria) imobiliaria.cor_primaria = '#3b82f6';
   } catch (error) {
     console.error(error);
-    Swal.fire('Erro', 'Não foi possível carregar os dados.', 'error');
+    Swal.fire('Erro', 'Não foi possível carregar os dados. Verifique sua conexão.', 'error');
   } finally {
     loading.value = false;
   }
@@ -133,14 +133,27 @@ const buscarCep = async () => {
 const salvar = async () => {
   saving.value = true;
   try {
-    await api.patch('/v1/core/imobiliarias/me/', { ...imobiliaria, logo: undefined });
+    const fd = new FormData();
+    // Adiciona campos de texto
+    Object.keys(imobiliaria).forEach(key => {
+        const val = (imobiliaria as any)[key];
+        if (val !== null && val !== undefined && key !== 'logo') {
+            fd.append(key, val);
+        }
+    });
+    
+    // Adiciona logo apenas se alterada
     if (logoFile.value) {
-      const fd = new FormData();
       fd.append('logo', logoFile.value);
-      await api.patch('/v1/core/imobiliarias/me/', fd, { headers: { 'Content-Type': 'multipart/form-data' }});
     }
+
+    await api.patch('/v1/core/imobiliarias/minha-imobiliaria/', fd, { 
+        headers: { 'Content-Type': 'multipart/form-data' }
+    });
+    
     Swal.fire({ icon: 'success', title: 'Salvo!', text: 'Dados da empresa atualizados.', timer: 1500, showConfirmButton: false });
   } catch (e) {
+    console.error(e);
     Swal.fire('Erro', 'Falha ao salvar alterações.', 'error');
   } finally {
     saving.value = false;
@@ -166,8 +179,8 @@ function getContrastYIQ(hex: string){
     <div class="max-w-6xl mx-auto mb-8 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 animate-fade-in-down">
       <div>
         <h1 class="text-2xl font-bold text-gray-800 dark:text-white flex items-center gap-3">
-          <div class="w-10 h-10 rounded-xl bg-white dark:bg-gray-800 flex items-center justify-center shadow-sm border border-gray-100 dark:border-gray-700 text-primary-600">
-            <i class="i-mdi-cog text-xl" />
+          <div class="w-10 h-10 rounded-xl bg-white dark:bg-gray-800 flex items-center justify-center shadow-sm border border-gray-100 dark:border-gray-700 text-blue-600">
+            <div class="i-mdi-cog text-xl"></div>
           </div>
           Configurações do Sistema
         </h1>
@@ -177,26 +190,26 @@ function getContrastYIQ(hex: string){
       <button 
         @click="salvar" 
         :disabled="saving || loading"
-        class="flex items-center gap-2 px-6 py-3 bg-primary-600 hover:bg-primary-700 text-white font-semibold rounded-xl shadow-lg shadow-primary-600/20 transition-all duration-200 active:scale-95 disabled:opacity-70 disabled:cursor-not-allowed"
+        class="flex items-center gap-2 px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-xl shadow-lg shadow-blue-600/20 transition-all duration-200 active:scale-95 disabled:opacity-70 disabled:cursor-not-allowed"
       >
-        <i v-if="saving" class="i-mdi-loading animate-spin text-lg" />
-        <i v-else class="i-mdi-content-save-check text-lg" />
+        <div v-if="saving" class="i-mdi-loading animate-spin text-lg"></div>
+        <div v-else class="i-mdi-content-save-check text-lg"></div>
         <span>{{ saving ? 'Salvando...' : 'Salvar Alterações' }}</span>
       </button>
     </div>
 
-    <div class="max-w-6xl mx-auto mb-6">
-      <div class="inline-flex p-1 bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 gap-1">
+    <div class="max-w-6xl mx-auto mb-8">
+      <div class="flex flex-wrap gap-4 overflow-x-auto pb-2 scrollbar-hide">
         <button 
           v-for="tab in tabs" 
           :key="tab.id"
           @click="activeTab = tab.id"
-          class="flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-medium transition-all"
+          class="flex items-center gap-2 px-6 py-3 rounded-xl font-semibold transition-all duration-200 active:scale-95 whitespace-nowrap"
           :class="activeTab === tab.id 
-            ? 'bg-primary-50 dark:bg-primary-900/30 text-primary-700 dark:text-primary-300 ring-1 ring-primary-200 dark:ring-primary-700' 
-            : 'text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700'"
+            ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/20 hover:bg-blue-700' 
+            : 'bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700 shadow-sm'"
         >
-          <i :class="tab.icon" class="text-lg" />
+          <div :class="tab.icon + ' text-lg'"></div>
           {{ tab.label }}
         </button>
       </div>
@@ -210,23 +223,23 @@ function getContrastYIQ(hex: string){
         
         <div class="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-sm border border-gray-200 dark:border-gray-700">
           <div class="flex items-center gap-2 mb-6 border-b border-gray-100 dark:border-gray-700 pb-2">
-            <span class="p-1.5 rounded-lg bg-blue-50 text-blue-600"><i class="i-mdi-palette" /></span>
+            <span class="p-1.5 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center"><div class="i-mdi-palette"></div></span>
             <h2 class="text-lg font-bold text-gray-800 dark:text-white">Identidade Visual</h2>
           </div>
 
           <div class="flex flex-col md:flex-row gap-8 items-start">
             <div class="flex-shrink-0 flex flex-col items-center gap-3">
               <div 
-                class="relative group w-32 h-32 rounded-2xl border-2 border-dashed border-gray-300 dark:border-gray-600 hover:border-primary-500 hover:bg-primary-50 dark:hover:bg-primary-900/10 transition-all cursor-pointer flex items-center justify-center overflow-hidden bg-gray-50 dark:bg-gray-900"
+                class="relative group w-32 h-32 rounded-2xl border-2 border-dashed border-gray-300 dark:border-gray-600 hover:border-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/10 transition-all cursor-pointer flex items-center justify-center overflow-hidden bg-gray-50 dark:bg-gray-900"
                 @click="fileInput?.click()"
               >
                 <img v-if="logoPreview" :src="logoPreview" class="w-full h-full object-contain p-2" />
                 <div v-else class="flex flex-col items-center text-gray-400">
-                  <i class="i-mdi-image-plus text-3xl mb-1" />
+                  <div class="i-mdi-image-plus text-3xl mb-1"></div>
                   <span class="text-[10px] uppercase font-bold">Logo</span>
                 </div>
                 <div class="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                  <i class="i-mdi-pencil text-white text-2xl" />
+                  <div class="i-mdi-pencil text-white text-2xl"></div>
                 </div>
               </div>
               <input ref="fileInput" type="file" class="hidden" accept="image/*" @change="handleFileUpload" />
@@ -236,17 +249,17 @@ function getContrastYIQ(hex: string){
             <div class="flex-1 w-full space-y-5">
               <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
                 <div>
-                  <label class="label-std">Cor do Sistema</label>
+                  <label class="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1.5 ml-0.5">Cor do Sistema</label>
                   <div class="flex items-center gap-3 p-1.5 border border-gray-200 dark:border-gray-600 rounded-xl bg-gray-50 dark:bg-gray-900">
                     <input type="color" v-model="imobiliaria.cor_primaria" class="w-10 h-10 rounded-lg cursor-pointer border-0 p-0" />
                     <input type="text" v-model="imobiliaria.cor_primaria" class="bg-transparent uppercase font-mono text-sm outline-none w-full" maxlength="7" />
                   </div>
                 </div>
                 <div>
-                  <label class="label-std">Preview do Topo</label>
+                  <label class="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1.5 ml-0.5">Preview do Topo</label>
                   <div class="h-[54px] rounded-xl shadow-inner flex items-center px-4 gap-3 transition-colors" :style="headerPreviewStyle">
                     <div class="w-8 h-8 rounded-full bg-white/20 backdrop-blur-md flex items-center justify-center">
-                      <i class="i-mdi-domain text-current" />
+                      <div class="i-mdi-domain text-current"></div>
                     </div>
                     <span class="font-bold text-sm tracking-wide">{{ imobiliaria.nome_fantasia || 'Nome da Empresa' }}</span>
                   </div>
@@ -258,33 +271,55 @@ function getContrastYIQ(hex: string){
 
         <div class="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-sm border border-gray-200 dark:border-gray-700">
           <div class="flex items-center gap-2 mb-6 border-b border-gray-100 dark:border-gray-700 pb-2">
-            <span class="p-1.5 rounded-lg bg-emerald-50 text-emerald-600"><i class="i-mdi-card-account-details" /></span>
-            <h2 class="text-lg font-bold text-gray-800 dark:text-white">Dados da Empresa</h2>
+            <span class="p-1.5 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center"><div class="i-mdi-card-account-details"></div></span>
+            <h2 class="text-lg font-bold text-gray-800 dark:text-white">Dados Jurídicos</h2>
           </div>
           
           <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div class="md:col-span-2">
-              <label class="label-std">Nome Fantasia <span class="text-red-500">*</span></label>
+              <label class="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1.5 ml-0.5">Nome Fantasia <span class="text-red-500">*</span></label>
               <div class="relative">
-                <input v-model="imobiliaria.nome_fantasia" type="text" class="input-std pl-10" placeholder="Nome comercial da imobiliária" />
-                <i class="i-mdi-store absolute left-3 top-3 text-gray-400 text-lg" />
+                <input v-model="imobiliaria.nome_fantasia" type="text" class="w-full rounded-xl border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-900 text-gray-800 dark:text-white px-4 py-2.5 text-sm outline-none transition-all placeholder:text-gray-400 shadow-sm pl-10 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 hover:border-gray-300 dark:hover:border-gray-500" placeholder="Nome comercial da imobiliária" />
+                <div class="i-mdi-store absolute left-3 top-3 text-gray-400 text-lg"></div>
               </div>
             </div>
             <div>
-              <label class="label-std">Razão Social</label>
-              <input v-model="imobiliaria.razao_social" type="text" class="input-std" placeholder="Razão Social Ltda" />
+              <label class="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1.5 ml-0.5">Razão Social</label>
+              <input v-model="imobiliaria.razao_social" type="text" class="w-full rounded-xl border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-900 text-gray-800 dark:text-white px-4 py-2.5 text-sm outline-none transition-all placeholder:text-gray-400 shadow-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 hover:border-gray-300 dark:hover:border-gray-500" placeholder="Razão Social Ltda" />
             </div>
             <div>
-              <label class="label-std">CNPJ</label>
-              <input v-model="imobiliaria.cnpj" type="text" class="input-std" placeholder="00.000.000/0000-00" maxlength="18" />
+              <label class="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1.5 ml-0.5">CNPJ</label>
+              <input v-model="imobiliaria.cnpj" type="text" class="w-full rounded-xl border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-900 text-gray-800 dark:text-white px-4 py-2.5 text-sm outline-none transition-all placeholder:text-gray-400 shadow-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 hover:border-gray-300 dark:hover:border-gray-500" placeholder="00.000.000/0000-00" maxlength="18" />
             </div>
             <div>
-              <label class="label-std">CRECI Jurídico</label>
-              <input v-model="imobiliaria.creci" type="text" class="input-std" placeholder="J-12345" />
+              <label class="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1.5 ml-0.5">CRECI Jurídico</label>
+              <input v-model="imobiliaria.creci" type="text" class="w-full rounded-xl border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-900 text-gray-800 dark:text-white px-4 py-2.5 text-sm outline-none transition-all placeholder:text-gray-400 shadow-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 hover:border-gray-300 dark:hover:border-gray-500" placeholder="J-12345" />
+            </div>
+          </div>
+        </div>
+
+        <div class="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-sm border border-gray-200 dark:border-gray-700">
+          <div class="flex items-center gap-2 mb-6 border-b border-gray-100 dark:border-gray-700 pb-2">
+            <span class="p-1.5 rounded-lg bg-orange-50 text-orange-600 flex items-center justify-center"><div class="i-mdi-account-tie"></div></span>
+            <h2 class="text-lg font-bold text-gray-800 dark:text-white">Responsável Legal</h2>
+          </div>
+          
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div>
+              <label class="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1.5 ml-0.5">Nome Completo</label>
+              <input v-model="imobiliaria.responsavel_nome" type="text" class="w-full rounded-xl border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-900 text-gray-800 dark:text-white px-4 py-2.5 text-sm outline-none transition-all placeholder:text-gray-400 shadow-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 hover:border-gray-300 dark:hover:border-gray-500" />
             </div>
             <div>
-              <label class="label-std">Responsável Legal (Nome)</label>
-              <input v-model="imobiliaria.responsavel_nome" type="text" class="input-std" />
+              <label class="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1.5 ml-0.5">CPF</label>
+              <input v-model="imobiliaria.responsavel_cpf" type="text" class="w-full rounded-xl border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-900 text-gray-800 dark:text-white px-4 py-2.5 text-sm outline-none transition-all placeholder:text-gray-400 shadow-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 hover:border-gray-300 dark:hover:border-gray-500" placeholder="000.000.000-00" />
+            </div>
+            <div>
+              <label class="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1.5 ml-0.5">Email Pessoal</label>
+              <input v-model="imobiliaria.responsavel_email" type="email" class="w-full rounded-xl border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-900 text-gray-800 dark:text-white px-4 py-2.5 text-sm outline-none transition-all placeholder:text-gray-400 shadow-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 hover:border-gray-300 dark:hover:border-gray-500" />
+            </div>
+            <div>
+              <label class="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1.5 ml-0.5">Telefone/Celular</label>
+              <input v-model="imobiliaria.responsavel_telefone" type="tel" class="w-full rounded-xl border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-900 text-gray-800 dark:text-white px-4 py-2.5 text-sm outline-none transition-all placeholder:text-gray-400 shadow-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 hover:border-gray-300 dark:hover:border-gray-500" />
             </div>
           </div>
         </div>
@@ -295,25 +330,25 @@ function getContrastYIQ(hex: string){
           <h2 class="text-lg font-bold text-gray-800 dark:text-white mb-6">Canais de Contato</h2>
           <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
             <div class="md:col-span-1">
-              <label class="label-std">Email Oficial</label>
+              <label class="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1.5 ml-0.5">Email Oficial</label>
               <div class="relative">
-                <input v-model="imobiliaria.email_contato" type="email" class="input-std pl-10" />
-                <i class="i-mdi-email absolute left-3 top-3 text-gray-400" />
+                <input v-model="imobiliaria.email_contato" type="email" class="w-full rounded-xl border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-900 text-gray-800 dark:text-white px-4 py-2.5 text-sm outline-none transition-all placeholder:text-gray-400 shadow-sm pl-10 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 hover:border-gray-300 dark:hover:border-gray-500" />
+                <div class="i-mdi-email absolute left-3 top-3 text-gray-400"></div>
               </div>
             </div>
             <div>
-              <label class="label-std">Telefone Fixo</label>
-              <input v-model="imobiliaria.telefone" type="tel" class="input-std" />
+              <label class="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1.5 ml-0.5">Telefone Fixo</label>
+              <input v-model="imobiliaria.telefone" type="tel" class="w-full rounded-xl border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-900 text-gray-800 dark:text-white px-4 py-2.5 text-sm outline-none transition-all placeholder:text-gray-400 shadow-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 hover:border-gray-300 dark:hover:border-gray-500" />
             </div>
             <div>
-              <label class="label-std">WhatsApp</label>
-              <input v-model="imobiliaria.whatsapp" type="tel" class="input-std" />
+              <label class="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1.5 ml-0.5">WhatsApp</label>
+              <input v-model="imobiliaria.whatsapp" type="tel" class="w-full rounded-xl border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-900 text-gray-800 dark:text-white px-4 py-2.5 text-sm outline-none transition-all placeholder:text-gray-400 shadow-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 hover:border-gray-300 dark:hover:border-gray-500" />
             </div>
             <div class="md:col-span-3">
-              <label class="label-std">Website</label>
+              <label class="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1.5 ml-0.5">Website</label>
               <div class="relative">
-                <input v-model="imobiliaria.website" type="url" class="input-std pl-10" placeholder="https://" />
-                <i class="i-mdi-web absolute left-3 top-3 text-gray-400" />
+                <input v-model="imobiliaria.website" type="url" class="w-full rounded-xl border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-900 text-gray-800 dark:text-white px-4 py-2.5 text-sm outline-none transition-all placeholder:text-gray-400 shadow-sm pl-10 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 hover:border-gray-300 dark:hover:border-gray-500" placeholder="https://" />
+                <div class="i-mdi-web absolute left-3 top-3 text-gray-400"></div>
               </div>
             </div>
           </div>
@@ -322,40 +357,40 @@ function getContrastYIQ(hex: string){
         <div class="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-sm border border-gray-200 dark:border-gray-700">
           <div class="flex justify-between items-center mb-6">
             <h2 class="text-lg font-bold text-gray-800 dark:text-white">Endereço</h2>
-            <div v-if="searchingCep" class="text-xs text-primary-600 flex items-center gap-1 animate-pulse">
-              <i class="i-mdi-loading animate-spin" /> Buscando...
+            <div v-if="searchingCep" class="text-xs text-blue-600 flex items-center gap-1 animate-pulse">
+              <div class="i-mdi-loading animate-spin"></div> Buscando...
             </div>
           </div>
           
           <div class="grid grid-cols-1 md:grid-cols-4 gap-5">
             <div class="md:col-span-1">
-              <label class="label-std">CEP</label>
+              <label class="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1.5 ml-0.5">CEP</label>
               <div class="relative">
-                <input v-model="imobiliaria.cep" @blur="buscarCep" type="text" class="input-std pl-10" placeholder="00000-000" maxlength="9" />
-                <i class="i-mdi-magnify absolute left-3 top-3 text-gray-400" />
+                <input v-model="imobiliaria.cep" @blur="buscarCep" type="text" class="w-full rounded-xl border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-900 text-gray-800 dark:text-white px-4 py-2.5 text-sm outline-none transition-all placeholder:text-gray-400 shadow-sm pl-10 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 hover:border-gray-300 dark:hover:border-gray-500" placeholder="00000-000" maxlength="9" />
+                <div class="i-mdi-magnify absolute left-3 top-3 text-gray-400"></div>
               </div>
             </div>
             <div class="md:col-span-2">
-              <label class="label-std">Logradouro</label>
-              <input v-model="imobiliaria.logradouro" type="text" class="input-std" />
+              <label class="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1.5 ml-0.5">Logradouro</label>
+              <input v-model="imobiliaria.logradouro" type="text" class="w-full rounded-xl border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-900 text-gray-800 dark:text-white px-4 py-2.5 text-sm outline-none transition-all placeholder:text-gray-400 shadow-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 hover:border-gray-300 dark:hover:border-gray-500" />
             </div>
             <div class="md:col-span-1">
-              <label class="label-std">Número</label>
-              <input v-model="imobiliaria.numero" type="text" class="input-std" />
+              <label class="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1.5 ml-0.5">Número</label>
+              <input v-model="imobiliaria.numero" type="text" class="w-full rounded-xl border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-900 text-gray-800 dark:text-white px-4 py-2.5 text-sm outline-none transition-all placeholder:text-gray-400 shadow-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 hover:border-gray-300 dark:hover:border-gray-500" />
             </div>
             <div class="md:col-span-2">
-              <label class="label-std">Complemento</label>
-              <input v-model="imobiliaria.complemento" type="text" class="input-std" />
+              <label class="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1.5 ml-0.5">Complemento</label>
+              <input v-model="imobiliaria.complemento" type="text" class="w-full rounded-xl border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-900 text-gray-800 dark:text-white px-4 py-2.5 text-sm outline-none transition-all placeholder:text-gray-400 shadow-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 hover:border-gray-300 dark:hover:border-gray-500" />
             </div>
             <div class="md:col-span-1">
-              <label class="label-std">Bairro</label>
-              <input v-model="imobiliaria.bairro" type="text" class="input-std" />
+              <label class="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1.5 ml-0.5">Bairro</label>
+              <input v-model="imobiliaria.bairro" type="text" class="w-full rounded-xl border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-900 text-gray-800 dark:text-white px-4 py-2.5 text-sm outline-none transition-all placeholder:text-gray-400 shadow-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 hover:border-gray-300 dark:hover:border-gray-500" />
             </div>
             <div class="md:col-span-1">
-              <label class="label-std">Cidade/UF</label>
+              <label class="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1.5 ml-0.5">Cidade/UF</label>
               <div class="flex gap-2">
-                <input v-model="imobiliaria.cidade" type="text" class="input-std flex-1" />
-                <input v-model="imobiliaria.estado" type="text" class="input-std w-14 text-center uppercase" maxlength="2" />
+                <input v-model="imobiliaria.cidade" type="text" class="w-full rounded-xl border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-900 text-gray-800 dark:text-white px-4 py-2.5 text-sm outline-none transition-all placeholder:text-gray-400 shadow-sm flex-1 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 hover:border-gray-300 dark:hover:border-gray-500" />
+                <input v-model="imobiliaria.estado" type="text" class="rounded-xl border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-900 text-gray-800 dark:text-white px-4 py-2.5 text-sm outline-none transition-all placeholder:text-gray-400 shadow-sm w-16 text-center uppercase focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 hover:border-gray-300 dark:hover:border-gray-500" maxlength="2" />
               </div>
             </div>
           </div>
@@ -366,21 +401,21 @@ function getContrastYIQ(hex: string){
         
         <div class="bg-gradient-to-br from-purple-50 to-white dark:from-gray-800 dark:to-gray-800/50 rounded-2xl p-6 shadow-sm border border-purple-100 dark:border-gray-700">
           <h2 class="text-lg font-bold text-gray-800 dark:text-white mb-4 flex items-center gap-2">
-            <i class="i-mdi-robot text-purple-600" /> Inteligência Artificial
+            <div class="i-mdi-robot text-purple-600"></div> Inteligência Artificial
           </h2>
           
           <div class="grid grid-cols-1 gap-6">
             <div>
-              <label class="label-std text-purple-800 dark:text-purple-300">Google Gemini API Key</label>
+              <label class="block text-xs font-bold text-purple-800 dark:text-purple-300 uppercase tracking-wide mb-1.5 ml-0.5">Google Gemini API Key</label>
               <div class="relative">
-                <input v-model="imobiliaria.google_gemini_api_key" type="password" class="input-std pl-10 border-purple-200 focus:border-purple-500 focus:ring-purple-500/20" placeholder="sk-..." />
-                <i class="i-mdi-key absolute left-3 top-3 text-purple-400" />
+                <input v-model="imobiliaria.google_gemini_api_key" type="password" class="w-full rounded-xl border border-purple-200 dark:border-purple-900 bg-white dark:bg-gray-900 text-gray-800 dark:text-white px-4 py-2.5 text-sm outline-none transition-all placeholder:text-gray-400 shadow-sm pl-10 focus:border-purple-500 focus:ring-2 focus:ring-purple-500/20" placeholder="sk-..." />
+                <div class="i-mdi-key absolute left-3 top-3 text-purple-400"></div>
               </div>
-              <p class="text-xs text-gray-500 mt-1">Necessário para descrições automáticas e chatbot.</p>
+              <p class="text-xs text-gray-500 mt-1">Necessária para descrições automáticas e chatbot.</p>
             </div>
 
             <div>
-              <label class="label-std mb-2 block">Tom de Voz da IA</label>
+              <label class="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1.5 ml-0.5 mb-2 block">Tom de Voz da IA</label>
               <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
                 <div 
                   v-for="opt in voiceOptions" :key="opt.value"
@@ -390,7 +425,7 @@ function getContrastYIQ(hex: string){
                     ? 'border-purple-500 ring-1 ring-purple-500 text-purple-700 dark:text-purple-300 bg-purple-50 dark:bg-purple-900/20' 
                     : 'border-gray-200 dark:border-gray-700'"
                 >
-                  <i :class="opt.icon + ' text-2xl mb-1'" />
+                  <div :class="opt.icon + ' text-2xl mb-1'"></div>
                   <div class="text-xs font-bold">{{ opt.label }}</div>
                 </div>
               </div>
@@ -402,20 +437,20 @@ function getContrastYIQ(hex: string){
           <h2 class="text-lg font-bold text-gray-800 dark:text-white mb-6">Integrações Sociais</h2>
           <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
-              <label class="label-std">Facebook Page Token</label>
-              <input v-model="imobiliaria.facebook_page_access_token" type="password" class="input-std" />
+              <label class="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1.5 ml-0.5">Facebook Page Token</label>
+              <input v-model="imobiliaria.facebook_page_access_token" type="password" class="w-full rounded-xl border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-900 text-gray-800 dark:text-white px-4 py-2.5 text-sm outline-none transition-all placeholder:text-gray-400 shadow-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 hover:border-gray-300 dark:hover:border-gray-500" />
             </div>
             <div>
-              <label class="label-std">Instagram Business ID</label>
-              <input v-model="imobiliaria.instagram_business_account_id" type="text" class="input-std" />
+              <label class="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1.5 ml-0.5">Instagram Business ID</label>
+              <input v-model="imobiliaria.instagram_business_account_id" type="text" class="w-full rounded-xl border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-900 text-gray-800 dark:text-white px-4 py-2.5 text-sm outline-none transition-all placeholder:text-gray-400 shadow-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 hover:border-gray-300 dark:hover:border-gray-500" />
             </div>
             <div>
-              <label class="label-std">Link Facebook</label>
-              <input v-model="imobiliaria.facebook" type="url" class="input-std" placeholder="facebook.com/..." />
+              <label class="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1.5 ml-0.5">Link Facebook</label>
+              <input v-model="imobiliaria.facebook" type="url" class="w-full rounded-xl border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-900 text-gray-800 dark:text-white px-4 py-2.5 text-sm outline-none transition-all placeholder:text-gray-400 shadow-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 hover:border-gray-300 dark:hover:border-gray-500" placeholder="facebook.com/..." />
             </div>
             <div>
-              <label class="label-std">Link Instagram</label>
-              <input v-model="imobiliaria.instagram" type="url" class="input-std" placeholder="instagram.com/..." />
+              <label class="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1.5 ml-0.5">Link Instagram</label>
+              <input v-model="imobiliaria.instagram" type="url" class="w-full rounded-xl border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-900 text-gray-800 dark:text-white px-4 py-2.5 text-sm outline-none transition-all placeholder:text-gray-400 shadow-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 hover:border-gray-300 dark:hover:border-gray-500" placeholder="instagram.com/..." />
             </div>
           </div>
         </div>
@@ -426,24 +461,6 @@ function getContrastYIQ(hex: string){
 </template>
 
 <style scoped>
-/* ESTILO DOS INPUTS - Estilo "Edit Form" Moderno */
-.label-std {
-  @apply block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1.5 ml-0.5;
-}
-
-.input-std {
-  @apply w-full rounded-xl border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-900 text-gray-800 dark:text-white px-4 py-2.5 text-sm outline-none transition-all placeholder:text-gray-400 shadow-sm;
-}
-
-.input-std:focus {
-  @apply border-primary-500 ring-2 ring-primary-500/20;
-}
-
-.input-std:hover:not(:focus) {
-  @apply border-gray-300 dark:border-gray-500;
-}
-
-/* ANIMAÇÕES */
 .animate-fade-in-up {
   animation: fadeInUp 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
@@ -458,5 +475,14 @@ function getContrastYIQ(hex: string){
 @keyframes fadeInDown {
   from { opacity: 0; transform: translateY(-10px); }
   to { opacity: 1; transform: translateY(0); }
+}
+
+/* Ocultar barra de rolagem horizontal em tabs overflow */
+.scrollbar-hide::-webkit-scrollbar {
+    display: none;
+}
+.scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
 }
 </style>
