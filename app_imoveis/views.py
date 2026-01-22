@@ -5,6 +5,7 @@ import json
 import requests
 import traceback
 import locale
+import logging
 from decimal import Decimal, InvalidOperation
 from datetime import date, timedelta
 from io import BytesIO
@@ -14,6 +15,8 @@ from django.shortcuts import get_object_or_404
 from django.http import HttpResponse, QueryDict, Http404 
 from django.template.loader import render_to_string
 from django.utils import timezone
+# IMPORTANTE: Adicionado localdate para corrigir o filtro de visitas
+from django.utils.timezone import localdate 
 from django.db.models import Count, Q, Case, When, Value, CharField, Max, F, ExpressionWrapper, fields, Sum 
 from django.conf import settings
 from django.core.mail import send_mail
@@ -44,9 +47,11 @@ from .serializers import (
     ImovelSimplificadoSerializer 
 )
 from core.models import Imobiliaria, PerfilUsuario, Notificacao, ConfiguracaoGlobal
-from app_clientes.models import Cliente, Oportunidade 
+from app_clientes.models import Cliente, Oportunidade, Visita
 from app_config_ia.models import ModeloDePrompt
 from core.serializers import ImobiliariaPublicSerializer
+
+logger = logging.getLogger(__name__)
 
 # ===================================================================
 # FUNÇÕES AUXILIARES
@@ -62,9 +67,6 @@ def traduzir_mes(nome_mes_ingles):
     return mapa.get(nome_mes_ingles, nome_mes_ingles)
 
 def get_autorizacao_context(imovel):
-    """
-    Gera o contexto de dados para renderizar a autorização de venda/aluguel.
-    """
     try:
         locale.setlocale(locale.LC_TIME, 'pt_BR.UTF-8')
     except locale.Error:
@@ -572,6 +574,7 @@ class ImovelViewSet(viewsets.ModelViewSet):
     permission_classes = [permissions.IsAuthenticated]
     filter_backends = [filters.SearchFilter]
     
+    # Permite buscar por ID numérico na URL
     lookup_value_regex = r'\d+' 
 
     search_fields = [
@@ -580,27 +583,34 @@ class ImovelViewSet(viewsets.ModelViewSet):
     ] 
 
     def get_queryset(self):
+        """
+        Filtra imóveis baseado no Tenant (Imobiliária) e parâmetros de busca.
+        """
         user = self.request.user
         
+        # Determina o Tenant (Imobiliária)
         tenant = getattr(self.request, 'tenant', None)
         if not tenant and hasattr(user, 'imobiliaria'):
             tenant = user.imobiliaria
 
+        # Lógica de Base Queryset
         if user.is_superuser:
             if not tenant:
-                 base_queryset = Imovel.objects.all()
+                base_queryset = Imovel.objects.all()
             else:
-                 base_queryset = Imovel.objects.filter(imobiliaria=tenant)
+                base_queryset = Imovel.objects.filter(imobiliaria=tenant)
         elif tenant:
             base_queryset = Imovel.objects.filter(imobiliaria=tenant)
         else:
             return Imovel.objects.none()
 
+        # Filtros via Query Params
         status_param = self.request.query_params.get('status', None)
         if status_param:
              if status_param in Imovel.Status.values:
                 base_queryset = base_queryset.filter(status=status_param)
         elif self.action in ['list', 'lista_simples']: 
+             # Por padrão, não mostra desativados nas listas comuns
              base_queryset = base_queryset.exclude(status='DESATIVADO')
 
         finalidade = self.request.query_params.get('finalidade', None) 
@@ -618,6 +628,68 @@ class ImovelViewSet(viewsets.ModelViewSet):
             base_queryset = base_queryset.filter(proprietario_id=proprietario_id)
             
         return base_queryset.order_by('-data_atualizacao')
+
+    @action(detail=False, methods=['get'], url_path='stats')
+    def dashboard_stats(self, request):
+        """
+        Endpoint para alimentar o Card 'Imóveis Ativos' no Dashboard.
+        Retorna: Contagem de imóveis ativos e agenda de visitas (mock/real).
+        """
+        try:
+            qs = self.get_queryset()
+            tenant = getattr(self.request, 'tenant', None) or getattr(request.user, 'imobiliaria', None)
+            
+            # Conta imóveis considerados "Ativos" (Venda ou Aluguel)
+            ativos = qs.filter(status__in=['A_VENDA', 'PARA_ALUGAR']).count()
+            
+            # Recupera visitas agendadas (agora usando a Model Visita diretamente e corretamente)
+            visitas_data = []
+            
+            if tenant:
+                hoje = localdate() 
+                # CORREÇÃO: Ampliando os status aceitos para garantir que apareça
+                status_aceitos = ['AGENDADA', 'CONFIRMADA', 'PENDENTE', 'NOVA', 'REAMARCADA']
+                
+                v_qs = Visita.objects.filter(
+                    imobiliaria=tenant,
+                    data__date__gte=hoje, # Garante que visitas de hoje (mesmo se passou a hora) apareçam
+                    data__isnull=False,
+                    status__in=status_aceitos # Usa __in ao invés de iexact para pegar variações
+                ).prefetch_related('imoveis', 'cliente').select_related('corretor')
+
+                # Se não for admin/superuser, vê só as suas
+                if not (request.user.is_superuser or getattr(request.user, 'is_admin', False)):
+                    v_qs = v_qs.filter(corretor=request.user)
+
+                # Ordena e limita
+                v_qs = v_qs.order_by('data')[:5]
+
+                for v in v_qs:
+                    imovel_titulo = "Sem imóvel vinculado"
+                    # Verifica se existe imóvel e se não é None
+                    if v.imoveis.exists():
+                        first_imovel = v.imoveis.first()
+                        if first_imovel:
+                            imovel_titulo = first_imovel.titulo_anuncio or first_imovel.logradouro or f"Ref: {first_imovel.codigo_referencia}"
+                    
+                    visitas_data.append({
+                        "id": v.id,
+                        "data": v.data,
+                        "imovel_titulo": imovel_titulo,
+                        "cliente_nome": v.cliente.nome if v.cliente else "Cliente Avulso"
+                    })
+
+            return Response({
+                "ativos": ativos,
+                "visitas_agendadas": visitas_data
+            }, status=status.HTTP_200_OK)
+            
+        except Exception as e:
+            logger.error(f"Erro stats imoveis: {e}")
+            import traceback
+            traceback.print_exc()
+            # Em caso de erro, retorna lista vazia para não quebrar o dashboard
+            return Response({"ativos": 0, "visitas_agendadas": []})
 
     def perform_create(self, serializer):
         tenant = getattr(self.request, 'tenant', None)
@@ -660,6 +732,7 @@ class ImovelViewSet(viewsets.ModelViewSet):
         tenant = getattr(self.request, 'tenant', None) or getattr(self.request.user, 'imobiliaria', None)
         
         if self.request.user.is_superuser or (tenant and instance.imobiliaria == tenant):
+             # Soft Delete: Apenas marca como desativado
              instance.status = 'DESATIVADO' 
              instance.publicado_no_site = False
              instance.save()
@@ -674,6 +747,7 @@ class ImovelViewSet(viewsets.ModelViewSet):
         return Response(serializer.data)
 
     def _get_imovel_contexto_para_ia(self, imovel):
+        """Helper para formatar os dados do imóvel em texto para o Prompt"""
         contexto = []
         contexto.append(f"Tipo de Imóvel: {imovel.get_tipo_display()}")
         contexto.append(f"Finalidade: {imovel.get_finalidade_display()}") 
@@ -690,7 +764,8 @@ class ImovelViewSet(viewsets.ModelViewSet):
         if imovel.valor_condominio:
             contexto.append(f"Condomínio: R$ {imovel.valor_condominio:,.2f}".replace(",", "X").replace(".", ",").replace("X", "."))
 
-        contexto.append(f"Área Útil: {imovel.area_util or imovel.area_construida or 'Não informado'} m²")
+        area = imovel.area_util or imovel.area_construida or 'Não informado'
+        contexto.append(f"Área Útil: {area} m²")
         
         divisoes = []
         if imovel.quartos: divisoes.append(f"{imovel.quartos} quarto(s)")
@@ -726,10 +801,9 @@ class ImovelViewSet(viewsets.ModelViewSet):
              return Response({"error": f"Imóvel não encontrado: {e}"}, status=status.HTTP_404_NOT_FOUND)
 
         try:
-            # CORREÇÃO: Tenta pegar a chave correta 'google_gemini_api_key' da imobiliária
+            # 1. Configuração da API KEY (Prioridade: Imobiliária > Global > .env)
             api_key = getattr(imovel.imobiliaria, 'google_gemini_api_key', None)
             
-            # Se não tiver, tenta a configuração global
             if not api_key:
                 try:
                     config = ConfiguracaoGlobal.objects.first()
@@ -738,7 +812,6 @@ class ImovelViewSet(viewsets.ModelViewSet):
                 except:
                     pass
 
-            # Por fim, tenta do ambiente
             if not api_key:
                 api_key = os.getenv("GOOGLE_API_KEY")
 
@@ -750,6 +823,7 @@ class ImovelViewSet(viewsets.ModelViewSet):
             
             genai.configure(api_key=api_key)
 
+            # 2. Configuração do Modelo e Prompt
             model_name = 'gemini-1.5-flash'
             
             try:
@@ -769,9 +843,11 @@ class ImovelViewSet(viewsets.ModelViewSet):
             prompt_final = template_prompt.replace('{{imovel_data}}', imovel_data)
             prompt_final = prompt_final.replace('{{voz_da_marca}}', voz_da_marca)
 
+            # 3. Geração do Conteúdo com Fallback de Modelos
             generated_text = None
-            # Prioriza 1.5-flash que é mais estável
             models_to_try = ['gemini-1.5-flash', model_name, 'gemini-2.0-flash', 'gemini-1.0-pro']
+            # Remove duplicatas mantendo a ordem
+            models_to_try = list(dict.fromkeys(models_to_try))
             
             errors = []
             for m_tag in models_to_try:
@@ -788,6 +864,7 @@ class ImovelViewSet(viewsets.ModelViewSet):
             if not generated_text:
                  raise ValueError(f"Todos os modelos falharam ao gerar a descrição. Detalhes: {'; '.join(errors)}")
 
+            # 4. Limpeza e Formatação
             generated_text = generated_text.strip().lstrip('```markdown').lstrip('```').rstrip('```').strip()
             
             prefixo = 'título sugerido:'
@@ -796,13 +873,14 @@ class ImovelViewSet(viewsets.ModelViewSet):
                      generated_text = generated_text.split('\n', 1)[1].strip()
                  else:
                      generated_text = generated_text[len(prefixo):].lstrip(':').strip()
+            
             generated_text = generated_text.strip()
 
             return Response({'descricao': generated_text}, status=status.HTTP_200_OK)
 
         except Exception as e:
+            logger.error(f"Erro IA Imóveis: {e}")
             return Response({"error": f"Erro ao comunicar com a IA: {e}"}, status=status.HTTP_503_SERVICE_UNAVAILABLE)
-
 
 class ImagemImovelViewSet(viewsets.ModelViewSet):
     queryset = ImagemImovel.objects.all()

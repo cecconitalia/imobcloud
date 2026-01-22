@@ -5,15 +5,15 @@ import json
 import logging
 import base64
 from io import BytesIO
-from datetime import date
+from datetime import date, timedelta
 
 from django.conf import settings
+from django.db import models  # Import necessário para Aggregations
 from django.db.models import Count, Q, Sum
 from django.db.models.functions import TruncMonth, Coalesce
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from django.utils.dateparse import parse_date
-from django.utils.timezone import localdate, timedelta
 from django.contrib.auth import get_user_model
 from django.http import HttpResponse, HttpResponseRedirect, Http404
 from django.urls import reverse
@@ -420,63 +420,89 @@ class AtividadeViewSet(viewsets.ModelViewSet):
 
 
 class OportunidadeViewSet(viewsets.ModelViewSet):
-    queryset = Oportunidade.objects.all().select_related('cliente', 'imovel', 'responsavel', 'fase')
+    """
+    ViewSet para gerenciamento de Oportunidades (Funil de Vendas).
+    Contém lógica avançada de permissões, isolamento de tenant e notificações automáticas.
+    """
     serializer_class = OportunidadeSerializer
     permission_classes = [permissions.IsAuthenticated]
     
+    # Configuração de Filtros de Texto
     filter_backends = [filters.SearchFilter]
     search_fields = [
         'titulo', 
         'cliente__nome', 
         'cliente__razao_social', 
+        'cliente__documento',
+        'imovel__titulo',
         'imovel__logradouro', 
         'imovel__bairro'
     ]
 
     def get_queryset(self):
+        """
+        Sobrescreve o queryset padrão para aplicar regras de negócio:
+        1. Isolamento por Tenant (Imobiliária).
+        2. Visibilidade baseada em cargo (Admin vs Corretor).
+        3. Filtros via URL.
+        """
         user = self.request.user
+        
+        # Define o Tenant atual (via Middleware ou Usuário)
         tenant = getattr(self.request, 'tenant', None) or getattr(user, 'imobiliaria', None)
         
-        # Otimiza a busca inicial
-        base_queryset = Oportunidade.objects.select_related('fase', 'cliente', 'responsavel')
+        # Otimiza a busca inicial com select_related para evitar N+1 queries
+        base_queryset = Oportunidade.objects.select_related(
+            'cliente', 
+            'imovel', 
+            'responsavel', 
+            'fase', 
+            'imobiliaria'
+        ).order_by('fase__ordem', '-data_criacao')
 
-        # 1. Filtro por Tenant (Isolamento de Dados da Imobiliária)
+        # 1. Filtro por Tenant (Isolamento de Dados)
         if user.is_superuser:
-            # Superusuário do Django vê tudo ou filtra por tenant se especificado
+            # Superusuário vê tudo, a menos que um tenant seja forçado no contexto
             queryset = base_queryset.filter(imobiliaria=tenant) if tenant else base_queryset
         elif tenant:
-            # Usuários normais (Admin ou Corretor) só veem da sua imobiliária
+            # Usuários normais veem apenas dados da sua imobiliária
             queryset = base_queryset.filter(imobiliaria=tenant)
         else:
-            # Sem imobiliária = não vê nada
+            # Usuário sem imobiliária não vê nada (fail-safe)
             return Oportunidade.objects.none()
 
         # 2. Filtro de Privacidade (Visão do Corretor vs Admin)
-        # Verifica se é Admin checando múltiplas flags para garantir
+        # Verifica flag is_admin ou cargo textual
         is_admin_user = (
             user.is_superuser or 
             getattr(user, 'is_admin', False) or 
-            str(getattr(user, 'cargo', '')).upper() in ['ADMIN', 'SUPERADMIN']
+            str(getattr(user, 'cargo', '')).upper() in ['ADMIN', 'SUPERADMIN', 'GERENTE']
         )
 
-        # Se NÃO for Admin, aplica o filtro para ver apenas as oportunidades onde é responsável
+        # Se NÃO for Admin, vê apenas as oportunidades onde é responsável
         if not is_admin_user:
             queryset = queryset.filter(responsavel=user)
 
-        # 3. Filtros Extras da URL (Ex: Admin filtrando por um corretor específico no dashboard)
+        # 3. Filtros Extras da URL (Ex: ?responsavel=5)
+        # Útil para Admins filtrarem o dashboard por corretor
         responsavel_id = self.request.query_params.get('responsavel')
         if responsavel_id:
             try:
                 queryset = queryset.filter(responsavel__id=int(responsavel_id))
-            except ValueError:
+            except (ValueError, TypeError):
                 pass 
 
-        return queryset.order_by('fase__ordem', 'data_criacao')
+        return queryset
 
     def perform_create(self, serializer):
-        tenant = getattr(self.request, 'tenant', None) or getattr(self.request.user, 'imobiliaria', None)
+        """
+        Ao criar, associa automaticamente à imobiliária do usuário e define o responsável padrão.
+        """
+        user = self.request.user
+        tenant = getattr(self.request, 'tenant', None) or getattr(user, 'imobiliaria', None)
 
-        if not tenant and self.request.user.is_superuser:
+        # Fallback para Superuser sem tenant (pega a primeira imobiliária para teste)
+        if not tenant and user.is_superuser:
              tenant = Imobiliaria.objects.first()
         
         if not tenant:
@@ -484,89 +510,148 @@ class OportunidadeViewSet(viewsets.ModelViewSet):
         
         save_kwargs = {'imobiliaria': tenant}
         
-        # Se não enviou responsável, define o usuário atual
+        # Se o payload não trouxer responsável, assume o usuário logado
         if not serializer.validated_data.get('responsavel'):
-            save_kwargs['responsavel'] = self.request.user
+            save_kwargs['responsavel'] = user
             
         serializer.save(**save_kwargs)
-    
+
     def perform_update(self, serializer):
-        # 1. Dados Prévios
+        """
+        Lógica complexa de atualização:
+        1. Verifica permissão de edição.
+        2. Gerencia transferência de responsabilidade (Admin override).
+        3. Gera notificações e histórico de atividades.
+        """
+        # 1. Dados Prévios (Snapshot antes de salvar)
         oportunidade = self.get_object()
         fase_anterior = oportunidade.fase.titulo if oportunidade.fase else 'Indefinida'
         responsavel_anterior = oportunidade.responsavel
         
         user = self.request.user
         
-        # Verificação Robusta de Admin também no update
+        # Verificação de Admin
         is_admin_user = (
             user.is_superuser or 
             getattr(user, 'is_admin', False) or 
-            str(getattr(user, 'cargo', '')).upper() in ['ADMIN', 'SUPERADMIN']
+            str(getattr(user, 'cargo', '')).upper() in ['ADMIN', 'SUPERADMIN', 'GERENTE']
         )
         
-        # 2. Trava de Segurança: Apenas o dono ou Admin pode editar
+        # 2. Trava de Segurança
         if not is_admin_user and oportunidade.responsavel != user:
              raise PermissionDenied("Você não pode editar uma oportunidade que não lhe pertence.")
 
-        # 3. Salva a instância (Update normal)
+        # 3. Salva a instância (Update padrão do DRF)
         instance = serializer.save()
 
-        # 4. FORÇA BRUTA: Atualização do Responsável (Para permitir transferência pelo Admin)
+        # 4. FORÇA BRUTA: Atualização do Responsável
+        # Necessário pois campos 'read_only' no serializer são ignorados no update padrão.
+        # Apenas Admins podem transferir oportunidades de outros.
         if is_admin_user and 'responsavel' in self.request.data:
             try:
                 new_resp_data = self.request.data['responsavel']
                 new_resp_id = None
 
-                # Normaliza se veio Objeto ou ID
+                # Normaliza input (pode vir objeto {id: 1} ou int 1)
                 if isinstance(new_resp_data, dict):
                     new_resp_id = new_resp_data.get('id')
                 elif new_resp_data is not None:
-                    # Tenta converter para int caso venha como string
                     try:
                         new_resp_id = int(new_resp_data)
                     except (ValueError, TypeError):
                         pass
                 
-                # Se temos um ID válido e ele é diferente do atual
+                # Se detectou uma mudança real de ID
                 if new_resp_id and instance.responsavel_id != new_resp_id:
-                    # Atualiza direto no banco (Bypass do Serializer ReadOnly)
+                    # Atualiza direto no banco (Bypass do Serializer)
                     instance.responsavel_id = new_resp_id
                     instance.save(update_fields=['responsavel']) 
-                    instance.refresh_from_db() 
+                    instance.refresh_from_db() # Atualiza objeto em memória
+                    logger.info(f"Oportunidade {instance.id} transferida manualmente pelo Admin {user.id}")
+
             except Exception as e:
                 logger.error(f"ERRO AO TRANSFERIR OPORTUNIDADE: {e}")
 
-        # 5. Notificações
+        # 5. Lógica de Pós-Processamento (Notificações e Histórico)
         responsavel_novo = instance.responsavel
         
-        # Notificação de Transferência
+        # A. Notificação de Transferência
         if responsavel_novo and responsavel_novo != responsavel_anterior:
-            responsavel_anterior_nome = responsavel_anterior.first_name if responsavel_anterior else 'Ninguém'
-            descricao = f"Oportunidade transferida de '{responsavel_anterior_nome}' para '{responsavel_novo.first_name}'."
+            nome_antigo = responsavel_anterior.get_full_name() or responsavel_anterior.username if responsavel_anterior else 'Ninguém'
+            nome_novo = responsavel_novo.get_full_name() or responsavel_novo.username
             
+            descricao = f"Oportunidade transferida de '{nome_antigo}' para '{nome_novo}'."
+            
+            # Registra no histórico do cliente
             Atividade.objects.create(
                 cliente=instance.cliente,
+                imobiliaria=instance.imobiliaria, # Garante tenant na atividade
                 tipo='NOTA',
                 descricao=descricao,
-                registrado_por=self.request.user
+                registrado_por=user
             )
 
-            Notificacao.objects.create(
-                destinatario=responsavel_novo,
-                mensagem=f"A oportunidade '{instance.titulo}' foi transferida para si.",
-                link=f"/oportunidades/editar/{instance.id}"
-            )
+            # Notifica o novo dono
+            try:
+                Notificacao.objects.create(
+                    imobiliaria=instance.imobiliaria,
+                    destinatario=responsavel_novo,
+                    titulo="Nova Oportunidade",
+                    mensagem=f"A oportunidade '{instance.titulo}' foi transferida para você.",
+                    link=f"/oportunidades/{instance.id}", # Link para frontend
+                    tipo='SISTEMA'
+                )
+            except Exception as e:
+                logger.warning(f"Falha ao criar notificação de transferência: {e}")
         
-        # Notificação de Fase
+        # B. Notificação de Mudança de Fase
         fase_nova_titulo = instance.fase.titulo if instance.fase else 'Indefinida'
         if fase_nova_titulo != fase_anterior:
             descricao = f"Oportunidade '{instance.titulo}' movida da fase '{fase_anterior}' para '{fase_nova_titulo}'."
+            
             Atividade.objects.create(
                 cliente=instance.cliente,
-                tipo='MUDANCA_FASE',
+                imobiliaria=instance.imobiliaria,
+                tipo='MUDANCA_FASE', # Certifique-se que este choice existe no model Atividade
                 descricao=descricao,
-                registrado_por=self.request.user
+                registrado_por=user
+            )
+
+    @action(detail=False, methods=['get'], url_path='stats')
+    def dashboard_stats(self, request):
+        """
+        Retorna estatísticas para o dashboard principal.
+        Endpoint: /api/v1/oportunidades/stats/
+        """
+        try:
+            qs = self.get_queryset()
+
+            # CORREÇÃO: Usar fase__titulo__icontains ou fase__slug__in
+            # O erro 500 anterior ocorria porque 'fase' é uma ForeignKey e estávamos comparando com strings.
+            # Aqui filtramos pelo campo 'titulo' da tabela relacionada FunilEtapa.
+            
+            total_ativas = qs.exclude(
+                Q(fase__titulo__icontains='Ganho') | 
+                Q(fase__titulo__icontains='Perdido') | 
+                Q(fase__titulo__icontains='Cancelado') |
+                Q(fase__titulo__icontains='Vendido') |
+                Q(fase__titulo__icontains='Fechado')
+            ).count()
+
+            # Opcional: Soma de valores (se existir campo 'valor')
+            # total_valor = qs.exclude(fase__titulo__icontains='Ganho'...).aggregate(Sum('valor'))['valor__sum'] or 0
+
+            return Response({
+                "total_ativas": total_ativas,
+                # "total_valor": total_valor,
+                "status": "success"
+            }, status=status.HTTP_200_OK)
+
+        except Exception as e:
+            logger.error(f"Erro stats oportunidade: {e}")
+            return Response(
+                {"error": "Erro ao calcular estatísticas", "details": str(e)}, 
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
 
 class FunilEtapaViewSet(viewsets.ModelViewSet):
@@ -639,6 +724,10 @@ class TarefaViewSet(viewsets.ModelViewSet):
                     Q(imobiliaria=tenant) | Q(oportunidade__imobiliaria=tenant)
                 ).distinct()
         elif tenant:
+            # Lógica robusta para encontrar tarefas vinculadas à imobiliária
+            # 1. Tarefa tem FK direta para imobiliária
+            # 2. Tarefa ligada a Oportunidade da imobiliária
+            # 3. Tarefa sem imobiliária (legado/avulsa) mas o dono é da imobiliária
             queryset = Tarefa.objects.filter(
                 Q(imobiliaria=tenant) | 
                 Q(oportunidade__imobiliaria=tenant) |
@@ -647,6 +736,7 @@ class TarefaViewSet(viewsets.ModelViewSet):
         else:
             return Tarefa.objects.none()
         
+        # Filtros Específicos
         oportunidade_id = self.request.query_params.get('oportunidade')
         if oportunidade_id:
             queryset = queryset.filter(oportunidade_id=oportunidade_id)
@@ -664,6 +754,10 @@ class TarefaViewSet(viewsets.ModelViewSet):
 
     @action(detail=False, methods=['get'], url_path='kanban')
     def kanban(self, request):
+        """
+        Retorna tarefas formatadas para quadro Kanban/Calendário.
+        Filtra tarefas muito antigas se já concluídas para não poluir a view.
+        """
         queryset = self.filter_queryset(self.get_queryset())
         
         if not request.query_params.get('start'):
@@ -675,6 +769,52 @@ class TarefaViewSet(viewsets.ModelViewSet):
 
         serializer = self.get_serializer(queryset, many=True)
         return Response(serializer.data)
+
+    @action(detail=False, methods=['get'], url_path='stats')
+    def dashboard_stats(self, request):
+        """
+        Endpoint para estatísticas de tarefas no dashboard principal.
+        Retorna: Total Pendente e Lista das 5 tarefas para hoje.
+        """
+        try:
+            qs = self.get_queryset()
+            hoje = timezone.now().date()
+            
+            # 1. Contagem de Pendências (Tudo que não está concluído)
+            pendentes = qs.exclude(status='concluida').count()
+            
+            # 2. Tarefas de Hoje (Para o Widget de Lista)
+            # Filtra tarefas que vencem hoje e não estão prontas
+            tarefas_hoje = qs.filter(
+                data_vencimento__date=hoje
+            ).exclude(status='concluida').order_by('data_vencimento')[:5]
+            
+            # Serializa a lista curta para o widget
+            # Usamos uma serialização simplificada aqui para performance
+            dados_hoje = []
+            for t in tarefas_hoje:
+                cliente_nome = "Sem cliente"
+                if t.oportunidade and t.oportunidade.cliente:
+                    cliente_nome = t.oportunidade.cliente.nome
+                
+                dados_hoje.append({
+                    "id": t.id,
+                    "titulo": t.titulo,
+                    "data_vencimento": t.data_vencimento,
+                    "cliente_nome": cliente_nome,
+                    "prioridade": t.prioridade
+                })
+
+            return Response({
+                "pendentes": pendentes,
+                "hoje": dados_hoje
+            }, status=status.HTTP_200_OK)
+            
+        except Exception as e:
+            return Response(
+                {"error": "Erro ao calcular stats tarefas", "details": str(e)}, 
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
 
     @action(detail=False, methods=['get'], url_path='listar-responsaveis')
     def listar_responsaveis(self, request):
@@ -699,6 +839,7 @@ class TarefaViewSet(viewsets.ModelViewSet):
              tenant = Imobiliaria.objects.first()
 
         if oportunidade_id:
+            # Verifica se a oportunidade pertence ao tenant
             oportunidade = get_object_or_404(Oportunidade, pk=oportunidade_id)
             if not (self.request.user.is_superuser or oportunidade.imobiliaria == tenant):
                 raise PermissionDenied("Você não tem permissão para adicionar tarefas a esta oportunidade.")
@@ -708,21 +849,24 @@ class TarefaViewSet(viewsets.ModelViewSet):
             'imobiliaria': tenant
         }
 
+        # Se não enviou responsável, define o usuário atual
         if not serializer.validated_data.get('responsavel'):
             save_kwargs['responsavel'] = self.request.user
 
         tarefa = serializer.save(**save_kwargs)
         
+        # Integração Google Calendar
         if tarefa.responsavel and getattr(tarefa.responsavel, 'google_calendar_token', None):
             try:
                 agendar_tarefa_no_calendario(tarefa)
             except Exception:
-                pass
+                pass # Falha no calendário não deve quebrar a criação da tarefa
     
     def perform_update(self, serializer):
         instance = self.get_object()
         tenant = getattr(self.request, 'tenant', None) or getattr(self.request.user, 'imobiliaria', None)
 
+        # Verificação de segurança de Tenancy no Update
         eh_do_tenant = False
         if instance.imobiliaria == tenant:
             eh_do_tenant = True
@@ -736,6 +880,7 @@ class TarefaViewSet(viewsets.ModelViewSet):
             
         tarefa = serializer.save()
         
+        # Integração Google Calendar (Update)
         if tarefa.responsavel and getattr(tarefa.responsavel, 'google_calendar_token', None):
             try:
                 agendar_tarefa_no_calendario(tarefa, editar=True)

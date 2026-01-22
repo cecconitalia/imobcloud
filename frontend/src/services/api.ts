@@ -1,91 +1,108 @@
-// frontend/src/services/api.ts
-import axios, { type AxiosInstance, type AxiosError, type AxiosResponse } from 'axios';
-import type { Router } from 'vue-router'; 
+import axios, { type AxiosInstance, type AxiosError, type AxiosResponse, type InternalAxiosRequestConfig } from 'axios';
+import { useAuthStore } from '@/stores/auth';
+import router from '@/router';
 
+// Lógica de URL Base Inteligente
 const getBaseUrl = () => {
-  // Pega a URL definida no arquivo .env correspondente (development ou production)
-  // Fallback para '/api' caso a variável não esteja definida
-  return import.meta.env.VITE_API_BASE_URL || '/api';
+  // 1. Em Produção (Build/Docker), forçamos '/api' relativo.
+  // Isso resolve o problema do IP antigo no .env e evita a duplicação do 'v1'
+  if (import.meta.env.PROD) {
+    return '/api';
+  }
+
+  // 2. Em Desenvolvimento, tenta ler do .env ou fallback
+  const envUrl = import.meta.env.VITE_API_URL || import.meta.env.VITE_API_BASE_URL;
+  
+  // Se o envUrl já tiver '/v1' no final, removemos para evitar duplicação
+  if (envUrl && envUrl.endsWith('/v1')) {
+    return envUrl.slice(0, -3);
+  }
+
+  return envUrl || '/api';
 };
 
-const apiClient: AxiosInstance = axios.create({
+const api: AxiosInstance = axios.create({
   baseURL: getBaseUrl(),
+  timeout: 15000,
   headers: {
     'Content-Type': 'application/json',
+    'Accept': 'application/json',
   },
 });
 
-// Interceptor de Requisição (Adiciona o Token automaticamente)
-apiClient.interceptors.request.use(
-  (config) => {
-    const token = localStorage.getItem('authToken');
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
+// --- INTERCEPTOR DE REQUISIÇÃO ---
+api.interceptors.request.use(
+  (config: InternalAxiosRequestConfig) => {
+    const authStore = useAuthStore();
+    if (authStore.token) {
+      config.headers.Authorization = `Bearer ${authStore.token}`;
     }
     return config;
   },
-  (error) => {
+  (error: AxiosError) => {
     return Promise.reject(error);
   }
 );
 
-/**
- * Interceptor de Resposta (Trata erros de sessão e bloqueio)
- */
-export const setupInterceptors = (router: Router, authStore: any) => {
-    apiClient.interceptors.response.use(
-        (response: AxiosResponse) => {
-            return response;
-        },
-        async (error: AxiosError) => {
-            
-            if (error.response) {
-                
-                // --- 1. LÓGICA DE BLOQUEIO FINANCEIRO (SaaS) ---
-                if (error.response.status === 403) {
-                    const errorMessage = (error.response.data as any)?.detail || '';
-                    
-                    // Verifica se é Expiração de Teste
-                    if (errorMessage === 'TRIAL_EXPIRED') {
-                        router.push({ name: 'lock-screen', query: { reason: 'trial' } });
-                        return Promise.reject(error);
-                    }
+// --- INTERCEPTOR DE RESPOSTA ---
+api.interceptors.response.use(
+  (response: AxiosResponse) => response,
+  async (error: AxiosError) => {
+    const originalRequest = error.config as any;
+    const authStore = useAuthStore();
 
-                    // Verifica se é Expiração de Assinatura (Plano)
-                    if (errorMessage === 'SUBSCRIPTION_EXPIRED' || 
-                        (typeof errorMessage === 'string' && errorMessage.includes('suspenso'))) {
-                        router.push({ name: 'lock-screen', query: { reason: 'subscription' } });
-                        return Promise.reject(error);
-                    }
-                }
-
-                // --- 2. TRATAMENTO DE TOKEN EXPIRADO / INVÁLIDO ---
-                if (error.response.status === 401) {
-                    
-                    if (router.currentRoute.value.name === 'login') {
-                        return Promise.reject(error);
-                    }
-
-                    console.warn(`Sessão expirada (${error.response.status}). Realizando logout...`);
-                    
-                    if (authStore && typeof authStore.logout === 'function') {
-                        authStore.logout();
-                    } else {
-                        localStorage.clear();
-                    }
-                    
-                    router.replace({ 
-                        name: 'login', 
-                        query: { next: router.currentRoute.value.fullPath } 
-                    });
-
-                    return Promise.reject(new Error("Sessão encerrada."));
-                }
-            }
-
-            return Promise.reject(error);
+    if (error.response) {
+      // 1. Token Expirado (401)
+      if (error.response.status === 401 && !originalRequest._retry) {
+        if (originalRequest.url?.includes('token/') || originalRequest.url?.includes('login/')) {
+          authStore.logout();
+          router.push({ name: 'login' });
+          return Promise.reject(error);
         }
-    );
-};
 
-export default apiClient;
+        originalRequest._retry = true;
+
+        try {
+          await authStore.refreshToken();
+          originalRequest.headers.Authorization = `Bearer ${authStore.token}`;
+          return api(originalRequest);
+        } catch (refreshError) {
+          authStore.logout();
+          router.push({ 
+            name: 'login', 
+            query: { next: router.currentRoute.value.fullPath } 
+          });
+          return Promise.reject(refreshError);
+        }
+      }
+
+      // 2. Bloqueio SaaS (403)
+      if (error.response.status === 403) {
+        const errorMessage = (error.response.data as any)?.detail || '';
+        const errorCode = (error.response.data as any)?.code || '';
+
+        if (errorMessage === 'TRIAL_EXPIRED' || errorCode === 'trial_expired') {
+          router.push({ name: 'lock-screen', query: { reason: 'trial' } });
+          return Promise.reject(error);
+        }
+
+        if (
+          errorMessage === 'SUBSCRIPTION_EXPIRED' || 
+          errorCode === 'subscription_expired' ||
+          (typeof errorMessage === 'string' && errorMessage.toLowerCase().includes('suspenso'))
+        ) {
+          router.push({ name: 'lock-screen', query: { reason: 'subscription' } });
+          return Promise.reject(error);
+        }
+      }
+    }
+
+    if (error.code === 'ECONNABORTED') {
+      console.error('Timeout na requisição.');
+    }
+
+    return Promise.reject(error);
+  }
+);
+
+export default api;

@@ -21,9 +21,12 @@ from rest_framework.views import APIView
 from decimal import Decimal 
 from datetime import timedelta, date, datetime
 import math
+import logging
 
 from app_clientes.models import Cliente
 from core.models import Imobiliaria
+
+logger = logging.getLogger(__name__)
 
 try:
     from ImobCloud.utils.formatacao_util import apenas_numeros
@@ -33,11 +36,9 @@ except ImportError:
         return ''.join(filter(str.isdigit, str(text)))
 
 def safe_float_conversion(value):
-    """Converte valores Decimal ou None para float de forma segura."""
+    """Converte valores Decimal ou None para float de forma segura para JSON."""
     if value is None:
         return 0.0
-    if isinstance(value, Decimal):
-        return float(value)
     try:
         return float(value)
     except (ValueError, TypeError):
@@ -54,10 +55,15 @@ class CategoriaViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
-        return Categoria.objects.filter(imobiliaria=self.request.tenant)
+        tenant = getattr(self.request, 'tenant', None)
+        if tenant:
+             return Categoria.objects.filter(imobiliaria=tenant)
+        return Categoria.objects.none()
 
     def perform_create(self, serializer):
-        serializer.save(imobiliaria=self.request.tenant)
+        tenant = getattr(self.request, 'tenant', None)
+        if tenant:
+            serializer.save(imobiliaria=tenant)
 
 class ContaViewSet(viewsets.ModelViewSet):
     queryset = Conta.objects.all()
@@ -65,10 +71,15 @@ class ContaViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
-        return Conta.objects.filter(imobiliaria=self.request.tenant)
+        tenant = getattr(self.request, 'tenant', None)
+        if tenant:
+             return Conta.objects.filter(imobiliaria=tenant)
+        return Conta.objects.none()
 
     def perform_create(self, serializer):
-        serializer.save(imobiliaria=self.request.tenant)
+        tenant = getattr(self.request, 'tenant', None)
+        if tenant:
+            serializer.save(imobiliaria=tenant)
 
 class FormaPagamentoViewSet(viewsets.ModelViewSet):
     queryset = FormaPagamento.objects.all()
@@ -76,10 +87,82 @@ class FormaPagamentoViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
-        return FormaPagamento.objects.filter(imobiliaria=self.request.tenant)
+        tenant = getattr(self.request, 'tenant', None)
+        if tenant:
+             return FormaPagamento.objects.filter(imobiliaria=tenant)
+        return FormaPagamento.objects.none()
 
     def perform_create(self, serializer):
-        serializer.save(imobiliaria=self.request.tenant)
+        tenant = getattr(self.request, 'tenant', None)
+        if tenant:
+            serializer.save(imobiliaria=tenant)
+
+# --- VIEW DEDICADA PARA O DASHBOARD (CORREÇÃO DE 500) ---
+class FinanceiroStatsView(APIView):
+    """
+    View para retornar KPIs financeiros básicos.
+    Retorna JSON com floats seguros.
+    """
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, *args, **kwargs):
+        try:
+            user = request.user
+            tenant = getattr(request, 'tenant', None) or getattr(user, 'imobiliaria', None)
+
+            if not tenant:
+                # Se não tem tenant, retorna zerado para evitar erro
+                return Response({
+                    "receita_mes": 0.0,
+                    "previsto_entrada": 0.0,
+                    "previsto_saida": 0.0
+                })
+
+            qs = Transacao.objects.filter(imobiliaria=tenant)
+            
+            hoje = timezone.now().date()
+            inicio_mes = hoje.replace(day=1)
+            # Lógica segura para fim do mês
+            proximo_mes = (inicio_mes + timedelta(days=32)).replace(day=1)
+            fim_mes = proximo_mes - timedelta(days=1)
+
+            # 1. Receita Realizada (PAGO)
+            # Importante: verifica se data_pagamento não é nula
+            receita_mes_dec = qs.filter(
+                tipo='RECEITA',
+                status='PAGO',
+                data_pagamento__range=[inicio_mes, fim_mes]
+            ).aggregate(total=Sum('valor'))['total'] or Decimal(0)
+
+            # 2. Previsão Entrada (PAGO + PENDENTE por Vencimento)
+            previsto_entrada_dec = qs.filter(
+                tipo='RECEITA',
+                data_vencimento__range=[inicio_mes, fim_mes]
+            ).aggregate(total=Sum('valor'))['total'] or Decimal(0)
+
+            # 3. Previsão Saída (PAGO + PENDENTE por Vencimento)
+            previsto_saida_dec = qs.filter(
+                tipo='DESPESA',
+                data_vencimento__range=[inicio_mes, fim_mes]
+            ).aggregate(total=Sum('valor'))['total'] or Decimal(0)
+
+            return Response({
+                "receita_mes": safe_float_conversion(receita_mes_dec),
+                "previsto_entrada": safe_float_conversion(previsto_entrada_dec),
+                "previsto_saida": safe_float_conversion(previsto_saida_dec)
+            }, status=status.HTTP_200_OK)
+
+        except Exception as e:
+            # Log do erro para debug no console do servidor
+            import traceback
+            traceback.print_exc()
+            logger.error(f"Erro em FinanceiroStatsView: {e}")
+            # Retorna o erro detalhado no JSON (apenas para dev/debug)
+            return Response(
+                {"error": "Erro interno ao calcular finanças", "details": str(e)}, 
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
 
 class TransacaoViewSet(viewsets.ModelViewSet):
     queryset = Transacao.objects.all()
@@ -96,10 +179,7 @@ class TransacaoViewSet(viewsets.ModelViewSet):
         tenant = getattr(self.request, 'tenant', None)
         if not tenant and hasattr(self.request.user, 'imobiliaria'):
             tenant = self.request.user.imobiliaria
-        if not tenant:
-            tenant = Imobiliaria.objects.filter(subdominio='imobhome').first()
-        if not tenant:
-            tenant = Imobiliaria.objects.first()
+        # Fallbacks removidos para evitar vazamento de dados entre tenants
         return tenant
 
     def get_queryset(self):
@@ -258,241 +338,191 @@ class TransacaoViewSet(viewsets.ModelViewSet):
             observacoes=f"Repasse automático. Comissão {taxa}% retida."
         )
 
-    # --- ACTIONS PARA CORRIGIR ERRO 404 ---
+    # --- ACTIONS PARA CORRIGIR ERRO 404 (Mantidas para compatibilidade) ---
     @action(detail=False, methods=['get'], url_path='a-receber')
     def a_receber(self, request):
         queryset = self.filter_queryset(self.get_queryset()).filter(tipo='RECEITA')
-        
         page = self.paginate_queryset(queryset)
         if page is not None:
             serializer = self.get_serializer(page, many=True)
             return self.get_paginated_response(serializer.data)
-
         serializer = self.get_serializer(queryset, many=True)
         return Response(serializer.data)
 
     @action(detail=False, methods=['get'], url_path='a-pagar')
     def a_pagar(self, request):
         queryset = self.filter_queryset(self.get_queryset()).filter(tipo='DESPESA')
-        
         page = self.paginate_queryset(queryset)
         if page is not None:
             serializer = self.get_serializer(page, many=True)
             return self.get_paginated_response(serializer.data)
-
         serializer = self.get_serializer(queryset, many=True)
         return Response(serializer.data)
-    # --------------------------------------
 
+    # Action legada stats (dentro de transacoes)
     @action(detail=False, methods=['get'])
     def stats(self, request):
-        tenant = self._get_tenant()
-        
-        if not tenant:
-            return Response({
-                'saldo_atual': 0.0,
-                'receitas_mes': 0.0,
-                'despesas_mes': 0.0,
-                'resultado_mes': 0.0,
-                'a_receber': {'pendente': 0.0, 'pago_mes_atual': 0.0},
-                'a_pagar': {'pendente': 0.0, 'pago_mes_atual': 0.0},
-                'saldo_previsto': 0.0
-            })
-
-        queryset_filtrada = self.filter_queryset(self.get_queryset())
-        
-        aggregates_filtered = queryset_filtrada.aggregate(
-            receitas_periodo=Sum(Case(When(tipo='RECEITA', then='valor'), default=0, output_field=DecimalField(max_digits=19, decimal_places=2))),
-            despesas_periodo=Sum(Case(When(tipo='DESPESA', then='valor'), default=0, output_field=DecimalField(max_digits=19, decimal_places=2)))
-        )
-        
-        receitas_mes = aggregates_filtered['receitas_periodo'] or Decimal(0)
-        despesas_mes = aggregates_filtered['despesas_periodo'] or Decimal(0)
-        resultado_mes = receitas_mes - despesas_mes
-
-        total_receitas_pagas = Transacao.objects.filter(imobiliaria=tenant, tipo='RECEITA', status='PAGO').aggregate(t=Sum('valor'))['t'] or Decimal(0)
-        total_despesas_pagas = Transacao.objects.filter(imobiliaria=tenant, tipo='DESPESA', status='PAGO').aggregate(t=Sum('valor'))['t'] or Decimal(0)
-        saldo_inicial_contas = Conta.objects.filter(imobiliaria=tenant).aggregate(t=Sum('saldo_inicial'))['t'] or Decimal(0)
-        
-        saldo_atual_real = saldo_inicial_contas + total_receitas_pagas - total_despesas_pagas
-
-        today = timezone.now().date()
-        qs_dashboard = Transacao.objects.filter(imobiliaria=tenant)
-        
-        dash_aggs = qs_dashboard.aggregate(
-            a_receber_pendente=Sum(Case(When(tipo='RECEITA', status__in=['PENDENTE', 'ATRASADO'], then='valor'), default=0, output_field=DecimalField(max_digits=19, decimal_places=2))),
-            a_receber_pago_mes=Sum(Case(When(tipo='RECEITA', status='PAGO', data_pagamento__month=today.month, data_pagamento__year=today.year, then='valor'), default=0, output_field=DecimalField(max_digits=19, decimal_places=2))),
-            a_pagar_pendente=Sum(Case(When(tipo='DESPESA', status__in=['PENDENTE', 'ATRASADO'], then='valor'), default=0, output_field=DecimalField(max_digits=19, decimal_places=2))),
-            a_pagar_pago_mes=Sum(Case(When(tipo='DESPESA', status='PAGO', data_pagamento__month=today.month, data_pagamento__year=today.year, then='valor'), default=0, output_field=DecimalField(max_digits=19, decimal_places=2)))
-        )
-
-        return Response({
-            'saldo_atual': safe_float_conversion(saldo_atual_real),
-            'receitas_mes': safe_float_conversion(receitas_mes),
-            'despesas_mes': safe_float_conversion(despesas_mes),
-            'resultado_mes': safe_float_conversion(resultado_mes),
-            'a_receber': {
-                'pendente': safe_float_conversion(dash_aggs['a_receber_pendente']),
-                'pago_mes_atual': safe_float_conversion(dash_aggs['a_receber_pago_mes'])
-            },
-            'a_pagar': {
-                'pendente': safe_float_conversion(dash_aggs['a_pagar_pendente']),
-                'pago_mes_atual': safe_float_conversion(dash_aggs['a_pagar_pago_mes'])
-            },
-            'saldo_previsto': safe_float_conversion((dash_aggs['a_receber_pendente'] or 0) - (dash_aggs['a_pagar_pendente'] or 0))
-        })
+        # Redireciona logicamente para a view dedicada se chamado via ViewSet
+        view = FinanceiroStatsView()
+        # Injeta request
+        view.request = request
+        view.format_kwarg = None
+        return view.get(request)
 
     @action(detail=False, methods=['get'], url_path='dashboard-general-stats')
     def dashboard_general_stats(self, request):
-        tenant = self._get_tenant()
-        if not tenant:
-            return Response({})
+        try:
+            tenant = self._get_tenant()
+            if not tenant:
+                return Response({})
 
-        # 1. Ranking de Imóveis
-        ranking_imoveis = Transacao.objects.filter(
-            imobiliaria=tenant, tipo='DESPESA', imovel__isnull=False
-        ).values('imovel__titulo_anuncio', 'imovel__logradouro').annotate(
-            total=Sum('valor')
-        ).order_by('-total')[:5]
+            # 1. Ranking de Imóveis
+            ranking_imoveis = Transacao.objects.filter(
+                imobiliaria=tenant, tipo='DESPESA', imovel__isnull=False
+            ).values('imovel__titulo_anuncio', 'imovel__logradouro').annotate(
+                total=Sum('valor')
+            ).order_by('-total')[:5]
 
-        ranking_data = []
-        for item in ranking_imoveis:
-            nome = item['imovel__titulo_anuncio'] or item['imovel__logradouro'] or 'Sem Nome'
-            ranking_data.append({
-                'label': nome,
-                'value': safe_float_conversion(item['total'])
-            })
-
-        # 2. Despesas por Categoria
-        categorias = Transacao.objects.filter(
-            imobiliaria=tenant, tipo='DESPESA'
-        ).values('categoria__nome').annotate(
-            total=Sum('valor')
-        ).order_by('-total')[:5]
-
-        categorias_data = [{
-            'label': item['categoria__nome'], 
-            'value': safe_float_conversion(item['total'])
-        } for item in categorias]
-
-        # 3. Evolução Financeira (Mensal)
-        seis_meses_atras = timezone.now().date().replace(day=1) - timedelta(days=180)
-        evolucao = Transacao.objects.filter(
-            imobiliaria=tenant,
-            data_pagamento__gte=seis_meses_atras,
-            status='PAGO'
-        ).annotate(
-            mes=TruncMonth('data_pagamento')
-        ).values('mes').annotate(
-            receitas=Sum(Case(When(tipo='RECEITA', then='valor'), default=0, output_field=DecimalField(max_digits=19, decimal_places=2))),
-            despesas=Sum(Case(When(tipo='DESPESA', then='valor'), default=0, output_field=DecimalField(max_digits=19, decimal_places=2)))
-        ).order_by('mes')
-
-        evolucao_data = []
-        for item in evolucao:
-            if item['mes']:
-                evolucao_data.append({
-                    'mes': item['mes'].strftime('%b/%Y'),
-                    'receitas': safe_float_conversion(item['receitas']),
-                    'despesas': safe_float_conversion(item['despesas'])
+            ranking_data = []
+            for item in ranking_imoveis:
+                nome = item['imovel__titulo_anuncio'] or item['imovel__logradouro'] or 'Sem Nome'
+                ranking_data.append({
+                    'label': nome,
+                    'value': safe_float_conversion(item['total'])
                 })
 
-        # 4. Balanço Diário (Blindado)
-        hoje = timezone.now().date()
-        inicio_mes = hoje.replace(day=1)
-        proximo_mes = (inicio_mes + timedelta(days=32)).replace(day=1)
-        fim_mes = proximo_mes - timedelta(days=1)
+            # 2. Despesas por Categoria
+            categorias = Transacao.objects.filter(
+                imobiliaria=tenant, tipo='DESPESA'
+            ).values('categoria__nome').annotate(
+                total=Sum('valor')
+            ).order_by('-total')[:5]
 
-        diario_qs = Transacao.objects.filter(
-            imobiliaria=tenant,
-            data_pagamento__range=[inicio_mes, fim_mes],
-            status='PAGO'
-        ).annotate(
-            dia=TruncDay('data_pagamento')
-        ).values('dia').annotate(
-            receitas=Sum(Case(When(tipo='RECEITA', then='valor'), default=0, output_field=DecimalField(max_digits=19, decimal_places=2))),
-            despesas=Sum(Case(When(tipo='DESPESA', then='valor'), default=0, output_field=DecimalField(max_digits=19, decimal_places=2)))
-        ).order_by('dia')
+            categorias_data = [{
+                'label': item['categoria__nome'], 
+                'value': safe_float_conversion(item['total'])
+            } for item in categorias]
 
-        # Dicionário com chave String
-        dados_existentes = {}
-        for item in diario_qs:
-            if item['dia']:
-                chave = item['dia'].strftime('%Y-%m-%d') if hasattr(item['dia'], 'strftime') else str(item['dia'])[:10]
-                dados_existentes[chave] = item
+            # 3. Evolução Financeira (Mensal)
+            seis_meses_atras = timezone.now().date().replace(day=1) - timedelta(days=180)
+            evolucao = Transacao.objects.filter(
+                imobiliaria=tenant,
+                data_pagamento__gte=seis_meses_atras,
+                status='PAGO'
+            ).annotate(
+                mes=TruncMonth('data_pagamento')
+            ).values('mes').annotate(
+                receitas=Sum(Case(When(tipo='RECEITA', then='valor'), default=0, output_field=DecimalField(max_digits=19, decimal_places=2))),
+                despesas=Sum(Case(When(tipo='DESPESA', then='valor'), default=0, output_field=DecimalField(max_digits=19, decimal_places=2)))
+            ).order_by('mes')
 
-        balanco_diario_data = []
-        data_atual = inicio_mes
+            evolucao_data = []
+            for item in evolucao:
+                if item['mes']:
+                    evolucao_data.append({
+                        'mes': item['mes'].strftime('%b/%Y'),
+                        'receitas': safe_float_conversion(item['receitas']),
+                        'despesas': safe_float_conversion(item['despesas'])
+                    })
 
-        while data_atual <= fim_mes:
-            chave_atual = data_atual.strftime('%Y-%m-%d')
-            dados = dados_existentes.get(chave_atual)
-            
-            receita_val = safe_float_conversion(dados['receitas']) if dados else 0.0
-            despesa_val = safe_float_conversion(dados['despesas']) if dados else 0.0
+            # 4. Balanço Diário (Blindado)
+            hoje = timezone.now().date()
+            inicio_mes = hoje.replace(day=1)
+            proximo_mes = (inicio_mes + timedelta(days=32)).replace(day=1)
+            fim_mes = proximo_mes - timedelta(days=1)
 
-            balanco_diario_data.append({
-                'dia': data_atual.strftime('%d/%m'),
-                'receitas': receita_val,
-                'despesas': despesa_val
+            diario_qs = Transacao.objects.filter(
+                imobiliaria=tenant,
+                data_pagamento__range=[inicio_mes, fim_mes],
+                status='PAGO'
+            ).annotate(
+                dia=TruncDay('data_pagamento')
+            ).values('dia').annotate(
+                receitas=Sum(Case(When(tipo='RECEITA', then='valor'), default=0, output_field=DecimalField(max_digits=19, decimal_places=2))),
+                despesas=Sum(Case(When(tipo='DESPESA', then='valor'), default=0, output_field=DecimalField(max_digits=19, decimal_places=2)))
+            ).order_by('dia')
+
+            dados_existentes = {}
+            for item in diario_qs:
+                if item['dia']:
+                    chave = item['dia'].strftime('%Y-%m-%d') if hasattr(item['dia'], 'strftime') else str(item['dia'])[:10]
+                    dados_existentes[chave] = item
+
+            balanco_diario_data = []
+            data_atual = inicio_mes
+
+            while data_atual <= fim_mes:
+                chave_atual = data_atual.strftime('%Y-%m-%d')
+                dados = dados_existentes.get(chave_atual)
+                
+                receita_val = safe_float_conversion(dados['receitas']) if dados else 0.0
+                despesa_val = safe_float_conversion(dados['despesas']) if dados else 0.0
+
+                balanco_diario_data.append({
+                    'dia': data_atual.strftime('%d/%m'),
+                    'receitas': receita_val,
+                    'despesas': despesa_val
+                })
+                
+                data_atual += timedelta(days=1)
+
+            return Response({
+                'ranking_imoveis': ranking_data,
+                'despesas_categoria': categorias_data,
+                'evolucao_financeira': evolucao_data,
+                'balanco_diario': balanco_diario_data
             })
-            
-            data_atual += timedelta(days=1)
-
-        return Response({
-            'ranking_imoveis': ranking_data,
-            'despesas_categoria': categorias_data,
-            'evolucao_financeira': evolucao_data,
-            'balanco_diario': balanco_diario_data
-        })
+        except Exception as e:
+            import traceback
+            traceback.print_exc()
+            return Response({"error": str(e)}, status=500)
 
 class DREViewAPI(APIView):
     permission_classes = [IsAuthenticated]
     def get(self, request):
-        tenant = getattr(request, 'tenant', None)
-        if not tenant and hasattr(request.user, 'imobiliaria'):
-            tenant = request.user.imobiliaria
-        if not tenant:
-            tenant = Imobiliaria.objects.filter(subdominio='imobhome').first()
-        if not tenant:
-            tenant = Imobiliaria.objects.first()
+        try:
+            tenant = getattr(request, 'tenant', None)
+            if not tenant and hasattr(request.user, 'imobiliaria'):
+                tenant = request.user.imobiliaria
             
-        if not tenant:
-             return Response({"error": "Imobiliária não encontrada."}, status=status.HTTP_400_BAD_REQUEST)
+            if not tenant:
+                 return Response({"error": "Imobiliária não encontrada."}, status=status.HTTP_400_BAD_REQUEST)
 
-        start_date_str = request.query_params.get('start_date')
-        end_date_str = request.query_params.get('end_date')
-        if not start_date_str or not end_date_str:
-            return Response({"error": "Datas obrigatórias."}, status=status.HTTP_400_BAD_REQUEST)
-        
-        start_date = parse_date(start_date_str)
-        end_date = parse_date(end_date_str)
-        
-        if not start_date or not end_date:
-            return Response({"error": "Data inválida."}, status=status.HTTP_400_BAD_REQUEST)
-        
-        queryset = Transacao.objects.filter(
-            imobiliaria=tenant, 
-            data_pagamento__range=[start_date, end_date], 
-            status='PAGO'
-        )
-        
-        receitas = queryset.filter(tipo='RECEITA').values('categoria__nome').annotate(total=Sum('valor')).order_by('-total')
-        despesas = queryset.filter(tipo='DESPESA').values('categoria__nome').annotate(total=Sum('valor')).order_by('-total')
-        
-        total_receitas = sum(item['total'] for item in receitas if item['total'])
-        total_despesas = sum(item['total'] for item in despesas if item['total'])
-        
-        def convert_list(data_list):
-            return [{
-                'categoria__nome': item['categoria__nome'], 
-                'total': safe_float_conversion(item['total'])
-            } for item in data_list]
+            start_date_str = request.query_params.get('start_date')
+            end_date_str = request.query_params.get('end_date')
+            if not start_date_str or not end_date_str:
+                return Response({"error": "Datas obrigatórias."}, status=status.HTTP_400_BAD_REQUEST)
+            
+            start_date = parse_date(start_date_str)
+            end_date = parse_date(end_date_str)
+            
+            if not start_date or not end_date:
+                return Response({"error": "Data inválida."}, status=status.HTTP_400_BAD_REQUEST)
+            
+            queryset = Transacao.objects.filter(
+                imobiliaria=tenant, 
+                data_pagamento__range=[start_date, end_date], 
+                status='PAGO'
+            )
+            
+            receitas = queryset.filter(tipo='RECEITA').values('categoria__nome').annotate(total=Sum('valor')).order_by('-total')
+            despesas = queryset.filter(tipo='DESPESA').values('categoria__nome').annotate(total=Sum('valor')).order_by('-total')
+            
+            total_receitas = sum(item['total'] for item in receitas if item['total'])
+            total_despesas = sum(item['total'] for item in despesas if item['total'])
+            
+            def convert_list(data_list):
+                return [{
+                    'categoria__nome': item['categoria__nome'], 
+                    'total': safe_float_conversion(item['total'])
+                } for item in data_list]
 
-        return Response({
-            'receitas_por_categoria': convert_list(receitas),
-            'despesas_por_categoria': convert_list(despesas),
-            'total_receitas': safe_float_conversion(total_receitas),
-            'total_despesas': safe_float_conversion(total_despesas),
-            'lucro_liquido': safe_float_conversion(total_receitas - total_despesas),
-        })
+            return Response({
+                'receitas_por_categoria': convert_list(receitas),
+                'despesas_por_categoria': convert_list(despesas),
+                'total_receitas': safe_float_conversion(total_receitas),
+                'total_despesas': safe_float_conversion(total_despesas),
+                'lucro_liquido': safe_float_conversion(total_receitas - total_despesas),
+            })
+        except Exception as e:
+            return Response({"error": str(e)}, status=500)

@@ -2,29 +2,15 @@ import { fileURLToPath, URL } from 'node:url'
 import { defineConfig } from 'vite'
 import vue from '@vitejs/plugin-vue'
 import UnoCSS from 'unocss/vite'
-import { presetUno, presetIcons, presetWebFonts } from 'unocss'
 
 // https://vitejs.dev/config/
-export default defineConfig(({ command }) => {
+export default defineConfig(({ command, mode }) => {
   return {
     plugins: [
       vue(),
-      // Configuração completa do UnoCSS injetada diretamente aqui
-      UnoCSS({
-        presets: [
-          presetUno(), // Habilita classes compatíveis com Tailwind/Bootstrap (flex, p-4, bg-blue-500)
-          presetIcons({
-            scale: 1.2,
-            cdn: 'https://esm.sh/'
-          }),
-          presetWebFonts({
-            provider: 'google',
-            fonts: {
-              sans: 'Inter:400,600,700',
-            },
-          }),
-        ],
-      }),
+      // A configuração agora é carregada automaticamente de uno.config.ts
+      // Mantendo o vite.config.ts limpo e focado na infraestrutura de build
+      UnoCSS(), 
     ],
     resolve: {
       alias: {
@@ -33,6 +19,7 @@ export default defineConfig(({ command }) => {
     },
     server: {
       port: 8001,
+      host: true, // Necessário para Docker/Rede local
       proxy: {
         '/api': {
           target: 'http://127.0.0.1:8000',
@@ -46,6 +33,20 @@ export default defineConfig(({ command }) => {
         }
       }
     },
+    // Lógica crítica para integração com Django Static Files
     base: command === 'build' ? '/static/' : '/',
+    build: {
+      // Evita warnings de chunks muito grandes
+      chunkSizeWarningLimit: 1000,
+      rollupOptions: {
+        output: {
+          // Separa bibliotecas de terceiros do código da aplicação para melhor cache
+          manualChunks: {
+            'vendor-vue': ['vue', 'vue-router', 'pinia'],
+            'vendor-ui': ['@vueuse/core'], // Adicione outras libs pesadas aqui se necessário
+          }
+        }
+      }
+    }
   }
 })
