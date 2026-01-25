@@ -2,22 +2,19 @@
 
 import os
 import json
-import requests
-import traceback
-import locale
 import logging
-from decimal import Decimal, InvalidOperation
+from decimal import Decimal
 from datetime import date, timedelta
 from io import BytesIO
+import locale
 
-from django.db import models, transaction, OperationalError
+from django.db import models, transaction
 from django.shortcuts import get_object_or_404
-from django.http import HttpResponse, QueryDict, Http404 
+from django.http import HttpResponse, Http404 
 from django.template.loader import render_to_string
 from django.utils import timezone
-# IMPORTANTE: Adicionado localdate para corrigir o filtro de visitas
 from django.utils.timezone import localdate 
-from django.db.models import Count, Q, Case, When, Value, CharField, Max, F, ExpressionWrapper, fields, Sum 
+from django.db.models import Count, Q, Max, F, ExpressionWrapper, fields, Case, When, Value, CharField
 from django.conf import settings
 from django.core.mail import send_mail
 
@@ -31,7 +28,6 @@ from rest_framework.generics import ListAPIView, RetrieveAPIView
 
 from xhtml2pdf import pisa
 import google.generativeai as genai
-from google.api_core import exceptions as google_exceptions
 
 try:
     from num2words import num2words
@@ -41,15 +37,18 @@ except ImportError:
 from .models import Imovel, ImagemImovel, ContatoImovel
 from .serializers import (
     ImovelSerializer, 
-    ImovelPublicSerializer, 
+    ImovelPublicSerializer, # <--- ESSENCIAL ESTAR AQUI
     ContatoImovelSerializer, 
     ImagemImovelSerializer,
     ImovelSimplificadoSerializer 
 )
-from core.models import Imobiliaria, PerfilUsuario, Notificacao, ConfiguracaoGlobal
-from app_clientes.models import Cliente, Oportunidade, Visita
-from app_config_ia.models import ModeloDePrompt
+from core.models import Imobiliaria, PerfilUsuario, ConfiguracaoGlobal
+# Importação necessária para views públicas
 from core.serializers import ImobiliariaPublicSerializer
+from app_config_ia.models import ModeloDePrompt
+
+# ATENÇÃO: Models de app_clientes (Visita, Cliente, etc) removidos do escopo global
+# para evitar erro de Ciclo de Importação/Timeout.
 
 logger = logging.getLogger(__name__)
 
@@ -257,8 +256,44 @@ class VisualizarAutorizacaoPdfView(APIView):
             return HttpResponse(f"Erro ao gerar o PDF: {pdf.err}", status=500)
 
 # ===================================================================
-# VIEWS PÚBLICAS EXISTENTES
+# VIEWS PÚBLICAS
 # ===================================================================
+
+class PublicImovelViewSet(viewsets.ReadOnlyModelViewSet):
+    """
+    View para o Portal Principal (imobhome.com.br/localhost:8001).
+    Exibe imóveis de TODAS as imobiliárias, ordenados pelo mais recente.
+    """
+    # Usa o 'permissions' importado no topo
+    permission_classes = [permissions.AllowAny]
+    
+    # Usa o serializer importado no topo
+    serializer_class = ImovelPublicSerializer 
+
+    def get_queryset(self):
+        # Filtra apenas imóveis ativos e publicados
+        queryset = Imovel.objects.filter(
+            status__in=['A_VENDA', 'PARA_ALUGAR'],
+            publicado_no_site=True
+        )
+
+        # --- Filtros de Query Params ---
+        status_filter = self.request.query_params.get('status')
+        tipo = self.request.query_params.get('tipo')
+        cidade = self.request.query_params.get('cidade')
+
+        if status_filter:
+            queryset = queryset.filter(status=status_filter)
+        if tipo:
+            queryset = queryset.filter(tipo=tipo)
+        if cidade:
+            queryset = queryset.filter(
+                Q(cidade__icontains=cidade) | 
+                Q(bairro__icontains=cidade)
+            )
+
+        # Ordenação: ID decrescente = Últimos cadastrados primeiro (Prioridade)
+        return queryset.order_by('-id')
 
 class ImovelPublicListView(ListAPIView):
     serializer_class = ImovelPublicSerializer
@@ -345,7 +380,8 @@ class ImovelPublicDetailView(RetrieveAPIView):
         subdomain = self.request.query_params.get('subdomain')
 
         if not subdomain:
-             return qs.none()
+             # Se não tem subdomínio, permite buscar qualquer imóvel público (para o portal principal)
+             return qs
 
         try:
             imobiliaria_obj = Imobiliaria.objects.get(subdominio__iexact=subdomain)
@@ -554,6 +590,7 @@ class ImovelIAView(APIView):
             }, status=status.HTTP_200_OK)
             
         except Exception as e:
+            import traceback
             traceback.print_exc()
             return Response({"error": f"Erro interno ao processar IA: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
@@ -632,64 +669,71 @@ class ImovelViewSet(viewsets.ModelViewSet):
     @action(detail=False, methods=['get'], url_path='stats')
     def dashboard_stats(self, request):
         """
-        Endpoint para alimentar o Card 'Imóveis Ativos' no Dashboard.
-        Retorna: Contagem de imóveis ativos e agenda de visitas (mock/real).
+        Endpoint para alimentar o Card 'Imóveis Ativos' no Dashboard e 'Visitas Agendadas'.
         """
+        # Importação LOCAL para evitar Ciclo de Importação
+        from app_clientes.models import Visita
+
+        ativos = 0
+        visitas_data = []
+        
+        tenant = getattr(self.request, 'tenant', None) or getattr(request.user, 'imobiliaria', None)
+
+        # 1. Tenta buscar Imóveis Ativos
         try:
             qs = self.get_queryset()
-            tenant = getattr(self.request, 'tenant', None) or getattr(request.user, 'imobiliaria', None)
-            
-            # Conta imóveis considerados "Ativos" (Venda ou Aluguel)
             ativos = qs.filter(status__in=['A_VENDA', 'PARA_ALUGAR']).count()
+        except Exception as e:
+            logger.error(f"Erro crítico ao contar imóveis ativos: {e}")
             
-            # Recupera visitas agendadas (agora usando a Model Visita diretamente e corretamente)
-            visitas_data = []
-            
+        # 2. Tenta buscar Visitas (CORREÇÃO DE CAMPO e LÓGICA)
+        try:
             if tenant:
                 hoje = localdate() 
-                # CORREÇÃO: Ampliando os status aceitos para garantir que apareça
-                status_aceitos = ['AGENDADA', 'CONFIRMADA', 'PENDENTE', 'NOVA', 'REAMARCADA']
+                
+                # CORRIGIDO: 
+                # 1. Filtra por data_visita (campo correto)
+                # 2. Filtra por realizada=False (em vez de status)
                 
                 v_qs = Visita.objects.filter(
                     imobiliaria=tenant,
-                    data__date__gte=hoje, # Garante que visitas de hoje (mesmo se passou a hora) apareçam
-                    data__isnull=False,
-                    status__in=status_aceitos # Usa __in ao invés de iexact para pegar variações
-                ).prefetch_related('imoveis', 'cliente').select_related('corretor')
+                    data_visita__date__gte=hoje, 
+                    data_visita__isnull=False,
+                    realizada=False # Mostra apenas o que NÃO foi realizado
+                ).select_related('cliente', 'corretor').prefetch_related('imoveis')
 
                 # Se não for admin/superuser, vê só as suas
-                if not (request.user.is_superuser or getattr(request.user, 'is_admin', False)):
+                is_admin = request.user.is_superuser or getattr(request.user, 'is_admin', False)
+                if not is_admin:
                     v_qs = v_qs.filter(corretor=request.user)
 
                 # Ordena e limita
-                v_qs = v_qs.order_by('data')[:5]
+                v_qs = v_qs.order_by('data_visita')[:5]
 
                 for v in v_qs:
                     imovel_titulo = "Sem imóvel vinculado"
-                    # Verifica se existe imóvel e se não é None
+                    imovel_id = None
                     if v.imoveis.exists():
                         first_imovel = v.imoveis.first()
-                        if first_imovel:
-                            imovel_titulo = first_imovel.titulo_anuncio or first_imovel.logradouro or f"Ref: {first_imovel.codigo_referencia}"
+                        imovel_id = first_imovel.id
+                        imovel_titulo = first_imovel.titulo_anuncio or f"{first_imovel.logradouro}, {first_imovel.numero}" or f"Ref: {first_imovel.codigo_referencia}"
                     
                     visitas_data.append({
                         "id": v.id,
-                        "data": v.data,
+                        # Mapeamos 'data_visita' para 'data' pois o frontend espera 'data'
+                        "data": v.data_visita, 
                         "imovel_titulo": imovel_titulo,
+                        "imovel_id": imovel_id,
                         "cliente_nome": v.cliente.nome if v.cliente else "Cliente Avulso"
                     })
-
-            return Response({
-                "ativos": ativos,
-                "visitas_agendadas": visitas_data
-            }, status=status.HTTP_200_OK)
-            
         except Exception as e:
-            logger.error(f"Erro stats imoveis: {e}")
-            import traceback
-            traceback.print_exc()
-            # Em caso de erro, retorna lista vazia para não quebrar o dashboard
-            return Response({"ativos": 0, "visitas_agendadas": []})
+            logger.error(f"Erro ao carregar visitas no dashboard: {e}")
+            # Não faz nada, apenas loga. 
+
+        return Response({
+            "ativos": ativos,
+            "visitas_agendadas": visitas_data
+        }, status=status.HTTP_200_OK)
 
     def perform_create(self, serializer):
         tenant = getattr(self.request, 'tenant', None)
@@ -1036,6 +1080,9 @@ class ContatoImovelViewSet(viewsets.ModelViewSet):
 
     @transaction.atomic 
     def perform_create(self, serializer):
+        # Importação LOCAL para evitar Ciclo
+        from app_clientes.models import Cliente, Oportunidade
+
         dados = serializer.validated_data
         if not dados.get('telefone'):
              raise ValidationError({"telefone": ["Este campo é obrigatório para o contato."]})
@@ -1078,15 +1125,15 @@ class ContatoImovelViewSet(viewsets.ModelViewSet):
                  imobiliaria=imobiliaria,
                  imovel=imovel,
                  cliente=cliente_para_oportunidade
-             ).exclude(fase__in=[Oportunidade.Fases.GANHO, Oportunidade.Fases.PERDIDO]).first()
+             ).exclude(fase__titulo__in=['GANHO', 'PERDIDO']).first()
              
              if not oportunidade_existente:
                  oportunidade = Oportunidade.objects.create(
                      imobiliaria=imobiliaria,
                      imovel=imovel,
                      cliente=cliente_para_oportunidade,
-                     fase=Oportunidade.Fases.LEAD,
-                     fonte=Oportunidade.Fontes.SITE,
+                     # Nota: Fase padrão deve ser configurada no modelo ou sinal
+                     fonte='SITE',
                      titulo=f"Lead Site: {imovel.titulo_anuncio or imovel.tipo} ({contato.nome})",
                      valor_estimado=imovel.valor_venda or imovel.valor_aluguel,
                      informacoes_adicionais=f"Mensagem do Lead: {contato.mensagem}"

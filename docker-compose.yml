@@ -13,7 +13,7 @@ services:
     ports:
       # Mapeia a porta 5433 do seu Windows para a 5432 do Container
       # Isso resolve o conflito com o Postgres local e permite o acesso via 'localhost:5433'
-      - "5433:5432"
+      - "5432:5432"
     restart: always
 
   redis:

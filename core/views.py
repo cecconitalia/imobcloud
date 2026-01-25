@@ -11,8 +11,9 @@ from django.utils import timezone
 from datetime import timedelta
 from django.shortcuts import get_object_or_404
 from django.contrib.auth import get_user_model
-from django.db.models import Sum, Q
+from django.db.models import Sum, Count, Q
 from django.db import transaction
+from decimal import Decimal
 
 # --- Imports para CSRF Fix ---
 from django.views.decorators.csrf import csrf_exempt
@@ -31,8 +32,9 @@ import os
 # Imports dos Apps (com tratamento de erro caso o app não esteja instalado)
 try:
     from app_imoveis.models import Imovel
-    from app_clientes.models import Cliente
+    from app_clientes.models import Cliente, Oportunidade, Tarefa, Visita
     from app_contratos.models import Contrato, Pagamento
+    from app_financeiro.models import Transacao
 except ImportError:
     pass
 
@@ -291,6 +293,7 @@ class DashboardStatsView(APIView):
             'oportunidades_ativas': 0,
             'tarefas_pendentes': 0,
             'receita_mes': 0,
+            'despesa_mes': 0,
             'imoveis_ativos': 0,
             'financeiro_previsto_entrada': 0,
             'financeiro_previsto_saida': 0,
@@ -321,7 +324,7 @@ class DashboardStatsView(APIView):
             
             # --- 1. IMÓVEIS ---
             try:
-                from app_imoveis.models import Imovel
+                # Usa app_imoveis.models.Imovel (importado no topo)
                 qs_imoveis = Imovel.objects.all()
                 if imobiliaria:
                     qs_imoveis = qs_imoveis.filter(imobiliaria=imobiliaria)
@@ -333,19 +336,16 @@ class DashboardStatsView(APIView):
 
             # --- 2. CLIENTES, OPORTUNIDADES E FUNIL ---
             try:
-                from app_clientes.models import Oportunidade, Tarefa, Visita
+                # Usa imports do app_clientes (Oportunidade, Tarefa, Visita)
                 
                 # --- OPORTUNIDADES ---
                 qs_ops = Oportunidade.objects.all()
                 if imobiliaria:
                     qs_ops = qs_ops.filter(imobiliaria=imobiliaria)
                 
-                # Debug: Total bruto antes de filtrar
-                print(f"Total Bruto Oportunidades: {qs_ops.count()}")
-
                 # KPI: Oportunidades Ativas
-                # Removemos 'GANHO', 'PERDIDO', 'ganho', 'perdido' para garantir
-                ops_ativas = qs_ops.exclude(fase__in=['GANHO', 'PERDIDO', 'ganho', 'perdido', 'Ganho', 'Perdido'])
+                # Removemos 'GANHO', 'PERDIDO' com variações de caixa alta/baixa
+                ops_ativas = qs_ops.exclude(fase__in=['GANHO', 'PERDIDO', 'ganho', 'perdido', 'Ganho', 'Perdido', 'VENDIDO', 'ALUGADO'])
                 data['oportunidades_ativas'] = ops_ativas.count()
                 data['total_oportunidades'] = ops_ativas.count()
                 
@@ -373,11 +373,11 @@ class DashboardStatsView(APIView):
 
                 # --- TAREFAS ---
                 # Filtro inicial: Status Pendente
-                qs_tarefas = Tarefa.objects.filter(status='PENDENTE')
+                # Tenta lidar com case sensitive do status PENDENTE/Pendente
+                qs_tarefas = Tarefa.objects.filter(status__in=['PENDENTE', 'Pendente', 'Em andamento'])
                 
                 if imobiliaria:
-                    # CORREÇÃO: Filtra tarefas onde o cliente pertence à imob OU o responsável pertence à imob
-                    # Isso pega tarefas internas que não têm cliente vinculado
+                    # Filtra tarefas onde o cliente pertence à imob OU o responsável pertence à imob
                     qs_tarefas = qs_tarefas.filter(
                         Q(cliente__imobiliaria=imobiliaria) | 
                         Q(responsavel__imobiliaria=imobiliaria)
@@ -402,9 +402,8 @@ class DashboardStatsView(APIView):
                 ]
 
                 # --- VISITAS ---
-                qs_visitas = Visita.objects.filter(data__gte=timezone.now(), status='AGENDADA')
+                qs_visitas = Visita.objects.filter(data__gte=timezone.now(), status__in=['AGENDADA', 'Agendada'])
                 if imobiliaria:
-                    # Tenta filtrar por cliente da imobiliária ou imóvel da imobiliária
                     qs_visitas = qs_visitas.filter(
                         Q(cliente__imobiliaria=imobiliaria) | 
                         Q(imovel__imobiliaria=imobiliaria)
@@ -418,7 +417,6 @@ class DashboardStatsView(APIView):
                     {
                         'id': v.id,
                         'data': v.data,
-                        # Verifica relacionamentos com segurança (ManyMany ou ForeignKey)
                         'imovel_titulo': str(v.imoveis.first()) if hasattr(v, 'imoveis') and v.imoveis.exists() else (str(v.imovel) if hasattr(v, 'imovel') and v.imovel else "Não informado"),
                         'imovel_id': v.imoveis.first().id if hasattr(v, 'imoveis') and v.imoveis.exists() else (v.imovel.id if hasattr(v, 'imovel') and v.imovel else 0),
                         'cliente_nome': str(v.cliente) if v.cliente else 'Cliente'
@@ -431,36 +429,45 @@ class DashboardStatsView(APIView):
             
             # --- 3. FINANCEIRO ---
             try:
-                from app_financeiro.models import Transacao
-                
+                # Usa app_financeiro.models.Transacao
                 qs_fin = Transacao.objects.all()
                 if imobiliaria:
                     qs_fin = qs_fin.filter(imobiliaria=imobiliaria)
 
-                # Receita do Mês
+                # Receita do Mês (CONFIRMADA/PAGA)
                 receita = qs_fin.filter(
-                    tipo='RECEITA', 
-                    status='PAGO', 
+                    tipo__in=['RECEITA', 'Receita'], 
+                    status__in=['PAGO', 'Pago', 'Confirmado'], 
                     data_pagamento__gte=inicio_mes
                 ).aggregate(Sum('valor'))['valor__sum']
-                data['receita_mes'] = receita if receita else 0
+                
+                data['receita_mes'] = receita if receita else Decimal(0)
 
-                # Previsões
+                # Despesa do Mês (CONFIRMADA/PAGA)
+                despesa = qs_fin.filter(
+                    tipo__in=['DESPESA', 'Despesa'], 
+                    status__in=['PAGO', 'Pago', 'Confirmado'], 
+                    data_pagamento__gte=inicio_mes
+                ).aggregate(Sum('valor'))['valor__sum']
+                
+                data['despesa_mes'] = despesa if despesa else Decimal(0)
+
+                # Previsões (A Vencer/Pendente este mês)
                 entradas_prev = qs_fin.filter(
-                    tipo='RECEITA',
-                    status='PENDENTE',
+                    tipo__in=['RECEITA', 'Receita'],
+                    status__in=['PENDENTE', 'Pendente', 'Aguardando'],
                     data_vencimento__gte=inicio_mes,
                     data_vencimento__month=hoje.month
                 ).aggregate(Sum('valor'))['valor__sum']
-                data['financeiro_previsto_entrada'] = entradas_prev if entradas_prev else 0
+                data['financeiro_previsto_entrada'] = entradas_prev if entradas_prev else Decimal(0)
 
                 saidas_prev = qs_fin.filter(
-                    tipo='DESPESA',
-                    status='PENDENTE',
+                    tipo__in=['DESPESA', 'Despesa'],
+                    status__in=['PENDENTE', 'Pendente', 'Aguardando'],
                     data_vencimento__gte=inicio_mes,
                     data_vencimento__month=hoje.month
                 ).aggregate(Sum('valor'))['valor__sum']
-                data['financeiro_previsto_saida'] = saidas_prev if saidas_prev else 0
+                data['financeiro_previsto_saida'] = saidas_prev if saidas_prev else Decimal(0)
                 
                 print(f"Receita Mês: {data['receita_mes']}") # Debug
 

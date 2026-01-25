@@ -116,28 +116,6 @@
                 
                 <div class="widget-card">
                     <div class="widget-header">
-                        <h3><i class="fas fa-filter text-blue"></i> Funil de Vendas</h3>
-                        <router-link :to="{ name: 'funil-vendas' }" class="link-small">Abrir Quadro</router-link>
-                    </div>
-                    <div class="widget-body">
-                        <div class="funnel-chart">
-                            <div v-if="!stats.funil_resumo.length && stats.oportunidades_ativas === 0" class="empty-widget">
-                                <p>Nenhuma oportunidade ativa.</p>
-                                <router-link :to="{ name: 'oportunidade-nova' }" class="btn-link-sm">Criar Oportunidade</router-link>
-                            </div>
-                            <div v-else v-for="(fase, index) in stats.funil_resumo" :key="index" class="funnel-row">
-                                <div class="funnel-label">{{ fase.titulo }}</div>
-                                <div class="funnel-bar-container">
-                                    <div class="funnel-bar" :style="{ width: calculatePercent(fase.total, stats.total_oportunidades) + '%' }"></div>
-                                    <span class="funnel-count">{{ fase.total }}</span>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="widget-card mt-4">
-                    <div class="widget-header">
                         <h3><i class="fas fa-map-marker-alt text-purple"></i> Próximas Visitas</h3>
                         <router-link :to="{ name: 'visitas' }" class="link-small">Agenda</router-link>
                     </div>

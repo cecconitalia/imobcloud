@@ -228,22 +228,36 @@ class Contrato(models.Model):
     def gerar_financeiro_aluguel(self):
         """
         Gera as transações de aluguel no financeiro.
-        Cria Conta e Categoria se não existirem para evitar erros.
+        Corrige e regenera parcelas pendentes se houver alteração de duração.
         """
         imobiliaria = self.imobiliaria
         if not self.aluguel or not self.duracao_meses or not self.data_primeiro_vencimento:
              logger.error(f"ERRO ALUGUEL: Contrato {self.id} sem Valor/Duração/Data do 1º Vencimento. Geração ignorada.")
              return False
              
-        transacoes_existentes = Transacao.objects.filter(contrato=self, tipo='RECEITA').exists()
-        if transacoes_existentes:
-            logger.warning(f"AVISO ALUGUEL: Transações para Contrato {self.id} já existem. Geração ignorada.")
-            return False
+        # 1. Limpeza Inteligente: Remove parcelas PENDENTES para permitir regeneração
+        # Isso resolve o problema de 'geração ignorada' quando se altera a duração/valor
+        Transacao.objects.filter(
+            contrato=self, 
+            tipo='RECEITA', 
+            status='PENDENTE'
+        ).delete()
         
-        data_base_vencimento = self.data_primeiro_vencimento
+        Pagamento.objects.filter(
+            contrato=self, 
+            status='PENDENTE'
+        ).delete()
+        
+        # 2. Verifica parcelas PAGAS para continuar de onde parou
+        qtd_pagas = Transacao.objects.filter(contrato=self, tipo='RECEITA').count()
         duracao = self.duracao_meses
+        data_base_vencimento = self.data_primeiro_vencimento
         
-        # 1. Busca ou Cria Categoria
+        if qtd_pagas >= duracao:
+            logger.info(f"AVISO ALUGUEL: Contrato {self.id} já possui {qtd_pagas} parcelas pagas (Duração atual: {duracao}). Nada a gerar.")
+            return True
+        
+        # 3. Busca ou Cria Categoria
         try:
              categoria_aluguel = Categoria.objects.get(imobiliaria=imobiliaria, nome='Receita de Aluguel')
         except Categoria.DoesNotExist:
@@ -253,7 +267,7 @@ class Contrato(models.Model):
              logger.error(f"ERRO CRÍTICO ALUGUEL: Falha ao obter/criar Categoria de Aluguel. Erro: {e}")
              return False
 
-        # 2. Busca ou Cria Conta Padrão (CORREÇÃO CRÍTICA)
+        # 4. Busca ou Cria Conta Padrão
         conta_padrao = Conta.objects.filter(imobiliaria=imobiliaria).first()
         if not conta_padrao:
              logger.warning(f"AVISO ALUGUEL: Nenhuma Conta encontrada. Criando 'Conta Principal' automaticamente.")
@@ -263,8 +277,10 @@ class Contrato(models.Model):
                  logger.error(f"ERRO CRÍTICO ALUGUEL: Falha ao criar Conta Padrão. Erro: {e}")
                  return False
         
-        # 3. Loop de Geração
-        for i in range(duracao):
+        # 5. Loop de Geração (Começa após as pagas)
+        # Se qtd_pagas = 0, range(0, 6) gera parcelas 1 a 6.
+        # Se qtd_pagas = 3 (antigas), range(3, 6) gera parcelas 4, 5, 6.
+        for i in range(qtd_pagas, duracao):
              data_parcela = data_base_vencimento + relativedelta(months=i)
              
              data_referencia = data_parcela - relativedelta(months=1)
@@ -297,7 +313,7 @@ class Contrato(models.Model):
                  contrato=self
              )
              
-        logger.info(f"SUCESSO ALUGUEL: {duracao} parcelas geradas para Contrato {self.id}.")
+        logger.info(f"SUCESSO ALUGUEL: Geradas {duracao - qtd_pagas} novas parcelas para Contrato {self.id}.")
         return True
 
     def criar_transacao_comissao(self):

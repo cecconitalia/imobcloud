@@ -8,11 +8,12 @@ from io import BytesIO
 from datetime import date, timedelta
 
 from django.conf import settings
-from django.db import models  # Import necessário para Aggregations
+from django.db import models
 from django.db.models import Count, Q, Sum
 from django.db.models.functions import TruncMonth, Coalesce
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
+from django.utils.timezone import localdate
 from django.utils.dateparse import parse_date
 from django.contrib.auth import get_user_model
 from django.http import HttpResponse, HttpResponseRedirect, Http404
@@ -47,7 +48,9 @@ from .serializers import (
     ClienteSimplesSerializer
 )
 from ImobCloud.utils.google_calendar_api import agendar_tarefa_no_calendario
-from app_imoveis.models import Imovel
+
+# --- ATENÇÃO: Importação global de app_imoveis REMOVIDA para evitar Erro 500 (Ciclo) ---
+# A importação será feita localmente dentro dos métodos que precisam dela.
 
 User = get_user_model()
 logger = logging.getLogger(__name__)
@@ -331,32 +334,20 @@ class VisitaViewSet(viewsets.ModelViewSet):
         return Visita.objects.none()
 
     def perform_create(self, serializer):
-        cliente_id = self.request.data.get('cliente')
-        cliente = get_object_or_404(Cliente, pk=cliente_id)
-        
+        from app_imoveis.models import Imovel # Importação local para evitar ciclo
+
+        # Lógica de associação automática ao tenant
         tenant = getattr(self.request, 'tenant', None) or getattr(self.request.user, 'imobiliaria', None)
-        imobiliaria = tenant
-
-        if not imobiliaria and self.request.user.is_superuser:
-            imoveis_data = self.request.data.get('imoveis')
-            if imoveis_data and isinstance(imoveis_data, list) and len(imoveis_data) > 0:
-                try:
-                    primeiro_id = imoveis_data[0]
-                    imovel_obj = Imovel.objects.get(pk=primeiro_id)
-                    imobiliaria = imovel_obj.imobiliaria
-                except (Imovel.DoesNotExist, IndexError, ValueError):
-                    pass
-            
-            if not imobiliaria and cliente.imobiliaria:
-                imobiliaria = cliente.imobiliaria
-            
-            if not imobiliaria:
-                 imobiliaria = Imobiliaria.objects.first()
+        if not tenant and self.request.user.is_superuser:
+             tenant = Imobiliaria.objects.first()
         
-        if not imobiliaria:
-            raise PermissionDenied("Não foi possível associar a visita. Tenant/Imobiliária não identificada.")
-
-        serializer.save(imobiliaria=imobiliaria, cliente=cliente, corretor=self.request.user)
+        if not tenant: raise PermissionDenied("Imobiliária não identificada.")
+        
+        # Correção: validar cliente obrigatório
+        cliente_id = self.request.data.get('cliente')
+        if not cliente_id: raise ValidationError({"cliente": "Cliente é obrigatório"})
+        
+        serializer.save(imobiliaria=tenant, corretor=self.request.user)
 
     def perform_update(self, serializer):
         instance = serializer.instance
@@ -585,7 +576,7 @@ class OportunidadeViewSet(viewsets.ModelViewSet):
             # Registra no histórico do cliente
             Atividade.objects.create(
                 cliente=instance.cliente,
-                imobiliaria=instance.imobiliaria, # Garante tenant na atividade
+                # CORREÇÃO: Removido campo 'imobiliaria' que não existe no modelo Atividade
                 tipo='NOTA',
                 descricao=descricao,
                 registrado_por=user
@@ -611,8 +602,8 @@ class OportunidadeViewSet(viewsets.ModelViewSet):
             
             Atividade.objects.create(
                 cliente=instance.cliente,
-                imobiliaria=instance.imobiliaria,
-                tipo='MUDANCA_FASE', # Certifique-se que este choice existe no model Atividade
+                # CORREÇÃO: Removido campo 'imobiliaria' que não existe no modelo Atividade
+                tipo='MUDANCA_FASE', 
                 descricao=descricao,
                 registrado_por=user
             )
@@ -626,32 +617,43 @@ class OportunidadeViewSet(viewsets.ModelViewSet):
         try:
             qs = self.get_queryset()
 
-            # CORREÇÃO: Usar fase__titulo__icontains ou fase__slug__in
-            # O erro 500 anterior ocorria porque 'fase' é uma ForeignKey e estávamos comparando com strings.
-            # Aqui filtramos pelo campo 'titulo' da tabela relacionada FunilEtapa.
-            
-            total_ativas = qs.exclude(
-                Q(fase__titulo__icontains='Ganho') | 
-                Q(fase__titulo__icontains='Perdido') | 
-                Q(fase__titulo__icontains='Cancelado') |
-                Q(fase__titulo__icontains='Vendido') |
-                Q(fase__titulo__icontains='Fechado')
-            ).count()
+            # Usamos Q objects com icontains para garantir que variações como "Perdido", "perdido", "Ganho"
+            # sejam excluídas do funil ATIVO.
+            # Isso corrige o problema de "Perdido 1" aparecendo no gráfico de pipeline.
+            fases_exclude_query = Q(fase__titulo__icontains='Ganho') | \
+                                  Q(fase__titulo__icontains='Perdido') | \
+                                  Q(fase__titulo__icontains='Cancelado') | \
+                                  Q(fase__titulo__icontains='Vendido') | \
+                                  Q(fase__titulo__icontains='Alugado') | \
+                                  Q(fase__titulo__icontains='Fechado') | \
+                                  Q(fase__titulo__icontains='Concluido')
 
-            # Opcional: Soma de valores (se existir campo 'valor')
-            # total_valor = qs.exclude(fase__titulo__icontains='Ganho'...).aggregate(Sum('valor'))['valor__sum'] or 0
+            ativas_qs = qs.exclude(fases_exclude_query)
+            
+            total_ativas = ativas_qs.count()
+
+            # Agregação para o gráfico de funil (fases_detalhadas)
+            stats_fases = ativas_qs.values('fase__titulo').annotate(total=Count('id')).order_by('fase__ordem')
+            
+            fases_detalhadas = []
+            for item in stats_fases:
+                titulo = item.get('fase__titulo') or 'Sem Fase'
+                fases_detalhadas.append({
+                    'titulo': titulo,
+                    'total': item['total']
+                })
 
             return Response({
                 "total_ativas": total_ativas,
-                # "total_valor": total_valor,
+                "fases_detalhadas": fases_detalhadas,
                 "status": "success"
             }, status=status.HTTP_200_OK)
 
         except Exception as e:
             logger.error(f"Erro stats oportunidade: {e}")
             return Response(
-                {"error": "Erro ao calcular estatísticas", "details": str(e)}, 
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+                {"total_ativas": 0, "fases_detalhadas": [], "error": str(e)}, 
+                status=status.HTTP_200_OK # Retorna 200 com 0 para não quebrar o dashboard
             )
 
 class FunilEtapaViewSet(viewsets.ModelViewSet):
@@ -778,16 +780,17 @@ class TarefaViewSet(viewsets.ModelViewSet):
         """
         try:
             qs = self.get_queryset()
-            hoje = timezone.now().date()
+            hoje = localdate() # Garante data correta do servidor
             
             # 1. Contagem de Pendências (Tudo que não está concluído)
-            pendentes = qs.exclude(status='concluida').count()
+            # Usamos exclude iexact para garantir case-insensitivity (ex: CONCLUIDA, Concluida)
+            pendentes = qs.exclude(status__iexact='CONCLUIDA').count()
             
             # 2. Tarefas de Hoje (Para o Widget de Lista)
             # Filtra tarefas que vencem hoje e não estão prontas
             tarefas_hoje = qs.filter(
                 data_vencimento__date=hoje
-            ).exclude(status='concluida').order_by('data_vencimento')[:5]
+            ).exclude(status__iexact='CONCLUIDA').order_by('data_vencimento')[:5]
             
             # Serializa a lista curta para o widget
             # Usamos uma serialização simplificada aqui para performance
@@ -811,9 +814,10 @@ class TarefaViewSet(viewsets.ModelViewSet):
             }, status=status.HTTP_200_OK)
             
         except Exception as e:
+            logger.error(f"Erro stats tarefas: {e}")
             return Response(
-                {"error": "Erro ao calcular stats tarefas", "details": str(e)}, 
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+                {"pendentes": 0, "hoje": [], "error": str(e)}, 
+                status=status.HTTP_200_OK
             )
 
     @action(detail=False, methods=['get'], url_path='listar-responsaveis')

@@ -126,7 +126,7 @@ DATABASES = {
         'NAME': os.getenv('POSTGRES_DB', 'imobcloud_db'),
         'USER': os.getenv('POSTGRES_USER', 'imobcloud_user'),
         'PASSWORD': os.getenv('POSTGRES_PASSWORD', 'ImobCloud2025'),
-        'HOST': os.getenv('DB_HOST', DB_HOST_DEFAULT), 
+        'HOST': os.getenv('DB_HOST', DB_HOST_DEFAULT),
         'PORT': os.getenv('DB_PORT', DB_PORT_DEFAULT),
         'ATOMIC_REQUESTS': True,
     }

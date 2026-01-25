@@ -53,33 +53,93 @@ class ImovelSerializer(serializers.ModelSerializer):
         return ImagemImovelSerializer(imagens_ordenadas, many=True, context={'request': request}).data
 
 
-class ImovelPublicSerializer(ImovelSerializer):
+class ImovelPublicSerializer(serializers.ModelSerializer):
     """
-    Serializer para a visualização pública, omitindo campos sensíveis.
+    Serializer para a visualização pública (Portal).
+    Inclui dados para redirecionamento e omite dados sensíveis.
     """
-    # Desativa os campos herdados explicitamente
-    proprietario = None
-    proprietario_detalhes = None
+    
+    # --- NOVOS CAMPOS PARA REDIRECIONAMENTO E UI ---
+    subdominio = serializers.CharField(source='imobiliaria.subdominio', read_only=True)
+    nome_imobiliaria = serializers.CharField(source='imobiliaria.nome_fantasia', read_only=True)
+    imagem_principal = serializers.SerializerMethodField()
+    
+    # Reutiliza a lógica de imagens do serializer principal
+    imagens = serializers.SerializerMethodField()
 
     class Meta:
         model = Imovel
-        # CORREÇÃO: Removemos 'ativo' do exclude, pois não existe no modelo Imovel.
-        exclude = [
-            # 'proprietario', # Desativado acima
-            'numero_matricula',
-            'data_captacao',
-            'data_fim_autorizacao',
-            'possui_exclusividade',
-            'comissao_percentual',
-            'documento_autorizacao',
-            'informacoes_adicionais_autorizacao',
-            # 'proprietario_detalhes', # Desativado acima
-            'imobiliaria',
-            # 'ativo', # REMOVIDO - Este campo não existe no modelo Imovel
-            'posicao_chave',
-            'configuracao_publica',
+        # Definimos explicitamente os campos públicos.
+        # REMOVIDOS: 'latitude', 'longitude' para corrigir o erro ImproperlyConfigured
+        fields = [
+            'id', 
+            'titulo_anuncio', 
+            'descricao_completa',
+            'tipo', 
+            'status', 
+            'finalidade', 
+            'valor_venda', 
+            'valor_aluguel', 
+            'valor_condominio', 
+            'valor_iptu',
+            'cidade', 
+            'bairro', 
+            'logradouro', 
+            'numero', 
+            'cep', 
+            'estado', 
+            # 'latitude',  <-- REMOVIDO (Não existe no Model)
+            # 'longitude', <-- REMOVIDO (Não existe no Model)
+            'quartos', 
+            'banheiros', 
+            'vagas_garagem', 
+            'suites', 
+            'area_util', 
+            'area_total', 
+            'area_construida',
+            'aceita_pet', 
+            'mobiliado', 
+            'piscina_privativa', 
+            'piscina_condominio', 
+            'elevador', 
+            'churrasqueira_privativa', 
+            'ar_condicionado', 
+            'varanda', 
+            'academia', 
+            'salao_festas', 
+            'playground', 
+            'portaria_24h',
+            'codigo_referencia',
+            'imagens',
+            # Campos Customizados
+            'imagem_principal',
+            'subdominio',
+            'nome_imobiliaria'
         ]
-        # read_only_fields são herdados implicitamente
+
+    def get_imagem_principal(self, obj):
+        """Retorna a URL da imagem principal ou a primeira disponível"""
+        img = obj.imagens.filter(principal=True).first()
+        if not img:
+            img = obj.imagens.order_by('ordem').first()
+        
+        if img and img.imagem:
+            try:
+                # Retorna URL absoluta se o request estiver no contexto
+                request = self.context.get('request')
+                if request:
+                    return request.build_absolute_uri(img.imagem.url)
+                return img.imagem.url
+            except:
+                return None
+        return None
+
+    def get_imagens(self, obj):
+        """Mesma lógica do serializer pai"""
+        imagens_ordenadas = obj.imagens.order_by('ordem')
+        request = self.context.get('request')
+        return ImagemImovelSerializer(imagens_ordenadas, many=True, context={'request': request}).data
+
 
 # NOVO SERIALIZER PARA AS INFORMAÇÕES RESUMIDAS DO IMÓVEL NO CONTATO
 class ImovelResumoSerializer(serializers.ModelSerializer):
@@ -89,20 +149,14 @@ class ImovelResumoSerializer(serializers.ModelSerializer):
 
 
 class ContatoImovelSerializer(serializers.ModelSerializer):
-    # CORREÇÃO: Usa o novo serializer para aninhar os detalhes do imóvel no campo 'imovel_obj'
     imovel_obj = ImovelResumoSerializer(source='imovel', read_only=True)
     
     class Meta:
         model = ContatoImovel
-        # Inclui todos os campos do modelo + o campo aninhado 'imovel_obj'
         fields = [field.name for field in ContatoImovel._meta.fields] + ['imovel_obj']
-        # CORREÇÃO: 'data_criacao' alterado para 'data_contato'
         read_only_fields = ('data_contato',) 
 
 class ImovelSimplificadoSerializer(serializers.ModelSerializer):
-    """
-    Serializer leve para listagens em dropdowns (selects).
-    """
     class Meta:
         model = Imovel
         fields = ['id', 'titulo_anuncio', 'codigo_referencia', 'logradouro', 'numero', 'bairro', 'cidade', 'valor_venda', 'valor_aluguel']
